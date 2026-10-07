@@ -1,0 +1,97 @@
+{
+  "name": "@karmaniverous/jeeves-scripts-core",
+  "version": "0.0.0",
+  "author": "Jason Williscroft",
+  "description": "Shared Jeeves scripts domains, job registry and CLI for jeeves-scripts instance repos.",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "files": [
+    "dist",
+    "template"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
+    }
+  },
+  "types": "dist/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karmaniverous/jeeves-scripts-core.git",
+    "directory": "packages/core"
+  },
+  "bugs": {
+    "url": "https://github.com/karmaniverous/jeeves-scripts-core/issues"
+  },
+  "homepage": "https://github.com/karmaniverous/jeeves-scripts-core#readme",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@dotenvx/dotenvx": "^2.33.0",
+    "@rollup/plugin-commonjs": "^29.0.3",
+    "@rollup/plugin-json": "^6.1.0",
+    "@rollup/plugin-node-resolve": "^16.0.3",
+    "@rollup/plugin-typescript": "^12.3.0",
+    "@types/node": "^26.6.4",
+    "cross-env": "^10.1.0",
+    "fs-extra": "^11.4.1",
+    "@types/fs-extra": "^11.0.4",
+    "release-it": "^21.1.0",
+    "rollup": "^4.64.1",
+    "tslib": "^2.8.1",
+    "tsx": "^4.23.15",
+    "vitest": "^5.0.3"
+  },
+  "scripts": {
+    "build": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts --configPlugin @rollup/plugin-typescript && tsx scripts/copy-template.ts",
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "changelog": "git-cliff -o CHANGELOG.md",
+    "release": "dotenvx run -f .env.local -- release-it",
+    "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.preRelease --preRelease"
+  },
+  "release-it": {
+    "git": {
+      "changelog": "npx git-cliff --unreleased --strip header",
+      "commitMessage": "chore: release @karmaniverous/jeeves-scripts-core v${version}",
+      "tagName": "core/${version}",
+      "requireBranch": "main"
+    },
+    "github": {
+      "release": true
+    },
+    "hooks": {
+      "after:init": [
+        "npm run lint",
+        "npm run typecheck",
+        "npm run test",
+        "npm run build"
+      ],
+      "after:bump": [
+        "npm install --package-lock-only --ignore-scripts"
+      ],
+      "before:npm:release": [
+        "npx git-cliff -o CHANGELOG.md",
+        "git add -A"
+      ],
+      "after:release": [
+        "git switch -c release/core/${version}",
+        "git push -u origin release/core/${version}",
+        "git switch ${branchName}"
+      ]
+    },
+    "npm": {
+      "publish": true
+    }
+  }
+}
