@@ -1,0 +1,43 @@
+{
+  "entryPoints": ["./packages/core/src/index.ts"],
+  "tsconfig": "./packages/core/tsconfig.json",
+  "highlightLanguages": [
+    "bash",
+    "console",
+    "css",
+    "html",
+    "ini",
+    "javascript",
+    "json",
+    "jsonc",
+    "json5",
+    "md",
+    "powershell",
+    "tsx",
+    "typescript",
+    "xml",
+    "yaml",
+    "yml"
+  ],
+  "hostedBaseUrl": "https://docs.karmanivero.us/jeeves-scripts-core",
+  "navigationLinks": {
+    "GitHub": "https://github.com/karmaniverous/jeeves-scripts-core"
+  },
+  "out": "./docs/",
+  "plugin": ["typedoc-plugin-mdn-links", "typedoc-plugin-replace-text"],
+  "projectDocuments": ["./packages/core/CHANGELOG.md"],
+  "replaceText": {
+    "replacements": [
+      {
+        "pattern": "<!-- TYPEDOC_EXCLUDE -->.*?<!-- /TYPEDOC_EXCLUDE -->",
+        "flags": "gis",
+        "replace": ""
+      }
+    ]
+  },
+  "searchInComments": true,
+  "searchInDocuments": true,
+  "validation": {
+    "notDocumented": true
+  }
+}

@@ -1,12 +1,14 @@
 .nyc_output/
-.rollup.cache/
+**/.rollup.cache/
 .tsbuildinfo
 *.local
 local/
-coverage/
-dist/
+**/coverage/
+**/dist/
 docs/
 esm/
 node_modules/
 context/
 
+# core build output: bundled copy of packages/template
+packages/core/template/

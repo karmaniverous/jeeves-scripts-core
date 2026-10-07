@@ -1,3 +1,15 @@
+/**
+ * Root ESLint flat config for the jeeves-scripts-core monorepo.
+ *
+ * Applies strict, type-aware linting (`strictTypeChecked` +
+ * `stylisticTypeChecked`) to every TypeScript file in the repo, including
+ * config files, scripts and tests in every workspace. No file is excluded
+ * from type-aware linting and no `eslint-disable` is permitted anywhere in
+ * the repo (Decision 22).
+ *
+ * @module eslint.config
+ */
+
 import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -11,10 +23,13 @@ import tsdocPlugin from 'eslint-plugin-tsdoc';
 import tseslint from 'typescript-eslint';
 
 const tsconfigRootDir = dirname(fileURLToPath(import.meta.url));
-// Extract strict type-checked rules into a single rules object.
-const strictConfigs = tseslint.configs
-  .strictTypeChecked as unknown as Array<unknown>;
-const strictTypeCheckedRules = strictConfigs.reduce<Record<string, unknown>>(
+
+// Extract strict + stylistic type-checked rules into one rules object.
+const typeCheckedConfigs = [
+  ...(tseslint.configs.strictTypeChecked as unknown as unknown[]),
+  ...(tseslint.configs.stylisticTypeChecked as unknown as unknown[]),
+];
+const typeCheckedRules = typeCheckedConfigs.reduce<Record<string, unknown>>(
   (acc, cfg) => {
     const rules = (cfg as { rules?: Record<string, unknown> }).rules;
     if (rules) Object.assign(acc, rules);
@@ -23,10 +38,10 @@ const strictTypeCheckedRules = strictConfigs.reduce<Record<string, unknown>>(
   {},
 );
 
-// Cast Vitest plugin to ESLint's Plugin type to satisfy TS.
+// Cast the Vitest plugin to ESLint's Plugin type to satisfy TS.
 const vitest = vitestPlugin as unknown as ESLint.Plugin;
 
-// Vitest recommended rules (flat config)
+// Vitest recommended rules (flat config).
 const vitestRecommendedRules: Linter.RulesRecord =
   (
     vitestPlugin as unknown as {
@@ -37,13 +52,15 @@ const vitestRecommendedRules: Linter.RulesRecord =
 export default [
   {
     ignores: [
-      '.rollup.cache/**/*',
-      'assets/**/*',
-      'coverage/**/*',
-      'diagrams/out/**/*',
-      'dist/**/*',
-      'docs/**/*',
+      '**/.rollup.cache/**/*',
+      '**/assets/**/*',
+      '**/coverage/**/*',
+      '**/diagrams/out/**/*',
+      '**/dist/**',
+      '**/docs/**/*',
+      '**/template/**/*',
       'node_modules/**/*',
+      '**/node_modules/**/*',
     ],
   },
   eslint.configs.recommended,
@@ -52,7 +69,7 @@ export default [
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        project: true,
+        projectService: true,
         tsconfigRootDir,
       },
     },
@@ -63,12 +80,15 @@ export default [
       tsdoc: tsdocPlugin,
     },
     rules: {
-      ...strictTypeCheckedRules,
+      ...typeCheckedRules,
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/no-non-null-assertion': 'off',
       '@typescript-eslint/no-unused-expressions': 'off',
       'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': 'error',
+      '@typescript-eslint/no-unused-vars': [
+        'error',
+        { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
+      ],
       'simple-import-sort/imports': 'error',
       'simple-import-sort/exports': 'error',
       'tsdoc/syntax': 'warn',
@@ -80,7 +100,7 @@ export default [
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
-        project: true,
+        projectService: true,
         tsconfigRootDir,
       },
     },
