@@ -12,26 +12,25 @@ import path from 'node:path';
 
 import { loadConfig, type LoadConfigOptions } from './loader.js';
 import { derivePaths } from './paths.js';
-import type { Config } from './schema.js';
+import type { Config, IntegrationsConfig } from './schema.js';
 
-export interface ResolvedIntegrations {
-  gh: { bin: string; configDir: string; account: string; botUser: string };
-  qdrant: { apiUrl: string; serviceName: string };
-  gateway: { host: string; port: number };
-  gog: { bin: string };
-  slack: { primaryWorkspace: string };
-  notion: { version: string };
-  jira: {
-    siteUrl: string;
-    email: string;
-    apiTokenPath: string;
-    boardId: number | undefined;
-    fieldsFilename: string;
-    maxHistory: number;
-  };
-  linear: { configPath: string; maxHistory: number };
-  x: { accounts: Record<string, { silo?: string; relativePath?: string }> };
-}
+/** Every field of `T` present, with defaults applied. */
+export type Resolved<T> = { [K in keyof T]-?: Exclude<T[K], undefined> };
+
+/**
+ * Integration settings with defaults and env overrides applied: each block
+ * is the schema's block (`IntegrationsConfig`) with every field filled in,
+ * except `jira.boardId`, which has no default.
+ */
+export type ResolvedIntegrations = {
+  [K in Exclude<keyof IntegrationsConfig, 'jira'>]: Resolved<
+    IntegrationsConfig[K]
+  >;
+} & {
+  /** Jira, with `boardId` left optional (no default board). */
+  jira: Resolved<Omit<IntegrationsConfig['jira'], 'boardId'>> &
+    Pick<IntegrationsConfig['jira'], 'boardId'>;
+};
 
 /** Derive resolved integration settings from a loaded config. */
 export const deriveIntegrations = (config: Config): ResolvedIntegrations => {

@@ -15,9 +15,13 @@ import {
 } from './loader.js';
 import { isKnownSilo, siloRouting } from './silo-router.js';
 
+/** Outcome of {@link configCheck}. */
 export interface ConfigCheckResult {
+  /** True when the config is valid and every silo reference is known. */
   ok: boolean;
+  /** The file that was checked, when it could be resolved and read. */
   configPath?: string;
+  /** One message per problem; empty when `ok`. */
   errors: string[];
 }
 

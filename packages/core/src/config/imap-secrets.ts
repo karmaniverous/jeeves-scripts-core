@@ -16,6 +16,7 @@ import path from 'node:path';
 
 /** `imap.password` in pipeline config: a secret reference. */
 export interface ImapPassword {
+  /** Name of the secret file. */
   secretRef: string;
 }
 
@@ -29,7 +30,7 @@ export interface ImapPassword {
 const SECRET_REF_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
 /**
- * True when `ref` is a valid secret name (see {@link SECRET_REF_PATTERN}),
+ * True when `ref` is a valid secret name (the jeeves-tools secret-name rule above),
  * and so a safe file name inside the secrets directory.
  */
 export const isSafeSecretRef = (ref: string): boolean =>

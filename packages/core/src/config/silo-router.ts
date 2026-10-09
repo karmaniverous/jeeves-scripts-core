@@ -19,8 +19,14 @@ import type { Config, SiloRoutingConfig } from './schema.js';
 
 /** Thrown by {@link siloPath} and `config check` for an unknown silo name. */
 export class UnknownSiloError extends Error {
+  /**
+   * @param silo - The unknown silo name.
+   * @param known - The configured silo names.
+   */
   constructor(
+    /** The unknown silo name. */
     public readonly silo: string,
+    /** The configured silo names. */
     public readonly known: string[],
   ) {
     super(
@@ -36,12 +42,18 @@ const resolveDefaultBasePath = (config: Config): string =>
 /** The loaded config's resolved `siloRouting` block. */
 export const siloRouting = (
   options: LoadConfigOptions = {},
-): SiloRoutingConfig & { defaultBasePath: string } => {
+): ResolvedSiloRouting => {
   const config = loadConfig(options);
   return {
     ...config.siloRouting,
     defaultBasePath: resolveDefaultBasePath(config),
   };
+};
+
+/** `siloRouting` with the default silo's base path resolved. */
+export type ResolvedSiloRouting = SiloRoutingConfig & {
+  /** Default silo base path: `siloRouting.defaultBasePath`, else `paths().contentDir`. */
+  defaultBasePath: string;
 };
 
 /**
@@ -69,6 +81,7 @@ export const isKnownSilo = (
   options: LoadConfigOptions = {},
 ): boolean => silo === undefined || silo in siloRouting(options).silos;
 
+/** Base path of the silo whose `emailDomains` include `emailDomain` (case-insensitive), else the default silo. */
 export const getBasePathForEmailDomain = (
   emailDomain: string,
   options: LoadConfigOptions = {},
@@ -83,6 +96,7 @@ export const getBasePathForEmailDomain = (
   return routing.defaultBasePath;
 };
 
+/** Base path (plus any `relativePath`) of the silo listing GitHub `org`, else the default silo. */
 export const getBasePathForGitHubOrg = (
   org: string,
   options: LoadConfigOptions = {},
@@ -101,6 +115,7 @@ export const getBasePathForGitHubOrg = (
   return routing.defaultBasePath;
 };
 
+/** Base path of the silo listing Slack team `teamId`, else the default silo. */
 export const getBasePathForSlackWorkspace = (
   teamId: string,
   options: LoadConfigOptions = {},
@@ -112,6 +127,10 @@ export const getBasePathForSlackWorkspace = (
   return routing.defaultBasePath;
 };
 
+/**
+ * Base path of the silo most participants' email domains route to
+ * (majority vote); the default silo on a tie or when none match.
+ */
 export const getBasePathForMeeting = (
   participantEmails: string[],
   options: LoadConfigOptions = {},
@@ -147,6 +166,7 @@ export const getBasePathForMeeting = (
   return routing.defaultBasePath;
 };
 
+/** Base path for the silo with `jira: true`, else the default silo. */
 export const getBasePathForJira = (options: LoadConfigOptions = {}): string => {
   const routing = siloRouting(options);
   for (const silo of Object.values(routing.silos)) {
@@ -182,6 +202,7 @@ export const getEntityDirs = (
   return [...new Set(dirs)];
 };
 
+/** `email/` directory in the silo the account's email domain routes to. */
 export const getEmailBaseForAccount = (
   account: string,
   options: LoadConfigOptions = {},
@@ -191,6 +212,7 @@ export const getEmailBaseForAccount = (
   return path.join(getBasePathForEmailDomain(domain, options), 'email');
 };
 
+/** `calendar/` directory in the silo the account's email domain routes to. */
 export const getCalendarBaseForAccount = (
   account: string,
   options: LoadConfigOptions = {},

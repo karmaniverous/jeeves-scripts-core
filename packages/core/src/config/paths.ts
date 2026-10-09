@@ -15,15 +15,23 @@ import type { Config } from './schema.js';
 
 /** Every path core resolves from `instance.baseDir` and `paths`. */
 export interface ResolvedPaths {
+  /** `instance.baseDir`. */
   baseDir: string;
+  /** Config directory. */
   configDir: string;
+  /** Content directory (the default silo unless `siloRouting.defaultBasePath` is set). */
   contentDir: string;
+  /** The instance repo. */
   scriptsDir: string;
+  /** Credential files. */
   credentialsDir: string;
+  /** Service state. */
   stateDir: string;
+  /** IMAP secret files: the `imap` folder under `credentialsDir`. */
   imapSecretsDir: string;
   /** gog home: service-account keys, OAuth client credentials, keyring. */
   gogHome: string;
+  /** Token metrics output. */
   tokenMetricsDir: string;
 }
 

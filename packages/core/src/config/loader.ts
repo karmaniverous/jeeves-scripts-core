@@ -17,6 +17,7 @@ import { type Config, configSchema } from './schema.js';
 /** Env var that overrides the config file location (Architecture). */
 export const CONFIG_PATH_ENV = 'JEEVES_SCRIPTS_CONFIG';
 
+/** Where to find `jeeves-scripts.json`. */
 export interface LoadConfigOptions {
   /** Instance repo root. Required unless `configPath` is given directly. */
   root?: string;

@@ -96,7 +96,12 @@ export const xIntegrationSchema = z.object({
 });
 
 /** Default `integrations.x` value. */
-export const defaultXIntegration = { accounts: {} };
+export const defaultXIntegration: {
+  /** No accounts. */
+  accounts: Record<string, XAccountConfig>;
+} = {
+  accounts: {},
+};
 
 /** The `integrations` block: every external tool and service core talks to. */
 export const integrationsSchema = z.object({

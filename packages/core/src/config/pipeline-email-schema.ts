@@ -45,6 +45,7 @@ const migrateReceiptConfig = (raw: unknown): unknown => {
   return { ...rest, forwardEnabled: legacy };
 };
 
+/** Receipt forwarding (`emailConfig.receipt`); accepts the legacy `forwardJGS` key. */
 export const receiptConfigSchema = z.preprocess(
   migrateReceiptConfig,
   z.object({
@@ -55,7 +56,9 @@ export const receiptConfigSchema = z.preprocess(
   }),
 );
 
+/** Email digest settings (`emailConfig.digest`). */
 export const digestConfigSchema = z.object({
+  /** Slack channel the email digest posts to. */
   slackChannelId: z.string(),
 });
 
@@ -83,14 +86,23 @@ export const meetingsEmailConfigSchema = z.object({
   archive: z.boolean(),
 });
 
+/** The `pipeline.emailConfig` block. */
 export const emailConfigSchema = z.object({
+  /** Report Gmail changes (labels, archive, forwards) without making them. */
   reportOnly: z.boolean(),
+  /** Receipt forwarding. */
   receipt: receiptConfigSchema,
+  /** Email digest. */
   digest: digestConfigSchema,
+  /** Paced historical backfill. */
   backfill: backfillConfigSchema.optional(),
+  /** Actions on meeting source emails. */
   meetings: meetingsEmailConfigSchema.optional(),
 });
 
+/** Parsed `pipeline.emailConfig` block. */
 export type EmailConfig = z.infer<typeof emailConfigSchema>;
+/** Parsed `pipeline.emailConfig.backfill` block. */
 export type BackfillConfig = z.infer<typeof backfillConfigSchema>;
+/** Parsed `pipeline.emailConfig.meetings` block. */
 export type MeetingsEmailConfig = z.infer<typeof meetingsEmailConfigSchema>;

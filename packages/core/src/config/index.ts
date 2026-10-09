@@ -11,6 +11,7 @@ export { configCheck, type ConfigCheckResult } from './check.js';
 // Every Zod schema is public (Decision 31), so plugins can compose and
 // extend them and the docs can describe each type.
 export {
+  type ImapPassword,
   isSafeSecretRef,
   resolveImapPassword,
   UNSAFE_SECRET_REF_MESSAGE,
@@ -18,6 +19,7 @@ export {
 export {
   deriveIntegrations,
   integrations,
+  type Resolved,
   type ResolvedIntegrations,
 } from './integrations.js';
 export * from './integrations-schema.js';
@@ -58,6 +60,7 @@ export {
   getEmailBaseForAccount,
   getEntityDirs,
   isKnownSilo,
+  type ResolvedSiloRouting,
   siloPath,
   siloRouting,
   UnknownSiloError,

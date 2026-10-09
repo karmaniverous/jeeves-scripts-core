@@ -26,8 +26,11 @@ import { pipelineSchema } from './pipeline-schema.js';
 import { findSecretLiterals } from './secret-guard.js';
 import { siloRoutingSchema } from './silo-schema.js';
 
+/** The `instance` block: who this instance is and where it lives. */
 export const instanceSchema = z.object({
+  /** Instance name (e.g. `jgs`). */
   name: z.string().min(1),
+  /** Base directory every default path derives from. */
   baseDir: z.string().min(1),
 });
 
@@ -38,9 +41,13 @@ export const instanceSchema = z.object({
  * validate.
  */
 export const configObjectSchema = z.object({
+  /** JSON Schema reference for editor completion. */
   $schema: z.string().optional(),
+  /** Instance identity and base directory. */
   instance: instanceSchema,
+  /** Path overrides. */
   paths: pathsSchema.default({}),
+  /** External tools and services. */
   integrations: integrationsSchema.default({
     gh: {},
     qdrant: {},
@@ -52,9 +59,13 @@ export const configObjectSchema = z.object({
     linear: {},
     x: defaultXIntegration,
   }),
+  /** Mail, calendar and refs (today's `pipeline-config.json`). */
   pipeline: pipelineSchema.optional(),
+  /** Data silos (Decision 28). */
   siloRouting: siloRoutingSchema.default({ silos: {} }),
+  /** Per-job deltas. */
   jobs: jobsSchema,
+  /** Seam implementations. */
   extensions: extensionsSchema,
 });
 
@@ -77,7 +88,9 @@ export const configSchema = z
   })
   .pipe(configObjectSchema);
 
+/** A validated `jeeves-scripts.json`. */
 export type Config = z.infer<typeof configSchema>;
+/** Parsed `instance` block. */
 export type InstanceConfig = z.infer<typeof instanceSchema>;
 
 export {
