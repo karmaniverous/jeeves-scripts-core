@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { Command } from '@commander-js/extra-typings';
 
 import { configCheck } from '../config/check.js';
+import { runJob } from './run.js';
 
 /** Options for {@link buildProgram} and {@link main}. */
 export interface CliOptions {
@@ -56,12 +57,28 @@ const buildConfigCommand = (root: string) => {
   return config;
 };
 
+const buildRunCommand = (root: string) =>
+  new Command('run')
+    .description(
+      "Run a job by id (Decision 16): the instance script at its jobs/*.json path, else core's module for that path.",
+    )
+    .argument('<job-id>', 'job id from jobs/*.json')
+    .argument('[args...]', 'arguments passed to the job')
+    .allowUnknownOption()
+    .passThroughOptions()
+    .action(async (jobId, args) => {
+      const code = await runJob(root, jobId, args);
+      if (code !== 0) process.exitCode = code;
+    });
+
 /** Build the `jeeves-scripts` program for an instance repo root. */
 export const buildProgram = (options: CliOptions) => {
   const root = resolveRoot(options.root);
   return new Command('jeeves-scripts')
     .description('Run and manage jeeves-scripts jobs for this instance.')
-    .addCommand(buildConfigCommand(root));
+    .enablePositionalOptions()
+    .addCommand(buildConfigCommand(root))
+    .addCommand(buildRunCommand(root));
 };
 
 /**

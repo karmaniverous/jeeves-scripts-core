@@ -199,7 +199,8 @@ export function getTokenMetrics(options?: {
 
 // ---- CLI mode ----
 
-const isMain = process.argv[1]?.endsWith('token-metrics.ts');
+// `.ts` under tsx, `.js` when run as core's built module (`jeeves-scripts run`).
+const isMain = /token-metrics\.[jt]s$/.test(process.argv[1] ?? '');
 
 if (isMain) {
   const fromArg = getArg(process.argv, '--from', '');
