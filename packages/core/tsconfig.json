@@ -17,9 +17,6 @@
   "exclude": [
     "dist",
     "node_modules",
-    "template",
-    "src/admin/**/*",
-    "src/email/**/*",
-    "src/meetings/**/*"
+    "template"
   ]
 }

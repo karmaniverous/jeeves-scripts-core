@@ -108,11 +108,11 @@ describe('renameDmChannels', () => {
       'slack:dm:ent-user',
       'slack:dm:justin-ragsdale',
     ]);
-    expect(h1['slack:dm:justin-ragsdale'].models.m.input).toEqual({
+    expect(h1['slack:dm:justin-ragsdale']!.models.m!.input).toEqual({
       count: 7,
       cost: 0.7,
     });
-    expect(h1['slack:dm:justin-ragsdale'].models.n.input.count).toBe(1);
+    expect(h1['slack:dm:justin-ragsdale']!.models.n!.input.count).toBe(1);
     expect(Object.keys(b.get('h2')?.channels ?? {})).toEqual([
       'slack:dm:U0UNKNOWN1',
     ]);

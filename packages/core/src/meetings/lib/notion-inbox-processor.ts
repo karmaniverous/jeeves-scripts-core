@@ -33,7 +33,7 @@ interface NotionPage {
   created_time: string;
   public_url?: string;
   properties?: {
-    Meeting?: { title?: Array<{ plain_text: string }> };
+    Meeting?: { title?: { plain_text: string }[] };
   };
 }
 
@@ -62,7 +62,7 @@ interface MeetingManifest {
   sortSource: string;
   hasTranscript: boolean;
   participants: string[];
-  sources: Array<{ kind: string; pageId: string; url: string }>;
+  sources: { kind: string; pageId: string; url: string }[];
   createdAt: string;
   ingestedAt: string;
 }

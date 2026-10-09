@@ -109,7 +109,7 @@ function main(): void {
           threadsThreadPath,
           null,
         );
-        let threadMessages: Array<Record<string, unknown>>;
+        let threadMessages: Record<string, unknown>[];
         if (!cache?.messages) {
           // Old thread with no messages map — fetch full thread from API
           console.log(`Fetching full thread ${account}/${threadId}`);
@@ -137,7 +137,7 @@ function main(): void {
             continue;
           }
           const threadData = JSON.parse(threadRaw) as {
-            thread?: { messages?: Array<Record<string, unknown>> };
+            thread?: { messages?: Record<string, unknown>[] };
           };
           const msgs = threadData.thread?.messages;
           if (!msgs || msgs.length === 0) {

@@ -42,7 +42,7 @@ const CHROME_CANDIDATES: Record<string, string[]> = {
   win32: [
     'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
     'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-    `${process.env['LOCALAPPDATA'] ?? ''}\\Google\\Chrome\\Application\\chrome.exe`,
+    `${process.env.LOCALAPPDATA ?? ''}\\Google\\Chrome\\Application\\chrome.exe`,
   ],
   darwin: [
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -69,7 +69,7 @@ const CHROME_CANDIDATES: Record<string, string[]> = {
  */
 export function resolveChromePath(): string {
   const envPath =
-    process.env['PUPPETEER_EXECUTABLE_PATH'] ?? process.env['CHROME_PATH'];
+    process.env.PUPPETEER_EXECUTABLE_PATH ?? process.env.CHROME_PATH;
   if (envPath) {
     if (!fs.existsSync(envPath)) {
       throw new Error(

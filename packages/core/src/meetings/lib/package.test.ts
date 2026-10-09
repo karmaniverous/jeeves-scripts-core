@@ -89,7 +89,7 @@ describe('updateMeetingPackage (Gemini, #94)', () => {
     );
     expect(fs.existsSync(path.join(dir, 'transcript.txt'))).toBe(false);
     expect(fs.existsSync(path.join(dir, 'gemini-notes.txt'))).toBe(false);
-    expect(manifest(meetingId)['hasTranscript']).toBe(false);
+    expect(manifest(meetingId).hasTranscript).toBe(false);
     expect(mocks.getRef).not.toHaveBeenCalled();
     expect(mocks.spawnSync).not.toHaveBeenCalled();
     expect(mocks.execSync).not.toHaveBeenCalled();
@@ -128,20 +128,20 @@ describe('updateMeetingPackage (merge and dedup)', () => {
       { setItem },
     );
     const m = manifest('merge');
-    expect(m['participants']).toEqual(['a@example.com', 'b@example.com']);
-    expect((m['sources'] as { key: string }[]).map((s) => s.key)).toEqual([
+    expect(m.participants).toEqual(['a@example.com', 'b@example.com']);
+    expect((m.sources as { key: string }[]).map((s) => s.key)).toEqual([
       'gemini:t1:msg00001',
       'fathom:t1:msg00002',
     ]);
-    expect(m['artifacts']).toEqual([
+    expect(m.artifacts).toEqual([
       'gemini-msg00001.txt',
       'gemini_link.txt',
       'fathom-msg00002.txt',
       'fathom-msg00002.html',
       'fathom_link.txt',
     ]);
-    expect(m['fathomUrl']).toBe('https://fathom.video/share/xyz');
-    const [ns, key, item, value] = setItem.mock.calls[1];
+    expect(m.fathomUrl).toBe('https://fathom.video/share/xyz');
+    const [ns, key, item, value] = setItem.mock.calls[1]!;
     expect([ns, key, item]).toEqual(['meetings', 'index', 'merge']);
     expect(JSON.parse(value ?? '')).toMatchObject({
       sourceCount: 2,

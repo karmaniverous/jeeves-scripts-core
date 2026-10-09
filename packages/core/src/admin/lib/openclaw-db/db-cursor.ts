@@ -3,7 +3,7 @@
  *
  * Incremental cursor for the agent-DB scanner: per transcript key, the
  * highest seq whose event has been handled (counted or skipped). Events
- * with seq <= lastSeq are never counted again, so runs don't double count.
+ * with `seq <= lastSeq` are never counted again, so runs don't double count.
  * Also records the transcript generation it counted and, for immutable
  * transcripts (archives), a completion marker so they are not re-read.
  * Stored as JSON in runner state (TOKEN_METRICS_DB_CURSOR_KEY).

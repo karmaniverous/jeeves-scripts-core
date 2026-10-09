@@ -78,7 +78,7 @@ export async function fetchAllRates(
   const worker = async (): Promise<void> => {
     while (next < ids.length) {
       const i = next++;
-      results[i] = await fetchOne(ids[i]);
+      results[i] = await fetchOne(ids[i]!); // i < ids.length
     }
   };
   await Promise.all(

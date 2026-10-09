@@ -208,7 +208,7 @@ describe('httpGetJson', () => {
       status: 200,
       body: { data: { id: 'm/x' } },
     });
-    const [url, init] = fetchMock.mock.calls[0];
+    const [url, init] = fetchMock.mock.calls[0]!;
     expect(url).toBe('https://example.test/m');
     expect(init?.headers).toEqual({ Accept: 'application/json' });
     expect(init?.signal).toBeInstanceOf(AbortSignal);

@@ -160,10 +160,7 @@ async function main(): Promise<void> {
         stats.scanned++;
 
         // Skip already-processed (idempotency)
-        if (
-          client &&
-          client.hasItem('meetings', 'migration-fathom', meetingId)
-        ) {
+        if (client?.hasItem('meetings', 'migration-fathom', meetingId)) {
           stats.skippedAlreadyProcessed++;
           continue;
         }

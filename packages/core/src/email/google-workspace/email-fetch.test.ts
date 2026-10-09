@@ -26,7 +26,7 @@ const ACCOUNT = 'me@example.com';
 
 function fakeClient() {
   const items = new Map<string, string>();
-  const queue: Array<{ name: string; payload: Record<string, unknown> }> = [];
+  const queue: { name: string; payload: Record<string, unknown> }[] = [];
   const client = {
     getState: vi.fn(() => null),
     setState: vi.fn(),
@@ -111,7 +111,7 @@ describe('fetchThreadMetadata curation signals', () => {
     seed(items);
     run(client, false);
     expect(queue.map((q) => q.name)).toEqual([EMAIL_UPDATES_QUEUE]);
-    expect(queue[0].payload).toMatchObject({
+    expect(queue[0]!.payload).toMatchObject({
       action: 'addLabel',
       label: 'watch',
       messageId: 'm1',

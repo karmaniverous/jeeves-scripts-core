@@ -7,7 +7,7 @@
  * AFTER buckets are flushed. Without a cursor it refuses (returns null and
  * sets a non-zero exit code): counting from zero would double count
  * history the JSONL collector already wrote. Bootstrap with
- * regenerate-token-metrics --from <upgrade hour>. On a fresh instance
+ * `regenerate-token-metrics --from <upgrade hour>`. On a fresh instance
  * (nothing counted yet) collect-run passes an empty cursor instead of
  * null (fresh-openclaw-history.ts), so no bootstrap is needed.
  */

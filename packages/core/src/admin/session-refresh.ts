@@ -42,9 +42,7 @@ export interface SessionEntry {
   updatedAt?: number;
 }
 
-export interface SessionsJson {
-  [key: string]: SessionEntry;
-}
+export type SessionsJson = Record<string, SessionEntry>;
 
 // ── Pure helpers (exported for testing) ────────────────────────────────
 
@@ -73,7 +71,7 @@ export function shouldRefresh(
  */
 export function getLastCacheRead(lines: string[]): number {
   for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i].trim();
+    const line = (lines[i] ?? '').trim();
     if (!line) continue;
 
     try {
@@ -118,7 +116,7 @@ export function getLastCacheRead(lines: string[]): number {
  */
 export function getLastMessageTimestamp(lines: string[]): number {
   for (let i = lines.length - 1; i >= 0; i--) {
-    const line = lines[i].trim();
+    const line = (lines[i] ?? '').trim();
     if (!line) continue;
 
     try {
@@ -184,7 +182,7 @@ async function refreshSession(
   cacheReadThreshold: number,
 ): Promise<void> {
   // Guard for missing session key
-  const entry = sessions[sessionKey] as SessionEntry | undefined;
+  const entry = sessions[sessionKey];
   if (!entry) {
     console.warn(
       `[session-refresh] Session key "${sessionKey}" not found in sessions.json, skipping`,
@@ -273,15 +271,15 @@ async function refreshSession(
 
 async function sessionRefresh(): Promise<void> {
   const cacheReadThreshold =
-    parseInt(process.env['CACHE_READ_THRESHOLD'] ?? '', 10) ||
+    parseInt(process.env.CACHE_READ_THRESHOLD ?? '', 10) ||
     SESSION_REFRESH_CACHE_READ_THRESHOLD;
 
   const idleMinutes =
-    parseInt(process.env['IDLE_MINUTES'] ?? '', 10) ||
+    parseInt(process.env.IDLE_MINUTES ?? '', 10) ||
     SESSION_REFRESH_IDLE_MINUTES;
 
   const excludedKeys = new Set(
-    (process.env['EXCLUDED_SESSION_KEYS'] ?? '')
+    (process.env.EXCLUDED_SESSION_KEYS ?? '')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean),

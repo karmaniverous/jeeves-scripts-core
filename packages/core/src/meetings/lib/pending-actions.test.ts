@@ -30,10 +30,10 @@ function isEmailUpdate(v: unknown): v is EmailUpdateAction & {
   const strings = ['account', 'threadId', 'messageId', 'source', 'reason'];
   return (
     strings.every((k) => typeof o[k] === 'string') &&
-    typeof o['action'] === 'string' &&
-    ACTIONS.has(o['action']) &&
-    (o['action'] === 'archive' || typeof o['label'] === 'string') &&
-    typeof o['createdAt'] === 'string'
+    typeof o.action === 'string' &&
+    ACTIONS.has(o.action) &&
+    (o.action === 'archive' || typeof o.label === 'string') &&
+    typeof o.createdAt === 'string'
   );
 }
 

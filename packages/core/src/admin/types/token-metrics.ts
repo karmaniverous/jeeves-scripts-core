@@ -52,9 +52,7 @@ export type Channels = Record<string, ChannelBucket>;
  * range or not). Not usage: token counts are under
  * `models[model].tokens[category].count`.
  */
-export interface Ref {
-  [model: string]: Record<TokenCategory, number>;
-}
+export type Ref = Record<string, Record<TokenCategory, number>>;
 
 /** Top-level cost report returned by `getTokenMetrics`. */
 export interface Costs {

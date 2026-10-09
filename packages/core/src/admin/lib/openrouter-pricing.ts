@@ -109,15 +109,15 @@ export async function fetchOpenRouterRates(
       `OpenRouter returned HTTP ${String(status)} for ${modelId}`,
     );
   }
-  const data = isRecord(body) && isRecord(body['data']) ? body['data'] : null;
-  const pricing = data && isRecord(data['pricing']) ? data['pricing'] : null;
+  const data = isRecord(body) && isRecord(body.data) ? body.data : null;
+  const pricing = data && isRecord(data.pricing) ? data.pricing : null;
   if (!data || !pricing) {
     throw new Error(`OpenRouter response for ${modelId} has no pricing`);
   }
   // Absent cache prices mean 0, but the two required prices must be present
   // and non-null: null would otherwise convert to a $0 rate.
-  const prompt = pricing['prompt'];
-  const completion = pricing['completion'];
+  const prompt = pricing.prompt;
+  const completion = pricing.completion;
   if (
     prompt === undefined ||
     prompt === null ||
@@ -129,16 +129,16 @@ export async function fetchOpenRouterRates(
     );
   }
   return {
-    resolvedId: typeof data['id'] === 'string' ? data['id'] : modelId,
+    resolvedId: typeof data.id === 'string' ? data.id : modelId,
     rates: {
       input: perTokenToPerMTok(prompt, `${modelId}.prompt`),
       output: perTokenToPerMTok(completion, `${modelId}.completion`),
       cacheRead: perTokenToPerMTok(
-        pricing['input_cache_read'],
+        pricing.input_cache_read,
         `${modelId}.input_cache_read`,
       ),
       cacheWrite: perTokenToPerMTok(
-        pricing['input_cache_write'],
+        pricing.input_cache_write,
         `${modelId}.input_cache_write`,
       ),
     },

@@ -67,7 +67,7 @@ describe('scanAllSessions', () => {
     const bucket = result.buckets.get('2026-06-15T10');
     const channels = Object.values(bucket?.channels ?? {});
     expect(channels).toHaveLength(1);
-    const usage = channels[0].models['anthropic/claude-sonnet-4-6'];
+    const usage = channels[0]!.models['anthropic/claude-sonnet-4-6']!;
     expect(usage.input.count).toBe(200);
     expect(usage.output.count).toBe(100);
     expect(usage.input.cost).toBeGreaterThan(0);
@@ -121,8 +121,8 @@ describe('scanAllSessions', () => {
     scan(0, cutoff, cursors, ccCursors);
 
     expect(cursors[fileName]).toBeDefined();
-    expect(cursors[fileName].byteOffset).toBeGreaterThan(0);
-    expect(cursors[fileName].lastTimestamp).toBeGreaterThan(0);
+    expect(cursors[fileName]!.byteOffset).toBeGreaterThan(0);
+    expect(cursors[fileName]!.lastTimestamp).toBeGreaterThan(0);
   });
 
   it('skips fully-processed files based on cursor byteOffset', async () => {

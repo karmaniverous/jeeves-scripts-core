@@ -102,7 +102,7 @@ export function readColdEvents(
           row?: { seq?: unknown; event_json?: unknown };
         },
     );
-  const header = records[0] as (typeof records)[number] | undefined;
+  const header = records[0];
   if (header?.kind !== 'header' || header.sessionId !== row.session_id)
     throw new Error(`Cold archive ${row.archive_name} header mismatch`);
 
@@ -142,7 +142,7 @@ export function readArchiveEvents(row: ArchiveRow): TranscriptEvent[] {
   const lines = text.split('\n').filter((line) => line.trim());
   const header =
     lines.length > 0
-      ? (JSON.parse(lines[0]) as { type?: unknown; id?: unknown })
+      ? (JSON.parse(lines[0] ?? '') as { type?: unknown; id?: unknown })
       : undefined;
   if (header?.type !== 'session' || header.id !== row.session_id)
     throw new Error(`Transcript archive ${row.archive_name} header mismatch`);

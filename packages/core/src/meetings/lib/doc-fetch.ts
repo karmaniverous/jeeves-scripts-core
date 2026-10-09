@@ -70,7 +70,7 @@ interface MeetingIndexEntry {
 
 interface MeetingManifest {
   artifacts?: string[];
-  sources?: Array<{ account?: string }>;
+  sources?: { account?: string }[];
   transcriptFetchedAt?: string;
   hasTranscript?: boolean;
   updatedAt?: string;
@@ -81,7 +81,7 @@ interface FetchState {
   fetched: number;
   failed: number;
   skipped: number;
-  errors: Array<{ meetingId: string; docId: string; error: string }>;
+  errors: { meetingId: string; docId: string; error: string }[];
 }
 
 // ── Pure helpers ───────────────────────────────────────────────────────
@@ -102,7 +102,7 @@ export function parseDocFetchArgs(argv: string[]): DocFetchArgs {
 
 export function extractDocId(url: string | null | undefined): string | null {
   const m = /\/document\/d\/([a-zA-Z0-9_-]+)/.exec(url ?? '');
-  return m ? m[1] : null;
+  return m?.[1] ?? null;
 }
 
 // ── Filesystem scanning ───────────────────────────────────────────────
@@ -196,7 +196,7 @@ function fetchDocContent(docId: string, account: string): DocFetchResult {
       };
     }
 
-    const downloadPath = pathMatch[1].trim();
+    const downloadPath = pathMatch[1]!.trim();
     const content = fs.readFileSync(downloadPath, 'utf8');
 
     return { ok: true, content };
@@ -264,11 +264,11 @@ export async function runDocFetch(argv: string[] = []): Promise<void> {
     let fetched = 0;
     let failed = 0;
     let skipped = 0;
-    const errors: Array<{
+    const errors: {
       meetingId: string;
       docId: string;
       error: string;
-    }> = [];
+    }[] = [];
 
     for (const meeting of meetings) {
       if (!meeting.docId) {
@@ -315,11 +315,11 @@ export async function runDocFetch(argv: string[] = []): Promise<void> {
 
         // Update index.json (only if it exists for this meetings dir)
         const store = indexStores.get(meeting.meetingsDir);
-        if (store?.index.meetings[meeting.meetingId]) {
-          store.index.meetings[meeting.meetingId].hasTranscript = true;
-          store.index.meetings[meeting.meetingId].artifactCount =
-            artifacts.length;
-          store.index.meetings[meeting.meetingId].updatedAt = nowIso();
+        const entry = store?.index.meetings[meeting.meetingId];
+        if (store && entry) {
+          entry.hasTranscript = true;
+          entry.artifactCount = artifacts.length;
+          entry.updatedAt = nowIso();
           store.dirty = true;
         }
       } else {

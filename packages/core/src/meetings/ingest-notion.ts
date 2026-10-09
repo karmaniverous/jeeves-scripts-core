@@ -31,8 +31,8 @@ async function pickOldestInboxPageId(minAgeHours = 4): Promise<string | null> {
       filter: { timestamp: 'created_time', created_time: { before: cutoff } },
       sorts: [{ timestamp: 'created_time', direction: 'ascending' }],
     },
-  )) as { results?: Array<{ id?: string }> };
-  return q.results?.[0]?.id || null;
+  )) as { results?: { id?: string }[] };
+  return q.results?.[0]?.id ?? null;
 }
 
 async function main(): Promise<void> {
@@ -42,7 +42,7 @@ async function main(): Promise<void> {
   }
 
   const args = parseArgs();
-  const requestedPageId = args['page-id'] || args['meeting-id'];
+  const requestedPageId = args['page-id'] ?? args['meeting-id'];
   const minAgeHours = 'min-age' in args ? parseFloat(args['min-age']) : 4;
   const isDryRun = process.argv.includes('--dry-run');
 
@@ -57,8 +57,8 @@ async function main(): Promise<void> {
   }
 
   const pageId =
-    requestedPageId ||
-    fileOverride ||
+    requestedPageId ??
+    fileOverride ??
     (await pickOldestInboxPageId(minAgeHours));
   if (!pageId) {
     if (isDryRun)

@@ -183,8 +183,8 @@ export function normalizeMeetingTitle(subject: string): string {
 }
 
 export function parseEmailAddress(fromHeader: string): string {
-  const m = (fromHeader || '').match(/<([^>]+)>/);
-  return m ? m[1].toLowerCase() : (fromHeader || '').toLowerCase().trim();
+  const m = /<([^>]+)>/.exec(fromHeader || '');
+  return m ? m[1]!.toLowerCase() : (fromHeader || '').toLowerCase().trim();
 }
 
 export function parseDateToYmd(
@@ -209,7 +209,7 @@ export function parseDateToYmd(
 export function extractParticipants(bodyText: string, from: string): string[] {
   const emails = new Set<string>();
   const fromEmail = parseEmailAddress(from);
-  if (fromEmail && fromEmail.includes('@')) emails.add(fromEmail);
+  if (fromEmail.includes('@')) emails.add(fromEmail);
   const matches =
     (bodyText || '').match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g) ??
     [];
@@ -229,9 +229,10 @@ export function extractParticipants(bodyText: string, from: string): string[] {
 
 export function findGeminiLink(text: string): string | null {
   const s = text || '';
-  const m = s.match(
-    /https?:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+[^\s\n"']*/i,
-  );
+  const m =
+    /https?:\/\/docs\.google\.com\/document\/d\/[a-zA-Z0-9_-]+[^\s\n"']*/i.exec(
+      s,
+    );
   return m ? m[0] : null;
 }
 

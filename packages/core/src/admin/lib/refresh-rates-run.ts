@@ -181,7 +181,7 @@ export async function runRefreshTokenRates(
   if (!options.dryRun) deps.ensure();
   const card = deps.read();
   const ids = Object.keys(card.models);
-  const manual = ids.filter((id) => card.models[id].manual === true);
+  const manual = ids.filter((id) => card.models[id]?.manual === true);
   const pending = unresolved([...new Set(deps.readPending())], card.models);
   log(
     `[refresh-token-rates] Rate card OK (${String(ids.length)} models, ${String(manual.length)} manual, ${String(pending.length)} pending); checking OpenRouter`,
@@ -207,7 +207,7 @@ export async function runRefreshTokenRates(
   );
 
   targets.forEach(([id, before], i) => {
-    const res = outcomes[i];
+    const res = outcomes[i]!; // one outcome per target
     if (!res.rates) {
       problems.push(`${id}: ${res.problem}`);
       return;

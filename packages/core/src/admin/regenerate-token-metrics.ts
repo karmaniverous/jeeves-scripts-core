@@ -18,7 +18,7 @@
  *   usage at/after --from) and REPLACES the DB and Claude Code cursors. Use
  *   this to switch a host to the DB reader: `--from <upgrade hour>`.
  * - live with `--to`: rebuild [from, to) from events the incremental
- *   collector has already counted (OpenClaw seq <= stored cursor, Claude
+ *   collector has already counted (OpenClaw `seq <= stored cursor`, Claude
  *   Code bytes before the stored offset); all cursors untouched.
  * `--dry-run` scans and reports without writing anything.
  * Live runs (including `--dry-run`) need the constants().OPENCLAW_UPGRADE_CUTOFF

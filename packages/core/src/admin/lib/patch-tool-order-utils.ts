@@ -50,7 +50,7 @@ export function parseToolOrder(content: string): {
   if (!m) return null;
 
   const prefix = m[1] ? `${m[1]} ` : '';
-  const entries = m[2]
+  const entries = m[2]! // mandatory group
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean)

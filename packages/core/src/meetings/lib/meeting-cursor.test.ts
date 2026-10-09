@@ -57,7 +57,7 @@ describe('sortMeetings', () => {
       { meetingId: 'a', sortTimestampMs: 1000, date: '2026-04-09' },
     ];
     sortMeetings(meetings);
-    expect(meetings[0].meetingId).toBe('b');
+    expect(meetings[0]!.meetingId).toBe('b');
   });
 
   it('handles mixed null and non-null timestamps', () => {
@@ -68,9 +68,9 @@ describe('sortMeetings', () => {
     ];
     const sorted = sortMeetings(meetings);
     // Timestamped ones first, then by date
-    expect(sorted[0].meetingId).toBe('a');
-    expect(sorted[1].meetingId).toBe('b');
-    expect(sorted[2].meetingId).toBe('c');
+    expect(sorted[0]!.meetingId).toBe('a');
+    expect(sorted[1]!.meetingId).toBe('b');
+    expect(sorted[2]!.meetingId).toBe('c');
   });
 });
 
@@ -188,8 +188,8 @@ describe('selectBatch', () => {
     };
     const batch = selectBatch(meetings, cursor, 2);
     expect(batch).toHaveLength(2);
-    expect(batch[0].meetingId).toBe('b');
-    expect(batch[1].meetingId).toBe('c');
+    expect(batch[0]!.meetingId).toBe('b');
+    expect(batch[1]!.meetingId).toBe('c');
   });
 
   it('returns all meetings for empty cursor', () => {

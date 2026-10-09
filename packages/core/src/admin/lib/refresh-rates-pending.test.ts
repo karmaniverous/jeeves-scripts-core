@@ -22,7 +22,7 @@ describe('pending models', () => {
     expect(res.changes).toEqual([
       { model: 'a/new', before: null, after: r(3, 15, 0.3, 3.75) },
     ]);
-    const out = d.written[0];
+    const out = d.written[0]!;
     expect(out.models['a/new']).toEqual(r(3, 15, 0.3, 3.75));
     expect(out.source).toContain('a/new added');
     expect(d.pending()).toEqual([]);
@@ -37,7 +37,7 @@ describe('pending models', () => {
     await expect(runRefreshTokenRates(d)).rejects.toThrow(
       'z/unknown: not found on OpenRouter',
     );
-    expect(d.written[0].models['a/ok']).toEqual(r(1, 1));
+    expect(d.written[0]!.models['a/ok']!).toEqual(r(1, 1));
     expect(d.pending()).toEqual(['z/unknown']);
   });
 
@@ -76,7 +76,7 @@ describe('pending models', () => {
       return Promise.resolve(id === 'a/new' ? r(1, 1) : r(2, 10));
     });
     await runRefreshTokenRates(d);
-    expect(d.written[0].models['a/new']).toEqual(r(1, 1));
+    expect(d.written[0]!.models['a/new']!).toEqual(r(1, 1));
     expect(d.pending()).toEqual(['b/late']);
   });
 
@@ -113,7 +113,7 @@ describe('manual entries', () => {
       'a/m': r(3, 10),
     });
     await runRefreshTokenRates(d);
-    expect(d.written[0].models['z/private']).toEqual(hand);
+    expect(d.written[0]!.models['z/private']!).toEqual(hand);
   });
 
   it('clears a pending id once it is added to the card by hand', async () => {

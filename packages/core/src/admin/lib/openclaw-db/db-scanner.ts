@@ -8,7 +8,7 @@
  * match exactly. Pure over its inputs; no fs/DB writes.
  *
  * Per transcript, events are walked in seq order from the cursor:
- * - seq <= cursor.lastSeq: already handled, skipped;
+ * - `seq <= cursor.lastSeq`: already handled, skipped;
  * - a usage event at/after `toMs` stops the walk (the cursor stays before
  *   it, so the next run picks it up; nothing in an open hour is lost);
  * - usage before `fromMs` is skipped but handled (cursor advances);
@@ -75,7 +75,7 @@ export function resolvePrior(
   ref: TranscriptRef,
   cursors: DbCursorState,
 ): { prior: Cursor | undefined; inherited: boolean } {
-  const own = cursors[ref.cursorKey] as Cursor | undefined;
+  const own = cursors[ref.cursorKey];
   if (own) {
     const retired =
       own.generation !== undefined &&
@@ -84,9 +84,7 @@ export function resolvePrior(
       ref.retiredGenerations?.has(own.generation) === true;
     return { prior: retired ? undefined : own, inherited: false };
   }
-  const seed = ref.seed
-    ? (cursors[ref.seed.key] as Cursor | undefined)
-    : undefined;
+  const seed = ref.seed ? cursors[ref.seed.key] : undefined;
   const matches =
     seed !== undefined &&
     (seed.generation === undefined
@@ -102,8 +100,7 @@ export function resolvePrior(
 
 function sameCursor(a: Cursor | undefined, b: Cursor): boolean {
   return (
-    a !== undefined &&
-    a.lastSeq === b.lastSeq &&
+    a?.lastSeq === b.lastSeq &&
     a.lastTimestamp === b.lastTimestamp &&
     a.generation === b.generation &&
     a.complete === b.complete
@@ -180,7 +177,7 @@ export function scanTranscripts(
     const next: Cursor = { lastSeq, lastTimestamp };
     if (ref.generation !== undefined) next.generation = ref.generation;
     if (ref.immutable && reachedEnd) next.complete = true;
-    const own = cursors[ref.cursorKey] as Cursor | undefined;
+    const own = cursors[ref.cursorKey];
     if (
       !options.countedOnly &&
       (lastSeq > startSeq || inherited || next.complete) &&

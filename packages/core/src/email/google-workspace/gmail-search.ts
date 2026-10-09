@@ -70,7 +70,7 @@ export function parseSearchPage(out: string, context: string): SearchPage {
   }
   const threads: ThreadSummary[] = [];
   for (const t of parsed.data.threads ?? []) {
-    const threadId = t.threadId || t.id || '';
+    const threadId = t.threadId ?? t.id ?? '';
     if (!threadId) continue;
     threads.push({
       threadId,
@@ -78,7 +78,7 @@ export function parseSearchPage(out: string, context: string): SearchPage {
       snippet: t.snippet ?? '',
       from: t.from ?? '',
       to: t.to ?? '',
-      date: t.date || null,
+      date: t.date ?? null,
       messageCount: t.messageCount ?? null,
       labels: t.labels ?? [],
     });

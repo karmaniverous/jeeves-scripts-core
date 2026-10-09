@@ -15,13 +15,13 @@
  * previous closed UTC hour boundary so each bucket file is
  * write-once and immutable. Orchestration lives in lib/collect-run.ts;
  * the agent-DB collector (node:sqlite) is imported lazily, only when the
- * agent DB exists, so legacy hosts on Node < 22.5 still run.
+ * agent DB exists, so legacy hosts on Node older than 22.5 still run.
  *
  * On a DB host with no stored DB cursor, OpenClaw usage is counted from
  * the start of its history only when none was ever counted (no legacy
  * cursor entry, no bucket file holding OpenClaw usage), as on a brand-new
  * instance. Otherwise (a host upgraded to 2026.9) it refuses until
- * regenerate-token-metrics --from <upgrade hour> bootstraps the cursor.
+ * `regenerate-token-metrics --from <upgrade hour>` bootstraps the cursor.
  *
  * Config dependencies: constants().OPENCLAW_AGENT_DB_PATH, constants().SESSIONS_DIR,
  * CLAUDE_CODE_PROJECTS_DIR, TOKEN_METRICS_DIR, TOKEN_METRICS_NAMESPACE,

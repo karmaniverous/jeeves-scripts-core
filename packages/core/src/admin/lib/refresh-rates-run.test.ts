@@ -44,7 +44,7 @@ describe('runRefreshTokenRates', () => {
       { model: 'o/gpt', before: r(4, 20, 0.4, 5), after: r(2, 10, 0.2, 2.5) },
     ]);
     expect(d.written).toHaveLength(1);
-    const out = d.written[0];
+    const out = d.written[0]!;
     expect(out.updatedAt).toBe('2026-10-06T02:00:00.000Z');
     expect(out.models['o/gpt']).toEqual(r(2, 10, 0.2, 2.5));
     expect(out.models['openclaw/delivery-mirror']).toEqual(r(0, 0));
@@ -60,7 +60,7 @@ describe('runRefreshTokenRates', () => {
       ['b/new'],
     );
     await runRefreshTokenRates(d);
-    expect(d.written[0].source).toBe(
+    expect(d.written[0]!.source).toBe(
       'OpenRouter refresh 2026-10-06: a/m updated; b/new added from openrouter.ai/api/v1/model (base tier).',
     );
   });
@@ -136,7 +136,7 @@ describe('runRefreshTokenRates budget', () => {
       expect((err as Error).message).toContain(
         'a/stall: fetch time budget exhausted',
       );
-      expect(d.written[0].models['a/m']).toEqual(r(2, 2));
+      expect(d.written[0]!.models['a/m']!).toEqual(r(2, 2));
     } finally {
       vi.useRealTimers();
     }

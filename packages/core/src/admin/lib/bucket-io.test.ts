@@ -73,7 +73,7 @@ describe('mergeUsage', () => {
     mergeUsage(buckets, '2026-03-15T10', 'ch', 'model', usage);
     mergeUsage(buckets, '2026-03-15T10', 'ch', 'model', usage);
 
-    const entry = buckets.get('2026-03-15T10')?.channels['ch']?.models['model'];
+    const entry = buckets.get('2026-03-15T10')?.channels.ch?.models.model;
     expect(entry?.input.count).toBe(20);
     expect(entry?.input.cost).toBeCloseTo(0.002);
   });
@@ -119,7 +119,7 @@ describe('mergeBuckets', () => {
 
     const merged = mergeBuckets(existing, incoming);
 
-    const ch1m1 = merged.channels['ch1'].models['m1'];
+    const ch1m1 = merged.channels.ch1!.models.m1!;
     expect(ch1m1.input.count).toBe(15);
     expect(ch1m1.output.cost).toBeCloseTo(0.003);
     expect(merged.channels).toHaveProperty('ch2');

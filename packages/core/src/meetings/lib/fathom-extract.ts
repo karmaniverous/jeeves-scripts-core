@@ -104,7 +104,7 @@ export function extractHiddenDivInnerHtml(html: string): string | null {
   tagRe.lastIndex = start;
 
   const first = tagRe.exec(html);
-  if (!first || first.index !== start || first[0].startsWith('</')) return null;
+  if (first?.index !== start || first[0].startsWith('</')) return null;
 
   const startTagEnd = first.index + first[0].length;
   let depth = 1;

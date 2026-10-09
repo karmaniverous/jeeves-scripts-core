@@ -30,7 +30,7 @@ export interface MeetingCursor {
 /**
  * Compare two meetings for chronological ordering.
  *
- * Returns negative if a < b, positive if a > b, zero if equal.
+ * Returns negative if `a < b`, positive if `a > b`, zero if equal.
  */
 export function compareMeetings(a: MeetingSortKey, b: MeetingSortKey): number {
   // 1. sortTimestampMs (nulls sort last)
@@ -121,7 +121,7 @@ export function advanceCursor(batch: MeetingSortKey[]): MeetingCursor {
     return { lastTimestampMs: null, lastDate: null, lastMeetingId: null };
   }
 
-  const last = batch[batch.length - 1];
+  const last = batch[batch.length - 1]!; // batch is non-empty
   return {
     lastTimestampMs: last.sortTimestampMs,
     lastDate: last.date,

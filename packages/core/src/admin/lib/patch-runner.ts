@@ -48,7 +48,8 @@ export function describeExecFailure(err: unknown): {
     typeof err === 'object' && err !== null ? { ...err } : {};
   const { status, signal } = props;
   const message = err instanceof Error ? err.message : String(err);
-  const firstLine = message.split('\n')[0].trim() || 'unknown error';
+  const head = message.split('\n')[0]?.trim() ?? '';
+  const firstLine = head === '' ? 'unknown error' : head;
   return {
     exitCode: typeof status === 'number' ? status : null,
     error:

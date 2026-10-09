@@ -62,15 +62,15 @@ describe('schema v23 reader', () => {
       'session:gone#g1',
       'session:hot',
     ]);
-    const hot = all[2];
+    const hot = all[2]!;
     expect(hot.maxSeq).toBe(2);
     expect(hot.events.map((e) => e.seq)).toEqual([0, 1, 2]);
-    expect(hot.events[2].json).toContain('x'.repeat(500));
-    expect(all[0].events[1].json).toContain('cold one');
-    expect(all[0].maxSeq).toBe(1);
-    expect(all[1].maxSeq).toBeUndefined();
-    expect(all[1].events.map((e) => e.seq)).toEqual([0, 1]);
-    expect(all[1].events[1].json).toContain('deleted one');
+    expect(hot.events[2]!.json).toContain('x'.repeat(500));
+    expect(all[0]!.events[1]!.json).toContain('cold one');
+    expect(all[0]!.maxSeq).toBe(1);
+    expect(all[1]!.maxSeq).toBeUndefined();
+    expect(all[1]!.events.map((e) => e.seq)).toEqual([0, 1]);
+    expect(all[1]!.events[1]!.json).toContain('deleted one');
   });
 
   it('keeps archive generations separate, each starting at seq 0', () => {
@@ -86,11 +86,12 @@ describe('schema v23 reader', () => {
       'session:s#g2',
       'session:s2',
     ]);
-    const [g1, g2] = all;
+    const g1 = all[0]!;
+    const g2 = all[1]!;
     expect(g1.events.map((e) => e.seq)).toEqual([0, 1]);
     expect(g2.events.map((e) => e.seq)).toEqual([0, 1]);
-    expect(g1.events[1].json).toContain('first gen');
-    expect(g2.events[1].json).toContain('second gen');
+    expect(g1.events[1]!.json).toContain('first gen');
+    expect(g2.events[1]!.json).toContain('second gen');
 
     const agentDb = openAgentDb(fx.dbPath);
     try {
@@ -113,7 +114,7 @@ describe('schema v23 reader', () => {
     fx.addColdSession('cold', [header('cold'), msg('c', 'cold one')]);
     fx.close();
     const coldDir = path.join(fx.sessionsDir, 'cold');
-    const [name] = fs.readdirSync(coldDir);
+    const name = fs.readdirSync(coldDir)[0]!;
     fs.appendFileSync(path.join(coldDir, name), 'junk');
 
     expect(() => loadAll(fx.dbPath)).toThrow(/failed verification/);

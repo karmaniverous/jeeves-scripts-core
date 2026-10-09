@@ -52,7 +52,7 @@ export function openAgentDb(dbPath: string): AgentDb {
     const row = db.prepare('PRAGMA user_version').get() as
       { user_version: number } | undefined;
     const found = row?.user_version ?? 0;
-    const schema = SCHEMAS[found] as OpenClawDbSchema | undefined;
+    const schema = SCHEMAS[found];
     if (!schema) throw new OpenClawSchemaMismatchError(dbPath, found);
 
     db.exec('BEGIN');

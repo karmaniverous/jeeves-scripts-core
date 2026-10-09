@@ -36,16 +36,16 @@ export function getChannelName(key: string): string {
  */
 export function extractSlackChannel(text: string): ChannelResult | null {
   // "Slack message in #channel-name"
-  const nameMatch = text.match(/Slack message (?:edited )?in (#[a-z0-9_-]+)/);
+  const nameMatch = /Slack message (?:edited )?in (#[a-z0-9_-]+)/.exec(text);
   if (nameMatch) {
-    return slackChannelResult(nameMatch[1]);
+    return slackChannelResult(nameMatch[1]!);
   }
 
   // "channel: C0XXXXXXXXX"
-  const idMatch = text.match(/channel:\s*(C[A-Z0-9]{8,})/);
+  const idMatch = /channel:\s*(C[A-Z0-9]{8,})/.exec(text);
   if (idMatch) {
-    const id = idMatch[1];
-    const name = CHANNEL_NAMES[id] as string | undefined;
+    const id = idMatch[1]!; // mandatory group
+    const name = CHANNEL_NAMES[id];
     return {
       key: 'slack:channel:' + id,
       name: name ?? '#' + id,

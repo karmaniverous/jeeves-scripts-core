@@ -80,7 +80,7 @@ export function evaluateAnchoredPatch(
   }
 
   if (done.length === 1) {
-    const [m] = done;
+    const m = done[0]!; // exactly one
     return {
       status: 'already-patched',
       line: lineOf(content, m.index),
@@ -88,7 +88,7 @@ export function evaluateAnchoredPatch(
     };
   }
 
-  const [m] = todo;
+  const m = todo[0]!; // exactly one (checked above)
   const before = m[0];
   const after = rewrite(before);
   return {
@@ -142,5 +142,5 @@ export function planAcrossFiles(results: FilePatchResult[]): DistPatchPlan {
     };
   }
 
-  return hits[0];
+  return hits[0]!; // exactly one (checked above)
 }

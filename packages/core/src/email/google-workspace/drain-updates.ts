@@ -139,7 +139,7 @@ function main(): void {
           { retries: 1, backoffMs: 3000 },
         );
         const parsed = raw
-          ? (JSON.parse(raw) as { labels?: Array<{ name: string }> })
+          ? (JSON.parse(raw) as { labels?: { name: string }[] })
           : {};
         const existing = (parsed.labels ?? []).map((l) => l.name);
         if (!existing.includes(label)) {

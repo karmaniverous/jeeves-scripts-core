@@ -24,7 +24,7 @@ describe('runRegen (scratch)', () => {
       'flush:/scratch',
     ]);
     expect(h.deps.openState).not.toHaveBeenCalled();
-    expect(h.deps.scanOpenClaw.mock.calls[0][1].countedOnly).toBe(false);
+    expect(h.deps.scanOpenClaw.mock.calls[0]![1].countedOnly).toBe(false);
   });
 
   it.each([

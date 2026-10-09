@@ -86,7 +86,7 @@ function extractDomains(to: string): string[] {
   const re = /[\w.+-]+@([\w.-]+)/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(to)) !== null) {
-    seen.add(m[1].toLowerCase());
+    seen.add(m[1]!.toLowerCase());
   }
   return Array.from(seen);
 }
@@ -186,8 +186,8 @@ export function computeLabelsToApply(params: {
 }): string[] {
   const applied = params.labelApplied ?? {};
   const labels: string[] = [];
-  if (params.receiptCandidate && !applied['receipt']) labels.push('receipt');
-  if (params.junkCandidate && !applied['junk']) labels.push('junk');
+  if (params.receiptCandidate && !applied.receipt) labels.push('receipt');
+  if (params.junkCandidate && !applied.junk) labels.push('junk');
   if (params.bucket && !applied[params.bucket]) labels.push(params.bucket);
   return labels;
 }

@@ -192,7 +192,7 @@ describe('scanOpenClawDb', () => {
     const first = run('2026-06-15T11:00:00Z');
     expect(inputCount(first, '2026-06-15T10', 'slack:channel:#ops')).toBe(1);
     expect(first.has('2026-06-15T11')).toBe(false);
-    expect(cursors['session:s1'].lastSeq).toBe(2);
+    expect(cursors['session:s1']!.lastSeq).toBe(2);
 
     const second = run('2026-06-15T12:00:00Z');
     expect(second.has('2026-06-15T10')).toBe(false);

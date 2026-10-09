@@ -35,8 +35,8 @@ export interface AccountTypeDefinition {
 // ── Gmail label normalization ─────────────────────────────────────────
 
 /**
- * Gmail IMAP X-GM-LABELS uses backslash-prefixed system labels (\Inbox,
- * \Sent, etc.) while the Gmail API uses UPPERCASE (INBOX, SENT, etc.).
+ * Gmail IMAP X-GM-LABELS uses backslash-prefixed system labels (`\Inbox`,
+ * `\Sent`, etc.) while the Gmail API uses UPPERCASE (INBOX, SENT, etc.).
  * Normalize IMAP labels to API format so on-disk output matches.
  */
 const GMAIL_SYSTEM_LABEL_MAP: Partial<Record<string, string>> = {

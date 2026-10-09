@@ -33,11 +33,11 @@ export interface CacheMessage {
   labels: string[];
   snippet: string;
   hasAttachments: boolean;
-  attachments: Array<{
+  attachments: {
     filename: string;
     mimeType: string;
     size: number;
-  }>;
+  }[];
 }
 
 export interface ProvenanceEntry {
@@ -99,23 +99,21 @@ export function createOrUpdateCache(params: {
   let cache = loadCache(params.account, params.threadId);
   const now = nowIso();
 
-  if (!cache) {
-    cache = {
-      threadId: params.threadId,
-      account: params.account,
-      subject: params.subject,
-      participants: params.participants,
-      messages: {},
-      provenance: [],
-      cachedAt: now,
-      updatedAt: now,
-    };
-  }
+  cache ??= {
+    threadId: params.threadId,
+    account: params.account,
+    subject: params.subject,
+    participants: params.participants,
+    messages: {},
+    provenance: [],
+    cachedAt: now,
+    updatedAt: now,
+  };
 
   cache.subject = params.subject;
   cache.participants = params.participants;
 
-  if (!cache.messages) cache.messages = {};
+  cache.messages ??= {};
   for (const [messageId, msgData] of Object.entries(params.messages)) {
     const existing = cache.messages[messageId];
     cache.messages[messageId] = { ...existing, ...msgData };
@@ -134,8 +132,8 @@ export function detectLabelChanges(
   messageId: string,
 ): ProvenanceEntry[] {
   const changes: ProvenanceEntry[] = [];
-  const cachedSet = new Set(cached || []);
-  const currentSet = new Set(current || []);
+  const cachedSet = new Set(cached ?? []);
+  const currentSet = new Set(current ?? []);
 
   for (const label of currentSet) {
     if (!cachedSet.has(label)) {

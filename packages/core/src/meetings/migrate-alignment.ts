@@ -73,7 +73,7 @@ function inferSource(
   if (typeof meta.source === 'string' && meta.source) return meta.source;
 
   // Check sources array
-  const sources = meta.sources as Array<Record<string, unknown>> | undefined;
+  const sources = meta.sources as Record<string, unknown>[] | undefined;
   if (sources?.[0]) {
     const type = sources[0].type ?? sources[0].kind;
     if (typeof type === 'string' && type) return type;
@@ -196,10 +196,7 @@ function main(): void {
         stats.scanned++;
 
         // Skip already-processed (idempotency)
-        if (
-          client &&
-          client.hasItem('meetings', 'migration-alignment', meetingId)
-        ) {
+        if (client?.hasItem('meetings', 'migration-alignment', meetingId)) {
           stats.skippedAlreadyProcessed++;
           continue;
         }

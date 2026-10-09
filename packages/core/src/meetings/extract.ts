@@ -138,8 +138,7 @@ function collectCandidates(
   const msgIds = Object.keys(msgs);
   if (msgIds.length === 0) return;
 
-  for (const msgId of msgIds) {
-    const msg = msgs[msgId];
+  for (const [msgId, msg] of Object.entries(msgs)) {
     const from = msg.from ?? '';
     const snippet = msg.snippet ?? '';
 

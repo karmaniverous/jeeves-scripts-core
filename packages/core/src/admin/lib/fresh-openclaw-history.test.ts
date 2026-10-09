@@ -164,7 +164,7 @@ async function run(initialState: Record<string, string> = {}) {
 function counted(hour: string): number | undefined {
   const channels = readBucket(hour, bucketDir)?.channels;
   return channels && 'unknown' in channels
-    ? channels.unknown.models[MODEL].input.count
+    ? channels.unknown.models[MODEL]!.input.count
     : undefined;
 }
 
@@ -172,7 +172,7 @@ function counted(hour: string): number | undefined {
 function savedSeq(state: Map<string, string>): number | undefined {
   return parseDbCursorState(state.get(TOKEN_METRICS_DB_CURSOR_KEY) ?? null)?.[
     'session:s1'
-  ].lastSeq;
+  ]?.lastSeq;
 }
 
 describe('collect-token-metrics without a stored OpenClaw DB cursor', () => {

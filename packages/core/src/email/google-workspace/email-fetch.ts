@@ -124,7 +124,7 @@ export function fetchThreadMetadata(params: {
     const dateH = headerValue(hdrs, 'Date');
     const lids = m.labelIds ?? [];
     const dir = lids.includes('SENT') ? 'outgoing' : 'incoming';
-    const snip = m.snippet || '';
+    const snip = m.snippet ?? '';
 
     [from, to, cc].forEach((a) => {
       if (!a) return;
@@ -259,9 +259,9 @@ export function fetchThreadMetadata(params: {
       key: k,
       account,
       threadId,
-      subject: params.subject || latestOutMeta?.subject || '',
-      from: latestOutMeta?.from || '',
-      to: latestOutMeta?.to || '',
+      subject: (params.subject || latestOutMeta?.subject) ?? '',
+      from: latestOutMeta?.from ?? '',
+      to: latestOutMeta?.to ?? '',
       pendingSince: new Date(latestOutMs).toISOString(),
       status: 'pending',
       noResponseNeeded: false,
@@ -287,18 +287,21 @@ export function fetchThreadMetadata(params: {
   const ids = Object.keys(seenMessageIds);
   if (ids.length > 2000) {
     ids.sort(
-      (a, b) => Date.parse(seenMessageIds[b]) - Date.parse(seenMessageIds[a]),
+      (a, b) =>
+        Date.parse(seenMessageIds[b] ?? '') -
+        Date.parse(seenMessageIds[a] ?? ''),
     );
     const keep = new Set(ids.slice(0, 2000));
     const pruned: Record<string, string> = {};
     for (const id of keep) {
-      pruned[id] = seenMessageIds[id];
+      const seen = seenMessageIds[id];
+      if (seen !== undefined) pruned[id] = seen;
     }
     seenMessageIds = pruned;
   }
 
   setThreadState(client, account, threadId, {
-    ...(prevObj || {}),
+    ...(prevObj ?? {}),
     lastInternalDateMs: maxI,
     seenMessageIds,
     fetchedAt: nowIso(),

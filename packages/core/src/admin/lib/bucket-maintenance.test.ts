@@ -49,23 +49,23 @@ afterEach(() => {
 
 describe('backupBucketFiles', () => {
   it('copies each existing bucket beside itself with one timestamp', () => {
-    const a = writeBucket(HOURS[0]);
-    writeBucket(HOURS[2]);
+    const a = writeBucket(HOURS[0]!);
+    writeBucket(HOURS[2]!);
 
     expect(backupBucketFiles(HOURS, false, '[t]', dir)).toBe(2);
 
     const backup = a.replace(/\.json$/, `.backup-${STAMP}.json`);
     expect(fs.readFileSync(backup, 'utf8')).toBe(fs.readFileSync(a, 'utf8'));
     expect(listAll()).toEqual([
-      `${HOURS[0]}.backup-${STAMP}.json`,
-      `${HOURS[0]}.json`,
-      `${HOURS[2]}.backup-${STAMP}.json`,
-      `${HOURS[2]}.json`,
+      `${HOURS[0]!}.backup-${STAMP}.json`,
+      `${HOURS[0]!}.json`,
+      `${HOURS[2]!}.backup-${STAMP}.json`,
+      `${HOURS[2]!}.json`,
     ]);
   });
 
   it('dry run counts but writes nothing', () => {
-    writeBucket(HOURS[1]);
+    writeBucket(HOURS[1]!);
     const before = listAll();
 
     expect(backupBucketFiles(HOURS, true, '[t]', dir)).toBe(1);
@@ -73,7 +73,7 @@ describe('backupBucketFiles', () => {
   });
 
   it('throws on a failed copy, so a following delete never runs', () => {
-    const fp = writeBucket(HOURS[0]);
+    const fp = writeBucket(HOURS[0]!);
     // Occupy the backup path: the copy fails (never overwrites).
     fs.mkdirSync(fp.replace(/\.json$/, `.backup-${STAMP}.json`));
 
@@ -88,21 +88,21 @@ describe('backupBucketFiles', () => {
 
 describe('deleteBucketFiles', () => {
   it('deletes existing buckets in range and leaves backups', () => {
-    writeBucket(HOURS[0]);
-    writeBucket(HOURS[1]);
+    writeBucket(HOURS[0]!);
+    writeBucket(HOURS[1]!);
     backupBucketFiles(HOURS, false, '[t]', dir);
 
     expect(deleteBucketFiles(HOURS, false, '[t]', dir)).toBe(2);
     expect(listAll()).toEqual([
-      `${HOURS[0]}.backup-${STAMP}.json`,
-      `${HOURS[1]}.backup-${STAMP}.json`,
+      `${HOURS[0]!}.backup-${STAMP}.json`,
+      `${HOURS[1]!}.backup-${STAMP}.json`,
     ]);
   });
 
   it('dry run deletes nothing', () => {
-    writeBucket(HOURS[0]);
+    writeBucket(HOURS[0]!);
 
     expect(deleteBucketFiles(HOURS, true, '[t]', dir)).toBe(1);
-    expect(listAll()).toEqual([`${HOURS[0]}.json`]);
+    expect(listAll()).toEqual([`${HOURS[0]!}.json`]);
   });
 });

@@ -43,13 +43,13 @@ function readJsonFile(filePath: string): unknown {
   }
 }
 
-/** Read the DM-name cache ({} when missing or invalid). */
+/** Read the DM-name cache (\{\} when missing or invalid). */
 export function readDmNameCache(filePath: string): Record<string, string> {
   const parsed = dmNameCacheSchema.safeParse(readJsonFile(filePath));
   return parsed.success ? parsed.data : {};
 }
 
-/** Read the cached Slack user map as id → name ({} when unusable). */
+/** Read the cached Slack user map as id → name (\{\} when unusable). */
 export function loadSlackUserNames(filePath: string): Record<string, string> {
   const parsed = slackUsersSchema.safeParse(readJsonFile(filePath));
   if (!parsed.success) return {};

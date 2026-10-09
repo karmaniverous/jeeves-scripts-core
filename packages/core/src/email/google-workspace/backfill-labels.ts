@@ -59,7 +59,7 @@ function main(): void {
         }
         if (!ts) continue;
 
-        const applied = ts.labelApplied || {};
+        const applied = ts.labelApplied ?? {};
         const labelsToApply = computeLabelsToApply({
           receiptCandidate: !!ts.receiptCandidate,
           junkCandidate: !!ts.junkCandidate,
@@ -71,7 +71,7 @@ function main(): void {
         const r = enqueueLabelActions(client, {
           account,
           messageId:
-            (ts.seenMessageIds && Object.keys(ts.seenMessageIds)[0]) || tid,
+            (ts.seenMessageIds && Object.keys(ts.seenMessageIds)[0]) ?? tid,
           threadId: tid,
           labels: labelsToApply,
           source: 'backfill-labels',

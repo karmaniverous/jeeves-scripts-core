@@ -139,7 +139,7 @@ describe('collectOpenClawDb', () => {
     });
 
     expect(inputCount(buckets, '2026-06-15T10', 'unknown')).toBe(2);
-    expect(result?.['session:s1'].lastSeq).toBe(2);
+    expect(result?.['session:s1']?.lastSeq).toBe(2);
   });
 
   it('throws on a wrong-schema DB before collecting anything', async () => {

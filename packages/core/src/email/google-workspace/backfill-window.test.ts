@@ -34,7 +34,7 @@ const SEEN = `email|${ACCOUNT}.seenThreadIds`;
 function fakeClient() {
   const state = new Map<string, string>();
   const items = new Map<string, string>();
-  const queue: Array<{ name: string; payload: unknown }> = [];
+  const queue: { name: string; payload: unknown }[] = [];
   const client = {
     getState: vi.fn(
       (ns: string, key: string) => state.get(`${ns}|${key}`) ?? null,
@@ -59,7 +59,7 @@ function fakeClient() {
 
 /** gog stub returning the given pages (thread ids) in order. */
 function pagedGog(
-  pages: Array<{ ids: string[]; next: string }>,
+  pages: { ids: string[]; next: string }[],
 ): GogRunner & { calls: string[][] } {
   const calls: string[][] = [];
   let i = 0;
@@ -134,7 +134,7 @@ describe('backfillAccount', () => {
     expect(state.get(CURSOR)).toBe(
       new Date(NOW.getTime() - 4 * DAY).toISOString(),
     );
-    expect(gog.calls[0][2]).toBe(backfillQuery(r1.window!));
+    expect(gog.calls[0]![2]).toBe(backfillQuery(r1.window!));
 
     const r2 = backfillAccount(ACCOUNT, SETTINGS, d);
     expect(r2.window?.before).toEqual(new Date(NOW.getTime() - 4 * DAY));
@@ -180,7 +180,7 @@ describe('backfillAccount', () => {
     const { client } = fakeClient();
     const gog = pagedGog([]);
     backfillAccount(ACCOUNT, SETTINGS, deps(client, gog, { pageSize: 7 }));
-    expect(gog.calls[0].slice(3, 5)).toEqual(['--max', '7']);
+    expect(gog.calls[0]!.slice(3, 5)).toEqual(['--max', '7']);
   });
 
   it('counts old-format (bare string) thread state as known', () => {

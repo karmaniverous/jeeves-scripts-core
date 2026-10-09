@@ -32,7 +32,7 @@ export interface NormalizedMessage {
   extensions: Record<string, string | string[]>;
   internalDate: Date;
   body: { text: string; html: string };
-  attachments: Array<{ filename: string; mimeType: string; size: number }>;
+  attachments: { filename: string; mimeType: string; size: number }[];
   computed: {
     /** First Message-ID in References header, or own Message-ID. */
     threadRoot: string;

@@ -200,18 +200,17 @@ async function main(): Promise<void> {
 
         // Determine which labels need enqueuing (new or changed classifications only)
         const classChanged =
-          !prev ||
-          prev.receiptCandidate !== rc ||
+          prev?.receiptCandidate !== rc ||
           prev.junkCandidate !== jc ||
           prev.bucket !== bucket;
         const labelApplied: Record<string, string> = {
-          ...(prev?.labelApplied || {}),
+          ...(prev?.labelApplied ?? {}),
         };
         let labelC = 0;
 
         if (classChanged) {
           const msgId =
-            (prev?.seenMessageIds && Object.keys(prev.seenMessageIds)[0]) ||
+            (prev?.seenMessageIds && Object.keys(prev.seenMessageIds)[0]) ??
             tid;
           const labelsToApply = computeLabelsToApply({
             receiptCandidate: rc,
@@ -235,7 +234,7 @@ async function main(): Promise<void> {
         lblC += labelC;
 
         setThreadState(client, account, tid, {
-          ...(prev || {}),
+          ...(prev ?? {}),
           seenAt: nowIso(),
           date: date ?? undefined,
           messageCount: mc ?? undefined,

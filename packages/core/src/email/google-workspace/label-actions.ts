@@ -199,8 +199,10 @@ export function labelChangesFor(action: string, label?: string): LabelChanges {
     return { addLabels: [label], removeLabels: [] };
   if (action === 'removeLabel' && label)
     return { addLabels: [], removeLabels: [label] };
-  if (Object.prototype.hasOwnProperty.call(FIXED_ACTIONS, action))
-    return FIXED_ACTIONS[action];
+  const fixed = Object.prototype.hasOwnProperty.call(FIXED_ACTIONS, action)
+    ? FIXED_ACTIONS[action]
+    : undefined;
+  if (fixed) return fixed;
   throw new Error(`Unknown action: ${action}`);
 }
 

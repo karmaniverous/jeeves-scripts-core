@@ -75,7 +75,7 @@ describe('pollImapAccount password resolution', () => {
     ]);
     // The auth failure is logged without the password.
     expect(error).toHaveBeenCalledTimes(1);
-    expect(String(error.mock.calls[0][0])).not.toContain(SECRET);
+    expect(String(error.mock.calls[0]![0])).not.toContain(SECRET);
   });
 
   it('fails before connecting when the secret file is missing', async () => {

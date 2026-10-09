@@ -229,12 +229,12 @@ describe('archive generations', () => {
       new Date('2026-06-15T11:00:00Z').getTime(),
     );
     expect(partial.input).toBe(4);
-    expect(cursors['session:s#g1'].complete).toBeUndefined();
-    expect(cursors['legacy:old.jsonl.reset.2026-06-15'].complete).toBe(true);
+    expect(cursors['session:s#g1']!.complete).toBeUndefined();
+    expect(cursors['legacy:old.jsonl.reset.2026-06-15']!.complete).toBe(true);
 
     const full = scan(fx, cursors);
     expect(full.input).toBe(2);
-    expect(cursors['session:s#g1'].complete).toBe(true);
+    expect(cursors['session:s#g1']!.complete).toBe(true);
 
     const again = scan(fx, cursors);
     expect(again.input).toBe(0);

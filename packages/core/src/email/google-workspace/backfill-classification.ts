@@ -101,9 +101,9 @@ function main(): void {
         // CacheMessage has from; use first message's from if available.
         const msgs = Object.values(cache.messages ?? {});
         const firstMsg = msgs.at(0);
-        const from = firstMsg?.from || '';
-        const to = firstMsg?.to || '';
-        const snippet = firstMsg?.snippet || '';
+        const from = firstMsg?.from ?? '';
+        const to = firstMsg?.to ?? '';
+        const snippet = firstMsg?.snippet ?? '';
 
         // Classify (--reclassify-buckets keeps stored receipt/junk flags);
         // junk is never set on a receipt candidate
@@ -124,7 +124,7 @@ function main(): void {
         acctClassified++;
 
         // Determine labels to apply
-        const applied = ts.labelApplied || {};
+        const applied = ts.labelApplied ?? {};
         const labelsToApply = computeLabelsToApply({
           receiptCandidate: receipt,
           junkCandidate: junk,
@@ -135,7 +135,7 @@ function main(): void {
         const r = enqueueLabelActions(client, {
           account,
           messageId:
-            (ts.seenMessageIds && Object.keys(ts.seenMessageIds)[0]) || tid,
+            (ts.seenMessageIds && Object.keys(ts.seenMessageIds)[0]) ?? tid,
           threadId: tid,
           labels: labelsToApply,
           source: 'backfill-classification',

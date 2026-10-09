@@ -63,7 +63,7 @@ describe('findShareMeetingsNeedingFetch', () => {
 
     const candidates = findShareMeetingsNeedingFetch();
     expect(candidates).toHaveLength(1);
-    expect(candidates[0].meetingId).toBe('meeting-a');
+    expect(candidates[0]!.meetingId).toBe('meeting-a');
   });
 
   it('skips share meetings that already have transcript', () => {
@@ -143,6 +143,8 @@ describe('findShareMeetingsNeedingFetch', () => {
 
     const candidates = findShareMeetingsNeedingFetch();
     expect(candidates).toHaveLength(1);
-    expect(candidates[0].fathomUrl).toBe('https://fathom.video/share/fromfile');
+    expect(candidates[0]!.fathomUrl).toBe(
+      'https://fathom.video/share/fromfile',
+    );
   });
 });

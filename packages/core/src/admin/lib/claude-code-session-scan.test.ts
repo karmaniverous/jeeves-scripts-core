@@ -100,8 +100,8 @@ describe('scanClaudeCodeSessions', () => {
     const scan = await load();
     const cursors: CursorState = {};
     expect(scan(cursors).input).toBe(11);
-    const [key] = Object.keys(cursors);
-    expect(cursors[key].byteOffset).toBe(fs.statSync(file).size);
+    const key = Object.keys(cursors)[0]!;
+    expect(cursors[key]?.byteOffset).toBe(fs.statSync(file).size);
     expect(scan(cursors).ccSkipped).toBe(1);
   });
 
@@ -110,7 +110,7 @@ describe('scanClaudeCodeSessions', () => {
     const probe: CursorState = {};
     fs.writeFileSync(file, FIRST);
     scan(probe);
-    const [key] = Object.keys(probe);
+    const key = Object.keys(probe)[0]!;
     fs.writeFileSync(file, FIRST + SECOND);
     const stored: CursorState = {
       [key]: { byteOffset: Buffer.byteLength(FIRST), lastTimestamp: 0 },

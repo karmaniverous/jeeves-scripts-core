@@ -68,7 +68,7 @@ export function classifyAlsoAllowPolicy(content: string): {
   if (bodies.length === 0) return { state: 'absent' };
   if (bodies.length > 1) return { state: 'unknown' };
 
-  const [m] = bodies;
+  const m = bodies[0]!; // exactly one (checked above)
   const line = lineOf(content, m.index);
   const body = m[0];
 
@@ -108,7 +108,9 @@ export function decideAlsoAllow(
     };
   }
 
-  const [c] = present;
+  const c = present[0];
+  if (!c)
+    return { action: 'fail', message: 'hasRestrictiveAllowPolicy not found.' };
   switch (c.state) {
     case 'upstream-fixed':
       return {

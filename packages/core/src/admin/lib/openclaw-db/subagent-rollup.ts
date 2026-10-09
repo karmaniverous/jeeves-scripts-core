@@ -2,7 +2,7 @@
  * @module openclaw-db/subagent-rollup
  *
  * Attributes a subagent session's usage to the session that spawned it,
- * resolved transitively (subagent of a subagent -> root), using the
+ * resolved transitively (subagent of a subagent -\> root), using the
  * parent linkage OpenClaw 2026.9 records (`parent_session_key` /
  * `spawnedBy`; see schema-v23-meta.ts). Rules:
  *

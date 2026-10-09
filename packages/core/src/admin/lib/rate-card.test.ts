@@ -96,7 +96,9 @@ describe('rate-card', () => {
 
     it('returns zero rates for unknown model with warning', () => {
       vi.mocked(readJson).mockReturnValue(MOCK_RATE_CARD);
-      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const warnSpy = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
 
       const rates = getModelRates('unknown/model-x');
       expect(rates).toEqual({
@@ -137,7 +139,7 @@ describe('rate-card', () => {
 
     it('returns zero costs for unknown model', () => {
       vi.mocked(readJson).mockReturnValue(MOCK_RATE_CARD);
-      vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(console, 'warn').mockImplementation(() => undefined);
 
       const counts = { input: 1000, output: 1000, cacheRead: 0, cacheWrite: 0 };
       const costs = computeCosts('unknown/model', counts);

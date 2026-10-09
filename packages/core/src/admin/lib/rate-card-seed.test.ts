@@ -31,7 +31,7 @@ describe('ensureRateCard', () => {
     // Nested, not-yet-existing directory, as on a fresh instance.
     ratesPath = path.join(dir, 'state', 'token-metrics', 'token-rates.json');
     fs.writeFileSync(seedPath, JSON.stringify(SEED));
-    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
   });
 
   afterEach(() => {

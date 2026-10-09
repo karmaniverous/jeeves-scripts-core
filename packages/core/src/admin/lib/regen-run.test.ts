@@ -47,10 +47,10 @@ describe('runRegen (live)', () => {
       `set:${TOKEN_METRICS_CC_CURSOR_KEY}`,
       'close',
     ]);
-    const hours = h.deps.backup.mock.calls[0][0];
+    const hours = h.deps.backup.mock.calls[0]![0];
     expect(hours[0]).toBe('2026-09-24T09');
     expect(hours.at(-1)).toBe('2026-09-28T11');
-    expect(h.deps.scanOpenClaw.mock.calls[0][1]).toEqual({
+    expect(h.deps.scanOpenClaw.mock.calls[0]![1]).toEqual({
       fromMs: FROM_MS,
       toMs: CUTOFF,
       countedOnly: false,
@@ -76,19 +76,21 @@ describe('runRegen (live)', () => {
     );
 
     const toMs = Date.parse('2026-09-25T00:00:00Z');
-    expect(h.deps.scanOpenClaw.mock.calls[0][1]).toEqual({
+    expect(h.deps.scanOpenClaw.mock.calls[0]![1]).toEqual({
       fromMs: FROM_MS,
       toMs,
       countedOnly: true,
     });
-    expect(h.deps.scanOpenClaw.mock.calls[0][0]).toEqual(JSON.parse(DB_CURSOR));
-    expect(h.deps.scanClaudeCode.mock.calls[0][2]).toEqual(
+    expect(h.deps.scanOpenClaw.mock.calls[0]![0]).toEqual(
+      JSON.parse(DB_CURSOR),
+    );
+    expect(h.deps.scanClaudeCode.mock.calls[0]![2]).toEqual(
       JSON.parse(CC_CURSOR),
     );
-    expect(h.deps.scanClaudeCode.mock.calls[0][5]).toEqual({
+    expect(h.deps.scanClaudeCode.mock.calls[0]![5]).toEqual({
       countedOnly: true,
     });
-    expect(h.deps.backup.mock.calls[0][0].at(-1)).toBe('2026-09-24T23');
+    expect(h.deps.backup.mock.calls[0]![0].at(-1)).toBe('2026-09-24T23');
     expect(h.log).toContain('flush:live');
     expect(h.log.filter((l) => l.startsWith('set:'))).toEqual([]);
     expect(h.state.get(TOKEN_METRICS_CC_CURSOR_KEY)).toBe(CC_CURSOR);

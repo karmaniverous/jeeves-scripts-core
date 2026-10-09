@@ -105,8 +105,8 @@ describe('shipped seed (config/token-rates.seed.json)', () => {
     'google/gemini-3.1-pro-preview',
   ])('covers default instance model %s with non-zero rates', (model) => {
     expect(Object.keys(seed.models)).toContain(model);
-    expect(seed.models[model].input).toBeGreaterThan(0);
-    expect(seed.models[model].output).toBeGreaterThan(0);
+    expect(seed.models[model]!.input).toBeGreaterThan(0);
+    expect(seed.models[model]!.output).toBeGreaterThan(0);
   });
 
   it('prices delivery-mirror models at zero', () => {

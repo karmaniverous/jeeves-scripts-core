@@ -31,7 +31,7 @@ vi.mock('./lib/rate-card.js', () => ({
       },
     },
   }),
-  resetRateCard: () => {},
+  resetRateCard: () => undefined,
   getModelRates: (model: string) => {
     const rates: Record<string, Record<string, number>> = {
       'anthropic/claude-opus-4-6': {
@@ -182,7 +182,7 @@ describe('getTokenMetrics', () => {
     expect(costs.channels).toHaveProperty('slack:channel:#general');
     expect(costs.channels).toHaveProperty('heartbeat');
 
-    const general = costs.channels['slack:channel:#general'];
+    const general = costs.channels['slack:channel:#general']!;
     expect(general).toBeDefined();
     expect(general.cost).toBeGreaterThan(0);
     expect(general.costPct).toBeGreaterThan(0);
@@ -198,7 +198,7 @@ describe('getTokenMetrics', () => {
     expect(costs.models).toHaveProperty('anthropic/claude-opus-4-6');
     expect(costs.models).toHaveProperty('openai/gpt-4o');
 
-    const opus = costs.models['anthropic/claude-opus-4-6'];
+    const opus = costs.models['anthropic/claude-opus-4-6']!;
     expect(opus).toBeDefined();
     expect(opus.cost).toBeGreaterThan(0);
 
@@ -268,7 +268,7 @@ describe('getTokenMetrics', () => {
       'openai/gpt-4o': { input: 2.5, output: 10, cacheRead: 0, cacheWrite: 0 },
     });
     // Usage counts live under models[model].tokens[category].count.
-    expect(costs.models['anthropic/claude-opus-4-6'].tokens.input.count).toBe(
+    expect(costs.models['anthropic/claude-opus-4-6']!.tokens.input.count).toBe(
       150,
     );
   });

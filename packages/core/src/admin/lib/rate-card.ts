@@ -51,7 +51,7 @@ export function resetRateCard(): void {
  */
 export function getModelRates(model: string): ModelRates {
   const card = loadRateCard();
-  const rates = card.models[model] as ModelRates | undefined;
+  const rates = card.models[model];
   if (rates) return rates;
 
   console.warn(`[rate-card] No rates for model "${model}", using zero`);

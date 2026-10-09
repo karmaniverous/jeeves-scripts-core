@@ -41,11 +41,11 @@ export function normalizeDomSnapshot(snapshot: unknown): DomSnapshot {
       : {};
 
   return {
-    buttons: Array.isArray(record['buttons'])
-      ? (record['buttons'] as ButtonSnapshot[])
+    buttons: Array.isArray(record.buttons)
+      ? (record.buttons as ButtonSnapshot[])
       : [],
-    headings: Array.isArray(record['headings'])
-      ? (record['headings'] as HeadingSnapshot[])
+    headings: Array.isArray(record.headings)
+      ? (record.headings as HeadingSnapshot[])
       : [],
   };
 }
@@ -56,7 +56,7 @@ export function normalizeDomSnapshot(snapshot: unknown): DomSnapshot {
  * JS function source evaluated inside `page.evaluate()`.
  *
  * Note: this is a function source string, so callers must wrap and invoke it
- * (for example `page.evaluate(`(${COLLECT_DOM_SNAPSHOT_JS})()`)`).
+ * (for example `page.evaluate(`($\{COLLECT_DOM_SNAPSHOT_JS\})()`)`).
  *
  * Collects a lightweight snapshot of button and heading elements so the
  * extraction logic can run outside the browser context.
@@ -110,7 +110,7 @@ export const COLLECT_DOM_SNAPSHOT_JS = `() => {
  *
  * Strategy priority:
  *  1. Buttons — find a button whose text includes the label, then look
- *     for the first ancestor with substantial (>100 char) inner text.
+ *     for the first ancestor with substantial (\>100 char) inner text.
  *     Strip lines that match any of the search labels.
  *  2. Headings — find a heading whose text exactly matches the label,
  *     then join its following-sibling texts.

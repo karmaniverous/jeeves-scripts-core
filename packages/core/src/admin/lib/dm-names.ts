@@ -72,7 +72,7 @@ type Channel = HourlyBucket['channels'][string];
 
 function mergeChannel(into: Channel, from: Channel): void {
   for (const [model, entry] of Object.entries(from.models)) {
-    const existing = into.models[model] as typeof entry | undefined;
+    const existing = into.models[model];
     if (!existing) {
       into.models[model] = entry;
       continue;
@@ -102,7 +102,7 @@ export function renameDmChannels(
       const name = id ? names.get(id) : undefined;
       const target = name ? `slack:dm:${slugify(name)}` : key;
       if (target !== key) renamed++;
-      const into = next[target] as Channel | undefined;
+      const into = next[target];
       if (into) mergeChannel(into, channel);
       else next[target] = channel;
     }

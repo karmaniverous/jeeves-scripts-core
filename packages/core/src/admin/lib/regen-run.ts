@@ -10,7 +10,7 @@
  * - live, unbounded: scan from seq 0 / reset CC cursors, back up then delete
  *   the range's buckets, flush, and REPLACE the DB and CC cursors.
  * - live, bounded (`to`): rebuild from already-counted events only
- *   (OpenClaw seq <= stored cursor, CC bytes before the stored offset);
+ *   (OpenClaw `seq <= stored cursor`, CC bytes before the stored offset);
  *   cursors are left exactly as stored.
  * `dryRun` scans and reports without writing buckets, backups, the
  * DM-name cache or runner state. A backup failure throws before any

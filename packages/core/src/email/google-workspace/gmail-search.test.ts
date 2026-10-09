@@ -9,7 +9,7 @@ import {
 
 /** gog stub returning the given pages in order. */
 function pagedGog(
-  pages: Array<{ ids: string[]; next: string }>,
+  pages: { ids: string[]; next: string }[],
 ): GogRunner & { calls: string[][] } {
   const calls: string[][] = [];
   let i = 0;
@@ -150,8 +150,8 @@ describe('searchThreadPages', () => {
     expect(rest).toEqual([['t3'], ['t4']]);
     expect(gog.calls).toHaveLength(3);
     expect(gog.calls[0]).toEqual(searchArgs('me@example.com', 'q', 2));
-    expect(gog.calls[1].slice(-2)).toEqual(['--page', 'p2']);
-    expect(gog.calls[2].slice(-2)).toEqual(['--page', 'p3']);
+    expect(gog.calls[1]!.slice(-2)).toEqual(['--page', 'p2']);
+    expect(gog.calls[2]!.slice(-2)).toEqual(['--page', 'p3']);
   });
 
   it('throws on a repeated page token instead of looping forever', () => {

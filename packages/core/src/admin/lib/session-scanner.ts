@@ -45,7 +45,7 @@ function processOCFile(
   seenModels: Set<string>,
 ): void {
   const stat = fs.statSync(filePath);
-  const cursor = cursors[fileName] as CursorState[string] | undefined;
+  const cursor = cursors[fileName];
   const byteOffset = cursor?.byteOffset ?? 0;
 
   // Skip if fully processed and file hasn't grown
@@ -163,7 +163,7 @@ export function scanAllSessions(
 
   for (const fileName of sessionFiles) {
     const filePath = path.join(constants().SESSIONS_DIR, fileName);
-    const cursor = cursors[fileName] as CursorState[string] | undefined;
+    const cursor = cursors[fileName];
     const stat = fs.statSync(filePath);
 
     if (cursor?.byteOffset !== undefined && cursor.byteOffset >= stat.size) {

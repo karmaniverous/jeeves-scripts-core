@@ -33,7 +33,8 @@ export function projectToChannel(dirName: string): {
   key: string;
   name: string;
 } {
-  if (dirName in PROJECT_CHANNEL_MAP) return PROJECT_CHANNEL_MAP[dirName];
+  const mapped = PROJECT_CHANNEL_MAP[dirName];
+  if (mapped) return mapped;
 
   // Strip drive prefix and common container directories
   // (e.g. D--repos-myorg-my-project → myorg-my-project, J--jeeves → jeeves).
@@ -58,7 +59,7 @@ function mapModelKey(rawModel: string): string | null {
   // Known Anthropic models — add provider prefix
   if (rawModel.startsWith('claude-')) {
     // Handle dated snapshot names (e.g. claude-sonnet-4-20250514 → claude-sonnet-4-5)
-    const datedMatch = rawModel.match(/^claude-(\w+)-(\d+)-(\d{8})$/);
+    const datedMatch = /^claude-(\w+)-(\d+)-(\d{8})$/.exec(rawModel);
     if (datedMatch) {
       // Map known dated snapshots
       const snapshots: Record<string, string> = {

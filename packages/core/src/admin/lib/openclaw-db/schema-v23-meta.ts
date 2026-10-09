@@ -4,13 +4,13 @@
  * Schema-23 channel metadata for token-metrics channel naming. Reads (never
  * writes) the session key of each transcript and the names OpenClaw keeps
  * in its session/conversation records:
- * - `session_windows`: session_id -> session_key;
+ * - `session_windows`: session_id -\> session_key;
  * - `session_transcript_archives.session_key` for deleted/reset sessions;
  * - `session_nodes`: `label` plus `entry_json` (`groupChannel`,
  *   `displayName`, `delivery.origin.label`, `parentSessionKey` /
  *   `spawnedBy`); parents are linked transitively (bounded, cycle-safe)
  *   so subagents can roll up to their root spawner;
- * - `conversations`: native Slack channel id -> label (`slack:<team>#name`).
+ * - `conversations`: native Slack channel id -\> label (`slack:<team>#name`).
  */
 
 import type { DatabaseSync } from 'node:sqlite';
@@ -39,7 +39,7 @@ export function channelNameFromLabel(
   label: string | undefined,
 ): string | undefined {
   const m = label ? /^slack:[^#\s]*#([a-z0-9._-]+)$/i.exec(label) : null;
-  return m ? `#${m[1]}` : undefined;
+  return m ? `#${m[1]!}` : undefined;
 }
 
 /** Parse one `session_nodes` row. Malformed entry JSON yields no names. */
@@ -55,15 +55,14 @@ export function parseNodeEntry(
     entry = {};
   }
   const e = isRecord(entry) ? entry : {};
-  const delivery = isRecord(e['delivery']) ? e['delivery'] : {};
-  const origin = isRecord(delivery['origin']) ? delivery['origin'] : {};
+  const delivery = isRecord(e.delivery) ? e.delivery : {};
+  const origin = isRecord(delivery.origin) ? delivery.origin : {};
   return {
-    label: str(label) ?? str(e['label']),
-    groupChannel: str(e['groupChannel']),
-    displayName: str(e['displayName']),
-    originLabel: str(origin['label']),
-    parentKey:
-      str(parentColumn) ?? str(e['parentSessionKey']) ?? str(e['spawnedBy']),
+    label: str(label) ?? str(e.label),
+    groupChannel: str(e.groupChannel),
+    displayName: str(e.displayName),
+    originLabel: str(origin.label),
+    parentKey: str(parentColumn) ?? str(e.parentSessionKey) ?? str(e.spawnedBy),
   };
 }
 
@@ -107,7 +106,7 @@ export function loadV23Meta(db: DatabaseSync): V23MetaIndex {
     if (name) channelNames.set(c.native_channel_id.toLowerCase(), name);
   }
   for (const [key, n] of nodes) {
-    const id = SLACK_CHANNEL_ID.exec(key)?.[1].toLowerCase();
+    const id = SLACK_CHANNEL_ID.exec(key)?.[1]?.toLowerCase();
     const name = n.groupChannel?.startsWith('#')
       ? n.groupChannel
       : channelNameFromLabel(n.displayName);
@@ -126,7 +125,7 @@ export function loadV23Meta(db: DatabaseSync): V23MetaIndex {
     const meta: SessionMeta = { sessionKey };
     if (!node) meta.missing = true;
     if (n.label) meta.label = n.label;
-    const id = SLACK_CHANNEL_ID.exec(sessionKey)?.[1].toLowerCase();
+    const id = SLACK_CHANNEL_ID.exec(sessionKey)?.[1]?.toLowerCase();
     const channelName =
       (n.groupChannel?.startsWith('#') ? n.groupChannel : undefined) ??
       channelNameFromLabel(n.displayName) ??

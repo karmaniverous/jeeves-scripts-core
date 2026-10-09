@@ -64,7 +64,7 @@ describe('ResumeCursor', () => {
     const offset = scan(content, 0, { stop: (t) => t === 'OPEN' });
     expect(offset).toBe(2);
     // The next scan starts at the stopped record and counts it.
-    expect(spans(content, offset)[0][0]).toBe('OPEN');
+    expect(spans(content, offset)[0]![0]).toBe('OPEN');
   });
 
   it('counts a tail that parses as complete, ready for the newline to follow', () => {

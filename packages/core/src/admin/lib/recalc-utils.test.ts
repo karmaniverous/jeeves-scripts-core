@@ -87,8 +87,8 @@ describe('resetCursorsForRange', () => {
       'file-c.jsonl': { byteOffset: 9999, lastTimestamp: 800 },
     };
     const result = resetCursorsForRange(cursors, 600);
-    expect(result['file-c.jsonl'].lastTimestamp).toBe(800);
-    expect(result['file-c.jsonl'].byteOffset).toBe(0);
+    expect(result['file-c.jsonl']!.lastTimestamp).toBe(800);
+    expect(result['file-c.jsonl']!.byteOffset).toBe(0);
   });
 
   it('handles mixed cursors: some before, some after fromMs', () => {

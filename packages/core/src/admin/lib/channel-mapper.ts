@@ -125,9 +125,9 @@ export function detectChannel(lines: string[]): ChannelResult {
   }
 
   // conversation_label from parsed metadata block
-  const labelMatch = text.match(/"conversation_label"\s*:\s*"([^"]+)"/);
+  const labelMatch = /"conversation_label"\s*:\s*"([^"]+)"/.exec(text);
   if (labelMatch) {
-    return slackChannelResult(labelMatch[1]);
+    return slackChannelResult(labelMatch[1]!);
   }
 
   // Slack DM. The name ends at a colon or end of line: OpenClaw 2026.9
@@ -135,7 +135,7 @@ export function detectChannel(lines: string[]): ChannelResult {
   // runtime-context text that must not leak into the key.
   const dmMatch = /Slack DM from ([^:\n]+?)[ \t]*(?::|$)/m.exec(text);
   if (dmMatch) {
-    const person = dmMatch[1].trim();
+    const person = dmMatch[1]!.trim();
     return { key: 'slack:dm:' + slugify(person), name: 'DM: ' + person };
   }
 

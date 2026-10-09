@@ -51,8 +51,7 @@ export function scanClaudeCodeSessions(
       continue;
     }
 
-    const cursor = ccCursors[ccFile.cursorKey] as
-      CursorState[string] | undefined;
+    const cursor = ccCursors[ccFile.cursorKey];
     const stored = cursor?.byteOffset ?? 0;
     const skip = options.countedOnly ? stored <= 0 : stored >= stat.size;
     if (skip) {

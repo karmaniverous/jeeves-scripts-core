@@ -175,65 +175,65 @@ describe('stripLeadingTranscriptChrome', () => {
 
 describe('resolveChromePath', () => {
   it('uses PUPPETEER_EXECUTABLE_PATH when set and file exists', () => {
-    const original = process.env['PUPPETEER_EXECUTABLE_PATH'];
+    const original = process.env.PUPPETEER_EXECUTABLE_PATH;
     // Use a path we know exists — the node binary itself
-    process.env['PUPPETEER_EXECUTABLE_PATH'] = process.execPath;
+    process.env.PUPPETEER_EXECUTABLE_PATH = process.execPath;
     try {
       expect(resolveChromePath()).toBe(process.execPath);
     } finally {
       if (original === undefined) {
-        delete process.env['PUPPETEER_EXECUTABLE_PATH'];
+        delete process.env.PUPPETEER_EXECUTABLE_PATH;
       } else {
-        process.env['PUPPETEER_EXECUTABLE_PATH'] = original;
+        process.env.PUPPETEER_EXECUTABLE_PATH = original;
       }
     }
   });
 
   it('uses CHROME_PATH when PUPPETEER_EXECUTABLE_PATH is not set', () => {
-    const origPuppeteer = process.env['PUPPETEER_EXECUTABLE_PATH'];
-    const origChrome = process.env['CHROME_PATH'];
+    const origPuppeteer = process.env.PUPPETEER_EXECUTABLE_PATH;
+    const origChrome = process.env.CHROME_PATH;
 
-    delete process.env['PUPPETEER_EXECUTABLE_PATH'];
-    process.env['CHROME_PATH'] = process.execPath;
+    delete process.env.PUPPETEER_EXECUTABLE_PATH;
+    process.env.CHROME_PATH = process.execPath;
 
     try {
       expect(resolveChromePath()).toBe(process.execPath);
     } finally {
       if (origPuppeteer === undefined) {
-        delete process.env['PUPPETEER_EXECUTABLE_PATH'];
+        delete process.env.PUPPETEER_EXECUTABLE_PATH;
       } else {
-        process.env['PUPPETEER_EXECUTABLE_PATH'] = origPuppeteer;
+        process.env.PUPPETEER_EXECUTABLE_PATH = origPuppeteer;
       }
       if (origChrome === undefined) {
-        delete process.env['CHROME_PATH'];
+        delete process.env.CHROME_PATH;
       } else {
-        process.env['CHROME_PATH'] = origChrome;
+        process.env.CHROME_PATH = origChrome;
       }
     }
   });
 
   it('throws when env path does not exist on disk', () => {
-    const original = process.env['PUPPETEER_EXECUTABLE_PATH'];
-    process.env['PUPPETEER_EXECUTABLE_PATH'] = '/nonexistent/chrome/executable';
+    const original = process.env.PUPPETEER_EXECUTABLE_PATH;
+    process.env.PUPPETEER_EXECUTABLE_PATH = '/nonexistent/chrome/executable';
     try {
       expect(() => resolveChromePath()).toThrow(
         /Chrome executable not found at path from environment/,
       );
     } finally {
       if (original === undefined) {
-        delete process.env['PUPPETEER_EXECUTABLE_PATH'];
+        delete process.env.PUPPETEER_EXECUTABLE_PATH;
       } else {
-        process.env['PUPPETEER_EXECUTABLE_PATH'] = original;
+        process.env.PUPPETEER_EXECUTABLE_PATH = original;
       }
     }
   });
 
   it('throws with helpful message when no Chrome found and no env set', () => {
-    const origPuppeteer = process.env['PUPPETEER_EXECUTABLE_PATH'];
-    const origChrome = process.env['CHROME_PATH'];
+    const origPuppeteer = process.env.PUPPETEER_EXECUTABLE_PATH;
+    const origChrome = process.env.CHROME_PATH;
 
-    delete process.env['PUPPETEER_EXECUTABLE_PATH'];
-    delete process.env['CHROME_PATH'];
+    delete process.env.PUPPETEER_EXECUTABLE_PATH;
+    delete process.env.CHROME_PATH;
 
     // Mock fs.existsSync to always return false (no candidates found)
     const existsSync = vi.spyOn(fs, 'existsSync');
@@ -244,14 +244,14 @@ describe('resolveChromePath', () => {
     } finally {
       existsSync.mockRestore();
       if (origPuppeteer === undefined) {
-        delete process.env['PUPPETEER_EXECUTABLE_PATH'];
+        delete process.env.PUPPETEER_EXECUTABLE_PATH;
       } else {
-        process.env['PUPPETEER_EXECUTABLE_PATH'] = origPuppeteer;
+        process.env.PUPPETEER_EXECUTABLE_PATH = origPuppeteer;
       }
       if (origChrome === undefined) {
-        delete process.env['CHROME_PATH'];
+        delete process.env.CHROME_PATH;
       } else {
-        process.env['CHROME_PATH'] = origChrome;
+        process.env.CHROME_PATH = origChrome;
       }
     }
   });
