@@ -8,7 +8,7 @@
  *
  * Ported from `jeeves-scripts-template` `src/lib/pipeline-config.ts`
  * (template `main` at `322054c`); accessors moved to
- * {@link ./pipeline-accessors.js}.
+ * `config/pipeline-accessors.ts`.
  */
 
 import { z } from 'zod';
@@ -20,18 +20,15 @@ export type { BackfillConfig, EmailConfig } from './pipeline-email-schema.js';
 
 /**
  * `imap.password`: `{ secretRef }` naming a file in the IMAP secrets
- * directory, or a literal string (deprecated; accepted but the deprecation
- * warning is left to the caller — the secret-literal scan exempts this
- * subtree, see `config/secret-guard.ts`).
+ * directory. A literal password is rejected (Decision 19: the config file
+ * never holds a secret value); the template's deprecated literal form is
+ * not carried into core.
  */
-const imapPasswordSchema = z.union([
-  z.string(),
-  z.strictObject({
-    secretRef: z.string().refine(isSafeSecretRef, UNSAFE_SECRET_REF_MESSAGE),
-  }),
-]);
+export const imapPasswordSchema = z.strictObject({
+  secretRef: z.string().refine(isSafeSecretRef, UNSAFE_SECRET_REF_MESSAGE),
+});
 
-const imapConnectionSchema = z.object({
+export const imapConnectionSchema = z.object({
   host: z.string(),
   port: z.number(),
   tls: z.boolean(),
@@ -39,12 +36,12 @@ const imapConnectionSchema = z.object({
   password: imapPasswordSchema,
 });
 
-const calendarConfigSchema = z.union([
+export const calendarConfigSchema = z.union([
   z.object({ tokenFile: z.string() }),
   z.object({ serviceAccount: z.literal('auto') }),
 ]);
 
-const accountSchema = z
+export const accountSchema = z
   .object({
     email: z.string(),
     type: z.enum(['gmail', 'imap']),
@@ -63,12 +60,12 @@ const accountSchema = z
     }
   });
 
-const domainEntrySchema = z.object({
+export const domainEntrySchema = z.object({
   pattern: z.string(),
   bucket: z.string(),
 });
 
-const bucketsSchema = z.object({
+export const bucketsSchema = z.object({
   domains: z.array(domainEntrySchema),
   priority: z.array(z.string()),
 });

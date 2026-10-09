@@ -45,7 +45,7 @@ const migrateReceiptConfig = (raw: unknown): unknown => {
   return { ...rest, forwardEnabled: legacy };
 };
 
-const receiptConfigSchema = z.preprocess(
+export const receiptConfigSchema = z.preprocess(
   migrateReceiptConfig,
   z.object({
     /** Whether detected receipts are forwarded to `sparkReceiptsForwardTo`. */
@@ -55,7 +55,7 @@ const receiptConfigSchema = z.preprocess(
   }),
 );
 
-const digestConfigSchema = z.object({
+export const digestConfigSchema = z.object({
   slackChannelId: z.string(),
 });
 
@@ -64,7 +64,7 @@ const digestConfigSchema = z.object({
  * job has nothing configured and fails if run without CLI args. No
  * defaults.
  */
-const backfillConfigSchema = z.object({
+export const backfillConfigSchema = z.object({
   /** Gmail accounts to backfill. */
   accounts: z.array(z.string().min(1)).min(1),
   /** How far back from now to walk, in days. */
@@ -78,7 +78,7 @@ const backfillConfigSchema = z.object({
  * Optional: absent keeps the original behaviour (archive inbox meeting
  * emails).
  */
-const meetingsEmailConfigSchema = z.object({
+export const meetingsEmailConfigSchema = z.object({
   /** Archive the source email out of INBOX after packaging. */
   archive: z.boolean(),
 });

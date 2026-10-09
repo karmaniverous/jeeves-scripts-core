@@ -16,7 +16,7 @@ const VALID_CONFIG = JSON.stringify({
 
 describe('resolveConfigPath', () => {
   afterEach(() => {
-    delete process.env[CONFIG_PATH_ENV];
+    Reflect.deleteProperty(process.env, CONFIG_PATH_ENV);
   });
 
   it('prefers an explicit configPath', () => {

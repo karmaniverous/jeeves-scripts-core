@@ -8,6 +8,8 @@
  */
 
 export { configCheck, type ConfigCheckResult } from './check.js';
+// Every Zod schema is public (Decision 31), so plugins can compose and
+// extend them and the docs can describe each type.
 export {
   isSafeSecretRef,
   resolveImapPassword,
@@ -18,6 +20,8 @@ export {
   integrations,
   type ResolvedIntegrations,
 } from './integrations.js';
+export * from './integrations-schema.js';
+export * from './jobs-schema.js';
 export { generateJsonSchema } from './json-schema.js';
 export {
   CONFIG_PATH_ENV,
@@ -28,6 +32,7 @@ export {
   resolveConfigPath,
 } from './loader.js';
 export { derivePaths, paths, type ResolvedPaths } from './paths.js';
+export * from './paths-schema.js';
 export {
   getBucketForDomain,
   getBucketNames,
@@ -39,26 +44,9 @@ export {
   pipeline,
   tryGetRef,
 } from './pipeline-accessors.js';
-export {
-  type AccountConfig,
-  type BucketsConfig,
-  type Config,
-  configSchema,
-  type EmailConfig,
-  type ExtensionsConfig,
-  type GitHubOrgEntry,
-  type GitHubOrgSpec,
-  type ImapConnection,
-  type InstanceConfig,
-  type IntegrationsConfig,
-  type JobDelta,
-  type JobsConfig,
-  type PathsConfigInput,
-  type PipelineConfig,
-  type SiloConfig,
-  type SiloRoutingConfig,
-  type XAccountConfig,
-} from './schema.js';
+export * from './pipeline-email-schema.js';
+export * from './pipeline-schema.js';
+export * from './schema.js';
 export {
   getBasePathForEmailDomain,
   getBasePathForGitHubOrg,
@@ -74,3 +62,4 @@ export {
   siloRouting,
   UnknownSiloError,
 } from './silo-router.js';
+export * from './silo-schema.js';

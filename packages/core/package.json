@@ -18,11 +18,17 @@
         "types": "./dist/index.d.ts",
         "default": "./dist/index.js"
       }
+    },
+    "./cli": {
+      "import": {
+        "types": "./dist/cli/index.d.ts",
+        "default": "./dist/cli.js"
+      }
     }
   },
   "types": "dist/index.d.ts",
   "bin": {
-    "jeeves-scripts-core-config-check": "dist/cli/config-check.js"
+    "jeeves-scripts": "dist/bin.js"
   },
   "repository": {
     "type": "git",

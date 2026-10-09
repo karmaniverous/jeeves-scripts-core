@@ -2,8 +2,7 @@
  * @module config/imap-secrets
  *
  * Resolves IMAP passwords. In the config an account's `imap.password` is
- * either `{ "secretRef": "<name>" }` (preferred) or a literal string
- * (deprecated). A secretRef names a file in `paths().imapSecretsDir`
+ * always `{ "secretRef": "<name>" }` (Decision 19). A secretRef names a file in `paths().imapSecretsDir`
  * (`<credentialsDir>/imap/<name>`), which the IMAP poller reads when it
  * connects. Password values are never logged or included in error
  * messages.
@@ -15,8 +14,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-/** `imap.password` in pipeline config: a secret reference or a literal. */
-export type ImapPassword = string | { secretRef: string };
+/** `imap.password` in pipeline config: a secret reference. */
+export interface ImapPassword {
+  secretRef: string;
+}
 
 /**
  * The jeeves-tools secret-name rule (instance config `secrets` map): 1-64
@@ -50,9 +51,8 @@ export const imapSecretPath = (ref: string, dir: string): string => {
 };
 
 /**
- * Resolve an `imap.password` value to the password itself. A literal
- * string is returned as is; a secretRef is read from its file with
- * trailing newlines removed.
+ * Resolve an `imap.password` secretRef to the password itself, read from
+ * its file with trailing newlines removed.
  *
  * @throws When the file is missing, unreadable or empty. The message
  *   names the ref and the path, never the value.
@@ -61,7 +61,6 @@ export const resolveImapPassword = (
   password: ImapPassword,
   dir: string,
 ): string => {
-  if (typeof password === 'string') return password;
   const { secretRef } = password;
   const file = imapSecretPath(secretRef, dir);
   let value: string;

@@ -1,9 +1,12 @@
-import { describe, expect, it } from 'vitest';
+﻿import { describe, expect, it } from 'vitest';
 
-import { placeholder } from './index';
+import * as core from './index.js';
 
-describe('placeholder', () => {
-  it('returns the package placeholder string', () => {
-    expect(placeholder()).toBe('jeeves-scripts-core');
+describe('package entry point', () => {
+  it('exposes the config API', () => {
+    expect(core.loadConfig).toBeTypeOf('function');
+    expect(core.paths).toBeTypeOf('function');
+    expect(core.siloPath).toBeTypeOf('function');
+    expect(core.configSchema).toBeDefined();
   });
 });

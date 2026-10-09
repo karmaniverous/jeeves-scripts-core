@@ -7,12 +7,12 @@
  *
  * Ported from `jeeves-scripts-template` `src/lib/silo-router.ts` (template
  * `main` at `322054c`); routing functions moved to
- * {@link ./silo-router.js}.
+ * `config/silo-router.ts`.
  */
 
 import { z } from 'zod';
 
-const githubOrgEntrySchema = z.object({
+export const githubOrgEntrySchema = z.object({
   githubOrg: z.string(),
   relativePath: z.string(),
 });

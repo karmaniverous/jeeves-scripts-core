@@ -5,11 +5,11 @@ import { findSecretLiterals } from './secret-guard.js';
 describe('findSecretLiterals', () => {
   it('finds a literal secret value by exact key name', () => {
     const findings = findSecretLiterals({
-      integrations: { jira: { apiKey: 'literal-value' } },
+      integrations: { jira: { apiKey: '***' } },
     });
     expect(findings).toHaveLength(1);
-    expect(findings[0].key).toBe('apiKey');
-    expect(findings[0].path).toEqual(['integrations', 'jira', 'apiKey']);
+    expect(findings[0]?.key).toBe('apiKey');
+    expect(findings[0]?.path).toEqual(['integrations', 'jira', 'apiKey']);
   });
 
   it('ignores keys that merely contain a denylisted substring', () => {
@@ -32,24 +32,18 @@ describe('findSecretLiterals', () => {
     expect(findings).toEqual([]);
   });
 
-  it('exempts pipeline.accounts (own deprecated-literal handling)', () => {
+  it('finds a literal IMAP password under pipeline.accounts (no exemptions)', () => {
     const findings = findSecretLiterals({
-      pipeline: {
-        accounts: [{ imap: { password: 'plain-text-password' } }],
-      },
-    });
-    expect(findings).toEqual([]);
-  });
-
-  it('still scans siblings of an exempt subtree', () => {
-    const findings = findSecretLiterals({
-      pipeline: {
-        accounts: [{ imap: { password: 'ignored-here' } }],
-      },
-      integrations: { notion: { apiKey: 'literal-value' } },
+      pipeline: { accounts: [{ imap: { password: 'plain-text-password' } }] },
     });
     expect(findings).toHaveLength(1);
-    expect(findings[0].path).toEqual(['integrations', 'notion', 'apiKey']);
+    expect(findings[0]?.path).toEqual([
+      'pipeline',
+      'accounts',
+      0,
+      'imap',
+      'password',
+    ]);
   });
 
   it('walks arrays and nested objects', () => {
@@ -57,6 +51,6 @@ describe('findSecretLiterals', () => {
       list: [{ nested: { secret: 'value' } }, { other: 'fine' }],
     });
     expect(findings).toHaveLength(1);
-    expect(findings[0].path).toEqual(['list', 0, 'nested', 'secret']);
+    expect(findings[0]?.path).toEqual(['list', 0, 'nested', 'secret']);
   });
 });

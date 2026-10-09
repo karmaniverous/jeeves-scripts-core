@@ -1,19 +1,28 @@
 /**
- * Sample local job for a `jeeves-scripts` instance repo. Real instance code
- * is written config-driven from the start (Decision 26); this placeholder
- * will be replaced by a real sample job (`defineJob`) once the job registry
- * lands (Dev Plan row 5 / 30).
+ * Sample local code for a `jeeves-scripts` instance repo. Real instance code
+ * is written config-driven from the start (Decision 26): it resolves content
+ * paths through core's silo resolver (Decision 28) instead of joining
+ * absolute roots itself. This sample becomes a real sample job
+ * (`defineJob`) once the job registry lands (Dev Plan 5 / 30).
  *
  * @packageDocumentation
  */
 
-import { placeholder } from '@karmaniverous/jeeves-scripts-core';
+import {
+  type LoadConfigOptions,
+  siloPath,
+} from '@karmaniverous/jeeves-scripts-core';
 
 /**
- * Builds the sample job's greeting from the core placeholder export, proving
- * the template consumes core as a real, workspace-linked dependency
- * (Decision 20).
+ * Where the sample job keeps its task file: `<silo>/sample/TASK.md`,
+ * proving the template consumes core as a real, workspace-linked
+ * dependency (Decision 20).
  *
- * @returns A greeting that names the consumed core package.
+ * @param silo - Silo name; the default silo when omitted.
+ * @param options - Config location (the instance repo root in practice).
+ * @returns The task file path inside the silo.
  */
-export const sampleJobGreeting = (): string => `hello from ${placeholder()}`;
+export const sampleTaskFile = (
+  silo: string | undefined,
+  options: LoadConfigOptions,
+): string => siloPath(silo, ['sample', 'TASK.md'], options);

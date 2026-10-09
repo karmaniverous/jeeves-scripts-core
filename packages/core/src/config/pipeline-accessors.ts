@@ -30,10 +30,11 @@ export const getRef = (
   options: LoadConfigOptions = {},
 ): string => {
   const config = requirePipeline(options);
-  if (!Object.prototype.hasOwnProperty.call(config.refs, key)) {
+  const value = Object.hasOwn(config.refs, key) ? config.refs[key] : undefined;
+  if (value === undefined) {
     throw new Error(`Missing pipeline config ref: ${key}`);
   }
-  return config.refs[key];
+  return value;
 };
 
 /**
@@ -111,8 +112,8 @@ export const getBucketPriority = (
 ): Record<string, number> => {
   const { priority } = requirePipeline(options).buckets;
   const result: Record<string, number> = {};
-  for (let i = 0; i < priority.length; i++) {
-    result[priority[i]] = i;
-  }
+  priority.forEach((bucket, i) => {
+    result[bucket] = i;
+  });
   return result;
 };

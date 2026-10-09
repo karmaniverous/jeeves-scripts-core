@@ -8,8 +8,8 @@
 
 import { z } from 'zod';
 
-import { configSchema } from './schema.js';
+import { configObjectSchema } from './schema.js';
 
 /** The generated JSON Schema for `jeeves-scripts.json`. */
 export const generateJsonSchema = (): Record<string, unknown> =>
-  z.toJSONSchema(configSchema, { target: 'draft-7' });
+  z.toJSONSchema(configObjectSchema, { target: 'draft-7' });

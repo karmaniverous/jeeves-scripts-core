@@ -53,8 +53,8 @@ describe('configSchema', () => {
       },
     });
     expect(result.pipeline?.accounts).toHaveLength(1);
-    expect(result.siloRouting.silos.tcs.basePath).toBe('J:/tcs');
-    expect(result.jobs['email-poll'].enabled).toBe(true);
+    expect(result.siloRouting.silos.tcs?.basePath).toBe('J:/tcs');
+    expect(result.jobs['email-poll']?.enabled).toBe(true);
   });
 
   it('rejects a literal secret value anywhere in the tree', () => {
@@ -66,8 +66,8 @@ describe('configSchema', () => {
     ).toThrow(/must not hold a literal secret value/);
   });
 
-  it('still accepts a deprecated literal imap.password (exempt subtree)', () => {
-    const result = configSchema.parse({
+  it('rejects a literal imap.password and accepts a secretRef', () => {
+    const withPassword = (password: unknown) => ({
       ...MINIMAL_CONFIG,
       pipeline: {
         accounts: [
@@ -80,7 +80,7 @@ describe('configSchema', () => {
               port: 993,
               tls: true,
               user: 'a@example.com',
-              password: 'plain-text',
+              password,
             },
           },
         ],
@@ -93,6 +93,12 @@ describe('configSchema', () => {
         },
       },
     });
-    expect(result.pipeline?.accounts[0].imap?.password).toBe('plain-text');
+    expect(() => configSchema.parse(withPassword('plain-text'))).toThrow(
+      /must not hold a literal secret value/,
+    );
+    const result = configSchema.parse(withPassword({ secretRef: 'carol' }));
+    expect(result.pipeline?.accounts[0]?.imap?.password).toEqual({
+      secretRef: 'carol',
+    });
   });
 });

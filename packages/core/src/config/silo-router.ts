@@ -142,7 +142,8 @@ export const getBasePathForMeeting = (
     }
   }
 
-  if (bestSilo && !tied) return routing.silos[bestSilo].basePath;
+  if (bestSilo && !tied)
+    return routing.silos[bestSilo]?.basePath ?? routing.defaultBasePath;
   return routing.defaultBasePath;
 };
 

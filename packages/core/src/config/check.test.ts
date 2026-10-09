@@ -42,7 +42,9 @@ describe('configCheck', () => {
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
       JSON.stringify({
         instance: { name: 'test', baseDir: 'J:/' },
-        siloRouting: { silos: { veterancrowd: { basePath: 'J:/veterancrowd' } } },
+        siloRouting: {
+          silos: { veterancrowd: { basePath: 'J:/veterancrowd' } },
+        },
         jobs: { 'vc-daily-briefing': { silo: 'tcs' } },
       }),
     );
@@ -55,7 +57,9 @@ describe('configCheck', () => {
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
       JSON.stringify({
         instance: { name: 'test', baseDir: 'J:/' },
-        siloRouting: { silos: { veterancrowd: { basePath: 'J:/veterancrowd' } } },
+        siloRouting: {
+          silos: { veterancrowd: { basePath: 'J:/veterancrowd' } },
+        },
         jobs: { 'vc-daily-briefing': { silo: 'veterancrowd' } },
       }),
     );
