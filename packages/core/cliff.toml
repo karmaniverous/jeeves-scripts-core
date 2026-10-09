@@ -1,4 +1,4 @@
-# git-cliff config for @karmaniverous/npm-package-template-ts
+# git-cliff config for @karmaniverous/jeeves-scripts-core
 # https://git-cliff.org/docs/configuration
 
 [changelog]
@@ -9,7 +9,7 @@ All notable changes to this project will be documented in this file.\n
 """
 body = """
 {% if version %}\
-    ## [{{ version }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+    ## [{{ version | trim_start_matches(pat="core/") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
 {% else %}\
     ## [unreleased]
 {% endif %}\
@@ -20,7 +20,7 @@ body = """
             {% if commit.breaking %}[**breaking**] {% endif %}\
             {{ commit.message | upper_first }}\
             {% if commit.remote.pr_number %} \
-                ([#{{ commit.remote.pr_number }}](https://github.com/karmaniverous/npm-package-template-ts/pull/{{ commit.remote.pr_number }}))\
+                ([#{{ commit.remote.pr_number }}](https://github.com/karmaniverous/jeeves-scripts-core/pull/{{ commit.remote.pr_number }}))\
             {% endif %}\
     {% endfor %}
 {% endfor %}
@@ -35,22 +35,21 @@ split_commits = false
 commit_parsers = [
     { message = "^Merge pull request", skip = true },
     { message = "^Merge branch", skip = true },
-    { message = "^chore: release", skip = true },
-    { message = "^chore\\(deps.*\\)", skip = true },
-    { message = "^feature", group = "<!-- 0 -->🚀 Features" },
-    { message = "^bugfix", group = "<!-- 1 -->🐛 Bug Fixes" },
-    { message = "^hotfix", group = "<!-- 2 -->🔥 Hotfixes" },
-    { message = "^refactor", group = "<!-- 3 -->🔨 Refactoring" },
+    { message = "^feat", group = "<!-- 0 -->🚀 Features" },
+    { message = "^fix", group = "<!-- 1 -->🐛 Bug Fixes" },
+    { message = "^doc", group = "<!-- 3 -->📚 Documentation" },
     { message = "^perf", group = "<!-- 4 -->⚡ Performance" },
-    { message = "^docs", group = "<!-- 5 -->📚 Documentation" },
+    { message = "^refactor", group = "<!-- 2 -->🚜 Refactor" },
+    { message = "^style", group = "<!-- 5 -->🎨 Styling" },
     { message = "^test", group = "<!-- 6 -->🧪 Testing" },
-    { message = "^style", group = "<!-- 7 -->🎨 Styling" },
-    { message = "^ci", group = "<!-- 8 -->🔧 CI" },
-    { message = "^revert", group = "<!-- 9 -->◀️ Reverts" },
-    { message = "^chore", group = "<!-- 10 -->⚙️ Chores" },
-    { message = ".*", group = "<!-- 11 -->💼 Other" },
+    { message = "^chore\\(release\\)", skip = true },
+    { message = "^chore\\(deps.*\\)", skip = true },
+    { message = "^chore|^ci", group = "<!-- 7 -->⚙️ Miscellaneous Tasks" },
+    { message = "^revert", group = "<!-- 9 -->◀️ Revert" },
+    { message = ".*", group = "<!-- 10 -->💼 Other" },
 ]
 filter_commits = false
-tag_pattern = "[0-9].*"
+tag_pattern = "core/[0-9].*"
 sort_commits = "oldest"
 topo_order_commits = true
+include_paths = ["packages/core/**"]

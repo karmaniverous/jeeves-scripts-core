@@ -1,0 +1,29 @@
+{
+  "name": "jeeves-scripts-template",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Bundled scaffold for jeeves-scripts instance repos; never published on its own (Decision 20).",
+  "license": "BSD-3-Clause",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karmaniverous/jeeves-scripts-core.git",
+    "directory": "packages/template"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "@karmaniverous/jeeves-scripts-core": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.4",
+    "vitest": "^5.0.3"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "lint:fix": "eslint --fix .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  }
+}
