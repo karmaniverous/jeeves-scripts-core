@@ -1,7 +1,9 @@
 /**
  * @module rollup.config
  * Rollup configuration for `@karmaniverous/jeeves-scripts-core`.
- * Single entry point: src/index.ts → ESM output with declarations.
+ * Entry points: `index` (library), `cli` (the `./cli` export the instance
+ * launcher imports) and `bin` (the package `bin`, given a shebang banner);
+ * ESM output with declarations.
  *
  * Builds against `tsconfig.build.json`, a build-only project scoped to
  * `src/**` with `rootDir` set, instead of the repo-wide `tsconfig.json`
@@ -62,7 +64,11 @@ function onwarn(warning: RollupLog, defaultHandler: (w: RollupLog) => void) {
 }
 
 const config: RollupOptions = {
-  input: 'src/index.ts',
+  input: {
+    index: 'src/index.ts',
+    cli: 'src/cli/index.ts',
+    bin: 'src/cli/bin.ts',
+  },
   external: [
     ...dependencyExternals,
     ...dependencyExternals.map((dep) => new RegExp('^' + dep + '/')),
@@ -72,6 +78,8 @@ const config: RollupOptions = {
   output: {
     dir: 'dist',
     format: 'esm',
+    entryFileNames: '[name].js',
+    banner: (chunk) => (chunk.name === 'bin' ? '#!/usr/bin/env node' : ''),
   },
   plugins: [
     resolve({ preferBuiltins: true }),
