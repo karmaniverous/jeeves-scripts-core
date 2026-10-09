@@ -57,6 +57,14 @@ const typeCheckedRules = typeCheckedConfigs.reduce<Record<string, unknown>>(
   {},
 );
 
+const legacyParserOptions = {
+  parser: tseslint.parser,
+  parserOptions: {
+    project: ['./packages/core/tsconfig.legacy.json'],
+    tsconfigRootDir,
+  },
+};
+
 // Cast the Vitest plugin to ESLint's Plugin type to satisfy TS.
 const vitest = vitestPlugin as unknown as ESLint.Plugin;
 
@@ -128,51 +136,43 @@ export default [
       'prettier/prettier': 'error',
     },
   },
-  {
-    // Decision 32: the template's rule set for not-yet-refactored code.
-    files: legacyFiles.map((p) => `${p}.{ts,tsx}`),
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: {
-        project: ['./packages/core/tsconfig.legacy.json'],
-        tsconfigRootDir,
-      },
-    },
-    plugins: {
-      '@typescript-eslint': tseslint.plugin,
-      prettier: prettierPlugin,
-      'simple-import-sort': simpleImportSortPlugin,
-    },
-    rules: {
-      ...strictTypeCheckedRules,
-      '@typescript-eslint/consistent-type-imports': 'error',
-      '@typescript-eslint/no-non-null-assertion': 'off',
-      '@typescript-eslint/no-unused-expressions': 'off',
-      'no-unused-vars': 'off',
-      '@typescript-eslint/no-unused-vars': 'error',
-      'simple-import-sort/imports': 'error',
-      'simple-import-sort/exports': 'error',
-      'prettier/prettier': 'error',
-    },
-  },
-  {
-    // Decision 32: vitest rules for legacy tests, against the legacy project.
-    files: legacyFiles.map((p) => `${p}.test.{ts,tsx}`),
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: {
-        project: ['./packages/core/tsconfig.legacy.json'],
-        tsconfigRootDir,
-      },
-    },
-    plugins: {
-      vitest,
-    },
-    rules: {
-      ...vitestRecommendedRules,
-      'prettier/prettier': 'error',
-    },
-  },
+  // Decision 32 legacy blocks, omitted once legacy.json is empty (ESLint
+  // rejects an empty `files` list).
+  ...(legacyFiles.length === 0
+    ? []
+    : [
+        {
+          // The template's rule set for not-yet-refactored code.
+          files: legacyFiles.map((p) => `${p}.{ts,tsx}`),
+          languageOptions: legacyParserOptions,
+          plugins: {
+            '@typescript-eslint': tseslint.plugin,
+            prettier: prettierPlugin,
+            'simple-import-sort': simpleImportSortPlugin,
+          },
+          rules: {
+            ...strictTypeCheckedRules,
+            '@typescript-eslint/consistent-type-imports': 'error',
+            '@typescript-eslint/no-non-null-assertion': 'off',
+            '@typescript-eslint/no-unused-expressions': 'off',
+            'no-unused-vars': 'off',
+            '@typescript-eslint/no-unused-vars': 'error',
+            'simple-import-sort/imports': 'error',
+            'simple-import-sort/exports': 'error',
+            'prettier/prettier': 'error',
+          },
+        },
+        {
+          // Vitest rules for legacy tests, against the legacy project.
+          files: legacyFiles.map((p) => `${p}.test.{ts,tsx}`),
+          languageOptions: legacyParserOptions,
+          plugins: { vitest },
+          rules: {
+            ...vitestRecommendedRules,
+            'prettier/prettier': 'error',
+          },
+        },
+      ]),
   {
     files: ['**/*.test.{ts,tsx}'],
     ignores: legacyFiles,
