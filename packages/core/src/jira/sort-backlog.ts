@@ -26,12 +26,14 @@ import {
   RANK_BATCH_SIZE,
   stableSortByPriority,
 } from './lib/backlog-sort.js';
+import { integrations } from '../config/index.js';
 import { makeAuthHeader, readApiToken } from './lib/jira-client.js';
 
-const BOARD_ID = Number(process.env.JIRA_BOARD_ID ?? '');
+// `integrations.jira.boardId` in jeeves-scripts.json, else JIRA_BOARD_ID.
+const BOARD_ID = integrations().jira.boardId ?? NaN;
 if (!BOARD_ID || isNaN(BOARD_ID)) {
   console.error(
-    'Error: Set JIRA_BOARD_ID environment variable to your Jira board ID.',
+    'Error: set integrations.jira.boardId in jeeves-scripts.json (or the JIRA_BOARD_ID environment variable) to your Jira board ID.',
   );
   process.exit(1);
 }
