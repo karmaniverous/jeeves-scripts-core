@@ -10,7 +10,6 @@
     "src/**/*",
     "scripts/**/*",
     "test/**/*",
-    "legacy.test.ts",
     "rollup.config.ts",
     "vitest.config.ts"
   ],
