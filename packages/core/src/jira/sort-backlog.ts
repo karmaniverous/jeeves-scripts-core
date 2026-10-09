@@ -14,6 +14,7 @@
  * Designed to run ad-hoc and as a daily runner job.
  */
 
+import { integrations } from '../config/index.js';
 import { constants } from '../lib/constants.js';
 import { agilePut, fetchBacklog } from './lib/agile-api.js';
 import {
@@ -26,7 +27,6 @@ import {
   RANK_BATCH_SIZE,
   stableSortByPriority,
 } from './lib/backlog-sort.js';
-import { integrations } from '../config/index.js';
 import { makeAuthHeader, readApiToken } from './lib/jira-client.js';
 
 // `integrations.jira.boardId` in jeeves-scripts.json, else JIRA_BOARD_ID.
