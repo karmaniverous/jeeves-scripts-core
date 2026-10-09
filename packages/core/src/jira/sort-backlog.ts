@@ -116,7 +116,10 @@ async function main(): Promise<void> {
   // 6. Re-rank
   if (!live) printTopPreview(sorted);
 
-  const calls = await rerank(authHeader, sortedKeys, currentKeys[0], live);
+  // An empty backlog counts as already sorted and returned above.
+  const [firstKey] = currentKeys;
+  if (firstKey === undefined) return;
+  const calls = await rerank(authHeader, sortedKeys, firstKey, live);
 
   if (live) {
     console.log(`✅ Backlog re-ranked. ${String(calls)} API call(s).`);

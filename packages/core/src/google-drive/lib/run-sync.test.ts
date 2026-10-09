@@ -133,7 +133,7 @@ describe('syncOne end to end', () => {
     expect(first).toMatchObject({ processed: 1, seeded: 2, failed: 0 });
     const written = tree().filter((p) => p.endsWith('.txt'));
     expect(written).toHaveLength(1);
-    expect(fs.readFileSync(path.join(target(), written[0]), 'utf8')).toBe(
+    expect(fs.readFileSync(path.join(target(), written[0]!), 'utf8')).toBe(
       'hello',
     );
 
@@ -154,7 +154,7 @@ describe('syncOne end to end', () => {
     );
     note.md5Checksum = 'v1';
     expect(changed).toMatchObject({ queueUpdates: 1, processed: 1 });
-    expect(fs.readFileSync(path.join(target(), written[0]), 'utf8')).toBe(
+    expect(fs.readFileSync(path.join(target(), written[0]!), 'utf8')).toBe(
       'v2 body',
     );
 

@@ -38,14 +38,14 @@ describe('selectSyncs', () => {
 
   it('synthesizes a dry-run entry, defaulting domains to the account domain', () => {
     const [s] = selectSyncs([], ['--account', 'x@other.example'], false);
-    expect(s.account).toBe('x@other.example');
-    expect(s.pathResolution.domains).toEqual(['other.example']);
+    expect(s?.account).toBe('x@other.example');
+    expect(s?.pathResolution.domains).toEqual(['other.example']);
     const [t] = selectSyncs(
       [],
       ['--account', 'x@o.example', '--domains', 'a.com, b.com'],
       false,
     );
-    expect(t.pathResolution.domains).toEqual(['a.com', 'b.com']);
+    expect(t?.pathResolution.domains).toEqual(['a.com', 'b.com']);
   });
 });
 

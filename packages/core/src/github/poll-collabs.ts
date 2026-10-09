@@ -40,11 +40,11 @@ function main(): void {
   try {
     gh(['auth', 'switch', '-u', owner]);
     let page = 1;
-    const repos: Array<{
+    const repos: {
       full_name: string;
       updated_at: string;
       archived: boolean;
-    }> = [];
+    }[] = [];
     for (;;) {
       const result = gh(
         [
@@ -57,11 +57,11 @@ function main(): void {
       );
       const batch =
         result.out.length > 0
-          ? (JSON.parse(result.out) as Array<{
+          ? (JSON.parse(result.out) as {
               full_name: string;
               updated_at: string;
               archived: boolean;
-            }>)
+            }[])
           : [];
       if (batch.length === 0) break;
       repos.push(...batch);
@@ -103,10 +103,10 @@ function main(): void {
       );
       const inv =
         result.out.length > 0
-          ? (JSON.parse(result.out) as Array<{
+          ? (JSON.parse(result.out) as {
               id?: number;
               repository?: { full_name?: string };
-            }>)
+            }[])
           : [];
       if (inv.length === 0) break;
       for (const i of inv) {

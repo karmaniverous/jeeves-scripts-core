@@ -43,12 +43,12 @@ function base32Encode(bytes: Buffer): string {
     value = (value << 8) | byte;
     bits += 8;
     while (bits >= 5) {
-      output += BASE32_ALPHABET[(value >>> (bits - 5)) & 0x1f];
+      output += BASE32_ALPHABET.charAt((value >>> (bits - 5)) & 0x1f);
       bits -= 5;
     }
   }
   if (bits > 0) {
-    output += BASE32_ALPHABET[(value << (5 - bits)) & 0x1f];
+    output += BASE32_ALPHABET.charAt((value << (5 - bits)) & 0x1f);
   }
   return output;
 }
@@ -92,8 +92,9 @@ export function resolveSiblingTags(
     }
     const stillColliding: string[] = [];
     for (const [tag, group] of byTag) {
-      if (group.length === 1) {
-        result.set(group[0], tag);
+      const [only] = group;
+      if (group.length === 1 && only !== undefined) {
+        result.set(only, tag);
       } else {
         stillColliding.push(...group);
       }
@@ -117,7 +118,7 @@ export function resolveSiblingTags(
  */
 export function parseTag(segmentName: string): string | null {
   const match = /(?: - )([a-z2-7]{8,})(?:\.[^/]*)?$/.exec(segmentName);
-  return match ? match[1] : null;
+  return match?.[1] ?? null;
 }
 
 /** Conversion class, used to pick the stem/extension split rule (§3.2). */
@@ -197,7 +198,7 @@ export function sanitizeSegment(name: string): string {
   }
   const trimmed = replaced.replace(/^[\s.]+|[\s.]+$/g, '');
   if (trimmed.length === 0) return 'untitled';
-  const base = trimmed.split('.')[0].trimEnd();
+  const base = (trimmed.split('.')[0] ?? '').trimEnd();
   return RESERVED_NAME.test(base)
     ? `${base}_${trimmed.slice(base.length)}`
     : trimmed;

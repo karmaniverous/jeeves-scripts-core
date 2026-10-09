@@ -111,7 +111,9 @@ export async function runQueue(ctx: QueueContext): Promise<QueueStats> {
       break;
     }
 
-    const { id } = ctx.queue[i];
+    const entry = ctx.queue[i];
+    if (!entry) break;
+    const { id } = entry;
     const item = ctx.items.get(id);
     const file = ctx.files.get(id);
     const kind = ctx.kinds.get(id);

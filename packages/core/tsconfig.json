@@ -20,10 +20,6 @@
     "template",
     "src/admin/**/*",
     "src/email/**/*",
-    "src/github/**/*",
-    "src/google-drive/**/*",
-    "src/jira/**/*",
-    "src/meetings/**/*",
-    "src/x/**/*"
+    "src/meetings/**/*"
   ]
 }

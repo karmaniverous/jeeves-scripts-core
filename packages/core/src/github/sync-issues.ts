@@ -43,8 +43,8 @@ interface Issue {
   title: string;
   state: string;
   body?: string;
-  labels?: Array<string | { name: string }>;
-  assignees?: Array<string | { login: string }>;
+  labels?: (string | { name: string })[];
+  assignees?: (string | { login: string })[];
   createdAt: string;
   updatedAt: string;
   commentsCount?: number;
@@ -81,22 +81,22 @@ function processIssue(issuesDir: string, issue: Issue): void {
     number: issue.number,
     title: issue.title,
     state: issue.state,
-    body: issue.body || '',
-    labels: (issue.labels || []).map((l) =>
+    body: issue.body ?? '',
+    labels: (issue.labels ?? []).map((l) =>
       typeof l === 'string' ? l : l.name,
     ),
-    assignees: (issue.assignees || []).map((a) =>
+    assignees: (issue.assignees ?? []).map((a) =>
       typeof a === 'string' ? a : a.login,
     ),
     createdAt: issue.createdAt,
     updatedAt: issue.updatedAt,
-    comments: issue.commentsCount || 0,
+    comments: issue.commentsCount ?? 0,
     url: issue.url,
   };
 
   const existing = readJson<{
     current?: Record<string, unknown>;
-    history?: Array<{ ts: string; patch: unknown[] }>;
+    history?: { ts: string; patch: unknown[] }[];
     meta?: { firstSeen?: string; version?: number };
   } | null>(filePath, null);
 
@@ -105,7 +105,7 @@ function processIssue(issuesDir: string, issue: Issue): void {
       current as Record<string, unknown>,
       existing.current,
     );
-    const history = existing.history || [];
+    const history = existing.history ?? [];
     if (patches.length > 0) {
       history.unshift({ ts: now, patch: patches });
       if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
@@ -120,9 +120,9 @@ function processIssue(issuesDir: string, issue: Issue): void {
           current,
           history,
           meta: {
-            firstSeen: existing.meta?.firstSeen || now,
+            firstSeen: existing.meta?.firstSeen ?? now,
             lastSync: now,
-            version: (existing.meta?.version || 0) + 1,
+            version: (existing.meta?.version ?? 0) + 1,
           },
         },
         null,
@@ -176,7 +176,7 @@ async function main(): Promise<void> {
     const existingCount = client.countItems(STATE_NS, STATE_KEY);
     if (existingCount === 0) {
       const keys = Object.keys(registry.repos).filter(
-        (k) => !registry.repos[k].isArchived,
+        (k) => !registry.repos[k]?.isArchived,
       );
       console.log(`[issues-sync] seeding ${String(keys.length)} repos`);
       for (const key of keys) {
@@ -191,7 +191,7 @@ async function main(): Promise<void> {
 
     // Add new repos
     const regKeys = new Set(
-      Object.keys(registry.repos).filter((k) => !registry.repos[k].isArchived),
+      Object.keys(registry.repos).filter((k) => !registry.repos[k]?.isArchived),
     );
     const exKeys = new Set(client.listItemKeys(STATE_NS, STATE_KEY));
     for (const key of regKeys) {
@@ -210,11 +210,11 @@ async function main(): Promise<void> {
     const items = allKeys
       .map((k) => {
         const val = JSON.parse(
-          client.getItem(STATE_NS, STATE_KEY, k) || '{}',
+          client.getItem(STATE_NS, STATE_KEY, k) ?? '{}',
         ) as { lastSyncedAt?: string };
         return {
           key: k,
-          lastSyncedAt: val.lastSyncedAt || '1970-01-01T00:00:00Z',
+          lastSyncedAt: val.lastSyncedAt ?? '1970-01-01T00:00:00Z',
         };
       })
       .sort((a, b) => a.lastSyncedAt.localeCompare(b.lastSyncedAt))
@@ -225,7 +225,7 @@ async function main(): Promise<void> {
       totalIssues = 0;
 
     for (const item of items) {
-      const [owner, repo] = item.key.split('/');
+      const [owner = '', repo = ''] = item.key.split('/');
       const basePath = getBasePathForGitHubOrg(owner);
       const issuesDir = path.join(basePath, 'github', owner, repo, 'issues');
       ensureDir(issuesDir);

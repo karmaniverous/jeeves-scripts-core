@@ -85,11 +85,13 @@ export function planRerank(
 
   // Top-down: establish batch 0's internal order, then append each
   // subsequent batch after the previous one.
-  for (let b = 0; b < batches.length; b++) {
-    const batch = batches[b];
-
-    if (b > 0) {
-      const anchor = batches[b - 1][batches[b - 1].length - 1];
+  let previous: string[] | undefined;
+  for (const [b, batch] of batches.entries()) {
+    const prev = previous;
+    previous = batch;
+    // Batches are non-empty slices, so the previous one has a last key.
+    const anchor = prev?.at(-1);
+    if (anchor !== undefined) {
       ops.push({
         body: { issues: batch, rankAfterIssue: anchor },
         dryRunMessage: `[dry-run] Would rank ${String(batch.length)} issues (batch ${String(b)}) after ${anchor}`,
@@ -108,17 +110,19 @@ export function planRerank(
 
     // Anchor is in batch — we can't rank before it; establish internal
     // order by ranking batch[1:] after batch[0].
-    if (batch.length > 1) {
+    const [head, ...tail] = batch;
+    if (head === undefined) continue;
+    if (tail.length > 0) {
       ops.push({
-        body: { issues: batch.slice(1), rankAfterIssue: batch[0] },
-        dryRunMessage: `[dry-run] Would rank ${String(batch.length - 1)} issues (batch ${String(b)} tail) after ${batch[0]}`,
+        body: { issues: tail, rankAfterIssue: head },
+        dryRunMessage: `[dry-run] Would rank ${String(tail.length)} issues (batch ${String(b)} tail) after ${head}`,
       });
     }
     // If batch[0] is not currently the first backlog issue, move it to top.
-    if (currentFirstKey !== batch[0]) {
+    if (currentFirstKey !== head) {
       ops.push({
-        body: { issues: [batch[0]], rankBeforeIssue: currentFirstKey },
-        dryRunMessage: `[dry-run] Would rank ${batch[0]} before ${currentFirstKey}`,
+        body: { issues: [head], rankBeforeIssue: currentFirstKey },
+        dryRunMessage: `[dry-run] Would rank ${head} before ${currentFirstKey}`,
       });
     }
   }

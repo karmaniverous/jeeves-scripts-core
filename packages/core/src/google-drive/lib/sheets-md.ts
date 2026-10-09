@@ -55,7 +55,7 @@ export function renderTable(
 
   const [header, ...body] = kept;
   const out = [
-    line(header),
+    line(header ?? []),
     `| ${Array.from({ length: width }, () => '---').join(' | ')} |`,
   ];
   for (const r of body) out.push(line(r));

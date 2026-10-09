@@ -4,7 +4,7 @@
  * Creates and updates meeting package directories and their artifacts.
  *
  * Called by extract and migration scripts to write per-meeting directories
- * under the silo meetings path (defaulting to {@link constants().DEFAULT_MEETINGS_DIR}).
+ * under the silo meetings path (defaulting to `constants().DEFAULT_MEETINGS_DIR`).
  * Writes metadata, manifests, and extracted content, and maintains the
  * runner-state index so downstream steps can discover packages.
  */

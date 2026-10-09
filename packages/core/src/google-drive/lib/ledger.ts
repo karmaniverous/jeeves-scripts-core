@@ -9,8 +9,8 @@
  * run never changes runner state (spec §6.5).
  *
  * Reset (`--reset-state`) deletes every item before the parent row:
- * `state_items` has a foreign key to `state` with no `ON DELETE
- * CASCADE`, so a bare `deleteState` fails while items exist.
+ * `state_items` has a foreign key to `state` with no
+ * `ON DELETE CASCADE`, so a bare `deleteState` fails while items exist.
  */
 
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';

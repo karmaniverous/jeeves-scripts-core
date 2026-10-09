@@ -143,7 +143,11 @@ export function layout(
       const tag = index.tag(parentKeyOf(s.root, s.ancestors), s.id);
       dir.push(buildSegmentName(s.name, tag, '', opts));
     }
-    return { shareId: s.id, rootDir: dir[0], sharePointDir: dir.join('/') };
+    return {
+      shareId: s.id,
+      rootDir: dir[0] ?? '',
+      sharePointDir: dir.join('/'),
+    };
   });
 
   return { paths, shareDirs };

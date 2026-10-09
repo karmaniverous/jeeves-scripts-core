@@ -84,7 +84,7 @@ export function createDriveClient(
         json(page ? [...args, '--page', page] : args, as),
       );
       yield parsed;
-      page = parsed.nextPageToken || undefined;
+      page = parsed.nextPageToken ?? undefined;
     } while (page);
   }
 

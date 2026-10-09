@@ -75,12 +75,12 @@ function bestWebUrl(n: Notification): string {
   if (repoHtml && num && t === 'Issue')
     return `${repoHtml}/issues/${String(num)}`;
   if (repoHtml) return repoHtml;
-  return apiUrl || '';
+  return apiUrl ?? '';
 }
 
 function formatLine(n: Notification, extra = ''): string {
-  const repo = n.repository?.full_name || 'unknown/repo';
-  const title = n.subject?.title || '(no title)';
+  const repo = n.repository?.full_name ?? 'unknown/repo';
+  const title = n.subject?.title ?? '(no title)';
   const reason = n.reason || 'unknown';
   const url = bestWebUrl(n);
   return `\u2022 ${repo} \u2014 ${title} (${reason})${extra}${url ? `\n  ${url}` : ''}`;
@@ -93,12 +93,12 @@ function main(): void {
   }
 
   const client = getRunnerClient();
-  const alerts: Array<{
+  const alerts: {
     user: string;
     type: string;
     reason: string;
     line: string;
-  }> = [];
+  }[] = [];
   const perUser: Record<
     string,
     { fetched: number; importantNew: number; error?: string }
@@ -157,7 +157,7 @@ function main(): void {
         ? (JSON.parse(res.out) as Notification[])
         : [];
       const seenOut: Record<string, string> = {};
-      const alertsOut: Record<string, Record<string, string>> = prev.alerts ||
+      const alertsOut: Record<string, Record<string, string>> = prev.alerts ??
       {};
       let fetched = 0,
         importantNew = 0;
@@ -242,7 +242,7 @@ function main(): void {
 
     fs.appendFileSync(
       LOG_PATH,
-      `- ${nowIso()} \u2014 fetched: ${USERS.map((u) => `${u}=${String(perUser[u].fetched)}`).join(', ')}; alerts: ${String(alerts.length)}\n`,
+      `- ${nowIso()} \u2014 fetched: ${USERS.map((u) => `${u}=${String(perUser[u]?.fetched ?? 0)}`).join(', ')}; alerts: ${String(alerts.length)}\n`,
     );
     process.stdout.write(
       JSON.stringify({ at: nowIso(), perUser, alerts }, null, 2),

@@ -5,7 +5,7 @@
  * Processes the like queue by liking tweets via X API v2.
  *
  * Entry-point script invoked by the runner scheduler. Dequeues tweet IDs
- * from the x-like-{handle} runner queue and calls likePost from x-api
+ * from the x-like-\{handle\} runner queue and calls likePost from x-api
  * for each one, reporting success and failure counts.
  */
 

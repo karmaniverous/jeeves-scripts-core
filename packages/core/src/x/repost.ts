@@ -5,7 +5,7 @@
  * Processes the repost queue by reposting tweets via X API v2.
  *
  * Entry-point script invoked by the runner scheduler. Dequeues tweet IDs
- * from the x-repost-{handle} runner queue and calls repostPost from x-api
+ * from the x-repost-\{handle\} runner queue and calls repostPost from x-api
  * for each one, reporting success and failure counts.
  */
 

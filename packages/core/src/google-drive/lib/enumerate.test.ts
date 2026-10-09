@@ -34,22 +34,22 @@ describe('enumerate', () => {
     const client = fakeDrive({ sharedWithMe: [F], children: [G, g] });
     const snap = enumerate(client, createPathResolver(client, pathOpts));
     expect(snap.files).toHaveLength(1);
-    expect(snap.files[0].ancestors.map((a) => a.name)).toEqual([
+    expect(snap.files[0]!.ancestors.map((a) => a.name)).toEqual([
       'Project X',
       'specs',
     ]);
-    expect(snap.files[0].root.label).toBe('ext@example.org');
+    expect(snap.files[0]!.root.label).toBe('ext@example.org');
   });
 
   it('places a doubly-reachable file once, under its fullest visible path', () => {
     const client = fakeDrive({ sharedWithMe: [gDirect, F], children: [G, g] });
     const snap = enumerate(client, createPathResolver(client, pathOpts));
     expect(snap.files).toHaveLength(1);
-    expect(snap.files[0].ancestors.map((a) => a.name)).toEqual([
+    expect(snap.files[0]!.ancestors.map((a) => a.name)).toEqual([
       'Project X',
       'specs',
     ]);
-    expect(snap.files[0].shareIds).toEqual(['F', 'g']);
+    expect(snap.files[0]!.shareIds).toEqual(['F', 'g']);
     // The direct file share's own location is moved under the folder too.
     expect(snap.shares.find((s) => s.id === 'g')?.ancestors).toHaveLength(2);
   });
@@ -91,7 +91,7 @@ describe('enumerate', () => {
     expect(out.paths.get('t')).toMatch(
       /^Ops - [a-z2-7]{8}\/Top - [a-z2-7]{8}\/notes - [a-z2-7]{8}\.md$/,
     );
-    expect(out.shareDirs[0].sharePointDir).toBe(out.shareDirs[0].rootDir);
+    expect(out.shareDirs[0]!.sharePointDir).toBe(out.shareDirs[0]!.rootDir);
   });
 
   it('records a non-fatal error when a folder listing fails', () => {

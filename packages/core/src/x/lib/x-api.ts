@@ -1,13 +1,13 @@
 /**
  * @module x-api
  *
- * Shared X API v2 client wrapping @xdevplatform/xdk with pipeline conventions.
+ * Shared X API v2 client wrapping `@xdevplatform/xdk` with pipeline conventions.
  *
  * Every X entry-point script imports this module for OAuth credential I/O,
  * authenticated client creation, user lookup, tweet polling, and write actions
  * (post, like, repost). Results feed into runner queues or disk via callers.
  *
- * Reads OAuth2 JSON files from {@link constants().X_OAUTH_DIR} (derived from constants).
+ * Reads OAuth2 JSON files from `constants().X_OAUTH_DIR` (derived from constants).
  * If credentials are missing or lack an access_token the affected call is
  * skipped with a console warning.
  */

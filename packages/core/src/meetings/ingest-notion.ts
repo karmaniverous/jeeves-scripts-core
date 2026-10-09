@@ -5,7 +5,7 @@
  * Ingests meeting records from a Notion inbox database into local meeting packages.
  *
  * Called by the runner as a top-level entry point. Queries the Notion API
- * (authenticated via {@link constants().NOTION_API_KEY_PATH}, versioned by {@link NOTION_VERSION})
+ * (authenticated via `constants().NOTION_API_KEY_PATH`, versioned by {@link NOTION_VERSION})
  * and delegates each inbox item to {@link processNotionInboxMeeting}.
  */
 

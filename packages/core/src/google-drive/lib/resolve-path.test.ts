@@ -236,6 +236,6 @@ describe('drive-client', () => {
     });
     c.listChildren(Array.from({ length: 30 }, (_, i) => `p${String(i)}`));
     expect(seen).toHaveLength(2);
-    expect(seen[0].join(' ')).toContain("'p0' in parents or 'p1' in parents");
+    expect(seen[0]!.join(' ')).toContain("'p0' in parents or 'p1' in parents");
   });
 });

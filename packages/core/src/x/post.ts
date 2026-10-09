@@ -59,20 +59,20 @@ async function main(): Promise<void> {
       continue;
     }
 
-    if (new Date(item.targetTime || 0) > now) {
+    if (new Date(item.targetTime ?? 0) > now) {
       skipped++;
       continue;
     }
 
     try {
-      const type = item.type || 'tweet';
+      const type = item.type ?? 'tweet';
       const result = await withAutoRefresh(handle, (client) =>
         createPost(client, item.text, {
           inReplyToTweetId: type === 'reply' ? item.replyToId : undefined,
           quoteTweetId: type === 'quote' ? item.quoteId : undefined,
         }),
       );
-      const tweetId = result.id || `unknown-${String(Date.now())}`;
+      const tweetId = result.id ?? `unknown-${String(Date.now())}`;
 
       fs.writeFileSync(
         path.join(POSTS_DIR, `${tweetId}.json`),
@@ -98,7 +98,7 @@ async function main(): Promise<void> {
         `post: posted ${type} (${tweetId}): ${item.text.substring(0, 60)}...`,
       );
     } catch (err) {
-      const retries = (item.retries || 0) + 1;
+      const retries = (item.retries ?? 0) + 1;
       item.retries = retries;
       item.lastError = err instanceof Error ? err.message : String(err);
       fs.writeFileSync(filePath, JSON.stringify(item, null, 2) + '\n', 'utf8');

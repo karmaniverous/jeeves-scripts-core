@@ -10,7 +10,7 @@
  * prunes entries older than seven days. A failure for one handle is logged,
  * the remaining handles are still polled, and the run then fails.
  *
- * Uses {@link constants().X_ACCOUNTS} from constants to resolve each account base directory.
+ * Uses `constants().X_ACCOUNTS` from constants to resolve each account base directory.
  */
 
 import fs from 'node:fs';
@@ -65,7 +65,9 @@ function pruneOldFiles(feedDir: string): number {
 }
 
 async function pollFeed(handle: string): Promise<void> {
-  const feedDir = path.join(constants().X_ACCOUNTS[handle], 'feed');
+  const baseDir = constants().X_ACCOUNTS[handle];
+  if (!baseDir) throw new Error(`X account ${handle} is not configured.`);
+  const feedDir = path.join(baseDir, 'feed');
   fs.mkdirSync(feedDir, { recursive: true });
 
   const tweets = await withAutoRefresh(handle, (client) =>

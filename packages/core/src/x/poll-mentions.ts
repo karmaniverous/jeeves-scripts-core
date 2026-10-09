@@ -7,7 +7,7 @@
  *
  * Entry-point script invoked by the runner scheduler. Delegates to
  * poll-x-items with the pollUserMentions API function, enqueuing results
- * into the x-mentions-{handle} runner queue for drain-queues to flush to disk.
+ * into the x-mentions-\{handle\} runner queue for drain-queues to flush to disk.
  */
 
 import { runXPoller } from './lib/poll-x-items.js';

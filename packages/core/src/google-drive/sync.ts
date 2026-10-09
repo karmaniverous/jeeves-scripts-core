@@ -5,13 +5,13 @@
  * configured Workspace account(s) into the content tree as text.
  * Behaviour, configuration and operations are documented in
  * `src/google-drive/README.md`; the design is
- * `docs/google-drive-spec.md` (`§` references in lib/ point there).
+ * `guides/google-drive-spec.md` (`§` references in lib/ point there).
  *
  * Flags:
  *   --live               apply changes (default: dry run, no writes anywhere)
  *   --account <email>    limit to one configured sync; in a dry run with no
  *                        configured block, synthesizes a default entry
- *   --domains <a,b>      delegated domains for a synthesized dry-run entry
+ *   --domains <list>     delegated domains (comma-separated) for a synthesized dry-run entry
  *   --allow-mass-delete  apply deletions blocked by the mass-deletion guard
  *   --reset-state        clear the ledger + run state (requires --live)
  */

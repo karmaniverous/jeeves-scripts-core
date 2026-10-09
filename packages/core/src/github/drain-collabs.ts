@@ -48,7 +48,7 @@ function main(): void {
         if (item.kind === 'repo') {
           gh(['auth', 'switch', '-u', owner]);
           const repo = item.full_name!;
-          const perm = item.permission || 'push';
+          const perm = item.permission ?? 'push';
           const res = gh(
             [
               'api',

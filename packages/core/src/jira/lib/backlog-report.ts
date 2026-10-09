@@ -52,8 +52,7 @@ export function printChangeSummary(
 /** Print the dry-run preview of the new top 10. */
 export function printTopPreview(sorted: AgileIssue[]): void {
   console.log('[dry-run] Preview of new top-10:');
-  for (let i = 0; i < Math.min(10, sorted.length); i++) {
-    const s = sorted[i];
+  for (const [i, s] of sorted.slice(0, 10).entries()) {
     const p = getPriorityName(s) ?? '(none)';
     console.log(
       `  ${String(i + 1)}. ${s.key} [${p}] ${s.fields.summary ?? ''}`,

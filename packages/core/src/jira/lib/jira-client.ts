@@ -39,12 +39,12 @@ export interface JiraChangelogHistory {
   id: string;
   author: { displayName: string; emailAddress?: string };
   created: string;
-  items: Array<{
+  items: {
     field: string;
     fieldtype?: string;
     fromString?: string;
     toString?: string;
-  }>;
+  }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -68,10 +68,10 @@ export function makeAuthHeader(email: string, apiToken: string): string {
 /**
  * Perform a GET request against the Jira Cloud REST API v3.
  *
- * @param siteUrl    e.g. `https://mysite.atlassian.net`
- * @param authHeader HTTP Basic auth header (from `makeAuthHeader`)
- * @param apiPath    Path relative to `/rest/api/3/` (e.g. `field`)
- * @param params     Optional query string parameters
+ * @param siteUrl - e.g. `https://mysite.atlassian.net`
+ * @param authHeader - HTTP Basic auth header (from `makeAuthHeader`)
+ * @param apiPath - Path relative to `/rest/api/3/` (e.g. `field`)
+ * @param params - Optional query string parameters
  */
 export async function jiraGet<T>(
   siteUrl: string,
@@ -96,12 +96,12 @@ export async function jiraGet<T>(
 /**
  * Paginate a Jira JQL search, yielding issues in batches.
  *
- * @param siteUrl    Jira site base URL
- * @param authHeader HTTP Basic auth header
- * @param jql        JQL query string
- * @param fields     Comma-separated field list (pass `'*all'` for everything)
- * @param expand     Optional comma-separated expand list (e.g. `'changelog'`)
- * @param maxResults Page size (default 50, max 100 for most Jira instances)
+ * @param siteUrl - Jira site base URL
+ * @param authHeader - HTTP Basic auth header
+ * @param jql - JQL query string
+ * @param fields - Comma-separated field list (pass `'*all'` for everything)
+ * @param expand - Optional comma-separated expand list (e.g. `'changelog'`)
+ * @param maxResults - Page size (default 50, max 100 for most Jira instances)
  */
 export async function* searchIssues(
   siteUrl: string,

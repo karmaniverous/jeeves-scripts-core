@@ -5,7 +5,7 @@
  * Drains all X runner queues to disk as JSON files.
  *
  * Entry-point script invoked by the runner scheduler. Iterates over every
- * handle in {@link constants().X_ACCOUNTS}, dequeues items from each category queue
+ * handle in `constants().X_ACCOUNTS`, dequeues items from each category queue
  * (posts, mentions, feed, likes, bookmarks), and writes them to the
  * corresponding subdirectory under the account's base path.
  */
@@ -23,7 +23,7 @@ function main(): void {
   const maxItems = Number(getArg(argv, '--maxItems', '50'));
   const client = getRunnerClient();
 
-  const queues: Array<{ queue: string; subdir: string; handle: string }> = [];
+  const queues: { queue: string; subdir: string; handle: string }[] = [];
   for (const handle of Object.keys(constants().X_ACCOUNTS)) {
     queues.push({ queue: `x-posts-${handle}`, subdir: 'posts', handle });
     queues.push({
@@ -44,13 +44,14 @@ function main(): void {
     let totalProcessed = 0;
     for (const { queue, subdir, handle } of queues) {
       const baseDir = constants().X_ACCOUNTS[handle];
+      if (!baseDir) throw new Error(`X account ${handle} is not configured.`);
       const outDir = path.join(baseDir, subdir);
       fs.mkdirSync(outDir, { recursive: true });
       const items = client.dequeue(queue, maxItems);
 
       for (const { id: queueItemId, payload } of items) {
         const item = payload as { id?: string; raw?: unknown };
-        const id = item.id || '';
+        const id = item.id ?? '';
         if (!id) {
           client.done(queueItemId);
           continue;

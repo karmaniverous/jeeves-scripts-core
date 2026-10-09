@@ -94,10 +94,10 @@ describe('planRerank', () => {
       { issues: ['A', 'C'], rankAfterIssue: 'B' },
       { issues: ['B'], rankBeforeIssue: 'A' },
     ]);
-    expect(ops[0].dryRunMessage).toBe(
+    expect(ops[0]!.dryRunMessage).toBe(
       '[dry-run] Would rank 2 issues (batch 0 tail) after B',
     );
-    expect(ops[1].dryRunMessage).toBe('[dry-run] Would rank B before A');
+    expect(ops[1]!.dryRunMessage).toBe('[dry-run] Would rank B before A');
   });
 
   it('skips head move when head already is the anchor', () => {
@@ -118,7 +118,7 @@ describe('planRerank', () => {
       { issues: ['C', 'D'], rankAfterIssue: 'B' },
       { issues: ['E'], rankAfterIssue: 'D' },
     ]);
-    expect(ops[2].dryRunMessage).toBe(
+    expect(ops[2]!.dryRunMessage).toBe(
       '[dry-run] Would rank 1 issues (batch 2) after D',
     );
   });

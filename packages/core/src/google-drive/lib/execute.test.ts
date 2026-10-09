@@ -42,6 +42,7 @@ function client(bodies: Record<string, string | Buffer | Error>): DriveClient {
   const write = (id: string, out: string): string => {
     const body = bodies[id];
     if (body instanceof Error) throw body;
+    if (body === undefined) throw new Error(`no body for ${id}`);
     fs.writeFileSync(out, body);
     return out;
   };

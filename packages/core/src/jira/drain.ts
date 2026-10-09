@@ -114,7 +114,7 @@ function routeUpsertDelete(
     DOMAIN_DIR,
     entityType,
     id,
-    obj as Record<string, unknown>,
+    obj!,
     now,
     constants().JIRA_MAX_HISTORY,
   );

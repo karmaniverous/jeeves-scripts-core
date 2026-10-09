@@ -42,7 +42,7 @@ interface Registry {
 }
 
 function syncOne(ownerRepo: string, defaultBranch: string): void {
-  const [owner, repo] = ownerRepo.split('/');
+  const [owner = '', repo = ''] = ownerRepo.split('/');
   const basePath = getBasePathForGitHubOrg(owner);
   const target = path.join(basePath, 'github', owner, repo);
   const repoDir = path.join(target, 'repo');
@@ -97,7 +97,7 @@ function main(): void {
 
     if (existingCount === 0) {
       const keys = Object.keys(registry.repos).filter(
-        (k) => !registry.repos[k].isArchived,
+        (k) => !registry.repos[k]?.isArchived,
       );
       console.log(`[repo-sync] seeding ${String(keys.length)} repos`);
       for (const key of keys) {
@@ -107,7 +107,7 @@ function main(): void {
           key,
           JSON.stringify({
             lastSyncedAt: null,
-            defaultBranch: registry.repos[key].defaultBranch || 'main',
+            defaultBranch: registry.repos[key]?.defaultBranch ?? 'main',
           }),
         );
       }
@@ -115,7 +115,7 @@ function main(): void {
 
     // Add new repos from registry
     const registryKeys = new Set(
-      Object.keys(registry.repos).filter((k) => !registry.repos[k].isArchived),
+      Object.keys(registry.repos).filter((k) => !registry.repos[k]?.isArchived),
     );
     const existingKeys = new Set(client.listItemKeys(STATE_NS, STATE_KEY));
     for (const key of registryKeys) {
@@ -127,7 +127,7 @@ function main(): void {
           key,
           JSON.stringify({
             lastSyncedAt: null,
-            defaultBranch: registry.repos[key].defaultBranch || 'main',
+            defaultBranch: registry.repos[key]?.defaultBranch ?? 'main',
           }),
         );
       }
@@ -138,15 +138,15 @@ function main(): void {
     const items = allKeys
       .map((k) => {
         const val = JSON.parse(
-          client.getItem(STATE_NS, STATE_KEY, k) || '{}',
+          client.getItem(STATE_NS, STATE_KEY, k) ?? '{}',
         ) as {
           lastSyncedAt?: string;
           defaultBranch?: string;
         };
         return {
           key: k,
-          lastSyncedAt: val.lastSyncedAt || '1970-01-01T00:00:00Z',
-          defaultBranch: val.defaultBranch || 'main',
+          lastSyncedAt: val.lastSyncedAt ?? '1970-01-01T00:00:00Z',
+          defaultBranch: val.defaultBranch ?? 'main',
         };
       })
       .sort((a, b) => a.lastSyncedAt.localeCompare(b.lastSyncedAt))
@@ -159,14 +159,14 @@ function main(): void {
     for (const item of items) {
       try {
         syncOne(item.key, item.defaultBranch);
-        const r = registry.repos[item.key] as RegistryEntry | undefined;
+        const r = registry.repos[item.key];
         client.setItem(
           STATE_NS,
           STATE_KEY,
           item.key,
           JSON.stringify({
             lastSyncedAt: nowIso(),
-            defaultBranch: r?.defaultBranch || item.defaultBranch,
+            defaultBranch: r?.defaultBranch ?? item.defaultBranch,
           }),
         );
         processed++;

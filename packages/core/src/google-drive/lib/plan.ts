@@ -137,7 +137,7 @@ function classifyItem(
       queued: null,
     };
   }
-  if (record.skipped && record.skipped.key === item.probeKey) {
+  if (record.skipped?.key === item.probeKey) {
     return {
       record: { ...record, written: null, localPath: null },
       livePath: null,
@@ -155,7 +155,7 @@ function classifyItem(
 
   const written = record.written;
   const livePath = written ? item.desiredPath : null;
-  if (written && written.contentKey === item.probeKey) {
+  if (written?.contentKey === item.probeKey) {
     // Metadata-only change (e.g. a rename bumped modifiedTime but the
     // revision is unchanged): remember the new modifiedTime so the next
     // run's first-stage check passes without a revisions call.
