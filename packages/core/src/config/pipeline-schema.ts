@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @module config/pipeline-schema
  *
  * Zod schema for the `pipeline` block of `jeeves-scripts.json`: email
@@ -13,8 +13,8 @@
 
 import { z } from 'zod';
 
-import { isSafeSecretRef, UNSAFE_SECRET_REF_MESSAGE } from './imap-secrets.js';
 import { emailConfigSchema } from './pipeline-email-schema.js';
+import { isSafeSecretRef, UNSAFE_SECRET_REF_MESSAGE } from './secret-ref.js';
 
 export type { BackfillConfig, EmailConfig } from './pipeline-email-schema.js';
 

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * @module config
  *
  * Public config API (Decision 3, Decision 19, Decision 28): schema,
@@ -12,6 +12,7 @@ export { configCheck, type ConfigCheckResult } from './check.js';
 // extend them and the docs can describe each type.
 export {
   type ImapPassword,
+  imapSecretPath,
   isSafeSecretRef,
   resolveImapPassword,
   UNSAFE_SECRET_REF_MESSAGE,
