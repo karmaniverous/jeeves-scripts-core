@@ -16,11 +16,13 @@
  *
  * `cacheDir` moves this plugin instance's own on-disk TS-output cache to
  * the repo's hoisted `node_modules/.cache`, outside this package directory.
- * Rollup's own `--configPlugin` step (which transpiles this file before
- * running it) still creates a `.rollup.cache/` under `packages/core` via
- * its own internal, unconfigurable plugin instance; that directory
- * (containing absolute host temp paths) is therefore still possible and is
- * excluded from version control by `.gitignore`, never committed.
+ *
+ * Node loads this file directly (native type stripping, Node 22.18+), so
+ * the build passes no `--configPlugin`. A config plugin would be a second,
+ * unconfigured `@rollup/plugin-typescript` instance: it warns
+ * `outputToFilesystem defaulting to true` and writes `.rollup.cache/` into
+ * this package. Keep this file to erasable TypeScript syntax (no enums,
+ * namespaces or parameter properties) so type stripping can run it.
  */
 
 import { readFileSync } from 'node:fs';
