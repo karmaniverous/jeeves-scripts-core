@@ -64,13 +64,13 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 export function toolPayloads(result: unknown): Record<string, unknown>[] {
   if (!isRecord(result)) return [];
   const out: Record<string, unknown>[] = [];
-  if (isRecord(result['details'])) out.push(result['details']);
-  const content = result['content'];
+  if (isRecord(result.details)) out.push(result.details);
+  const content = result.content;
   if (Array.isArray(content)) {
     const first: unknown = content[0];
-    if (isRecord(first) && typeof first['text'] === 'string') {
+    if (isRecord(first) && typeof first.text === 'string') {
       try {
-        const parsed: unknown = JSON.parse(first['text']);
+        const parsed: unknown = JSON.parse(first.text);
         if (isRecord(parsed)) out.push(parsed);
       } catch {
         // not JSON; skip
@@ -89,10 +89,10 @@ export function toolPayloads(result: unknown): Record<string, unknown>[] {
  * @returns The result, unchanged.
  */
 export function assertOk(action: string, result: unknown): unknown {
-  const failed = toolPayloads(result).find((p) => p['ok'] === false);
+  const failed = toolPayloads(result).find((p) => p.ok === false);
   if (failed) {
     const err =
-      typeof failed['error'] === 'string' ? failed['error'] : 'unknown error';
+      typeof failed.error === 'string' ? failed.error : 'unknown error';
     throw new Error(`Slack ${action} failed: ${err}`);
   }
   return result;
@@ -121,7 +121,7 @@ export function parseMessages(result: unknown): SlackMessage[] {
   const payload = toolPayloads(result).find((p) => 'messages' in p);
   if (!payload)
     throw new Error('Slack read returned no `messages` field (invalid shape)');
-  const parsed = rawMessagesSchema.safeParse(payload['messages']);
+  const parsed = rawMessagesSchema.safeParse(payload.messages);
   if (!parsed.success)
     throw new Error(
       `Slack read returned an invalid \`messages\` shape: ${parsed.error.message}`,
@@ -142,7 +142,7 @@ function idIn(payload: Record<string, unknown>, depth = 0): string | undefined {
     const v = payload[key];
     if (typeof v === 'string' && v) return v;
   }
-  const nested = payload['result'];
+  const nested = payload.result;
   return isRecord(nested) && depth < 2 ? idIn(nested, depth + 1) : undefined;
 }
 
@@ -179,7 +179,7 @@ export function gatewaySlackIo(
         target,
         limit: options.limit ?? 20,
       };
-      if (options.threadTs) args['threadId'] = options.threadTs;
+      if (options.threadTs) args.threadId = options.threadTs;
       return parseMessages(assertOk('read', await call(args)));
     },
     send: async (target, text, threadTs) => {
@@ -188,7 +188,7 @@ export function gatewaySlackIo(
         target,
         message: text,
       };
-      if (threadTs) args['threadId'] = threadTs;
+      if (threadTs) args.threadId = threadTs;
       return sentMessageId(assertOk('send', await call(args)));
     },
     pin: async (target, messageId) => {

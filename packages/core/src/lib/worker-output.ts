@@ -40,7 +40,7 @@ function isRecord(v: unknown): v is Record<string, unknown> {
 export function findWorkerSessionKey(stdout: string): string | null {
   const lines = stdout.split(/\r?\n/).map((l) => l.trim());
   for (let i = lines.length - 1; i >= 0; i--) {
-    const parsed = parseResultLine(lines[i]);
+    const parsed = parseResultLine(lines[i] ?? '');
     if (parsed) return parsed.sessionKey;
   }
   return null;
@@ -52,9 +52,7 @@ function messageText(content: unknown): string {
   return content
     .filter(
       (part): part is { type: 'text'; text: string } =>
-        isRecord(part) &&
-        part['type'] === 'text' &&
-        typeof part['text'] === 'string',
+        isRecord(part) && part.type === 'text' && typeof part.text === 'string',
     )
     .map((part) => part.text)
     .join('\n');
@@ -70,8 +68,8 @@ function findFinalAssistant(messages: unknown): FinalAssistant | null {
   if (!Array.isArray(messages)) return null;
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg: unknown = messages[i];
-    if (!isRecord(msg) || msg['role'] !== 'assistant') continue;
-    const text = messageText(msg['content']).trim();
+    if (!isRecord(msg) || msg.role !== 'assistant') continue;
+    const text = messageText(msg.content).trim();
     if (text) return { message: msg, text };
   }
   return null;
@@ -89,9 +87,9 @@ export function extractFinalAssistantText(messages: unknown): string | null {
 
 /** Why the gateway cut this message, or null when it arrived whole. */
 function truncationReason({ message, text }: FinalAssistant): string | null {
-  const meta = message['__openclaw'];
-  if (isRecord(meta) && meta['truncated'] === true) {
-    return typeof meta['reason'] === 'string' ? meta['reason'] : 'truncated';
+  const meta = message.__openclaw;
+  if (isRecord(meta) && meta.truncated === true) {
+    return typeof meta.reason === 'string' ? meta.reason : 'truncated';
   }
   return text.includes(OMITTED_PLACEHOLDER) ? 'message too large' : null;
 }
@@ -103,8 +101,9 @@ function truncationReason({ message, text }: FinalAssistant): string | null {
  * @param rpc - Gateway RPC caller (gateway-rpc.ts gatewayRpc).
  * @returns The full final assistant text, or null when the session key or
  *   any assistant text is missing.
- * @throws Error if the gateway call fails, or `worker reply truncated by
- *   gateway` if the final reply did not arrive whole.
+ * @throws Error if the gateway call fails, or
+ *   `worker reply truncated by gateway` if the final reply did not arrive
+ *   whole.
  */
 export async function readWorkerFinalText(
   stdout: string,
@@ -118,7 +117,7 @@ export async function readWorkerFinalText(
     maxChars: HISTORY_MAX_CHARS,
   });
   const final = findFinalAssistant(
-    isRecord(result) ? result['messages'] : undefined,
+    isRecord(result) ? result.messages : undefined,
   );
   if (!final) return null;
   const reason = truncationReason(final);

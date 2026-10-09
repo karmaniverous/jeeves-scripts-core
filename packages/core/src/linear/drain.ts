@@ -130,7 +130,7 @@ async function drainMain(): Promise<void> {
         deleted,
       };
     } else {
-      const current = enrichComment(data as Record<string, unknown>);
+      const current = enrichComment(data!);
       const p = upsertEntity(
         DOMAIN_DIR,
         'comment',
@@ -158,7 +158,7 @@ async function drainMain(): Promise<void> {
       DOMAIN_DIR,
       'cycle',
       number,
-      data as Record<string, unknown>,
+      data!,
       now,
       constants().LINEAR_MAX_HISTORY,
     );
@@ -180,7 +180,7 @@ async function drainMain(): Promise<void> {
       DOMAIN_DIR,
       'project',
       id,
-      data as Record<string, unknown>,
+      data!,
       now,
       constants().LINEAR_MAX_HISTORY,
     );
@@ -202,7 +202,7 @@ async function drainMain(): Promise<void> {
       DOMAIN_DIR,
       'label',
       id,
-      data as Record<string, unknown>,
+      data!,
       now,
       constants().LINEAR_MAX_HISTORY,
     );

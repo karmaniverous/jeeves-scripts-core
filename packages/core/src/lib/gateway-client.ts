@@ -35,11 +35,11 @@ export type GatewayInvoker = (
 // ── Token loading ───────────────────────────────────────────────────
 
 export function loadGatewayToken(): string | null {
-  if (process.env['CLAWDBOT_GATEWAY_TOKEN']) {
-    return process.env['CLAWDBOT_GATEWAY_TOKEN'];
+  if (process.env.CLAWDBOT_GATEWAY_TOKEN) {
+    return process.env.CLAWDBOT_GATEWAY_TOKEN;
   }
 
-  const home = process.env['USERPROFILE'] ?? os.homedir();
+  const home = process.env.USERPROFILE ?? os.homedir();
   const configPaths = [
     path.join(home, '.openclaw', 'openclaw.json'),
     path.join(home, '.clawdbot', 'clawdbot.json'),

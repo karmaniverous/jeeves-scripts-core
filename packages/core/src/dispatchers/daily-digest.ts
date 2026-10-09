@@ -27,7 +27,7 @@
  *   completion summary). With neither set, the worker can't post to Slack.
  *
  * Register as a runner job manually (not in jobs/ manifests):
- *   runner_create_job({ id: 'generate-daily-digest', script: 'src/dispatchers/daily-digest.ts', ... })
+ *   runner_create_job(\{ id: 'generate-daily-digest', script: 'src/dispatchers/daily-digest.ts', ... \})
  */
 
 import fs from 'node:fs';

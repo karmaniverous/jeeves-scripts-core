@@ -13,11 +13,11 @@
  * block with info string `slack-posts` holding a JSON array (`[]` when
  * there is nothing to post):
  *
- *     ```slack-posts
- *     [{ "channel": "C000EXAMPLE1", "text": "…", "pin": true },
- *      { "channel": "C000EXAMPLE1", "thread_ts": "1790…", "text": "…" },
- *      { "channel": "C000EXAMPLE1", "edit_ts": "1789…", "text": "…" }]
- *     ```
+ * ```slack-posts
+ * [{ "channel": "C000EXAMPLE1", "text": "…", "pin": true },
+ * { "channel": "C000EXAMPLE1", "thread_ts": "1790…", "text": "…" },
+ * { "channel": "C000EXAMPLE1", "edit_ts": "1789…",  "text": "…" }]
+ * ```
  */
 
 import { z } from 'zod';
@@ -40,7 +40,7 @@ const postSchema = z
     edit_ts: slackTsSchema.optional(),
   })
   .strict()
-  .refine((p) => !(p.edit_ts && (p.thread_ts || p.pin)), {
+  .refine((p) => !(p.edit_ts && (Boolean(p.thread_ts) || Boolean(p.pin))), {
     message: 'edit_ts cannot be combined with thread_ts or pin',
   });
 
@@ -82,7 +82,8 @@ export function parseWorkerPosts(
 
   let raw: unknown;
   try {
-    raw = JSON.parse(blocks[0][3]);
+    // Exactly one block (checked above); group 3 is its body.
+    raw = JSON.parse(blocks[0]![3] ?? '');
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`\`slack-posts\` block is not valid JSON: ${msg}`, {

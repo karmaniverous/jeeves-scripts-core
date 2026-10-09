@@ -94,7 +94,7 @@ describe('runHealthCheck — restart execution', () => {
     );
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
-      .mockImplementation(() => {});
+      .mockImplementation(() => undefined);
 
     await expect(runHealthCheck(TEST_URL)).resolves.toBeUndefined();
 
@@ -121,7 +121,7 @@ describe('runHealthCheck — restart execution', () => {
 
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
-      .mockImplementation(() => {});
+      .mockImplementation(() => undefined);
 
     await expect(runHealthCheck(TEST_URL)).resolves.not.toThrow();
 

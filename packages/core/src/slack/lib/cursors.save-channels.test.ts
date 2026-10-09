@@ -106,7 +106,7 @@ describe('saveChannels', () => {
       metadata: {},
       _account: 'default',
     };
-    channels.D1.lastTs = '1700000500.000200';
+    channels.D1!.lastTs = '1700000500.000200';
 
     saveChannels(channelsFile, channels);
 

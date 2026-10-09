@@ -106,20 +106,18 @@ export function upsertEntity(
     }
   }
 
-  if (!entity) {
-    entity = {
-      entityType: type,
-      entityKey: String(key),
-      current,
-      history: [],
-      meta: {
-        firstSeen: now,
-        lastWebhook: now,
-        lastBackfill: null,
-        version: 1,
-      },
-    };
-  }
+  entity ??= {
+    entityType: type,
+    entityKey: String(key),
+    current,
+    history: [],
+    meta: {
+      firstSeen: now,
+      lastWebhook: now,
+      lastBackfill: null,
+      version: 1,
+    },
+  };
 
   fs.writeFileSync(filePath, JSON.stringify(entity, null, 2) + '\n', 'utf8');
   return filePath;

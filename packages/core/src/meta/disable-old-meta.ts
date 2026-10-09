@@ -38,9 +38,9 @@ function getEntityDate(meta: Record<string, unknown>): Date | null {
   const content = meta._content as string;
   if (content && typeof content === 'string') {
     const header = content.slice(0, 200);
-    const isoMatch = header.match(/(\d{4}-\d{2}-\d{2})/);
+    const isoMatch = /(\d{4}-\d{2}-\d{2})/.exec(header);
     if (isoMatch) {
-      const d = new Date(isoMatch[1]);
+      const d = new Date(isoMatch[1] ?? '');
       if (!isNaN(d.getTime())) return d;
     }
   }

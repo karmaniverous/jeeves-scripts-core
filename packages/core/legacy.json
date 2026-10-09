@@ -2,19 +2,11 @@
   "$comment": "Decision 32: code copied wholesale from jeeves-scripts-template (main 322054c) and not yet refactored to Decision 22. These paths are type-checked with the template's own compiler settings and linted with the template-level rule set instead of the strict type-aware set. Shrink-only: remove an entry once its code passes the strict gates; never add one. tsconfig.json (exclude) and tsconfig.legacy.json (include) must list the same globs; legacy.test.ts enforces it.",
   "paths": [
     "src/admin/**/*",
-    "src/calendar/**/*",
-    "src/convert/**/*",
-    "src/core/**/*",
-    "src/dispatchers/**/*",
     "src/email/**/*",
     "src/github/**/*",
     "src/google-drive/**/*",
     "src/jira/**/*",
-    "src/lib/**/*",
-    "src/linear/**/*",
     "src/meetings/**/*",
-    "src/meta/**/*",
-    "src/slack/**/*",
     "src/x/**/*"
   ]
 }

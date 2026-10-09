@@ -67,7 +67,7 @@ describe('gatewayRpc', () => {
       JSON.stringify(params),
     ]);
     expect(opts).toMatchObject({ windowsHide: true });
-    expect(opts['shell']).toBeUndefined();
+    expect(opts.shell).toBeUndefined();
   });
 
   it('resolves the CLI path when none is given', async () => {

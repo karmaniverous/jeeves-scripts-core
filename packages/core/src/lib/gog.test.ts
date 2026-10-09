@@ -71,7 +71,7 @@ describe('gog', () => {
       vi.mocked(runWithRetry).mockReturnValue('');
 
       gogWithRetry(['mail', 'get']);
-      const callArgs = vi.mocked(runWithRetry).mock.calls[0][2]!;
+      const callArgs = vi.mocked(runWithRetry).mock.calls[0]![2]!;
       expect(callArgs.retries).toBe(2);
       expect(callArgs.backoffMs).toBe(5000);
     });
@@ -80,7 +80,7 @@ describe('gog', () => {
       vi.mocked(runWithRetry).mockReturnValue('');
 
       gogWithRetry(['test']);
-      const callArgs = vi.mocked(runWithRetry).mock.calls[0][2]!;
+      const callArgs = vi.mocked(runWithRetry).mock.calls[0]![2]!;
       const isRetryable = callArgs.isRetryable as (e: unknown) => boolean;
 
       expect(isRetryable(new Error('context deadline exceeded'))).toBe(true);

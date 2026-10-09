@@ -25,7 +25,7 @@ export interface CalendarEvent {
   end?: { dateTime?: string; date?: string };
   location?: string;
   status?: string;
-  attendees?: Array<{ email: string; responseStatus?: string }>;
+  attendees?: { email: string; responseStatus?: string }[];
   recurrence?: string[];
   updated?: string;
   [key: string]: unknown;

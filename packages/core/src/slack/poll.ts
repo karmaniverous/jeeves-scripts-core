@@ -118,7 +118,7 @@ function getTokens(): Record<string, string> {
   // Flat layout fallback: channels.slack.botToken
   if (Object.keys(tokens).length === 0) {
     const token = cfg.channels?.slack?.botToken;
-    if (token) tokens['default'] = token;
+    if (token) tokens.default = token;
   }
 
   if (Object.keys(tokens).length === 0)
@@ -143,9 +143,10 @@ async function resolveChannelToken(
   teamToAccount: Record<string, string>,
 ): Promise<string> {
   // 1. Explicit account tag from prior discovery or resolution
-  if (channelInfo._account && tokensByAccount[channelInfo._account]) {
-    return tokensByAccount[channelInfo._account];
-  }
+  const tagged = channelInfo._account
+    ? tokensByAccount[channelInfo._account]
+    : undefined;
+  if (tagged) return tagged;
 
   // 2. Check sharedTeams metadata against known workspaces
   if (channelInfo.sharedTeams) {
@@ -193,7 +194,10 @@ async function resolveChannelToken(
   }
 
   // 4. Fallback to default or first available token
-  return tokensByAccount['default'] ?? Object.values(tokensByAccount)[0];
+  const fallback = tokensByAccount.default ?? Object.values(tokensByAccount)[0];
+  if (fallback === undefined)
+    throw new Error(`No Slack token available for channel ${channelId}.`);
+  return fallback;
 }
 
 function tsToDate(ts: string): string {
@@ -308,7 +312,7 @@ function writeMessage(
 
       // Persist voice memo / audio transcripts from Slack's native transcription
       const raw = f as unknown as Record<string, unknown>;
-      const transcription = raw['transcription'] as
+      const transcription = raw.transcription as
         { status?: string; preview?: { content?: string } } | undefined;
       if (
         transcription?.status === 'complete' &&
@@ -540,8 +544,9 @@ async function pollAll(client: RunnerClient): Promise<void> {
     }
     // Persist an advanced read position at once (outside the per-channel
     // catch: a store failure aborts the run instead of being swallowed).
-    if (id in cursors && cursors[id] !== before) {
-      saveCursor(client, id, cursors[id]);
+    const after = cursors[id];
+    if (after !== undefined && after !== before) {
+      saveCursor(client, id, after);
     }
   }
 

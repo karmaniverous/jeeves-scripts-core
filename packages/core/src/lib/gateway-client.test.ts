@@ -10,13 +10,13 @@ describe('gateway-client', () => {
 
   describe('loadGatewayToken', () => {
     it('returns env var when CLAWDBOT_GATEWAY_TOKEN is set', async () => {
-      process.env['CLAWDBOT_GATEWAY_TOKEN'] = 'test-token-123';
+      process.env.CLAWDBOT_GATEWAY_TOKEN = 'test-token-123';
       const { loadGatewayToken } = await import('./gateway-client.js');
       expect(loadGatewayToken()).toBe('test-token-123');
     });
 
     it('returns null when no token source is available', async () => {
-      delete process.env['CLAWDBOT_GATEWAY_TOKEN'];
+      delete process.env.CLAWDBOT_GATEWAY_TOKEN;
       vi.doMock('node:fs', () => ({
         default: {
           readFileSync: () => {
@@ -29,7 +29,7 @@ describe('gateway-client', () => {
     });
 
     it('reads token from config file when env var is unset', async () => {
-      delete process.env['CLAWDBOT_GATEWAY_TOKEN'];
+      delete process.env.CLAWDBOT_GATEWAY_TOKEN;
       const configContent = JSON.stringify({
         gateway: { auth: { token: 'file-token-456' } },
       });

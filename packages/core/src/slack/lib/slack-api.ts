@@ -78,7 +78,7 @@ export interface SlackMessage {
   reply_count?: number;
   subtype?: string;
   files?: SlackFileMetadata[];
-  reactions?: Array<{ name: string; count: number }>;
+  reactions?: { name: string; count: number }[];
 }
 
 export interface HistoryResponse {

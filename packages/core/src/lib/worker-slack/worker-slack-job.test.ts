@@ -66,7 +66,7 @@ describe('runWorkerSlackJob', () => {
       limit: 10,
       threadTs: undefined,
     });
-    const task = dispatch.mock.calls[0][0] as string;
+    const task = dispatch.mock.calls[0]![0] as string;
     expect(task.startsWith('Build the agenda.')).toBe(true);
     expect(task).toContain('U1: Add hiring to the agenda');
     expect(task).toContain(

@@ -39,7 +39,7 @@ describe('listCalendars', () => {
       'p2',
       'p3',
     ]);
-    expect(api.urls[0].pathname).toBe('/calendar/v3/users/me/calendarList');
+    expect(api.urls[0]!.pathname).toBe('/calendar/v3/users/me/calendarList');
     expect(api.auth).toEqual(['Bearer tok', 'Bearer tok', 'Bearer tok']);
   });
 
@@ -64,7 +64,7 @@ describe('getAllEvents', () => {
     });
     const events = await getAllEvents('tok', 'team@x.test', 'T0', 'T1');
     expect(events.map((e) => e.id)).toEqual(['e1', 'e2']);
-    expect(api.urls[0].pathname).toBe(
+    expect(api.urls[0]!.pathname).toBe(
       '/calendar/v3/calendars/team%40x.test/events',
     );
     for (const u of api.urls) {
@@ -72,7 +72,7 @@ describe('getAllEvents', () => {
       expect(u.searchParams.get('timeMax')).toBe('T1');
       expect(u.searchParams.get('singleEvents')).toBe('true');
     }
-    expect(api.urls[1].searchParams.get('pageToken')).toBe('n');
+    expect(api.urls[1]!.searchParams.get('pageToken')).toBe('n');
   });
 
   it('names the calendar when the request fails', async () => {

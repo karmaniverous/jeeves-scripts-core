@@ -125,7 +125,7 @@ describe('runHealthCheck — restart decision', () => {
     );
     const consoleErrorSpy = vi
       .spyOn(console, 'error')
-      .mockImplementation(() => {});
+      .mockImplementation(() => undefined);
 
     await runHealthCheck(TEST_URL);
 

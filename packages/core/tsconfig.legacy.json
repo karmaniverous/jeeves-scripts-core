@@ -6,24 +6,23 @@
     "checkJs": false,
     "noUncheckedIndexedAccess": false,
     "tsBuildInfoFile": "./.tsbuildinfo.legacy",
-    "types": ["node", "vitest/globals"]
+    "types": [
+      "node",
+      "vitest/globals"
+    ]
   },
   "include": [
     "src/admin/**/*",
-    "src/calendar/**/*",
-    "src/convert/**/*",
-    "src/core/**/*",
-    "src/dispatchers/**/*",
     "src/email/**/*",
     "src/github/**/*",
     "src/google-drive/**/*",
     "src/jira/**/*",
-    "src/lib/**/*",
-    "src/linear/**/*",
     "src/meetings/**/*",
-    "src/meta/**/*",
-    "src/slack/**/*",
     "src/x/**/*"
   ],
-  "exclude": ["dist", "node_modules", "template"]
+  "exclude": [
+    "dist",
+    "node_modules",
+    "template"
+  ]
 }

@@ -22,7 +22,7 @@
  * - `slack.operatorDm` — Slack user or DM channel ID for completion routing
  *
  * Register as a runner job manually (not in jobs/ manifests):
- *   runner_create_job({ id: 'generate-social-posts', script: 'src/dispatchers/social-posts.ts', ... })
+ *   runner_create_job(\{ id: 'generate-social-posts', script: 'src/dispatchers/social-posts.ts', ... \})
  */
 
 import path from 'node:path';

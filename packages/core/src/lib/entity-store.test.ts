@@ -61,8 +61,8 @@ describe('upsertEntity', () => {
     const entity = readEntity(filePath);
     expect(entity.current).toEqual(v2);
     expect(entity.history).toHaveLength(1);
-    expect(entity.history[0].ts).toBe(t1);
-    expect(entity.history[0].patch.length).toBeGreaterThan(0);
+    expect(entity.history[0]!.ts).toBe(t1);
+    expect(entity.history[0]!.patch.length).toBeGreaterThan(0);
   });
 
   it('caps history at maxHistory (oldest entries dropped)', () => {
@@ -224,7 +224,7 @@ describe('writeUnmatched', () => {
     expect(files[0]).toContain('webhook-xyz');
 
     const written = JSON.parse(
-      fs.readFileSync(path.join(unmatchedDir, files[0]), 'utf8'),
+      fs.readFileSync(path.join(unmatchedDir, files[0]!), 'utf8'),
     ) as unknown;
     expect(written).toEqual(body);
   });

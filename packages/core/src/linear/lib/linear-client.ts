@@ -74,15 +74,15 @@ export function loadConfig(): LinearConfig {
 
 interface GraphQLResponse<T> {
   data?: T;
-  errors?: Array<{ message: string }>;
+  errors?: { message: string }[];
 }
 
 /**
  * Execute a GraphQL query against the Linear API.
  *
- * @param config    Linear API config (apiKey, apiUrl)
- * @param query     GraphQL query string
- * @param variables Optional query variables
+ * @param config - Linear API config (apiKey, apiUrl)
+ * @param query - GraphQL query string
+ * @param variables - Optional query variables
  */
 export async function linearQuery<T>(
   config: LinearConfig,

@@ -27,14 +27,14 @@ export function normalizeSlackTarget(raw: string): string | null {
   const value = raw.trim();
   const prefixed = PREFIXED.exec(value);
   if (prefixed) {
-    const kind = prefixed[1].toLowerCase();
-    return FAMILY[kind].test(prefixed[2])
-      ? `${kind}:${prefixed[2].toUpperCase()}`
-      : null;
+    // Both groups are mandatory in PREFIXED.
+    const kind = prefixed[1]!.toLowerCase();
+    const id = prefixed[2]!;
+    return FAMILY[kind]?.test(id) ? `${kind}:${id.toUpperCase()}` : null;
   }
   const bare = BARE.exec(value);
   if (!bare) return null;
-  const kind = /^[UW]$/i.test(bare[1]) ? 'user' : 'channel';
+  const kind = /^[UW]$/i.test(bare[1]!) ? 'user' : 'channel';
   return `${kind}:${value.toUpperCase()}`;
 }
 

@@ -13,7 +13,7 @@
  * exits 1.
  *
  * Output format (last line of stdout):
- *   WORKER_RESULT:{"sessionKey":"...","tokens":12345,"durationMs":123000}
+ *   WORKER_RESULT:\{"sessionKey":"...","tokens":12345,"durationMs":123000\}
  */
 
 import fs from 'node:fs';
@@ -36,11 +36,11 @@ interface GatewayInvokeResult {
 }
 
 function loadGatewayToken(): string | null {
-  if (process.env['CLAWDBOT_GATEWAY_TOKEN']) {
-    return process.env['CLAWDBOT_GATEWAY_TOKEN'];
+  if (process.env.CLAWDBOT_GATEWAY_TOKEN) {
+    return process.env.CLAWDBOT_GATEWAY_TOKEN;
   }
 
-  const home = process.env['USERPROFILE'] ?? os.homedir();
+  const home = process.env.USERPROFILE ?? os.homedir();
   const configPaths = [
     path.join(home, '.openclaw', 'openclaw.json'),
     path.join(home, '.clawdbot', 'clawdbot.json'),
@@ -142,9 +142,7 @@ export const SPAWN_BACKOFF_BASE_MS = 30_000;
 
 // ── Types ──────────────────────────────────────────────────────────────
 
-export interface ParsedArgs {
-  [key: string]: string;
-}
+export type ParsedArgs = Record<string, string>;
 
 interface SpawnArgs {
   task: string;
@@ -210,9 +208,8 @@ export function parseArgs(argv: string[]): ParsedArgs {
   const args: ParsedArgs = {};
   for (const arg of argv) {
     const match = /^--([^=]+)=(.*)$/.exec(arg);
-    if (match) {
-      args[match[1]] = match[2];
-    }
+    const [, key, value] = match ?? [];
+    if (key !== undefined && value !== undefined) args[key] = value;
   }
   return args;
 }
@@ -329,7 +326,7 @@ async function invokeGateway(
 // ── Session helpers ───────────────────────────────────────────────────
 
 function getSessionsDir(): string {
-  const home = process.env['USERPROFILE'] ?? os.homedir();
+  const home = process.env.USERPROFILE ?? os.homedir();
   const configDirs = [
     path.join(home, '.openclaw'),
     path.join(home, '.clawdbot'),
@@ -522,12 +519,12 @@ async function main(): Promise<void> {
   const startTime = Date.now();
   const spawnArgs: SpawnArgs = {
     task: taskInput,
-    label: args['label'] ?? `worker-${jobId.slice(0, 8)}`,
+    label: args.label ?? `worker-${jobId.slice(0, 8)}`,
     thread: false,
   };
 
-  if (args['thinking']) {
-    spawnArgs.thinking = args['thinking'];
+  if (args.thinking) {
+    spawnArgs.thinking = args.thinking;
   }
 
   console.log(

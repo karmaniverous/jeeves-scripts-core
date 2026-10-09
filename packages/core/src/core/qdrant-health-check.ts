@@ -39,7 +39,7 @@ export interface CollectionInfo {
   status: string;
   /**
    * Qdrant returns either the string "ok" when the optimizer is healthy,
-   * or an object { error: string } when it is not. Treat any other string
+   * or an object \{ error: string \} when it is not. Treat any other string
    * value as unhealthy.
    */
   optimizer_status: string | { error: string } | Record<string, unknown>;
@@ -78,7 +78,7 @@ export async function fetchJson<T>(url: string): Promise<T> {
 /**
  * Determine if a collection's optimizer is healthy based on its
  * optimizer_status field. Handles both the string form ("ok") and the
- * object form ({ error: "…" }) returned by the Qdrant API.
+ * object form (\{ error: "…" \}) returned by the Qdrant API.
  */
 export function isCollectionHealthy(info: CollectionInfo): boolean {
   const status = info.optimizer_status;

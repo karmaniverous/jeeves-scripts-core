@@ -50,10 +50,10 @@ function parseJson(text: string): unknown {
 
 /** Pull `error.message` out of a `{ ok: false, error }` CLI response. */
 function cliErrorMessage(parsed: unknown): string | undefined {
-  if (!isRecord(parsed) || parsed['ok'] !== false) return undefined;
-  const error = parsed['error'];
-  if (isRecord(error) && typeof error['message'] === 'string') {
-    return error['message'];
+  if (!isRecord(parsed) || parsed.ok !== false) return undefined;
+  const error = parsed.error;
+  if (isRecord(error) && typeof error.message === 'string') {
+    return error.message;
   }
   return 'unknown gateway error';
 }

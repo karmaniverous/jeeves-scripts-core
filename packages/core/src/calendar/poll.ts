@@ -66,7 +66,7 @@ function sanitize(s: string): string {
 }
 
 function getCalendarBase(email: string): string {
-  const domain = email.split('@')[1];
+  const domain = email.split('@')[1] ?? '';
   const basePath = getBasePathForEmailDomain(domain);
   return path.join(basePath, 'calendar', email);
 }

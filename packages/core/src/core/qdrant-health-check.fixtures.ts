@@ -69,7 +69,7 @@ export function collectionsResponse(names: string[]): Response {
   });
 }
 
-/** /collections/{name} detail response. */
+/** /collections/\{name\} detail response. */
 export function detailResponse(info: Partial<CollectionInfo> = {}): Response {
   return okResponse({ result: makeCollectionInfo(info), status: 'ok' });
 }
