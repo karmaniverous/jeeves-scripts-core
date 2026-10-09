@@ -4,19 +4,25 @@ import { pathToFileURL } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { resetConfig } from '../config/loader.js';
+import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
 import { buildProgram, main, resolveRoot } from './index.js';
 
 const root = path.resolve('/instance');
 
 describe('jeeves-scripts CLI', () => {
+  // test/setup.ts points JEEVES_SCRIPTS_CONFIG at a shared test config;
+  // these tests exercise root/--config resolution, so unset it here.
+  const savedEnv = process.env[CONFIG_PATH_ENV];
+
   beforeEach(() => {
+    Reflect.deleteProperty(process.env, CONFIG_PATH_ENV);
     resetConfig();
     process.exitCode = undefined;
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    process.env[CONFIG_PATH_ENV] = savedEnv;
     resetConfig();
     process.exitCode = undefined;
   });

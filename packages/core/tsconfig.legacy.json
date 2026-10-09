@@ -1,0 +1,29 @@
+{
+  "$comment": "Decision 32: type-checks the paths in legacy.json with jeeves-scripts-template's compiler settings (core's, minus noUncheckedIndexedAccess). Shrink-only.",
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "allowJs": false,
+    "checkJs": false,
+    "noUncheckedIndexedAccess": false,
+    "tsBuildInfoFile": "./.tsbuildinfo.legacy",
+    "types": ["node", "vitest/globals"]
+  },
+  "include": [
+    "src/admin/**/*",
+    "src/calendar/**/*",
+    "src/convert/**/*",
+    "src/core/**/*",
+    "src/dispatchers/**/*",
+    "src/email/**/*",
+    "src/github/**/*",
+    "src/google-drive/**/*",
+    "src/jira/**/*",
+    "src/lib/**/*",
+    "src/linear/**/*",
+    "src/meetings/**/*",
+    "src/meta/**/*",
+    "src/slack/**/*",
+    "src/x/**/*"
+  ],
+  "exclude": ["dist", "node_modules", "template"]
+}

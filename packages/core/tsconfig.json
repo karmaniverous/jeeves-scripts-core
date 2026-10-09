@@ -3,6 +3,32 @@
   "compilerOptions": {
     "types": ["node", "vitest/globals"]
   },
-  "include": ["src/**/*", "scripts/**/*", "rollup.config.ts", "vitest.config.ts"],
-  "exclude": ["dist", "node_modules", "template"]
+  "include": [
+    "src/**/*",
+    "scripts/**/*",
+    "test/**/*",
+    "legacy.test.ts",
+    "rollup.config.ts",
+    "vitest.config.ts"
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    "template",
+    "src/admin/**/*",
+    "src/calendar/**/*",
+    "src/convert/**/*",
+    "src/core/**/*",
+    "src/dispatchers/**/*",
+    "src/email/**/*",
+    "src/github/**/*",
+    "src/google-drive/**/*",
+    "src/jira/**/*",
+    "src/lib/**/*",
+    "src/linear/**/*",
+    "src/meetings/**/*",
+    "src/meta/**/*",
+    "src/slack/**/*",
+    "src/x/**/*"
+  ]
 }

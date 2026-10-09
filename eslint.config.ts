@@ -7,6 +7,12 @@
  * from type-aware linting and no `eslint-disable` is permitted anywhere in
  * the repo (Decision 22).
  *
+ * Exception (Decision 32): code copied wholesale from jeeves-scripts-template
+ * and not yet refactored is listed in `packages/core/legacy.json`. Those
+ * paths get the template's own rule set (`strictTypeChecked`, without
+ * `stylisticTypeChecked` or TSDoc checks), type-aware against
+ * `packages/core/tsconfig.legacy.json`. The list is shrink-only.
+ *
  * @module eslint.config
  */
 
@@ -22,7 +28,20 @@ import simpleImportSortPlugin from 'eslint-plugin-simple-import-sort';
 import tsdocPlugin from 'eslint-plugin-tsdoc';
 import tseslint from 'typescript-eslint';
 
+import legacy from './packages/core/legacy.json' with { type: 'json' };
+
 const tsconfigRootDir = dirname(fileURLToPath(import.meta.url));
+
+/** Decision 32 legacy paths, relative to the repo root. */
+const legacyFiles = legacy.paths.map((p) => `packages/core/${p}`);
+
+const strictTypeCheckedRules = (
+  tseslint.configs.strictTypeChecked as unknown as unknown[]
+).reduce<Record<string, unknown>>((acc, cfg) => {
+  const rules = (cfg as { rules?: Record<string, unknown> }).rules;
+  if (rules) Object.assign(acc, rules);
+  return acc;
+}, {});
 
 // Extract strict + stylistic type-checked rules into one rules object.
 const typeCheckedConfigs = [
@@ -65,7 +84,21 @@ export default [
   },
   eslint.configs.recommended,
   {
+    files: ['**/*.cjs'],
+    languageOptions: {
+      sourceType: 'commonjs',
+      globals: {
+        __dirname: 'readonly',
+        __filename: 'readonly',
+        exports: 'writable',
+        module: 'readonly',
+        require: 'readonly',
+      },
+    },
+  },
+  {
     files: ['**/*.{ts,tsx}'],
+    ignores: legacyFiles,
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
@@ -96,7 +129,53 @@ export default [
     },
   },
   {
+    // Decision 32: the template's rule set for not-yet-refactored code.
+    files: legacyFiles.map((p) => `${p}.{ts,tsx}`),
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        project: ['./packages/core/tsconfig.legacy.json'],
+        tsconfigRootDir,
+      },
+    },
+    plugins: {
+      '@typescript-eslint': tseslint.plugin,
+      prettier: prettierPlugin,
+      'simple-import-sort': simpleImportSortPlugin,
+    },
+    rules: {
+      ...strictTypeCheckedRules,
+      '@typescript-eslint/consistent-type-imports': 'error',
+      '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/no-unused-expressions': 'off',
+      'no-unused-vars': 'off',
+      '@typescript-eslint/no-unused-vars': 'error',
+      'simple-import-sort/imports': 'error',
+      'simple-import-sort/exports': 'error',
+      'prettier/prettier': 'error',
+    },
+  },
+  {
+    // Decision 32: vitest rules for legacy tests, against the legacy project.
+    files: legacyFiles.map((p) => `${p}.test.{ts,tsx}`),
+    languageOptions: {
+      parser: tseslint.parser,
+      parserOptions: {
+        project: ['./packages/core/tsconfig.legacy.json'],
+        tsconfigRootDir,
+      },
+    },
+    plugins: {
+      vitest,
+    },
+    rules: {
+      ...vitestRecommendedRules,
+      'prettier/prettier': 'error',
+    },
+  },
+  {
     files: ['**/*.test.{ts,tsx}'],
+    ignores: legacyFiles,
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {

@@ -3,17 +3,23 @@ import fs from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { configCheck } from './check.js';
-import { resetConfig } from './loader.js';
+import { CONFIG_PATH_ENV, resetConfig } from './loader.js';
 
 const options = { root: '/root' };
 
 describe('configCheck', () => {
+  // test/setup.ts points JEEVES_SCRIPTS_CONFIG at a shared test config;
+  // these tests exercise root/configPath resolution, so unset it here.
+  const savedEnv = process.env[CONFIG_PATH_ENV];
+
   beforeEach(() => {
+    Reflect.deleteProperty(process.env, CONFIG_PATH_ENV);
     resetConfig();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    process.env[CONFIG_PATH_ENV] = savedEnv;
     resetConfig();
   });
 
