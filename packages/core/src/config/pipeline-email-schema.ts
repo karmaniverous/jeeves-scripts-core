@@ -2,7 +2,7 @@
  * @module config/pipeline-email-schema
  *
  * Zod schema for the `pipeline.emailConfig` block: email pipeline flags,
- * receipt forwarding (with the legacy `forwardJGS` key migrated), digest,
+ * receipt forwarding, digest,
  * historical backfill, and meeting-email actions.
  *
  * Ported from `jeeves-scripts-template` `src/lib/pipeline-config-email.ts`
@@ -11,50 +11,17 @@
 
 import { z } from 'zod';
 
-import { warnDeprecated } from './pipeline-deprecations.js';
-
-/** Deprecated name of `emailConfig.receipt.forwardEnabled`. */
-const LEGACY_RECEIPT_FORWARD_KEY = 'forwardJGS';
-
 /**
- * Map the deprecated `receipt.forwardJGS` key to `forwardEnabled` so
- * existing pipeline configs keep loading. When both are present,
- * `forwardEnabled` wins and the legacy key is ignored. Either way a
- * one-line deprecation warning is logged (once per process).
+ * Receipt forwarding (`emailConfig.receipt`). Strict: unknown keys are
+ * errors, so the template's retired `forwardJGS` alias fails `config check`
+ * instead of being silently dropped (core carries no deprecated aliases).
  */
-const migrateReceiptConfig = (raw: unknown): unknown => {
-  if (
-    raw === null ||
-    typeof raw !== 'object' ||
-    !(LEGACY_RECEIPT_FORWARD_KEY in raw)
-  )
-    return raw;
-  const { [LEGACY_RECEIPT_FORWARD_KEY]: legacy, ...rest } = raw as Record<
-    string,
-    unknown
-  >;
-  if ('forwardEnabled' in rest) {
-    warnDeprecated(
-      `emailConfig.receipt.${LEGACY_RECEIPT_FORWARD_KEY} is deprecated and ignored because forwardEnabled is set; remove it.`,
-    );
-    return rest;
-  }
-  warnDeprecated(
-    `emailConfig.receipt.${LEGACY_RECEIPT_FORWARD_KEY} is deprecated; rename it to forwardEnabled.`,
-  );
-  return { ...rest, forwardEnabled: legacy };
-};
-
-/** Receipt forwarding (`emailConfig.receipt`); accepts the legacy `forwardJGS` key. */
-export const receiptConfigSchema = z.preprocess(
-  migrateReceiptConfig,
-  z.object({
-    /** Whether detected receipts are forwarded to `sparkReceiptsForwardTo`. */
-    forwardEnabled: z.boolean(),
-    /** Address receipts are forwarded to. */
-    sparkReceiptsForwardTo: z.string(),
-  }),
-);
+export const receiptConfigSchema = z.strictObject({
+  /** Whether detected receipts are forwarded to `sparkReceiptsForwardTo`. */
+  forwardEnabled: z.boolean(),
+  /** Address receipts are forwarded to. */
+  sparkReceiptsForwardTo: z.string(),
+});
 
 /** Email digest settings (`emailConfig.digest`). */
 export const digestConfigSchema = z.object({
