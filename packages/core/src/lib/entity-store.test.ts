@@ -235,4 +235,11 @@ describe('writeUnmatched', () => {
     const files = fs.readdirSync(path.join(tmpDir, '_unmatched'));
     expect(files[0]).toContain('my-special-label');
   });
+
+  it('replaces characters Windows forbids in file names', () => {
+    writeUnmatched(tmpDir, 'a<b>c:d"e/f\\g|h?i*j', { x: 1 });
+
+    const files = fs.readdirSync(path.join(tmpDir, '_unmatched'));
+    expect(files[0]).toMatch(/-a_b_c_d_e_f_g_h_i_j\.json$/);
+  });
 });

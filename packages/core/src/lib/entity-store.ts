@@ -188,8 +188,10 @@ export function writeUnmatched(
 ): void {
   const dir = path.join(domainDir, '_unmatched');
   fs.mkdirSync(dir, { recursive: true });
+  // Windows-safe file name: labels can carry reserved characters.
+  const safeLabel = label.replace(/[<>:"/\\|?*]/g, '_');
   fs.writeFileSync(
-    path.join(dir, `${String(Date.now())}-${label}.json`),
+    path.join(dir, `${String(Date.now())}-${safeLabel}.json`),
     JSON.stringify(body, null, 2) + '\n',
     'utf8',
   );

@@ -47,13 +47,16 @@ function sweepDir(dir: string, now: number): number {
       removed += sweepDir(fullPath, now);
     } else if (entry.name.endsWith('.tmp')) {
       try {
-        const stat = fs.statSync(fullPath);
+        const stat = fs.lstatSync(fullPath);
         if (now - stat.mtimeMs > MAX_AGE_MS) {
           fs.unlinkSync(fullPath);
           removed++;
         }
-      } catch {
-        // File may have been removed by another process
+      } catch (err: unknown) {
+        // TOCTOU: file may vanish between readdirSync and lstatSync.
+        const isEnoent =
+          err instanceof Error && 'code' in err && err.code === 'ENOENT';
+        if (!isEnoent) throw err;
       }
     }
   }
