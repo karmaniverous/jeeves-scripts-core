@@ -11,7 +11,7 @@
  */
 
 import { runXPoller } from './lib/poll-x-items.js';
-import { pollUserMentions } from './lib/x-api.js';
+import { pollUserMentions } from './lib/x-timelines.js';
 
 runXPoller('x/poll-mentions', {
   pollFn: pollUserMentions,

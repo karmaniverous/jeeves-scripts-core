@@ -27,10 +27,11 @@ import {
   logPollHandles,
   resolvePollHandles,
 } from './poll-handles.js';
-import type { PollOptions, XTweet } from './x-api.js';
-import { getOAuthPath, withAutoRefresh } from './x-api.js';
+import { withAutoRefresh } from './x-api.js';
+import { getOAuthPath } from './x-oauth.js';
+import type { PollOptions, XTweet } from './x-timelines.js';
 
-export { type XTweet } from './x-api.js';
+export { type XTweet } from './x-timelines.js';
 
 export interface PollXOptions {
   /** API poll function to call */

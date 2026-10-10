@@ -20,8 +20,9 @@ import { runScript } from '@karmaniverous/jeeves';
 
 import { constants } from '../lib/constants.js';
 import { pollHandlesFromArgv } from './lib/poll-x-items.js';
-import type { XTweet } from './lib/x-api.js';
-import { pollHomeTimeline, withAutoRefresh } from './lib/x-api.js';
+import { withAutoRefresh } from './lib/x-api.js';
+import type { XTweet } from './lib/x-timelines.js';
+import { pollHomeTimeline } from './lib/x-timelines.js';
 
 const PRUNE_DAYS = 7;
 

@@ -15,11 +15,8 @@
 
 import { runScript } from '@karmaniverous/jeeves';
 
-import {
-  getOAuthPath,
-  refreshOAuth2Token,
-  requireXHandle,
-} from './lib/x-api.js';
+import { requireXHandle } from './lib/x-api.js';
+import { getOAuthPath, refreshOAuth2Token } from './lib/x-oauth.js';
 
 const handle = requireXHandle('refresh-token.ts');
 

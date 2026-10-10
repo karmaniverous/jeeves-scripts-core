@@ -16,13 +16,13 @@ import path from 'node:path';
 
 import { runScript } from '@karmaniverous/jeeves';
 
+import { createPost } from './lib/x-actions.js';
 import {
-  createPost,
-  getOAuthPath,
   requireAccountDir,
   requireXHandle,
   withAutoRefresh,
 } from './lib/x-api.js';
+import { getOAuthPath } from './lib/x-oauth.js';
 
 const handle = requireXHandle('post.ts');
 const accountDir = requireAccountDir(handle);

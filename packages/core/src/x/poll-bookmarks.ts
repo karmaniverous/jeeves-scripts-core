@@ -11,7 +11,7 @@
  */
 
 import { runXPoller } from './lib/poll-x-items.js';
-import { pollBookmarks } from './lib/x-api.js';
+import { pollBookmarks } from './lib/x-timelines.js';
 
 runXPoller('x/poll-bookmarks', {
   pollFn: pollBookmarks,

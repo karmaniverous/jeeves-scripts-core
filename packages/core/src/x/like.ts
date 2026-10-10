@@ -10,7 +10,7 @@
  */
 
 import { runXQueueAction } from './lib/run-x-queue-action.js';
-import { likePost } from './lib/x-api.js';
+import { likePost } from './lib/x-actions.js';
 
 runXQueueAction({
   scriptName: 'x/like',

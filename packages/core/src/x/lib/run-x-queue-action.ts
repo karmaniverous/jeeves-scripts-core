@@ -13,7 +13,8 @@ import { getArg, runScript } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 import type { Client } from '@xdevplatform/xdk';
 
-import { getOAuthPath, withAutoRefresh } from './x-api.js';
+import { withAutoRefresh } from './x-api.js';
+import { getOAuthPath } from './x-oauth.js';
 
 export interface XQueueActionOptions {
   /** Script name for runScript wrapper */

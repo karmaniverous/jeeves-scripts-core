@@ -11,7 +11,7 @@
  */
 
 import { runXPoller } from './lib/poll-x-items.js';
-import { pollLikedTweets } from './lib/x-api.js';
+import { pollLikedTweets } from './lib/x-timelines.js';
 
 runXPoller('x/poll-likes', {
   pollFn: pollLikedTweets,
