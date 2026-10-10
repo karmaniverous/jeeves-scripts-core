@@ -11,7 +11,8 @@
     "config",
     "docs",
     "guides",
-    "schema"
+    "schema",
+    "CHANGELOG.md"
   ],
   "publishConfig": {
     "access": "public"

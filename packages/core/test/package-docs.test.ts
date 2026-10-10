@@ -69,9 +69,15 @@ const relativeLinks = (file: string) =>
     });
 
 describe('package documentation', () => {
-  it('ships docs/, guides/, schema/ and config/ in the package', () => {
+  it('ships docs/, guides/, schema/, config/ and the changelog in the package', () => {
     expect(pkg.files).toEqual(
-      expect.arrayContaining(['docs', 'guides', 'schema', 'config']),
+      expect.arrayContaining([
+        'docs',
+        'guides',
+        'schema',
+        'config',
+        'CHANGELOG.md',
+      ]),
     );
   });
 
