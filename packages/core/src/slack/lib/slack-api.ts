@@ -11,7 +11,8 @@
 
 import https from 'node:https';
 
-const RATE_LIMIT_MS = 1200;
+/** Pause between Slack API calls, shared with slack/poll. */
+export const RATE_LIMIT_MS = 1200;
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
