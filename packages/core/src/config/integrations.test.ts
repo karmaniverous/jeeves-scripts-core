@@ -42,6 +42,7 @@ const baseConfig = (
   },
   siloRouting: { silos: {} },
   slack: { channels: {} },
+  people: {},
   jobs: {},
   extensions: {},
 });

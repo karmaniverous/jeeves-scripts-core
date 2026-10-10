@@ -22,6 +22,7 @@ import {
 } from './integrations-schema.js';
 import { extensionsSchema, jobsSchema } from './jobs-schema.js';
 import { pathsSchema } from './paths-schema.js';
+import { peopleSchema } from './people-schema.js';
 import { pipelineSchema } from './pipeline-schema.js';
 import { findSecretLiterals } from './secret-guard.js';
 import { siloRoutingSchema } from './silo-schema.js';
@@ -65,6 +66,8 @@ export const configObjectSchema = z.object({
   siloRouting: siloRoutingSchema.default({ silos: {} }),
   /** What this instance decides about Slack channels (Decision 9). */
   slack: slackConfigSchema.default({ channels: {} }),
+  /** Which accounts and emails belong to one person (Decision 34). */
+  people: peopleSchema.default({}),
   /** Per-job deltas. */
   jobs: jobsSchema,
   /** Seam implementations. */

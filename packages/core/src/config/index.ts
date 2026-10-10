@@ -36,6 +36,7 @@ export {
 } from './loader.js';
 export { derivePaths, paths, type ResolvedPaths } from './paths.js';
 export * from './paths-schema.js';
+export * from './people-schema.js';
 export {
   getBucketForDomain,
   getBucketNames,
