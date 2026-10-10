@@ -28,6 +28,10 @@ import {
 } from './schema-v23-meta.js';
 import { createV23Fixture } from './test-fixture-v23.js';
 
+// Builds real SQLite fixtures and runs the collector: seconds per test on a
+// loaded Windows CI runner, where 5 s default timeouts failed.
+vi.setConfig({ testTimeout: 30_000 });
+
 const T10 = '2026-09-25T10:30:00Z';
 let root: string;
 

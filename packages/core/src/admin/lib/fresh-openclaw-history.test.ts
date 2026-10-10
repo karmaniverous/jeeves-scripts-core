@@ -27,6 +27,10 @@ import { readBucket } from './bucket-io.js';
 import { parseDbCursorState } from './openclaw-db/db-cursor.js';
 import { createV23Fixture } from './openclaw-db/test-fixture-v23.js';
 
+// Builds real SQLite fixtures and runs the collector: seconds per test on a
+// loaded Windows CI runner, where 5 s default timeouts failed.
+vi.setConfig({ testTimeout: 30_000 });
+
 const MODEL = 'anthropic/claude-sonnet-4-6';
 const REFUSAL =
   '[token-metrics] No OpenClaw DB cursor in runner state; refusing to collect OpenClaw usage from zero (it would double count history). ' +
