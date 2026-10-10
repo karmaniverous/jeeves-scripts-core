@@ -1,14 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
-  type GatewaySession,
-  getTokensFromTranscript,
-  isSessionCompleted,
   parseArgs,
-  parseResultLine,
-  type WaitDeps,
-  waitForWorkerCompletion,
+  SPAWN_BACKOFF_BASE_MS,
+  SPAWN_MAX_RETRIES,
+  type SpawnArgs,
+  type SpawnDeps,
+  spawnWithRetry,
 } from './spawn-worker.js';
+import type { GatewayResponse } from './worker-session.js';
 
 describe('parseArgs', () => {
   it('parses --key=value pairs', () => {
@@ -39,132 +39,87 @@ describe('parseArgs', () => {
   });
 });
 
-describe('isSessionCompleted', () => {
-  const row = (status?: string) => ({ key: 'k', status });
+describe('spawnWithRetry', () => {
+  const spawnArgs: SpawnArgs = { task: 't', label: 'worker-x', thread: false };
 
-  it('is running while the row is missing or has no status', () => {
-    expect(isSessionCompleted(undefined)).toEqual({ completed: false });
-    expect(isSessionCompleted(row())).toEqual({ completed: false });
+  const makeDeps = (...responses: (GatewayResponse | Error)[]) => {
+    const invoke = vi.fn<SpawnDeps['invoke']>();
+    for (const r of responses) {
+      if (r instanceof Error) invoke.mockRejectedValueOnce(r);
+      else invoke.mockResolvedValueOnce(r);
+    }
+    const sleep = vi.fn<SpawnDeps['sleep']>().mockResolvedValue(undefined);
+    return { invoke, sleep };
+  };
+
+  const ok = (key: string): GatewayResponse => ({
+    ok: true,
+    result: { details: { childSessionKey: key } },
   });
 
-  it('is running while status is running, however long it has been quiet', () => {
-    const quiet = { ...row('running'), updatedAt: Date.now() - 600_000 };
-    expect(isSessionCompleted(quiet)).toEqual({ completed: false });
+  it('returns the child session key and passes the spawn args through', async () => {
+    const deps = makeDeps(ok('agent:main:subagent:1'));
+    const { sessionKey } = await spawnWithRetry(spawnArgs, deps);
+    expect(sessionKey).toBe('agent:main:subagent:1');
+    expect(deps.invoke).toHaveBeenCalledWith('sessions_spawn', spawnArgs);
+    expect(deps.sleep).not.toHaveBeenCalled();
   });
 
-  it('is completed when status is done', () => {
-    expect(isSessionCompleted(row('done'))).toEqual({ completed: true });
-  });
-
-  it.each(['failed', 'killed', 'timeout'])('fails on status %s', (status) => {
-    expect(isSessionCompleted(row(status))).toEqual({
-      completed: true,
-      error: `Worker run ended: status=${status}`,
+  it('falls back to details.sessionKey', async () => {
+    const deps = makeDeps({
+      ok: true,
+      result: { details: { sessionKey: 's2' } },
     });
+    expect((await spawnWithRetry(spawnArgs, deps)).sessionKey).toBe('s2');
   });
-});
 
-describe('waitForWorkerCompletion', () => {
-  /** Fake clock + scripted rows; each poll advances time by the sleep. */
-  function harness(rows: (GatewaySession | undefined)[]): WaitDeps {
-    let clock = 0;
-    let poll = 0;
-    return {
-      findSession: () =>
-        Promise.resolve(rows[Math.min(poll++, rows.length - 1)]),
-      sleep: (ms) => {
-        clock += ms;
-        return Promise.resolve();
-      },
-      now: () => clock,
-      tokensFor: (s) => s.totalTokens ?? 0,
+  it('retries a gateway timeout in the response body with doubling backoff', async () => {
+    const timeoutBody: GatewayResponse = {
+      ok: true,
+      error: { message: 'Gateway Timeout' },
     };
-  }
-
-  beforeEach(() => {
-    vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const deps = makeDeps(timeoutBody, timeoutBody, ok('s3'));
+    expect((await spawnWithRetry(spawnArgs, deps)).sessionKey).toBe('s3');
+    expect(deps.sleep.mock.calls).toEqual([
+      [SPAWN_BACKOFF_BASE_MS],
+      [SPAWN_BACKOFF_BASE_MS * 2],
+    ]);
   });
 
-  it('keeps waiting through >60 s of silence, then returns on done', async () => {
-    // Last update at t=0; the worker writes its reply for ~100 s (20 polls).
-    const writing = { key: 'k', status: 'running', updatedAt: 0 };
-    const done = { key: 'k', status: 'done', totalTokens: 42, model: 'm' };
-    const rows = [...Array<GatewaySession>(20).fill(writing), done];
-    const result = await waitForWorkerCompletion('k', 0, harness(rows));
-    expect(result).toEqual({
-      success: true,
-      durationMs: 3000 + 20 * 5000,
-      tokens: 42,
-      model: 'm',
-    });
+  it('retries a thrown timeout, then rethrows it on the last attempt', async () => {
+    const err = new Error('Gateway request timed out (timeout)');
+    const deps = makeDeps(
+      ...Array.from({ length: SPAWN_MAX_RETRIES }, () => err),
+    );
+    await expect(spawnWithRetry(spawnArgs, deps)).rejects.toBe(err);
+    expect(deps.invoke).toHaveBeenCalledTimes(SPAWN_MAX_RETRIES);
+    expect(deps.sleep).toHaveBeenCalledTimes(SPAWN_MAX_RETRIES - 1);
   });
 
-  it('tolerates poll errors and a not-yet-listed row', async () => {
-    const deps = harness([undefined, { key: 'k', status: 'done' }]);
-    const find = deps.findSession;
-    let first = true;
-    deps.findSession = (key) => {
-      if (first) {
-        first = false;
-        return Promise.reject(new Error('gateway down'));
-      }
-      return find(key);
-    };
-    await expect(waitForWorkerCompletion('k', 0, deps)).resolves.toEqual(
-      expect.objectContaining({ success: true }),
+  it('does not retry other errors', async () => {
+    const deps = makeDeps(new Error('HTTP 401'));
+    await expect(spawnWithRetry(spawnArgs, deps)).rejects.toThrow('HTTP 401');
+    expect(deps.invoke).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails when the result carries no session key', async () => {
+    const deps = makeDeps({ ok: true, result: { details: {} } });
+    await expect(spawnWithRetry(spawnArgs, deps)).rejects.toThrow(
+      'No sessionKey in spawn result',
     );
   });
 
-  it.each(['failed', 'timeout'])(
-    'throws when the run ends with status %s',
-    async (status) => {
-      const running = { key: 'k', status: 'running' };
-      const deps = harness([running, { key: 'k', status }]);
-      await expect(waitForWorkerCompletion('k', 0, deps)).rejects.toThrow(
-        `Worker run ended: status=${status}`,
-      );
-    },
-  );
-});
-
-describe('parseResultLine', () => {
-  it('parses valid WORKER_RESULT line', () => {
-    const line =
-      'WORKER_RESULT:{"sessionKey":"abc","tokens":100,"durationMs":5000}';
-    expect(parseResultLine(line)).toEqual({
-      sessionKey: 'abc',
-      tokens: 100,
-      durationMs: 5000,
-    });
-  });
-
-  it('parses line with model', () => {
-    const line =
-      'WORKER_RESULT:{"sessionKey":"abc","tokens":100,"durationMs":5000,"model":"claude-3"}';
-    expect(parseResultLine(line)).toEqual({
-      sessionKey: 'abc',
-      tokens: 100,
-      durationMs: 5000,
-      model: 'claude-3',
-    });
-  });
-
-  it('returns null for non-WORKER_RESULT line', () => {
-    expect(parseResultLine('some log line')).toBeNull();
-  });
-
-  it('returns null for invalid JSON after prefix', () => {
-    expect(parseResultLine('WORKER_RESULT:{broken')).toBeNull();
-  });
-
-  it('returns null for JSON missing required fields', () => {
-    expect(parseResultLine('WORKER_RESULT:{"foo":"bar"}')).toBeNull();
-  });
-});
-
-describe('getTokensFromTranscript', () => {
-  it('returns 0 for non-existent file', () => {
-    expect(getTokensFromTranscript('/nonexistent/path.jsonl')).toBe(0);
+  it('gives up after the last body timeout without a final wait', async () => {
+    const timeoutBody: GatewayResponse = {
+      ok: true,
+      error: { message: 'gateway timeout' },
+    };
+    const deps = makeDeps(
+      ...Array.from({ length: SPAWN_MAX_RETRIES }, () => timeoutBody),
+    );
+    await expect(spawnWithRetry(spawnArgs, deps)).rejects.toThrow(
+      'gateway timeout in response body',
+    );
+    expect(deps.sleep).toHaveBeenCalledTimes(SPAWN_MAX_RETRIES - 1);
   });
 });

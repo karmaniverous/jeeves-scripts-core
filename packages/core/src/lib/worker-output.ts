@@ -16,7 +16,7 @@
  */
 
 import type { GatewayRpc } from './gateway-rpc.js';
-import { parseResultLine } from './spawn-worker.js';
+import { parseResultLine } from './worker-session.js';
 
 /** Number of trailing history messages to fetch. */
 const HISTORY_LIMIT = 20;
