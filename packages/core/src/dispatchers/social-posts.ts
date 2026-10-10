@@ -4,7 +4,7 @@
  *
  * Dispatcher: Generate Social Posts.
  *
- * Builds a social-post generation task from pipeline-config refs and
+ * Builds a social-post generation task from `pipeline.refs` and
  * content paths, then dispatches a gateway session to execute it.
  *
  * This is an example dispatcher — customize the task template in
@@ -16,7 +16,7 @@
  * `slack-posts` block and the script posts them (see lib/worker-slack).
  * `--dry-run` prints the posts instead; `--print-task` prints the TASK.
  *
- * Prerequisites (all via pipeline-config.json refs):
+ * Prerequisites (all `pipeline.refs` in jeeves-scripts.json):
  * - `notion.socialPostsDatabaseId` — Notion database to write posts to
  * - `slack.socialChannel` — Slack channel ID for posting summaries
  * - `slack.operatorDm` — Slack user or DM channel ID for completion routing
@@ -43,7 +43,7 @@ function buildTask(): { task: string; slack: WorkerSlackConfig } {
 
   if (!notionDb || !socialChannel || !operatorDm) {
     throw new Error(
-      'Missing required pipeline-config refs: notion.socialPostsDatabaseId, slack.socialChannel, slack.operatorDm',
+      'Missing required pipeline.refs in jeeves-scripts.json: notion.socialPostsDatabaseId, slack.socialChannel, slack.operatorDm',
     );
   }
 
@@ -89,7 +89,7 @@ runScript('dispatchers/social-posts', async () => {
   const notionDb = tryGetRef('notion.socialPostsDatabaseId');
   if (!notionDb) {
     console.log(
-      '[skip] Social posts dispatcher not configured — set notion.socialPostsDatabaseId in pipeline-config.json',
+      '[skip] Social posts dispatcher not configured — set pipeline.refs["notion.socialPostsDatabaseId"] in jeeves-scripts.json',
     );
     return;
   }

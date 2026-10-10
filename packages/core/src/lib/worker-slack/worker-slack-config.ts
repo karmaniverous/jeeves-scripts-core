@@ -17,17 +17,17 @@ import { normalizeSlackTarget } from './slack-target.js';
 export const slackTsSchema = z.string().regex(/^\d+\.\d+$/);
 
 /** A Slack channel/user id or prefixed target (`channel:…` / `user:…`). */
-const targetSchema = z
+export const slackTargetSchema = z
   .string()
   .refine((t) => normalizeSlackTarget(t) !== null, {
     message: 'Invalid Slack target (use a channel/user ID)',
   });
 
 /** A Slack read made before dispatch. */
-const slackReadSpecSchema = z
+export const slackReadSpecSchema = z
   .object({
     /** Channel/user id or prefixed target. */
-    target: targetSchema,
+    target: slackTargetSchema,
     /** Label shown to the worker, e.g. `#ops-ceo`. */
     label: z.string().trim().min(1).max(200),
     /** Messages to read (default 20). */
@@ -38,10 +38,10 @@ const slackReadSpecSchema = z
   .strict();
 
 /** A target the worker may post to, with the operations it permits. */
-const slackPostTargetSchema = z
+export const slackPostTargetSchema = z
   .object({
     /** Channel/user id or prefixed target. */
-    target: targetSchema,
+    target: slackTargetSchema,
     /** What posts there are for (shown to the worker). */
     purpose: z.string().trim().min(1).max(1000),
     /**
@@ -55,7 +55,7 @@ const slackPostTargetSchema = z
   .strict();
 
 /** Slack configuration for one job. */
-const workerSlackConfigSchema = z
+export const workerSlackConfigSchema = z
   .object({
     /** Gateway Slack account id (multi-account gateways, e.g. `<account-id>`). */
     accountId: z
@@ -89,6 +89,8 @@ const workerSlackConfigSchema = z
   })
   .strict();
 
+/** A Slack read made before dispatch. */
+export type SlackReadSpec = z.infer<typeof slackReadSpecSchema>;
 /** A target the worker may post to. */
 export type SlackPostTarget = z.infer<typeof slackPostTargetSchema>;
 /** Slack configuration for one job. */

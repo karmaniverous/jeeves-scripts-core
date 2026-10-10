@@ -23,14 +23,14 @@ describe('digestTimeZone', () => {
 
   it('fails, naming the ref, when no zone is configured', () => {
     expect(() => digestTimeZone()).toThrow(
-      'No time zone configured: set refs["digest.timezone"] in pipeline-config.json',
+      'No time zone configured: set pipeline.refs["digest.timezone"] in jeeves-scripts.json',
     );
   });
 
   it('fails on an invalid zone', () => {
     refs.value = { [DIGEST_TIMEZONE_REF]: 'Nope/Zone' };
     expect(() => digestTimeZone()).toThrow(
-      'Invalid time zone "Nope/Zone" in refs["digest.timezone"]',
+      'Invalid time zone "Nope/Zone" in pipeline.refs["digest.timezone"]',
     );
   });
 });

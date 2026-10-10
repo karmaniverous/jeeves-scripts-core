@@ -44,7 +44,7 @@ export interface WorkerSlackDeps {
   print?: (text: string) => void;
 }
 
-/** Outcome of {@link runWorkerSlackJob}. */
+/** Outcome of `runWorkerSlackJob` (and `dispatchWithSlack`). */
 export interface WorkerSlackResult {
   /** The full TASK that was (or would be) dispatched. */
   task: string;
