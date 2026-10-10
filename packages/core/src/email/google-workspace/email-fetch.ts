@@ -5,10 +5,11 @@
  * provenance, detect label changes, and enqueue threads for body download.
  *
  * Called by poll.ts and backfill-window.ts. Fetches via
- * `gog gmail thread get`, builds CacheMessages, detects human label
- * curation signals (enqueued on `email-updates` unless
+ * `gog gmail thread get`, builds CacheMessages (gmail-message), detects
+ * human label curation signals (enqueued on `email-updates` unless
  * `emailConfig.reportOnly`, via label-actions.ts), manages pending
- * follow-up tracking, and enqueues to `email-pending` for download.
+ * follow-up tracking (pending-followups), and enqueues to `email-pending`
+ * for download.
  *
  * Depends on constants().EMAIL_EVENTS_DIR for event logging and the `pipeline` config
  * bucket settings for triage decisions.
@@ -17,14 +18,8 @@
 import path from 'node:path';
 
 import { appendJsonl, ensureDir, nowIso } from '@karmaniverous/jeeves';
-import type { RunnerClient } from '@karmaniverous/jeeves-runner';
 
 import { constants } from '../../lib/constants.js';
-import {
-  type GmailHeader,
-  type GmailPayloadPart,
-  headerValue,
-} from '../../lib/email.js';
 import { gogWithRetry } from '../../lib/gog.js';
 import {
   type CacheMessage,
@@ -38,40 +33,26 @@ import {
   getThreadState,
   setThreadState,
 } from '../email-state.js';
-import { pendingKey, shouldExpectResponse } from './email-triage.js';
+import {
+  addressesOf,
+  type GmailMessage,
+  latestInternalDateMs,
+  type ParsedGmailMessage,
+  parseGmailMessage,
+  toCacheMessage,
+} from './gmail-message.js';
 import { curationSignalActions, enqueueEmailUpdates } from './label-actions.js';
+import {
+  noDirectionTimes,
+  trackDirection,
+  updatePendingFollowUp,
+} from './pending-followups.js';
 
-interface GmailMessage {
-  id: string;
-  internalDate?: string;
-  payload?: GmailPayloadPart & { headers?: GmailHeader[] };
-  labelIds?: string[];
-  snippet?: string;
-}
+/** At most this many seen message ids are kept per thread (newest first). */
+const MAX_SEEN_MESSAGE_IDS = 2000;
 
-/** Insert or merge a pending follow-up entry in the runner store. */
-export function upsertPending(
-  client: Pick<RunnerClient, 'getItem' | 'setItem'>,
-  item: Record<string, unknown>,
-): void {
-  const k = item.key as string;
-  const existingJson = client.getItem('email', 'pending', k);
-  const existing = existingJson
-    ? (JSON.parse(existingJson) as Record<string, unknown>)
-    : {};
-  client.setItem(
-    'email',
-    'pending',
-    k,
-    JSON.stringify({ ...existing, ...item }),
-  );
-}
-
-/**
- * Fetch full thread from Gmail, update cache/provenance, detect label
- * curation, and enqueue for body download if new messages exist.
- */
-export function fetchThreadMetadata(params: {
+/** The thread being fetched and the poll context that found it. */
+export interface FetchThreadParams {
   account: string;
   threadId: string;
   subject: string;
@@ -85,11 +66,70 @@ export function fetchThreadMetadata(params: {
   client: EmailStoreClient;
   /** When true, curation signals are detected but not enqueued. */
   reportOnly: boolean;
-}): { newMessages: number } {
-  const { account, threadId, query, client } = params;
+}
+
+/** Append a `message` event to `{EMAIL_EVENTS_DIR}/{account}.jsonl`. */
+function appendMessageEvent(
+  params: FetchThreadParams,
+  p: ParsedGmailMessage,
+): void {
+  const { account, threadId } = params;
+  ensureDir(constants().EMAIL_EVENTS_DIR);
+  appendJsonl(path.join(constants().EMAIL_EVENTS_DIR, `${account}.jsonl`), {
+    at: nowIso(),
+    kind: 'message',
+    account,
+    threadId,
+    messageId: p.messageId,
+    internalDateMs: p.internalDateMs,
+    date: p.date || null,
+    subject: p.subject,
+    from: p.from,
+    to: p.to,
+    cc: p.cc,
+    labels: p.labels,
+    direction: p.direction,
+    snippet: p.snippet,
+    triage: {
+      query: params.query,
+      receiptCandidate: params.receiptCandidate,
+      junkCandidate: params.junkCandidate,
+      bucket: params.bucket,
+      threadLabels: params.labels,
+    },
+    source: 'thread_get_metadata',
+  });
+}
+
+/** Keep the most recently seen ids when over the cap. */
+function pruneSeenMessageIds(
+  seenMessageIds: Record<string, string>,
+): Record<string, string> {
+  const ids = Object.keys(seenMessageIds);
+  if (ids.length <= MAX_SEEN_MESSAGE_IDS) return seenMessageIds;
+  ids.sort(
+    (a, b) =>
+      Date.parse(seenMessageIds[b] ?? '') - Date.parse(seenMessageIds[a] ?? ''),
+  );
+  const pruned: Record<string, string> = {};
+  for (const id of new Set(ids.slice(0, MAX_SEEN_MESSAGE_IDS))) {
+    const seen = seenMessageIds[id];
+    if (seen !== undefined) pruned[id] = seen;
+  }
+  return pruned;
+}
+
+/**
+ * Fetch full thread from Gmail, update cache/provenance, detect label
+ * curation, and enqueue for body download if new messages exist.
+ */
+export function fetchThreadMetadata(params: FetchThreadParams): {
+  newMessages: number;
+} {
+  const { account, threadId, client } = params;
   const prevObj = getThreadState(client, account, threadId);
   const lastInternalDateMs = prevObj?.lastInternalDateMs ?? null;
-  let seenMessageIds: Record<string, string> =
+  const seenMessageIds: Record<string, string> =
     prevObj?.seenMessageIds && typeof prevObj.seenMessageIds === 'object'
       ? prevObj.seenMessageIds
       : {};
@@ -103,54 +143,21 @@ export function fetchThreadMetadata(params: {
     : {};
   const messages = payload.thread?.messages ?? [];
   let newMessages = 0;
-  let latestOutMs: number | null = null;
-  let latestInMs: number | null = null;
-  let latestOutMeta: { subject: string; from: string; to: string } | null =
-    null;
+  const times = noDirectionTimes();
 
   const participantSet = new Set<string>();
   const cacheMessages: Record<string, CacheMessage> = {};
   const provenance: ProvenanceEntry[] = [];
 
   for (const m of messages) {
-    const msgId = m.id || '';
-    if (!msgId) continue;
-    const intMs = m.internalDate ? Number(m.internalDate) : null;
-    const hdrs = m.payload?.headers ?? [];
-    const from = headerValue(hdrs, 'From');
-    const to = headerValue(hdrs, 'To');
-    const cc = headerValue(hdrs, 'Cc');
-    const subj = headerValue(hdrs, 'Subject') || params.subject;
-    const dateH = headerValue(hdrs, 'Date');
-    const lids = m.labelIds ?? [];
-    const dir = lids.includes('SENT') ? 'outgoing' : 'incoming';
-    const snip = m.snippet ?? '';
+    const p = parseGmailMessage(m, params.subject);
+    if (!p) continue;
+    const msgId = p.messageId;
+    for (const a of addressesOf(p.from, p.to, p.cc)) participantSet.add(a);
 
-    [from, to, cc].forEach((a) => {
-      if (!a) return;
-      a.split(',').forEach((x) => {
-        if (x.trim()) participantSet.add(x.trim());
-      });
-    });
-
-    const atts: CacheMessage['attachments'] = [];
-    if (m.payload) {
-      const walk = (p: GmailPayloadPart): void => {
-        if (p.filename && p.body)
-          atts.push({
-            filename: p.filename,
-            mimeType: p.mimeType ?? '',
-            size: p.body.size ?? 0,
-          });
-        p.parts?.forEach(walk);
-      };
-      walk(m.payload);
-    }
-
-    const cache = loadCache(account, threadId);
-    const cached = cache?.messages?.[msgId]?.labels;
+    const cached = loadCache(account, threadId)?.messages?.[msgId]?.labels;
     if (cached) {
-      provenance.push(...detectLabelChanges(cached, lids, msgId));
+      provenance.push(...detectLabelChanges(cached, p.labels, msgId));
       enqueueEmailUpdates(
         client,
         curationSignalActions({
@@ -158,69 +165,26 @@ export function fetchThreadMetadata(params: {
           threadId,
           messageId: msgId,
           cachedLabels: cached,
-          currentLabels: lids,
+          currentLabels: p.labels,
           seenBefore: !!seenMessageIds[msgId],
         }),
         params.reportOnly,
       );
     }
 
-    cacheMessages[msgId] = {
-      messageId: msgId,
-      from,
-      to,
-      cc,
-      date: dateH || null,
-      internalDateMs: intMs,
-      labels: lids,
-      snippet: snip,
-      hasAttachments: atts.length > 0,
-      attachments: atts,
-    };
+    cacheMessages[msgId] = toCacheMessage(p);
 
     if (
       !seenMessageIds[msgId] &&
       (lastInternalDateMs == null ||
-        intMs == null ||
-        intMs > lastInternalDateMs)
+        p.internalDateMs == null ||
+        p.internalDateMs > lastInternalDateMs)
     ) {
       newMessages++;
-      ensureDir(constants().EMAIL_EVENTS_DIR);
-      appendJsonl(path.join(constants().EMAIL_EVENTS_DIR, `${account}.jsonl`), {
-        at: nowIso(),
-        kind: 'message',
-        account,
-        threadId,
-        messageId: msgId,
-        internalDateMs: intMs,
-        date: dateH || null,
-        subject: subj,
-        from,
-        to,
-        cc,
-        labels: lids,
-        direction: dir,
-        snippet: snip,
-        triage: {
-          query,
-          receiptCandidate: params.receiptCandidate,
-          junkCandidate: params.junkCandidate,
-          bucket: params.bucket,
-          threadLabels: params.labels,
-        },
-        source: 'thread_get_metadata',
-      });
+      appendMessageEvent(params, p);
     }
     seenMessageIds[msgId] = nowIso();
-
-    if (intMs != null) {
-      if (dir === 'outgoing') {
-        if (latestOutMs == null || intMs > latestOutMs) {
-          latestOutMs = intMs;
-          latestOutMeta = { subject: subj, from, to };
-        }
-      } else if (latestInMs == null || intMs > latestInMs) latestInMs = intMs;
-    }
+    trackDirection(times, p);
   }
 
   createOrUpdateCache({
@@ -241,69 +205,12 @@ export function fetchThreadMetadata(params: {
       createdAt: nowIso(),
     });
 
-  // Update pending follow-ups
-  const k = pendingKey(account, threadId);
-  const expect = shouldExpectResponse({
-    subject: params.subject,
-    from: params.from,
-    to: latestOutMeta?.to ?? '',
-    receiptCandidate: params.receiptCandidate,
-    junkCandidate: params.junkCandidate,
-  });
-  if (
-    latestOutMs != null &&
-    (latestInMs == null || latestInMs < latestOutMs) &&
-    expect
-  )
-    upsertPending(client, {
-      key: k,
-      account,
-      threadId,
-      subject: (params.subject || latestOutMeta?.subject) ?? '',
-      from: latestOutMeta?.from ?? '',
-      to: latestOutMeta?.to ?? '',
-      pendingSince: new Date(latestOutMs).toISOString(),
-      status: 'pending',
-      noResponseNeeded: false,
-      updatedAt: nowIso(),
-    });
-  if (latestOutMs != null && latestInMs != null && latestInMs > latestOutMs)
-    upsertPending(client, {
-      key: k,
-      account,
-      threadId,
-      status: 'resolved',
-      resolvedAt: nowIso(),
-      updatedAt: nowIso(),
-    });
-
-  // Update state
-  let maxI = lastInternalDateMs;
-  for (const m of messages) {
-    const ms = m.internalDate ? Number(m.internalDate) : null;
-    if (ms != null && (maxI == null || ms > maxI)) maxI = ms;
-  }
-
-  const ids = Object.keys(seenMessageIds);
-  if (ids.length > 2000) {
-    ids.sort(
-      (a, b) =>
-        Date.parse(seenMessageIds[b] ?? '') -
-        Date.parse(seenMessageIds[a] ?? ''),
-    );
-    const keep = new Set(ids.slice(0, 2000));
-    const pruned: Record<string, string> = {};
-    for (const id of keep) {
-      const seen = seenMessageIds[id];
-      if (seen !== undefined) pruned[id] = seen;
-    }
-    seenMessageIds = pruned;
-  }
+  updatePendingFollowUp(client, params, times);
 
   setThreadState(client, account, threadId, {
     ...(prevObj ?? {}),
-    lastInternalDateMs: maxI,
-    seenMessageIds,
+    lastInternalDateMs: latestInternalDateMs(messages, lastInternalDateMs),
+    seenMessageIds: pruneSeenMessageIds(seenMessageIds),
     fetchedAt: nowIso(),
   });
 
