@@ -17,114 +17,10 @@
  */
 
 import fs from 'node:fs';
-import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 
-// ── Inlined from gateway-client.ts ─────────────────────────────────
-// This file is executed by jeeves-runner dispatchSession() with plain
-// node (not tsx), which cannot resolve .js → .ts imports.
-// Constants and gateway helpers are inlined here to avoid import resolution issues.
-
-const GATEWAY_HOST = '127.0.0.1';
-const GATEWAY_PORT = 18789;
-
-interface GatewayInvokeResult {
-  ok?: boolean;
-  result?: Record<string, unknown>;
-  error?: { message?: string };
-}
-
-function loadGatewayToken(): string | null {
-  if (process.env.CLAWDBOT_GATEWAY_TOKEN) {
-    return process.env.CLAWDBOT_GATEWAY_TOKEN;
-  }
-
-  const home = process.env.USERPROFILE ?? os.homedir();
-  const configPaths = [
-    path.join(home, '.openclaw', 'openclaw.json'),
-    path.join(home, '.clawdbot', 'clawdbot.json'),
-  ];
-
-  for (const configPath of configPaths) {
-    try {
-      const raw: unknown = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (
-        raw &&
-        typeof raw === 'object' &&
-        'gateway' in raw &&
-        raw.gateway &&
-        typeof raw.gateway === 'object' &&
-        'auth' in raw.gateway &&
-        raw.gateway.auth &&
-        typeof raw.gateway.auth === 'object' &&
-        'token' in raw.gateway.auth &&
-        typeof raw.gateway.auth.token === 'string'
-      ) {
-        return raw.gateway.auth.token;
-      }
-    } catch {
-      /* continue */
-    }
-  }
-
-  return null;
-}
-
-function sharedGatewayInvoke(
-  tool: string,
-  args: Record<string, unknown>,
-  options?: { sessionKey?: string },
-): Promise<unknown> {
-  const token = loadGatewayToken();
-  if (!token) throw new Error('No gateway token found');
-
-  return new Promise((resolve, reject) => {
-    const body = JSON.stringify({
-      tool,
-      args,
-      ...(options?.sessionKey ? { sessionKey: options.sessionKey } : {}),
-    });
-    const req = http.request(
-      {
-        hostname: GATEWAY_HOST,
-        port: GATEWAY_PORT,
-        path: '/tools/invoke',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
-          Authorization: `Bearer ${token}`,
-        },
-      },
-      (res) => {
-        const chunks: Buffer[] = [];
-        res.on('data', (c: Buffer) => chunks.push(c));
-        res.on('end', () => {
-          const resp = Buffer.concat(chunks).toString('utf8');
-          let parsed: unknown;
-          try {
-            parsed = JSON.parse(resp);
-          } catch {
-            reject(new Error(`Gateway invalid JSON: ${resp}`));
-            return;
-          }
-          const typed = parsed as GatewayInvokeResult;
-          if (res.statusCode === 200 && typed.ok) {
-            resolve(typed.result);
-            return;
-          }
-          reject(new Error(typed.error?.message ?? resp));
-        });
-      },
-    );
-    req.on('error', reject);
-    req.write(body);
-    req.end();
-  });
-}
-
-// ── End inlined gateway-client ─────────────────────────────────────
+import { gatewayInvoke } from './gateway-client.js';
 
 /**
  * Log a warning (never a completion) when a running session has not
@@ -319,7 +215,7 @@ async function invokeGateway(
   tool: string,
   toolArgs: Record<string, unknown>,
 ): Promise<GatewayResponse> {
-  const result = await sharedGatewayInvoke(tool, toolArgs);
+  const result = await gatewayInvoke(tool, toolArgs);
   return { ok: true, result: result as GatewayResult };
 }
 

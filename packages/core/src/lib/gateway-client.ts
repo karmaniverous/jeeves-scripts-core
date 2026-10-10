@@ -6,17 +6,15 @@
  *
  * Used by spawn-worker.ts (session spawning) and meetings/lib/gateway-client.ts
  * (meeting extraction via gateway tools). Loads the bearer token from
- * ~/.openclaw/openclaw.json or the CLAWDBOT_GATEWAY_TOKEN env var.
+ * the OpenClaw config or the CLAWDBOT_GATEWAY_TOKEN env var (lib/openclaw-config).
  *
  * Config dependencies: constants().GATEWAY_HOST, constants().GATEWAY_PORT from constants.ts.
  */
 
-import fs from 'node:fs';
 import http from 'node:http';
-import os from 'node:os';
-import path from 'node:path';
 
 import { constants } from './constants.js';
+import { gatewayToken } from './openclaw-config.js';
 
 // ── Types ───────────────────────────────────────────────────────────
 
@@ -34,40 +32,12 @@ export type GatewayInvoker = (
 
 // ── Token loading ───────────────────────────────────────────────────
 
+/**
+ * The gateway bearer token: `CLAWDBOT_GATEWAY_TOKEN`, else `gateway.auth.token`
+ * in the OpenClaw config (see `lib/openclaw-config`); `null` when neither exists.
+ */
 export function loadGatewayToken(): string | null {
-  if (process.env.CLAWDBOT_GATEWAY_TOKEN) {
-    return process.env.CLAWDBOT_GATEWAY_TOKEN;
-  }
-
-  const home = process.env.USERPROFILE ?? os.homedir();
-  const configPaths = [
-    path.join(home, '.openclaw', 'openclaw.json'),
-    path.join(home, '.clawdbot', 'clawdbot.json'),
-  ];
-
-  for (const configPath of configPaths) {
-    try {
-      const raw: unknown = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (
-        raw &&
-        typeof raw === 'object' &&
-        'gateway' in raw &&
-        raw.gateway &&
-        typeof raw.gateway === 'object' &&
-        'auth' in raw.gateway &&
-        raw.gateway.auth &&
-        typeof raw.gateway.auth === 'object' &&
-        'token' in raw.gateway.auth &&
-        typeof raw.gateway.auth.token === 'string'
-      ) {
-        return raw.gateway.auth.token;
-      }
-    } catch {
-      /* continue */
-    }
-  }
-
-  return null;
+  return gatewayToken();
 }
 
 // ── Tool invocation ─────────────────────────────────────────────────

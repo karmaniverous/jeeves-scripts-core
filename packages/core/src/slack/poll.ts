@@ -30,6 +30,7 @@ import {
 
 import { getBasePathForSlackWorkspace } from '../config/index.js';
 import { constants } from '../lib/constants.js';
+import { slackBotTokens } from '../lib/openclaw-config.js';
 import {
   type Cursors,
   preparePollState,
@@ -74,56 +75,11 @@ interface ChannelInfo {
   _account?: string;
 }
 
-interface OpenClawConfig {
-  channels?: {
-    slack?: {
-      botToken?: string;
-      accounts?: Record<string, { botToken?: string }>;
-    };
-  };
-}
-
+/** Bot tokens by gateway Slack account: `SLACK_BOT_TOKEN` as `default`, else the OpenClaw config. */
 function getTokens(): Record<string, string> {
   if (process.env.SLACK_BOT_TOKEN)
     return { default: process.env.SLACK_BOT_TOKEN };
-
-  const home = process.env.USERPROFILE ?? process.env.HOME ?? '';
-  const primary = path.join(home, '.openclaw', 'openclaw.json');
-  const fallback = path.join(home, '.clawdbot', 'clawdbot.json');
-
-  const cfgPath = fs.existsSync(primary)
-    ? primary
-    : fs.existsSync(fallback)
-      ? fallback
-      : undefined;
-
-  if (!cfgPath) {
-    throw new Error(
-      `No Slack config file found. Searched:\n  - ${primary}\n  - ${fallback}`,
-    );
-  }
-
-  const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8')) as OpenClawConfig;
-
-  const tokens: Record<string, string> = {};
-
-  // Multi-account layout: channels.slack.accounts.<name>.botToken
-  const accounts = cfg.channels?.slack?.accounts;
-  if (accounts) {
-    for (const [name, account] of Object.entries(accounts)) {
-      if (account.botToken) tokens[name] = account.botToken;
-    }
-  }
-
-  // Flat layout fallback: channels.slack.botToken
-  if (Object.keys(tokens).length === 0) {
-    const token = cfg.channels?.slack?.botToken;
-    if (token) tokens.default = token;
-  }
-
-  if (Object.keys(tokens).length === 0)
-    throw new Error('No Slack bot tokens found');
-  return tokens;
+  return slackBotTokens();
 }
 
 async function getTeamId(token: string): Promise<string> {
