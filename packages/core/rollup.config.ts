@@ -25,7 +25,7 @@
  * namespaces or parameter properties) so type stripping can run it.
  */
 
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import commonjs from '@rollup/plugin-commonjs';
@@ -55,8 +55,13 @@ const dependencyExternals = [
   ...Object.keys(pkg.peerDependencies ?? {}),
 ];
 
-/** Suppress circular-dependency warnings from node_modules (third-party). */
+/**
+ * Suppress circular-dependency warnings from node_modules (third-party),
+ * and empty-chunk warnings: with every module an entry, type-only modules
+ * (e.g. `admin/lib/openclaw-db/types.ts`) legitimately emit no JavaScript.
+ */
 function onwarn(warning: RollupLog, defaultHandler: (w: RollupLog) => void) {
+  if (warning.code === 'EMPTY_BUNDLE') return;
   if (
     warning.code === 'CIRCULAR_DEPENDENCY' &&
     warning.ids?.every((id) => id.includes('node_modules'))
@@ -65,12 +70,24 @@ function onwarn(warning: RollupLog, defaultHandler: (w: RollupLog) => void) {
   defaultHandler(warning);
 }
 
+/**
+ * Every non-test module under src is an entry (Decision 32): jobs copied from
+ * the template are run by path, so each keeps its own output file.
+ */
+const input = readdirSync('src', { recursive: true, encoding: 'utf8' })
+  .map((f) => f.split('\\').join('/'))
+  .filter(
+    (f) =>
+      f.endsWith('.ts') &&
+      !f.endsWith('.test.ts') &&
+      !f.endsWith('.fixtures.ts') &&
+      !f.includes('/__fixtures__/') &&
+      !f.includes('/test-support/'),
+  )
+  .map((f) => `src/${f}`);
+
 const config: RollupOptions = {
-  input: {
-    index: 'src/index.ts',
-    cli: 'src/cli/index.ts',
-    bin: 'src/cli/bin.ts',
-  },
+  input,
   external: [
     ...dependencyExternals,
     ...dependencyExternals.map((dep) => new RegExp('^' + dep + '/')),
@@ -80,8 +97,11 @@ const config: RollupOptions = {
   output: {
     dir: 'dist',
     format: 'esm',
+    preserveModules: true,
+    preserveModulesRoot: 'src',
     entryFileNames: '[name].js',
-    banner: (chunk) => (chunk.name === 'bin' ? '#!/usr/bin/env node' : ''),
+    banner: (chunk) =>
+      chunk.facadeModuleId?.endsWith('bin.ts') ? '#!/usr/bin/env node' : '',
   },
   plugins: [
     resolve({ preferBuiltins: true }),

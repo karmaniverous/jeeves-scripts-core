@@ -8,14 +8,19 @@
  * The instance launcher (Decision 16) calls {@link main} with the instance
  * repo root, so config resolution never depends on the working directory
  * (Architecture → Config Resolution). Commands land here as their domains
- * are ported; this slice carries `config check`.
+ * are ported: `config check`, `run`, `people propose`, `email apply-labels`.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { Command } from '@commander-js/extra-typings';
 
 import { configCheck } from '../config/check.js';
+import { proposeFromSlack } from '../people/propose.js';
+import { buildEmailCommand } from './email.js';
+import { runJob } from './run.js';
 
 /** Options for {@link buildProgram} and {@link main}. */
 export interface CliOptions {
@@ -56,12 +61,52 @@ const buildConfigCommand = (root: string) => {
   return config;
 };
 
+const buildRunCommand = (root: string) =>
+  new Command('run')
+    .description(
+      "Run a job by id (Decision 16): the instance script at its jobs/*.json path, else core's module for that path.",
+    )
+    .argument('<job-id>', 'job id from jobs/*.json')
+    .argument('[args...]', 'arguments passed to the job')
+    .allowUnknownOption()
+    .passThroughOptions()
+    .action(async (jobId, args) => {
+      const code = await runJob(root, jobId, args);
+      if (code !== 0) process.exitCode = code;
+    });
+
+const buildPeopleCommand = () => {
+  const people = new Command('people').description(
+    'Work with the people registry (people in jeeves-scripts.json).',
+  );
+  people
+    .command('propose')
+    .description(
+      'Read Slack users of every gateway bot account (read-only) and print a proposed people block. Never writes config.',
+    )
+    .option('--all', 'include people with a single account')
+    .option('--out <file>', 'also write the proposal (UTF-8 JSON) to this file')
+    .action(async (options) => {
+      if (options.out && path.basename(options.out) === 'jeeves-scripts.json')
+        throw new Error('people propose never writes jeeves-scripts.json');
+      const proposal = await proposeFromSlack({ all: options.all });
+      const json = `${JSON.stringify(proposal, null, 2)}\n`;
+      if (options.out) fs.writeFileSync(options.out, json, 'utf8');
+      process.stdout.write(json);
+    });
+  return people;
+};
+
 /** Build the `jeeves-scripts` program for an instance repo root. */
 export const buildProgram = (options: CliOptions) => {
   const root = resolveRoot(options.root);
   return new Command('jeeves-scripts')
     .description('Run and manage jeeves-scripts jobs for this instance.')
-    .addCommand(buildConfigCommand(root));
+    .enablePositionalOptions()
+    .addCommand(buildConfigCommand(root))
+    .addCommand(buildRunCommand(root))
+    .addCommand(buildPeopleCommand())
+    .addCommand(buildEmailCommand(root));
 };
 
 /**

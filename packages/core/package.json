@@ -7,7 +7,12 @@
   "type": "module",
   "files": [
     "dist",
-    "template"
+    "template",
+    "config",
+    "guides",
+    "skills",
+    "schema",
+    "CHANGELOG.md"
   ],
   "publishConfig": {
     "access": "public"
@@ -22,13 +27,24 @@
     "./cli": {
       "import": {
         "types": "./dist/cli/index.d.ts",
-        "default": "./dist/cli.js"
+        "default": "./dist/cli/index.js"
+      }
+    },
+    "./package.json": "./package.json",
+    "./guides/*": "./guides/*",
+    "./schema/*": "./schema/*",
+    "./config/*": "./config/*",
+    "./skills/*": "./skills/*",
+    "./*": {
+      "import": {
+        "types": "./dist/*.d.ts",
+        "default": "./dist/*.js"
       }
     }
   },
   "types": "dist/index.d.ts",
   "bin": {
-    "jeeves-scripts": "dist/bin.js"
+    "jeeves-scripts": "dist/cli/bin.js"
   },
   "repository": {
     "type": "git",
@@ -44,7 +60,20 @@
   },
   "dependencies": {
     "@commander-js/extra-typings": "^15.0.0",
+    "@karmaniverous/jeeves": "^0.6.0",
+    "@karmaniverous/jeeves-runner": "^0.11.0",
+    "@xdevplatform/xdk": "^0.6.6",
     "commander": "^15.0.0",
+    "date-fns": "^4.4.0",
+    "fast-json-patch": "^3.1.1",
+    "imapflow": "^2.3.0",
+    "jsonpath-plus": "^11.2.0",
+    "mailparser": "^3.9.37",
+    "mammoth": "^1.13.0",
+    "officeparser": "^8.1.1",
+    "pdf-parse": "^2.4.5",
+    "puppeteer-core": "^25.13.0",
+    "read-excel-file": "^9.3.12",
     "zod": "^4.6.5"
   },
   "devDependencies": {
@@ -54,6 +83,7 @@
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
     "@types/fs-extra": "^11.0.4",
+    "@types/mailparser": "^3.9.0",
     "@types/node": "^26.6.4",
     "cross-env": "^10.1.0",
     "fs-extra": "^11.4.1",
@@ -64,7 +94,7 @@
     "vitest": "^5.0.3"
   },
   "scripts": {
-    "build": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts && tsx scripts/copy-template.ts",
+    "build": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts && tsx scripts/write-schema.ts && tsx scripts/copy-template.ts",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
     "test": "vitest run",

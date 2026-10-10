@@ -2,26 +2,13 @@
  * @module config/pipeline-email-schema
  *
  * Zod schema for the `pipeline.emailConfig` block: email pipeline flags,
- * receipt forwarding, digest,
- * historical backfill, and meeting-email actions.
+ * digest, historical backfill, and meeting-email actions.
  *
  * Ported from `jeeves-scripts-template` `src/lib/pipeline-config-email.ts`
  * (template `main` at `322054c`); same keys (Decision 3, Decision 19).
  */
 
 import { z } from 'zod';
-
-/**
- * Receipt forwarding (`emailConfig.receipt`). Strict: unknown keys are
- * errors, so the template's retired `forwardJGS` alias fails `config check`
- * instead of being silently dropped (core carries no deprecated aliases).
- */
-export const receiptConfigSchema = z.strictObject({
-  /** Whether detected receipts are forwarded to `sparkReceiptsForwardTo`. */
-  forwardEnabled: z.boolean(),
-  /** Address receipts are forwarded to. */
-  sparkReceiptsForwardTo: z.string(),
-});
 
 /** Email digest settings (`emailConfig.digest`). */
 export const digestConfigSchema = z.object({
@@ -55,10 +42,8 @@ export const meetingsEmailConfigSchema = z.object({
 
 /** The `pipeline.emailConfig` block. */
 export const emailConfigSchema = z.object({
-  /** Report Gmail changes (labels, archive, forwards) without making them. */
+  /** Report Gmail changes (labels, archive) without making them. */
   reportOnly: z.boolean(),
-  /** Receipt forwarding. */
-  receipt: receiptConfigSchema,
   /** Email digest. */
   digest: digestConfigSchema,
   /** Paced historical backfill. */

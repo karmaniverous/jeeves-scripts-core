@@ -11,7 +11,7 @@ import {
 } from './loader.js';
 
 const VALID_CONFIG = JSON.stringify({
-  instance: { name: 'test', baseDir: 'J:/' },
+  instance: { name: 'test', baseDir: '/base' },
 });
 
 describe('resolveConfigPath', () => {

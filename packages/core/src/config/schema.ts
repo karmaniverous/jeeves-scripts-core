@@ -2,9 +2,9 @@
  * @module config/schema
  *
  * The single `jeeves-scripts.json` schema (Decision 3, Decision 19):
- * instance settings (today's constants), `paths` overrides,
- * `integrations`, `pipeline` (today's `pipeline-config.json`, same keys),
- * `siloRouting` (today's `silo-routing.json`), `jobs` deltas and
+ * instance settings (the template's constants), `paths` overrides,
+ * `integrations`, `pipeline` (the template's `pipeline-config.json`, same keys),
+ * `siloRouting` (silo routing), `jobs` deltas and
  * `extensions`.
  *
  * Rejects any literal secret value anywhere in the raw tree (Decision
@@ -22,9 +22,11 @@ import {
 } from './integrations-schema.js';
 import { extensionsSchema, jobsSchema } from './jobs-schema.js';
 import { pathsSchema } from './paths-schema.js';
+import { peopleSchema } from './people-schema.js';
 import { pipelineSchema } from './pipeline-schema.js';
 import { findSecretLiterals } from './secret-guard.js';
 import { siloRoutingSchema } from './silo-schema.js';
+import { slackConfigSchema } from './slack-schema.js';
 
 /** The `instance` block: who this instance is and where it lives. */
 export const instanceSchema = z.object({
@@ -51,18 +53,20 @@ export const configObjectSchema = z.object({
   integrations: integrationsSchema.default({
     gh: {},
     qdrant: {},
-    gateway: {},
     gog: {},
-    slack: {},
     notion: {},
     jira: {},
     linear: {},
     x: defaultXIntegration,
   }),
-  /** Mail, calendar and refs (today's `pipeline-config.json`). */
+  /** Mail, calendar and refs (the template's `pipeline-config.json`). */
   pipeline: pipelineSchema.optional(),
   /** Data silos (Decision 28). */
   siloRouting: siloRoutingSchema.default({ silos: {} }),
+  /** What this instance decides about Slack channels (Decision 9). */
+  slack: slackConfigSchema.default({ channels: {} }),
+  /** Which accounts and emails belong to one person (Decision 34). */
+  people: peopleSchema.default({}),
   /** Per-job deltas. */
   jobs: jobsSchema,
   /** Seam implementations. */

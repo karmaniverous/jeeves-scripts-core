@@ -1,9 +1,9 @@
-/**
+﻿/**
  * @module config/pipeline-schema
  *
  * Zod schema for the `pipeline` block of `jeeves-scripts.json`: email
  * accounts, domain routing, feature flags, named refs, and the raw
- * Google Drive sync block. Same keys as today's `pipeline-config.json`
+ * Google Drive sync block. Same keys as the template's `pipeline-config.json`
  * (Decision 3, Decision 19).
  *
  * Ported from `jeeves-scripts-template` `src/lib/pipeline-config.ts`
@@ -13,8 +13,8 @@
 
 import { z } from 'zod';
 
-import { isSafeSecretRef, UNSAFE_SECRET_REF_MESSAGE } from './imap-secrets.js';
 import { emailConfigSchema } from './pipeline-email-schema.js';
+import { isSafeSecretRef, UNSAFE_SECRET_REF_MESSAGE } from './secret-ref.js';
 
 export type { BackfillConfig, EmailConfig } from './pipeline-email-schema.js';
 
@@ -97,7 +97,7 @@ export const bucketsSchema = z.object({
   priority: z.array(z.string()),
 });
 
-/** The `pipeline` block: today's `pipeline-config.json`, same keys. */
+/** The `pipeline` block: the template's `pipeline-config.json`, same keys. */
 export const pipelineSchema = z.object({
   /** Mail and calendar accounts. */
   accounts: z.array(accountSchema),

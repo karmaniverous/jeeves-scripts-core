@@ -4,7 +4,7 @@
  * Silo-aware content path resolution (Decision 28). Every content path
  * core resolves goes through a silo: `siloPath(silo?, ...segments)` is
  * the one resolver used by ingest, dispatchers and plugins alike. The
- * routing functions below generalise today's `silo-router.ts` (email
+ * routing functions below generalise the template's `silo-router.ts` (email
  * domain, GitHub org, Slack workspace, Jira, Linear, meeting majority
  * vote) over the same `siloRouting` config, ported from
  * `jeeves-scripts-template` `src/lib/silo-router.ts` (template `main` at

@@ -5,10 +5,13 @@
 local/
 **/coverage/
 **/dist/
-docs/
+/docs/
 esm/
 node_modules/
 context/
 
 # core build output: bundled copy of packages/template
 packages/core/template/
+
+# core build output: JSON Schema generated from the Zod config schema
+packages/core/schema/

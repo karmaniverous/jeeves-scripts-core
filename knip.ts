@@ -18,7 +18,12 @@ const config: KnipConfig = {
   },
   workspaces: {
     'packages/core': {
-      entry: ['scripts/*.ts'],
+      entry: [
+        'scripts/*.ts',
+        'src/cli/bin.ts',
+        'src/**/*.ts',
+        '!src/**/*.test.ts',
+      ],
       project: ['**/*.ts', '!template/**'],
     },
     'packages/template': {
