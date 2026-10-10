@@ -57,10 +57,15 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
 | `integrations` | `integrationsSchema` | `gh` (`bin`, `configDir`, `account`, `botUser`), `qdrant` (`apiUrl`, `serviceName`), `gog` (`bin`), `slack` (`primaryWorkspace`), `notion` (`version`), `jira` (`siteUrl`, `email`, `apiTokenPath`, `boardId`, `fieldsFilename`, `maxHistory`), `linear` (`configPath`, `maxHistory`), `x` (`accounts.<handle>.silo`, `.relativePath`). |
 | `pipeline` | `pipelineSchema` | Optional. `accounts[]` (mail and calendar), `buckets` (`domains[]`, `priority[]`), `refs` (dotted key → string: Slack ids, Notion ids, time zones), `emailConfig`, `googleDrive`. |
 | `siloRouting` | `siloRoutingSchema` | `defaultBasePath` (default: `paths().contentDir`) and named `silos.<name>`: `basePath`, `emailDomains`, `githubOrgs`, `slackWorkspaces`, `jira`, `linear`. |
+| `slack` | `slackConfigSchema` | `channels.<channelId>`: `project`, `homeDir` (absolute path). What this instance decides about a channel; see [Slack channels](#slack-channels). |
 | `jobs` | `jobsSchema` | Per-job deltas by job id: `enabled`, `schedule`, `env`, `args`, `timeout_seconds`, `silo`, `taskFile`. Today `silo` and `taskFile` are read by the task-file dispatcher (see [dispatchers](./dispatchers.md)) and `silo` is checked by `config check`; the rest are validated and wait for the job registry (Decision 32). |
 | `extensions` | `extensionsSchema` | Named seam → `local:<module>` (reserved for the extension-point registry). |
 
 Every schema is exported (Zod 4), with its `z.infer` type (`Config`, `PathsConfigInput`, `IntegrationsConfig`, `PipelineConfig`, `SiloRoutingConfig`, `JobDelta`, ...).
+
+### Slack channels
+
+`slack.channels` maps a Slack channel id to what this instance decides about it: `project` (tags the channel's indexed messages) and `homeDir` (the channel's home directory; must be an absolute path). It is the only place those decisions live; channel names, types, members and user details come from Slack and are cached in `{stateDir}/slack` (state, not config). See [slack.md](./slack.md#channel-config).
 
 ### Other components' settings
 

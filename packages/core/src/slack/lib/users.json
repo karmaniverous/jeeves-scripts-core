@@ -1,8 +1,0 @@
-{
-  "USLACKBOT": {
-    "alias": "Slackbot",
-    "emails": [],
-    "is_bot": false,
-    "name": "slackbot"
-  }
-}

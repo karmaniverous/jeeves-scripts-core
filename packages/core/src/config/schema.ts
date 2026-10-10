@@ -25,6 +25,7 @@ import { pathsSchema } from './paths-schema.js';
 import { pipelineSchema } from './pipeline-schema.js';
 import { findSecretLiterals } from './secret-guard.js';
 import { siloRoutingSchema } from './silo-schema.js';
+import { slackConfigSchema } from './slack-schema.js';
 
 /** The `instance` block: who this instance is and where it lives. */
 export const instanceSchema = z.object({
@@ -62,6 +63,8 @@ export const configObjectSchema = z.object({
   pipeline: pipelineSchema.optional(),
   /** Data silos (Decision 28). */
   siloRouting: siloRoutingSchema.default({ silos: {} }),
+  /** What this instance decides about Slack channels (Decision 9). */
+  slack: slackConfigSchema.default({ channels: {} }),
   /** Per-job deltas. */
   jobs: jobsSchema,
   /** Seam implementations. */

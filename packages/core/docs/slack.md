@@ -19,8 +19,9 @@ flowchart LR
 ```
 
 - Loads Slack bot tokens (see [Bot Tokens](#bot-tokens)).
-- Auto-discovers all channel types the bot is a member of (public, private, IM, MPIM), excluding archived, for every token's account. A channel is archived only if the bot has joined it (IMs always count). New channels are added to `channels.json` with `_autoDiscovered` (timestamp) and `_account` (the token's account name).
-- Fetches paginated conversation history since the last read position per channel. Read positions are instance state in the jeeves-runner state store (see [Read Positions](#read-positions-state)), not in `channels.json`.
+- Discovers all channel types the bot is a member of (public, private, IM, MPIM), excluding archived, for every token's account (IMs always count). Each run refreshes known channels' name and flags from Slack and adds new ones with `_autoDiscovered` (timestamp) and `_account` (the token's account name), in the [Slack cache](#slack-cache-state).
+- Fetches paginated conversation history since the last read position per channel. Read positions are instance state in the jeeves-runner state store (see [Read Positions](#read-positions-state)).
+- For a channel with new messages, re-reads its members (`conversations.members`) when they are more than a day old; they are written as each message's `participants`.
 - Fetches thread replies for threaded messages.
 - Enriches text-extractable file attachments (`text`, `post`, `snippet`) by fetching content via `files.info` + `url_private_download` and inlining as `files[].markdown`.
 - Persists structured `files[]` metadata (id, name, filetype, mimetype, size) alongside `hasFiles` flag.
@@ -28,7 +29,7 @@ flowchart LR
 - Writes one JSON file per message, `{silo}/slack/{channelName} ({channelId})/{ts}.json`; a message whose file already exists is not rewritten.
 - Handles channel renames by detecting the directory ending in `({channelId})` under another name and renaming it.
 - Resolves workspace routing via `getBasePathForSlackWorkspace()` for multi-workspace setups.
-- Loads user ID → username mappings from `users.json` for message enrichment.
+- Names message authors (`userName`: real name, else handle) from the Slack user cache, re-read from `users.list` when more than a day old.
 
 ## Read Positions (State)
 
@@ -36,10 +37,43 @@ The newest `ts` seen per channel is instance **state**, not config (karmaniverou
 
 - No stored position for a channel: that channel is read from the beginning. Message files are deduped by `ts`, so this is safe; it only costs API calls.
 - Store unreachable (no `JR_DB_PATH`, missing or uninitialised DB): the poll run fails (`FATAL`, exit 1), even with no channels configured (only the `SLACK_DOMAIN_DIR` skip comes first). It never silently falls back to reading every channel from the beginning.
-- A position that is present but not a Slack ts (`<seconds>.<micros>`, e.g. `1700000000.000100`), in the store or as a legacy `lastTs`, also fails the run rather than being skipped or used.
-- Positions are loaded after channel discovery, so a channel rediscovered after `channels.json` was rebuilt resumes from its stored position.
-- Migration: a channel with no stored position but a legacy `lastTs` in `channels.json` resumes from that value (`"0"` means never polled and is not migrated). Migrated positions are written to the store before `channels.json` is rewritten without them, so the fallback runs once.
+- A stored position that is not a Slack ts (`<seconds>.<micros>`, e.g. `1700000000.000100`) also fails the run rather than being skipped or used.
+- Positions are loaded after channel discovery, so a channel rediscovered after the Slack cache was rebuilt resumes from its stored position.
+- The old one-time migration of `lastTs` values out of `channels.json` is gone: the live instance had none left when that file was retired.
 - There is no `.local.template`; nothing needs creating on a new instance.
+
+## Slack Cache (State)
+
+Everything Slack can tell us about a channel or user is read from Slack with the bot tokens, never configured. Because Slack rate-limits those calls, the answers are cached in the **state folder**, outside the repo and never committed:
+
+| File | Content | Refreshed |
+| --- | --- | --- |
+| `{stateDir}/slack/channels.json` | Per channel id: `name`, `type` (`channel`/`dm`/`mpim`), `isPrivate`, `isArchived`, `isSlackConnect`, `sharedTeams`, `participants` (+ `participantsAt`), `_autoDiscovered`, `_account` | Names and flags every run (`conversations.list`); members at most daily, only for channels with new messages |
+| `{stateDir}/slack/users.json` | Per user id: `name` (handle), `alias` (real name), `emails` (profile email; needs `users:read.email`), `is_bot` | At most daily (`users.list`, every account); users no longer listed are kept |
+
+`stateDir` is `paths().stateDir` (`{baseDir}/state` unless set). A missing or unreadable cache is rebuilt from Slack on the next run; a failed refresh keeps the cached values. Read and write it with `lib/slack-cache.ts`; the token-metrics DM namer reads `users.json` too.
+
+## Channel Config
+
+What *we* decide about a channel is config, in `jeeves-scripts.json`, and nowhere else:
+
+```json
+"slack": {
+  "channels": {
+    "C0B3CHY4QKX": {
+      "project": "jeeves-scripts",
+      "homeDir": "J:/domains/projects/jeeves-scripts"
+    }
+  }
+}
+```
+
+- `project`: the project the channel belongs to. The watcher tags the channel's indexed messages with it (`resolveSlackChannelMeta`).
+- `homeDir`: the channel's home directory, an absolute path (validated). It is where the assistant reads and writes the files a conversation in that channel is about.
+
+Code reads an entry with `getChannelConfig(channelId)` (`lib/channel-config.ts`): `{ project?, homeDir? }`, or `undefined` for a channel with no entry.
+
+**How the assistant finds a channel's home dir:** a Slack message reaches the assistant with its channel id. The assistant looks that id up in the instance's `jeeves-scripts.json` under `slack.channels.<channelId>.homeDir` (in code: `getChannelConfig(id)?.homeDir`). No entry, or no `homeDir`, means the channel has no home dir. (Feeding `homeDir` into the gateway's per-channel prompt is a separate, later change.)
 
 ## Bot Tokens
 
@@ -68,10 +102,11 @@ The manifest entry carries a non-null `prerequisite` naming the token sources in
 
 | File | Purpose |
 | --- | --- |
-| `lib/slack-api.ts` | Typed Slack Web API wrappers — `fetchHistory()`, `fetchReplies()`, `discoverChannels()`, `slackApi()`, `SlackFileMetadata` type, with pagination |
+| `lib/slack-api.ts` | Typed Slack Web API wrappers — `fetchHistory()`, `fetchReplies()`, `discoverChannels()`, `fetchMembers()`, `fetchUsers()`, `slackApi()`, `SlackFileMetadata` type, with pagination |
 | `../lib/constants.ts` | Workspace routing values from `constants()` |
 | `../config/silo-router.ts` | `getBasePathForSlackWorkspace()` for output directory routing (see [silos](./config.md#silos)) |
-| `lib/map-helpers.cjs` | CommonJS helper for mapping Slack channel/user IDs to names. Used by watcher inference rules for enriching indexed message metadata |
-| `lib/channels.json` | Curated channel config: names, types, `metadata`, `_account`, Slack Connect flags (sanitized stubs in template). Committed. `poll.ts` adds auto-discovered channels; it never writes read positions here and strips any legacy `lastTs` on rewrite. Rewrites keep the committed formatting (2-space JSON, one trailing newline) and key order, so an unchanged map leaves no diff |
-| `lib/cursors.ts` | Read-position state in the runner store (`slack` / `lastTs-<channelId>`): Slack ts schema, load (after discovery, via `preparePollState()`), save, one-time legacy `lastTs` migration, and `saveChannels()`, the single `channels.json` writer (strips `lastTs`, preserves formatting) |
-| `lib/users.json` | Cached user ID → username mapping (sanitized stubs in template). Used by `poll.ts` for message enrichment |
+| `lib/channel-config.ts` | `getChannelConfig()` / `channelConfigs()`: the `slack.channels` config |
+| `lib/slack-cache.ts` | The Slack cache files in `{stateDir}/slack` (load, save, user display names) |
+| `lib/slack-sync.ts` | Refresh the cache from Slack: discovery, users, members |
+| `lib/map-helpers.ts` | jeeves-watcher map helpers (namespace `slack`): `resolveSlackUserEmails(ids)` from the user cache, `resolveSlackChannelMeta(id)` = the channel's `slack.channels` entry. Point the watcher's `mapHelpers.slack.path` at the built file, `node_modules/@karmaniverous/jeeves-scripts-core/dist/slack/lib/map-helpers.js` in the instance; it finds the instance config from `JEEVES_SCRIPTS_CONFIG`, else the nearest `jeeves-scripts.json` above it |
+| `lib/cursors.ts` | Read-position state in the runner store (`slack` / `lastTs-<channelId>`): Slack ts schema, load, save |

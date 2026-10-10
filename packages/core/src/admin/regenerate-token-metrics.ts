@@ -40,6 +40,7 @@ import fs from 'node:fs';
 import { getArg, runScript } from '@karmaniverous/jeeves';
 
 import { constants } from '../lib/constants.js';
+import { userCacheFile } from '../slack/lib/slack-cache.js';
 import {
   bucketPath,
   currentHourBoundaryMs,
@@ -85,7 +86,7 @@ const deps: RegenDeps = {
   nameDms: async (buckets, dryRun) => {
     await applyDmNames(buckets, {
       cachePath: constants().SLACK_DM_NAMES_CACHE_PATH,
-      usersPath: constants().SLACK_USERS_PATH,
+      usersPath: userCacheFile(),
       lookup: (id) => gatewayMemberName(id),
       dryRun,
       tag: TAG,

@@ -4,7 +4,7 @@
  * I/O for Slack DM naming (dm-names.ts):
  * - the DM-name cache (user id → name JSON beside the buckets; written only
  *   with names learned from the live lookup);
- * - the cached Slack user map (`src/slack/lib/users.json`), read-only;
+ * - the Slack user cache (`{stateDir}/slack/users.json`, slack/lib/slack-cache), read-only;
  * - the live lookup: the gateway `message` tool's Slack `member-info`
  *   action (real name, then display name, then handle), time-bounded.
  * {@link applyDmNames} wires them together for a bucket map.

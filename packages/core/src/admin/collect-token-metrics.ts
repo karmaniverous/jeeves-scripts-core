@@ -28,7 +28,8 @@
  * TOKEN_METRICS_CURSOR_KEY, TOKEN_METRICS_DB_CURSOR_KEY,
  * TOKEN_METRICS_CC_CURSOR_KEY, constants().TOKEN_RATES_PATH, constants().TOKEN_RATES_PENDING_PATH,
  * constants().TOKEN_RATES_SEED_PATH,
- * constants().SLACK_DM_NAMES_CACHE_PATH, constants().SLACK_USERS_PATH from constants.ts.
+ * constants().SLACK_DM_NAMES_CACHE_PATH from constants.ts, and the Slack user
+ * cache (slack/lib/slack-cache).
  */
 
 import fs from 'node:fs';
@@ -37,6 +38,7 @@ import { runScript } from '@karmaniverous/jeeves';
 
 import { constants } from '../lib/constants.js';
 import { triggerRunnerJob } from '../lib/runner-config.js';
+import { userCacheFile } from '../slack/lib/slack-cache.js';
 import { currentHourBoundaryMs, flushBuckets } from './lib/bucket-io.js';
 import { scanClaudeCodeSessions } from './lib/claude-code-session-scan.js';
 import { runCollect } from './lib/collect-run.js';
@@ -102,7 +104,7 @@ async function collect(): Promise<void> {
     nameDms: async (buckets) => {
       await applyDmNames(buckets, {
         cachePath: constants().SLACK_DM_NAMES_CACHE_PATH,
-        usersPath: constants().SLACK_USERS_PATH,
+        usersPath: userCacheFile(),
         lookup: (id) => gatewayMemberName(id),
       });
     },

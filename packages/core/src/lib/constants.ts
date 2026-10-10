@@ -148,8 +148,6 @@ const derive = () => {
       tokenMetricsDir,
       'slack-dm-names.json',
     ),
-    /** Instance data file in the instance repo. */
-    SLACK_USERS_PATH: path.join(p.scriptsDir, 'src/slack/lib/users.json'),
     /** The rate card seed core ships (`config/token-rates.seed.json` in the package). */
     TOKEN_RATES_SEED_PATH: tokenRatesSeedPath(),
     CLAUDE_CODE_PROJECTS_DIR: path.join(os.homedir(), '.claude/projects'),

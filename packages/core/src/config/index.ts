@@ -67,3 +67,4 @@ export {
   UnknownSiloError,
 } from './silo-router.js';
 export * from './silo-schema.js';
+export * from './slack-schema.js';

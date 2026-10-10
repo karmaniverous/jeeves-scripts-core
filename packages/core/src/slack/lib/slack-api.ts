@@ -196,3 +196,59 @@ export async function discoverChannels(token: string): Promise<SlackChannel[]> {
 
   return allChannels;
 }
+
+/** Follow `response_metadata.next_cursor` through every page of `method`. */
+async function allPages<T>(
+  method: string,
+  params: Record<string, string>,
+  token: string,
+  items: (resp: Record<string, unknown>) => T[] | undefined,
+): Promise<T[]> {
+  const all: T[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await slackApi(
+      method,
+      cursor ? { ...params, cursor } : params,
+      token,
+    );
+    all.push(...(items(page) ?? []));
+    cursor = (page.response_metadata as { next_cursor?: string } | undefined)
+      ?.next_cursor;
+    if (cursor) await sleep(RATE_LIMIT_MS);
+  } while (cursor);
+  return all;
+}
+
+/** A channel's member user ids (`conversations.members`). */
+export function fetchMembers(
+  channelId: string,
+  token: string,
+): Promise<string[]> {
+  return allPages(
+    'conversations.members',
+    { channel: channelId, limit: '200' },
+    token,
+    (r) => r.members as string[] | undefined,
+  );
+}
+
+/** A user as `users.list` returns it (the fields the cache keeps). */
+export interface SlackApiUser {
+  id: string;
+  name?: string;
+  real_name?: string;
+  deleted?: boolean;
+  is_bot?: boolean;
+  profile?: { real_name?: string; display_name?: string; email?: string };
+}
+
+/** Every user of the token's workspace (`users.list`). */
+export function fetchUsers(token: string): Promise<SlackApiUser[]> {
+  return allPages(
+    'users.list',
+    { limit: '200' },
+    token,
+    (r) => r.members as SlackApiUser[] | undefined,
+  );
+}
