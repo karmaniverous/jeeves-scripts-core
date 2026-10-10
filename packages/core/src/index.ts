@@ -16,6 +16,7 @@
 export * from './config/index.js';
 export * from './dispatchers/lib/task-file-dispatcher.js';
 export * from './lib/component-config.js';
+export * from './lib/meta-config.js';
 export * from './lib/openclaw-config.js';
 export * from './lib/runner-config.js';
 export * from './lib/worker-slack/worker-slack-config.js';

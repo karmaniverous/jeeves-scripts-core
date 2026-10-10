@@ -3,21 +3,26 @@
  *
  * Seed `.meta/` at share roots and share points (spec §7.3) through the
  * meta service's `POST /seed` (the endpoint the `meta_seed` tool uses):
- * 201 = created, 409 = already exists (treated as success).
+ * 201 = created, 409 = already exists (treated as success). The service's
+ * address comes from its own config (lib/meta-config).
  */
 
-import { META_PORT } from '@karmaniverous/jeeves';
+import { metaUrl } from '../../lib/meta-config.js';
 
 export type SeedResult = 'created' | 'exists';
 
 export type FetchLike = (url: string, init: RequestInit) => Promise<Response>;
 
-/** Seed one path. Throws on any status other than 201/409. */
+/**
+ * Seed one path. Throws on any status other than 201/409.
+ *
+ * @param baseUrl - Meta service URL. Default: {@link metaUrl} (the meta service's config).
+ */
 export async function seedMeta(
   absPath: string,
   steer: string | null,
   fetchFn: FetchLike = fetch,
-  baseUrl = `http://127.0.0.1:${String(META_PORT)}`,
+  baseUrl: string = metaUrl(),
 ): Promise<SeedResult> {
   const body: Record<string, string> = { path: absPath };
   if (steer) body.steer = steer;

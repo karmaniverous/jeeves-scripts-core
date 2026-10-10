@@ -71,7 +71,7 @@ Optional `pipeline.googleDrive` block in `jeeves-scripts.json`. The shared confi
 | `maxFileBytes` | 25 MB | Uploaded files larger than this are skipped (`oversize`) |
 | `conversion.textMimeTypes` / `textExtensions` / `skipMimeTypes` | `[]` | **Extend** the built-in tables in `lib/classify.ts` |
 | `conversion.sheets.*` | 5000 / 2000 | Row cap per tab, character cap per cell (truncation is noted in the output) |
-| `meta.seed` | `true` | Seed `.meta/` at share roots and share points |
+| `meta.seed` | `true` | Seed `.meta/` at share roots and share points (meta service `POST /seed`, at the address in the meta service's own config: [lib/meta-config](./lib.md#meta-configts)) |
 | `meta.rootSteer` / `sharePointSteer` | `null` | Steer prompts; `null` = generic defaults (`lib/meta-seed.ts`) |
 | `meta.lockStaleMinutes` | 30 | A `.meta/.lock` younger than this blocks removal of its directory (matches jeeves-meta's own stale threshold) |
 | `naming.maxNameBytes` | `null` | Optional readability cap on the name part of a segment |

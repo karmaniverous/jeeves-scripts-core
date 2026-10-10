@@ -8,6 +8,7 @@
 
 import path from 'node:path';
 
+import { metaUrl } from '../../lib/meta-config.js';
 import { hasMeta, subtreeHasFile } from './apply.js';
 import type { MetaSyncConfig } from './config.js';
 import { defaultSteer, type FetchLike, seedMeta } from './meta-seed.js';
@@ -23,9 +24,11 @@ export async function seedShareMetas(
   rootDirs: Set<string>,
   meta: MetaSyncConfig,
   fetchFn?: FetchLike,
+  baseUrl?: string,
 ): Promise<SeedOutcome> {
   const outcome: SeedOutcome = { seeded: 0, errors: [] };
   if (!meta.seed) return outcome;
+  const url = baseUrl ?? metaUrl();
   for (const rel of candidates) {
     if (!subtreeHasFile(targetDir, rel) || hasMeta(targetDir, rel)) continue;
     const isRoot = rootDirs.has(rel);
@@ -34,7 +37,12 @@ export async function seedShareMetas(
       (isRoot ? meta.rootSteer : meta.sharePointSteer) ??
       defaultSteer(isRoot ? 'root' : 'sharePoint', label);
     try {
-      const result = await seedMeta(path.join(targetDir, rel), steer, fetchFn);
+      const result = await seedMeta(
+        path.join(targetDir, rel),
+        steer,
+        fetchFn,
+        url,
+      );
       if (result === 'created') outcome.seeded++;
     } catch (err) {
       outcome.errors.push(String(err));

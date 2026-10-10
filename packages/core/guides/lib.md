@@ -115,6 +115,15 @@ The jeeves-runner's HTTP API address, from the runner's own config (validated wi
 
 Used by `admin/collect-token-metrics` (to start `refresh-token-rates`) and instance code that chains jobs.
 
+### meta-config.ts
+
+The jeeves-meta service's HTTP address, from the meta service's own config (`{configDir}/jeeves-meta/config.json`; only `port` is read, defaulting to the platform's `META_PORT`). Exported from the package root.
+
+- `metaConfig(file?)` - the meta config's `port` with the default applied (also when the file does not exist)
+- `metaUrl(file?)` - `http://127.0.0.1:<port>`
+
+Used by `google-drive` meta seeding (`POST /seed`).
+
 ### worker-output.ts
 
 Recovers an LLM worker's full final reply after `dispatchSession`: it takes the session key from spawn-worker's `WORKER_RESULT` line and reads the last assistant message via the gateway `chat.history` RPC with `maxChars: 500000` (the `sessions_history` tool caps text at 4000 characters, which cut long replies). A reply the gateway still marks as truncated fails with `worker reply truncated by gateway`. Job scripts use it to verify structured worker results instead of trusting the exit code.
