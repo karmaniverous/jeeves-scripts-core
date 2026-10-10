@@ -54,7 +54,6 @@ export const configObjectSchema = z.object({
     gh: {},
     qdrant: {},
     gog: {},
-    slack: {},
     notion: {},
     jira: {},
     linear: {},

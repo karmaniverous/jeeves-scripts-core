@@ -41,12 +41,6 @@ export const gogIntegrationSchema = z.object({
   bin: z.string().optional(),
 });
 
-/** Slack settings. */
-export const slackIntegrationSchema = z.object({
-  /** Team id of the instance's home Slack workspace. */
-  primaryWorkspace: z.string().optional(),
-});
-
 /** Notion settings. */
 export const notionIntegrationSchema = z.object({
   /** `Notion-Version` API header value. */
@@ -107,8 +101,6 @@ export const integrationsSchema = z.object({
   qdrant: qdrantIntegrationSchema.default({}),
   /** gog. */
   gog: gogIntegrationSchema.default({}),
-  /** Slack. */
-  slack: slackIntegrationSchema.default({}),
   /** Notion. */
   notion: notionIntegrationSchema.default({}),
   /** Jira. */

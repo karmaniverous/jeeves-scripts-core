@@ -33,7 +33,6 @@ const baseConfig = (
     gh: {},
     qdrant: {},
     gog: {},
-    slack: {},
     notion: {},
     jira: {},
     linear: {},

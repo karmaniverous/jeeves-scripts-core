@@ -7,9 +7,9 @@
  * Called by jeeves-runner on a schedule. Discovers the channels each bot
  * can read, fetches history and thread replies via the Slack API, and
  * writes individual JSON files per message to silo-routed directories.
- * Depends on constants().PRIMARY_WORKSPACE and constants().SLACK_DOMAIN_DIR;
- * a channel's workspace (for routing) is cached on its Slack cache entry
- * (lib/channel-workspace).
+ * Depends on constants().SLACK_DOMAIN_DIR; each account's workspace
+ * (lib/account-teams) and each channel's (lib/channel-workspace) are
+ * cached in the Slack cache.
  *
  * Channel and user facts come from Slack and are cached in the state
  * folder (lib/slack-cache, refreshed by lib/slack-sync). Read positions
@@ -27,13 +27,10 @@ import {
 } from '@karmaniverous/jeeves-runner';
 
 import { constants } from '../lib/constants.js';
+import { accountTeams } from './lib/account-teams.js';
 import { resolveChannelDir } from './lib/channel-dir.js';
 import type { ChannelInfo } from './lib/channel-info.js';
-import {
-  getTeamId,
-  getTokens,
-  resolveChannelToken,
-} from './lib/channel-token.js';
+import { getTokens, resolveChannelToken } from './lib/channel-token.js';
 import { type Cursors, loadPollCursors, saveCursor } from './lib/cursors.js';
 import { enrichFileContent } from './lib/file-content.js';
 import { writeMessage } from './lib/message-writer.js';
@@ -58,10 +55,16 @@ async function pollChannel(
   channelId: string,
   channelInfo: ChannelInfo,
   token: string,
+  teams: Record<string, string>,
   userMap: Record<string, string>,
   cursors: Cursors,
 ): Promise<number> {
-  const channelDir = await resolveChannelDir(channelId, channelInfo, token);
+  const channelDir = await resolveChannelDir(
+    channelId,
+    channelInfo,
+    token,
+    teams,
+  );
   const oldest = cursors[channelId] ?? '0';
 
   const { messages, newestTs } = await fetchHistory(channelId, oldest, token);
@@ -110,20 +113,10 @@ async function pollAll(client: RunnerClient): Promise<void> {
     `Loaded ${String(accountNames.length)} Slack account(s): ${accountNames.join(', ')}`,
   );
 
-  // Build teamId -> account mapping via auth.test
-  const teamToAccount: Record<string, string> = {};
-  for (const [account, token] of Object.entries(tokensByAccount)) {
-    try {
-      await sleep(RATE_LIMIT_MS);
-      const teamId = await getTeamId(token);
-      teamToAccount[teamId] = account;
-      console.log(`Account "${account}" -> workspace ${teamId}`);
-    } catch (err) {
-      console.error(
-        `Failed auth.test for account "${account}" (skipping): ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
-  }
+  // Each account's workspace (auth.test, cached in state).
+  const teams = await accountTeams(tokensByAccount);
+  for (const [account, teamId] of Object.entries(teams))
+    console.log(`Account "${account}" -> workspace ${teamId}`);
 
   const channels = loadChannelCache();
   await discoverAll(channels, tokensByAccount);
@@ -138,13 +131,15 @@ async function pollAll(client: RunnerClient): Promise<void> {
     await sleep(RATE_LIMIT_MS);
     const before = cursors[id];
     try {
-      const token = await resolveChannelToken(
+      const token = await resolveChannelToken(id, info, tokensByAccount, teams);
+      const written = await pollChannel(
         id,
         info,
-        tokensByAccount,
-        teamToAccount,
+        token,
+        teams,
+        userMap,
+        cursors,
       );
-      const written = await pollChannel(id, info, token, userMap, cursors);
       if (written > 0) {
         console.log(`${id} (${info.name}): ${String(written)} new`);
         totalWritten += written;

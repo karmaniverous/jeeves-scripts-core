@@ -116,7 +116,6 @@ const derive = () => {
     GOG_CLIENT_PATH: path.join(p.gogHome, 'credentials.json'),
     DEFAULT_MEETINGS_DIR: path.join(p.contentDir, 'meetings'),
     SLACK_DOMAIN_DIR: path.join(p.contentDir, 'slack'),
-    PRIMARY_WORKSPACE: i.slack.primaryWorkspace,
     NOTION_VERSION: i.notion.version,
     NOTION_API_KEY_PATH: path.join(p.credentialsDir, 'notion-api-key'),
     X_OAUTH_DIR: path.join(p.credentialsDir, 'oauth'),

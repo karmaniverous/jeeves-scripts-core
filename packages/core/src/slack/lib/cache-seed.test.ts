@@ -35,7 +35,13 @@ describe('seedChannelCache', () => {
       D1: { name: 'dm-U1', type: 'dm', _account: 'vc', teamId: 'Tvc' },
     });
     // X9 is unknown to the old channels.json: nothing to name it by.
-    expect(result).toEqual({ added: 1, accountsSet: 1, teamsSet: 2, kept: 1 });
+    expect(result).toEqual({
+      added: 1,
+      accountsSet: 1,
+      teamsSet: 2,
+      dmTeamsFromAccount: 0,
+      kept: 1,
+    });
   });
 
   it('never overwrites cached values', () => {
@@ -48,6 +54,25 @@ describe('seedChannelCache', () => {
       { C1: 'Told' },
     );
     expect(cache.C1).toMatchObject({ _account: 'vc', teamId: 'Tnew' });
+  });
+
+  it("gives DMs their account's workspace, not the recorded one", () => {
+    const cache: Record<string, ChannelInfo> = {};
+    const result = seedChannelCache(
+      cache,
+      {
+        D1: { name: 'dm-U1', type: 'dm', _account: 'vc' },
+        G1: { name: 'mpim-G1', type: 'mpim', _account: 'vc' },
+        C1: { name: 'shared', _account: 'vc' },
+      },
+      { D1: 'Tjgs', G1: 'Tvc', C1: 'Tjgs' },
+      { default: 'Tjgs', vc: 'Tvc' },
+    );
+    expect(cache.D1?.teamId).toBe('Tvc');
+    expect(cache.G1?.teamId).toBe('Tvc');
+    // Channels keep the recorded workspace.
+    expect(cache.C1?.teamId).toBe('Tjgs');
+    expect(result).toMatchObject({ dmTeamsFromAccount: 1, teamsSet: 2 });
   });
 
   it('rejects files of the wrong shape', () => {

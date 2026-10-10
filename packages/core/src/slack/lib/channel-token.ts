@@ -10,26 +10,16 @@
  */
 
 import { slackBotTokens } from '../../lib/openclaw-config.js';
+import { teamToAccount as invert } from './account-teams.js';
 import type { ChannelInfo } from './channel-info.js';
 import { channelTeamId } from './channel-workspace.js';
-import { RATE_LIMIT_MS, slackApi, sleep } from './slack-api.js';
+import { RATE_LIMIT_MS, sleep } from './slack-api.js';
 
 /** Bot tokens by gateway Slack account: `SLACK_BOT_TOKEN` as `default`, else the OpenClaw config. */
 export function getTokens(): Record<string, string> {
   if (process.env.SLACK_BOT_TOKEN)
     return { default: process.env.SLACK_BOT_TOKEN };
   return slackBotTokens();
-}
-
-/** The workspace (team) id a bot token belongs to (`auth.test`); throws when Slack returns none. */
-export async function getTeamId(token: string): Promise<string> {
-  const resp = await slackApi('auth.test', {}, token);
-  if (!resp.team_id || typeof resp.team_id !== 'string') {
-    throw new Error(
-      `auth.test did not return a valid team_id (got ${JSON.stringify(resp.team_id)})`,
-    );
-  }
-  return resp.team_id;
 }
 
 /**
@@ -42,8 +32,9 @@ export async function resolveChannelToken(
   channelId: string,
   channelInfo: ChannelInfo,
   tokensByAccount: Record<string, string>,
-  teamToAccount: Record<string, string>,
+  teams: Record<string, string>,
 ): Promise<string> {
+  const teamToAccount = invert(teams);
   // 1. Explicit account tag from prior discovery or resolution
   const tagged = channelInfo._account
     ? tokensByAccount[channelInfo._account]
@@ -63,13 +54,20 @@ export async function resolveChannelToken(
 
   // 3. The account of the channel's workspace, looked up with the first
   // token. The lookup never fails (an unreadable channel belongs to the
-  // primary workspace), so this is the last step whenever a token exists.
+  // reading account's workspace), so this is the last step whenever a
+  // token exists.
   const first = Object.entries(tokensByAccount)[0];
   if (first === undefined)
     throw new Error(`No Slack token available for channel ${channelId}.`);
   const [account, token] = first;
   if (!channelInfo.teamId) await sleep(RATE_LIMIT_MS);
-  const teamId = await channelTeamId(channelId, channelInfo, token);
+  const teamId = await channelTeamId(
+    channelId,
+    channelInfo,
+    token,
+    teams,
+    account,
+  );
   const resolvedAccount = teamToAccount[teamId] ?? account;
   channelInfo._account = resolvedAccount;
   return tokensByAccount[resolvedAccount] ?? token;

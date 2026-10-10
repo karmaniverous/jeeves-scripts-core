@@ -14,13 +14,14 @@ import { getBasePathForSlackWorkspace } from '../../config/index.js';
 import type { ChannelInfo } from './channel-info.js';
 import { channelTeamId } from './channel-workspace.js';
 
-/** The channel's message directory, renaming an existing `* ({id})` directory to the current name. */
+/** The channel's message directory (workspace from `teams`, account → team), renaming an existing `* ({id})` directory to the current name. */
 export async function resolveChannelDir(
   channelId: string,
   channelInfo: ChannelInfo,
   token: string,
+  teams: Record<string, string>,
 ): Promise<string> {
-  const teamId = await channelTeamId(channelId, channelInfo, token);
+  const teamId = await channelTeamId(channelId, channelInfo, token, teams);
   const basePath = getBasePathForSlackWorkspace(teamId);
   const slackRoot = path.join(basePath, 'slack');
   const targetDirName = `${channelInfo.name} (${channelId})`;

@@ -49,9 +49,17 @@ Everything Slack can tell us about a channel or user is read from Slack with the
 | File | Content | Refreshed |
 | --- | --- | --- |
 | `{stateDir}/slack/channels.json` | Per channel id: `name`, `type` (`channel`/`dm`/`mpim`), `isPrivate`, `isArchived`, `isSlackConnect`, `sharedTeams`, `participants` (+ `participantsAt`), `_autoDiscovered`, `_account`, `teamId` | Names and flags every run (`conversations.list`); members at most daily, only for channels with new messages; `teamId` once per channel (below) |
+| `{stateDir}/slack/accounts.json` | Per gateway Slack account: its workspace (team id) | Once per account (`auth.test`) |
 | `{stateDir}/slack/users.json` | Per user id: `name` (handle), `alias` (real name), `emails` (profile email; needs `users:read.email`), `is_bot` | At most daily (`users.list`, every account); users no longer listed are kept |
 
-`teamId` is the channel's workspace, used to pick its silo and, for a channel with no account yet, its token (`lib/channel-workspace.ts`). It is looked up once with `conversations.info`: the first of the channel's `shared_team_ids` when they don't include `PRIMARY_WORKSPACE`, otherwise (and when the channel can't be read) `PRIMARY_WORKSPACE`. DMs and MPIMs carry no `shared_team_ids`, so a newly seen one routes to the primary workspace's silo whatever workspace it is in. This replaces the separate `{configDir}/slack-channel-workspaces.json` with the same rule. An instance moving from that file seeds the cache once with `jeeves-scripts slack seed-cache` ([cli.md](./cli.md)), which carries each channel's recorded account and workspace, so no channel changes token or silo.
+`teamId` is the channel's workspace, used to pick its silo and, for a channel with no account yet, its token (`lib/channel-workspace.ts`):
+
+- **DMs and MPIMs** belong to the workspace of the bot account that reads them (`_account`), always, with no Slack call.
+- **Other channels** are looked up once with `conversations.info`: when they have `shared_team_ids`, the primary workspace if it is among them, else the first of them; without them, or when the channel can't be read, the reading account's workspace.
+
+Each account's workspace comes from `auth.test` with its bot token, cached in `{stateDir}/slack/accounts.json` (`lib/account-teams.ts`; delete the file to re-read). The **primary workspace** is the `default` account's; there is no setting for it.
+
+This replaces the separate `{configDir}/slack-channel-workspaces.json`. Until 2026-10-10 DMs fell back to the primary workspace and were archived in its silo; `jeeves-scripts slack relocate-archives` moves such archives ([cli.md](./cli.md)). An instance moving from that file seeds the cache once with `jeeves-scripts slack seed-cache` ([cli.md](./cli.md)), which carries each channel's recorded account and workspace, except that a DM's workspace is its account's.
 
 `stateDir` is `paths().stateDir` (`{baseDir}/state` unless set). A missing or unreadable cache is rebuilt from Slack on the next run; a failed refresh keeps the cached values. Read and write it with `lib/slack-cache.ts`; the token-metrics DM namer reads `users.json` too.
 
@@ -91,7 +99,7 @@ No config file, or no token in it, fails the run. Each channel is read with the 
 
 - A Slack bot token (above). The `pipeline` block is not read.
 - The bot must be a member of every channel to archive.
-- `PRIMARY_WORKSPACE`, `SLACK_DOMAIN_DIR` from `constants()`: `integrations.slack.primaryWorkspace` and `{contentDir}/slack`. The run skips (`[skip]`, exit 0) when `SLACK_DOMAIN_DIR` does not exist. Multi-workspace routing: a channel's workspace is its `teamId` in the [Slack cache](#slack-cache-state), and `siloRouting` in `jeeves-scripts.json` maps workspaces to silos (`slackWorkspaces`; [config.md](./config.md)); unmapped workspaces go to the default silo.
+- `SLACK_DOMAIN_DIR` from `constants()`: `{contentDir}/slack`. The run skips (`[skip]`, exit 0) when `SLACK_DOMAIN_DIR` does not exist. Multi-workspace routing: a channel's workspace is its `teamId` in the [Slack cache](#slack-cache-state), and `siloRouting` in `jeeves-scripts.json` maps workspaces to silos (`slackWorkspaces`; [config.md](./config.md)); unmapped workspaces go to the default silo.
 - Run under jeeves-runner (or with `JR_DB_PATH` pointing at the runner DB) for read-position state.
 
 | Job          | Schedule     | Manifest          |
@@ -109,7 +117,8 @@ The manifest entry carries a non-null `prerequisite` naming the token sources in
 | `../config/silo-router.ts` | `getBasePathForSlackWorkspace()` for output directory routing (see [silos](./config.md#silos)) |
 | `lib/channel-config.ts` | `getChannelConfig()` / `channelConfigs()`: the `slack.channels` config |
 | `lib/slack-cache.ts` | The Slack cache files in `{stateDir}/slack` (load, save, user display names) |
-| `lib/channel-workspace.ts` | A channel's workspace (`teamId` on its cache entry), looked up once |
+| `lib/channel-workspace.ts` | A channel's workspace (`teamId` on its cache entry), looked up once; DMs take their account's |
+| `lib/account-teams.ts` | Each bot account's workspace (`auth.test`, cached in `{stateDir}/slack/accounts.json`); the primary workspace is the `default` account's |
 | `lib/slack-sync.ts` | Refresh the cache from Slack: discovery, users, members |
 | `lib/map-helpers.ts` | jeeves-watcher map helpers (namespace `slack`): `resolveSlackUserEmails(ids)` from the user cache, `resolveSlackChannelMeta(id)` = the channel's `slack.channels` entry. Point the watcher's `mapHelpers.slack.path` at the built file, `node_modules/@karmaniverous/jeeves-scripts-core/dist/slack/lib/map-helpers.js` in the instance; it finds the instance config from `JEEVES_SCRIPTS_CONFIG`, else the nearest `jeeves-scripts.json` above it |
 | `lib/cursors.ts` | Read-position state in the runner store (`slack` / `lastTs-<channelId>`): Slack ts schema, load, save |

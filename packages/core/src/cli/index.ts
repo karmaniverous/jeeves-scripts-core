@@ -19,7 +19,9 @@ import { Command } from '@commander-js/extra-typings';
 
 import { configCheck } from '../config/check.js';
 import { loadConfig } from '../config/loader.js';
+import { slackBotTokens } from '../lib/openclaw-config.js';
 import { proposeFromSlack } from '../people/propose.js';
+import { accountTeams } from '../slack/lib/account-teams.js';
 import { readJsonFile, seedChannelCache } from '../slack/lib/cache-seed.js';
 import {
   channelCacheFile,
@@ -116,13 +118,14 @@ const buildSlackCommand = (root: string) => {
       'the old slack-channel-workspaces.json',
     )
     .option('--dry-run', 'report what would change without writing')
-    .action((options) => {
+    .action(async (options) => {
       loadConfig({ root });
       const cache = loadChannelCache();
       const result = seedChannelCache(
         cache,
         readJsonFile(options.channels),
         readJsonFile(options.workspaces),
+        await accountTeams(slackBotTokens()),
       );
       if (!options.dryRun) saveChannelCache(cache);
       process.stdout.write(

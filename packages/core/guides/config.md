@@ -25,7 +25,6 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
   "paths": { "contentDir": "/opt/jeeves/content" },
   "integrations": {
     "gh": { "account": "acme-org" },
-    "slack": { "primaryWorkspace": "T0000000000" },
     "x": { "accounts": { "acme": { "relativePath": "x/acme" } } }
   },
   "pipeline": {
@@ -54,7 +53,7 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
 | --- | --- | --- |
 | `instance` | `instanceSchema` | `name`, `baseDir` (required). Every default path derives from `baseDir`. |
 | `paths` | `pathsSchema` | Optional overrides: `configDir`, `contentDir`, `scriptsDir`, `credentialsDir`, `stateDir`, `gogHome`, `tokenMetricsDir`. |
-| `integrations` | `integrationsSchema` | `gh` (`bin`, `configDir`, `account`, `botUser`), `qdrant` (`apiUrl`, `serviceName`), `gog` (`bin`), `slack` (`primaryWorkspace`), `notion` (`version`), `jira` (`siteUrl`, `email`, `apiTokenPath`, `boardId`, `fieldsFilename`, `maxHistory`), `linear` (`configPath`, `maxHistory`), `x` (`accounts.<handle>.silo`, `.relativePath`). |
+| `integrations` | `integrationsSchema` | `gh` (`bin`, `configDir`, `account`, `botUser`), `qdrant` (`apiUrl`, `serviceName`), `gog` (`bin`), `notion` (`version`), `jira` (`siteUrl`, `email`, `apiTokenPath`, `boardId`, `fieldsFilename`, `maxHistory`), `linear` (`configPath`, `maxHistory`), `x` (`accounts.<handle>.silo`, `.relativePath`). |
 | `pipeline` | `pipelineSchema` | Optional. `accounts[]` (mail and calendar), `buckets` (`domains[]`, `priority[]`), `refs` (dotted key → string: Slack ids, Notion ids, time zones), `emailConfig`, `googleDrive`. |
 | `siloRouting` | `siloRoutingSchema` | `defaultBasePath` (default: `paths().contentDir`) and named `silos.<name>`: `basePath`, `emailDomains`, `githubOrgs`, `slackWorkspaces`, `jira`, `linear`. |
 | `slack` | `slackConfigSchema` | `channels.<channelId>`: `project`, `homeDir` (absolute path). What this instance decides about a channel; see [Slack channels](#slack-channels). |

@@ -88,7 +88,6 @@ export const deriveIntegrations = (config: Config): ResolvedIntegrations => {
       serviceName: i.qdrant.serviceName ?? 'qdrant',
     },
     gog: { bin: i.gog.bin ?? 'gog' },
-    slack: { primaryWorkspace: i.slack.primaryWorkspace ?? '' },
     notion: { version: i.notion.version ?? '2025-09-03' },
     jira: {
       siteUrl: i.jira.siteUrl ?? '',
