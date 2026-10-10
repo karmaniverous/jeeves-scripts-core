@@ -57,7 +57,7 @@ export default [
       '**/coverage/**/*',
       '**/diagrams/out/**/*',
       '**/dist/**',
-      '**/docs/**/*',
+      'typedoc/**/*',
       '**/template/**/*',
       'node_modules/**/*',
       '**/node_modules/**/*',
