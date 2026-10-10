@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractDocId, parseDocFetchArgs } from './doc-fetch.js';
+import { extractDocId, parseDocFetchArgs } from './doc-fetch-scan.js';
 
 describe('extractDocId', () => {
   it('extracts doc ID from standard Google Docs URL', () => {

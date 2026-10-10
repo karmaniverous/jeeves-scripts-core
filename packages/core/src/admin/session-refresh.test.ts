@@ -9,13 +9,13 @@ import {
   SESSION_REFRESH_CACHE_READ_THRESHOLD,
   SESSION_REFRESH_IDLE_MINUTES,
 } from '../lib/constants.js';
-import type { SessionEntry } from './session-refresh.js';
+import type { SessionEntry } from './lib/session-inspect.js';
 import {
   getLastCacheRead,
   getLastMessageTimestamp,
   isSlackSession,
   shouldRefresh,
-} from './session-refresh.js';
+} from './lib/session-inspect.js';
 
 // ── isSlackSession ─────────────────────────────────────────────────────
 

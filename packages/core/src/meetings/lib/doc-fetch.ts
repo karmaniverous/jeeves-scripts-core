@@ -21,59 +21,23 @@ import {
 } from '@karmaniverous/jeeves-runner';
 
 import { GOG } from '../../lib/gog.js';
+import type { IndexStore } from './doc-fetch-scan.js';
+import type { MeetingManifest } from './doc-fetch-scan.js';
+import {
+  findUnfetchedMeetings,
+  loadIndexIfExists,
+  parseDocFetchArgs,
+} from './doc-fetch-scan.js';
 import { writeMeetingMeta } from './meeting-schema.js';
 import { getMeetingsDirs } from './meetings-dirs.js';
 
 /** Rate limiting — Google Docs API has a 60 req/min limit for reads. */
 const RATE_LIMIT_MS = 2000;
 
-// ── Types ──────────────────────────────────────────────────────────────
-
-interface DocFetchArgs {
-  dryRun: boolean;
-  max: number | null;
-}
-
-interface UnfetchedMeeting {
-  meetingId: string;
-  path: string;
-  link: string;
-  docId: string | null;
-  account: string | null;
-  manifestPath: string;
-  meetingsDir: string;
-}
-
 interface DocFetchResult {
   ok: boolean;
   content?: string;
   error?: string;
-}
-
-interface IndexStore {
-  meetingsDir: string;
-  indexPath: string;
-  index: MeetingsIndex;
-  dirty: boolean;
-}
-
-interface MeetingsIndex {
-  meetings: Record<string, MeetingIndexEntry>;
-  updatedAt: string | null;
-}
-
-interface MeetingIndexEntry {
-  hasTranscript?: boolean;
-  artifactCount?: number;
-  updatedAt?: string;
-}
-
-interface MeetingManifest {
-  artifacts?: string[];
-  sources?: { account?: string }[];
-  transcriptFetchedAt?: string;
-  hasTranscript?: boolean;
-  updatedAt?: string;
 }
 
 interface FetchState {
@@ -82,92 +46,6 @@ interface FetchState {
   failed: number;
   skipped: number;
   errors: { meetingId: string; docId: string; error: string }[];
-}
-
-// ── Pure helpers ───────────────────────────────────────────────────────
-
-export function parseDocFetchArgs(argv: string[]): DocFetchArgs {
-  const out: DocFetchArgs = {
-    dryRun: argv.includes('--dry-run'),
-    max: null,
-  };
-
-  for (const arg of argv) {
-    const m = /^--max=(\d+)$/.exec(arg);
-    if (m) out.max = Number(m[1]);
-  }
-
-  return out;
-}
-
-export function extractDocId(url: string | null | undefined): string | null {
-  const m = /\/document\/d\/([a-zA-Z0-9_-]+)/.exec(url ?? '');
-  return m?.[1] ?? null;
-}
-
-// ── Filesystem scanning ───────────────────────────────────────────────
-
-function loadIndexIfExists(meetingsDir: string): IndexStore | null {
-  const indexPath = path.join(meetingsDir, 'index.json');
-  if (!fs.existsSync(indexPath)) return null;
-  return {
-    meetingsDir,
-    indexPath,
-    index: readJson<MeetingsIndex>(indexPath, {
-      meetings: {},
-      updatedAt: null,
-    }),
-    dirty: false,
-  };
-}
-
-export function findUnfetchedMeetings(
-  meetingsDirs: string[],
-): UnfetchedMeeting[] {
-  const meetings: UnfetchedMeeting[] = [];
-
-  for (const meetingsDir of meetingsDirs) {
-    if (!fs.existsSync(meetingsDir)) continue;
-
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(meetingsDir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-
-      const meetingId = entry.name;
-      const meetingPath = path.join(meetingsDir, meetingId);
-
-      const linkPath = path.join(meetingPath, 'gemini_link.txt');
-      const transcriptPath = path.join(meetingPath, 'transcript.txt');
-      const manifestPath = path.join(meetingPath, 'meeting.json');
-
-      if (!fs.existsSync(linkPath)) continue;
-      if (fs.existsSync(transcriptPath)) continue;
-
-      const link = fs.readFileSync(linkPath, 'utf8').trim();
-      const manifest = readJson<MeetingManifest>(manifestPath, {});
-
-      const firstSource = (manifest.sources ?? [])[0] ?? {};
-      const account = firstSource.account ?? null;
-
-      meetings.push({
-        meetingId,
-        path: meetingPath,
-        link,
-        docId: extractDocId(link),
-        account,
-        manifestPath,
-        meetingsDir,
-      });
-    }
-  }
-
-  return meetings;
 }
 
 // ── Doc fetching ──────────────────────────────────────────────────────
