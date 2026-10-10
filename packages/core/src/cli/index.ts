@@ -11,11 +11,14 @@
  * are ported; this slice carries `config check`.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { Command } from '@commander-js/extra-typings';
 
 import { configCheck } from '../config/check.js';
+import { proposeFromSlack } from '../people/propose.js';
 import { runJob } from './run.js';
 
 /** Options for {@link buildProgram} and {@link main}. */
@@ -71,6 +74,28 @@ const buildRunCommand = (root: string) =>
       if (code !== 0) process.exitCode = code;
     });
 
+const buildPeopleCommand = () => {
+  const people = new Command('people').description(
+    'Work with the people registry (people in jeeves-scripts.json).',
+  );
+  people
+    .command('propose')
+    .description(
+      'Read Slack users of every gateway bot account (read-only) and print a proposed people block. Never writes config.',
+    )
+    .option('--all', 'include people with a single account')
+    .option('--out <file>', 'also write the proposal (UTF-8 JSON) to this file')
+    .action(async (options) => {
+      if (options.out && path.basename(options.out) === 'jeeves-scripts.json')
+        throw new Error('people propose never writes jeeves-scripts.json');
+      const proposal = await proposeFromSlack({ all: options.all });
+      const json = `${JSON.stringify(proposal, null, 2)}\n`;
+      if (options.out) fs.writeFileSync(options.out, json, 'utf8');
+      process.stdout.write(json);
+    });
+  return people;
+};
+
 /** Build the `jeeves-scripts` program for an instance repo root. */
 export const buildProgram = (options: CliOptions) => {
   const root = resolveRoot(options.root);
@@ -78,7 +103,8 @@ export const buildProgram = (options: CliOptions) => {
     .description('Run and manage jeeves-scripts jobs for this instance.')
     .enablePositionalOptions()
     .addCommand(buildConfigCommand(root))
-    .addCommand(buildRunCommand(root));
+    .addCommand(buildRunCommand(root))
+    .addCommand(buildPeopleCommand());
 };
 
 /**
