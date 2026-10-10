@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { enumHours, resetCursorsForRange } from './recalc-utils.js';
+import { enumHours, resetCursorsForRange } from './hour-range.js';
 
 // ── enumHours ───────────────────────────────────────────────────────
 

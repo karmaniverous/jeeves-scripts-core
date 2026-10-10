@@ -7,7 +7,6 @@ Framework for autonomous LLM task dispatchers that read Markdown task files and 
 | Script | Description |
 | --- | --- |
 | `daily-digest.ts` | Job `generate-daily-digest`. The reference task-file dispatcher: reads `digest/TASK.md` in the default silo and dispatches a gateway session to generate and publish a daily digest, through `taskFileDispatcher` (below). Injects authoritative date context in the zone set by the `digest.timezone` ref (IANA name, e.g. `America/Chicago`, or `UTC`). The worker may post to the optional `slack.digestChannel` / `slack.operatorDm` refs (no Slack reads; `lib/digest-targets.ts`). No TASK file: `[skip]`; once it exists, `digest.timezone` is required (missing or invalid fails the run; there is no default). |
-| `social-posts.ts` | Job `generate-social-posts`. Builds a task from `pipeline.refs` and content paths, then dispatches a session to generate social media posts to a Notion database; the script posts the worker's summaries to Slack. Prerequisites: the `notion.socialPostsDatabaseId`, `slack.socialChannel` and `slack.operatorDm` refs (Slack IDs). |
 | `lib/task-file-dispatcher.ts` | `taskFileDispatcher` / `dispatchTaskFile` / `resolveTaskFile`: the generic task-file dispatcher, exported from the package root (below). |
 
 ## Activation
@@ -15,7 +14,7 @@ Framework for autonomous LLM task dispatchers that read Markdown task files and 
 Dispatchers are not in the template's `jobs/` manifests, because each instance's dispatcher configuration (task content, schedule, channels) is unique. To activate one:
 
 1. Meet its prerequisites (see each script's module-level TSDoc).
-2. Task-file dispatchers (`daily-digest`): write the TASK file with your standing orders. Dynamic dispatchers (`social-posts`): set the required `pipeline.refs` in `jeeves-scripts.json`.
+2. Task-file dispatchers (`daily-digest`): write the TASK file with your standing orders. Dynamic dispatchers (like the template's example `src/dispatchers/social-posts.ts`, which an instance copies into its own `src/dispatchers/`): set the required `pipeline.refs` in `jeeves-scripts.json`.
 3. Add a manifest entry to the instance's `jobs/*.json`: `{ "id": "generate-daily-digest", "script": "src/dispatchers/daily-digest.ts", "schedule": "...", ... }`, with the schedule as an RRStack JSON string (e.g. `{"freq":"daily","byhour":6,"byminute":30,"timezone":"America/Chicago"}`) or a cron expression. The runner job runs `bin/jeeves-scripts.js` with args `["run", "<job-id>"]` (see [cli](./cli.md)); `run` maps the script path into core's build unless the instance repo has its own file there.
 4. Test with `--print-task`, then `--dry-run` (below), before enabling the job: `node bin/jeeves-scripts.js run generate-daily-digest --print-task`.
 
@@ -73,7 +72,7 @@ taskFileDispatcher({
 
 ### Dynamic Task Dispatcher (builds task at runtime)
 
-Pattern from `social-posts.ts`: build task text from `pipeline.refs`:
+Pattern from the template's example `src/dispatchers/social-posts.ts` (instance code, not shipped in core): build task text from `pipeline.refs`:
 
 ```typescript
 import { runScript } from '@karmaniverous/jeeves';

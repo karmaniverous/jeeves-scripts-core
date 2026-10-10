@@ -56,7 +56,7 @@ export interface CandidateFlags {
 
 /**
  * Receipt and junk flags of a message, the one rule every classifying path
- * (poll, backfill-historical, backfill-classification) uses: a receipt
+ * (poll, backfill-historical) uses: a receipt
  * candidate is never a junk candidate.
  *
  * @param msg - Subject, snippet and sender of the message.

@@ -28,10 +28,10 @@ import {
 } from '../../lib/constants.js';
 import type { CursorState, HourlyBucket } from '../types/token-metrics.js';
 import type { CCScanOptions } from './claude-code-session-scan.js';
+import { enumHours, resetCursorsForRange } from './hour-range.js';
 import type { DbCursorState } from './openclaw-db/db-cursor.js';
 import { parseDbCursorState } from './openclaw-db/db-cursor.js';
 import type { DbScanOptions } from './openclaw-db/db-scanner.js';
-import { enumHours, resetCursorsForRange } from './recalc-utils.js';
 import { checkRegenFrom } from './regen-guard.js';
 import type { TokenMetricsState } from './token-metrics-state.js';
 
@@ -228,7 +228,7 @@ export async function runRegen(
   if (!args.from) return fail('--from ISO is required.');
   if (!deps.agentDbExists)
     return fail(
-      `No OpenClaw agent DB at ${deps.agentDbPath}; use recalculate-token-metrics.ts.`,
+      `No OpenClaw agent DB at ${deps.agentDbPath}; nothing to regenerate from (pre-2026.9 hosts keep JSONL archives, see legacy-archives).`,
     );
 
   const fromMs = hourArg(args.from);

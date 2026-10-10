@@ -1,8 +1,8 @@
 /**
- * @module recalc-utils
+ * @module admin/lib/hour-range
  *
- * Pure helper functions extracted from recalculate-token-metrics
- * for testability.
+ * Hour-range helpers for token-metrics regeneration (regen-run): the
+ * hour keys in a range and resetting cursors to re-read it.
  */
 
 import type { CursorState } from '../types/token-metrics.js';

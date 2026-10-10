@@ -2,18 +2,17 @@
 /**
  * @module dispatchers/social-posts
  *
- * Dispatcher: Generate Social Posts.
+ * EXAMPLE dispatcher for an instance repo: Generate Social Posts.
  *
- * Builds a social-post generation task from `pipeline.refs` and
- * content paths, then dispatches a gateway session to execute it.
+ * Builds a social-post generation task from `pipeline.refs` and content
+ * paths, then dispatches a gateway session to execute it. Copy it into
+ * your instance's `src/dispatchers/` and customize the task template in
+ * {@link buildTask} for your content sources, post targets and editorial
+ * rules.
  *
- * This is an example dispatcher — customize the task template in
- * {@link buildTask} for your instance's content sources, post targets,
- * and editorial rules.
- *
- * Slack is handled by this script, not the worker (OpenClaw 2026.9 workers
+ * Slack is handled by the script, not the worker (OpenClaw 2026.9 workers
  * have no Slack tool): the worker returns its summary posts in a
- * `slack-posts` block and the script posts them (see lib/worker-slack).
+ * `slack-posts` block and the script posts them (core lib/worker-slack).
  * `--dry-run` prints the posts instead; `--print-task` prints the TASK.
  *
  * Prerequisites (all `pipeline.refs` in jeeves-scripts.json):
@@ -21,23 +20,24 @@
  * - `slack.socialChannel` — Slack channel ID for posting summaries
  * - `slack.operatorDm` — Slack user or DM channel ID for completion routing
  *
- * Not in the template manifests: add an entry to the instance's jobs/*.json
+ * To run it, add an entry to the instance's jobs/*.json
  * (`id: 'generate-social-posts'`, `script: 'src/dispatchers/social-posts.ts'`,
- * a schedule) and run it as `jeeves-scripts run generate-social-posts`.
+ * a schedule) and run `jeeves-scripts run generate-social-posts`.
  */
 
 import path from 'node:path';
 
 import { runScript } from '@karmaniverous/jeeves';
 
-import { tryGetRef } from '../config/index.js';
-import { constants } from '../lib/constants.js';
-import { dispatchWithSlack } from '../lib/worker-slack/run.js';
-import type { WorkerSlackConfig } from '../lib/worker-slack/worker-slack-config.js';
+import { tryGetRef } from '@karmaniverous/jeeves-scripts-core';
+import { constants } from '@karmaniverous/jeeves-scripts-core/lib/constants';
+import { dispatchWithSlack } from '@karmaniverous/jeeves-scripts-core/lib/worker-slack/run';
+import type { WorkerSlackConfig } from '@karmaniverous/jeeves-scripts-core/lib/worker-slack/worker-slack-config';
 
 const JOB_ID = 'generate-social-posts';
 
-function buildTask(): { task: string; slack: WorkerSlackConfig } {
+/** The worker task and its allowed Slack posts, from `pipeline.refs`. */
+export function buildTask(): { task: string; slack: WorkerSlackConfig } {
   const notionDb = tryGetRef('notion.socialPostsDatabaseId');
   const socialChannel = tryGetRef('slack.socialChannel');
   const operatorDm = tryGetRef('slack.operatorDm');

@@ -7,7 +7,7 @@
  * extracting usage records within a [fromMs, cutoffMs) time range,
  * and merging them into hourly buckets.
  *
- * Shared by collect-token-metrics and recalculate-token-metrics.
+ * Used by collect-token-metrics and regenerate-token-metrics.
  */
 
 import fs from 'node:fs';

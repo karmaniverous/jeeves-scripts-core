@@ -87,7 +87,6 @@ When `~/.openclaw/agents/main/agent/openclaw-agent.sqlite` exists, the collector
 - With **no stored DB cursor**, the collector first checks whether OpenClaw usage was ever counted on this host (`fresh-openclaw-history.ts`). It was if the legacy JSONL cursor (`cursors`) has an entry, or if any bucket file (or `.backup-*` copy) under `{YYYY}/{MM}/` has a channel other than a Claude Code `cc:` channel. A bucket that can't be read, or has no `channels` object, counts too, to stay safe. The check stops at the first such bucket, and runs only when there's no DB cursor, so a host that already has one never scans its buckets.
   - **Never counted (fresh instance):** the collector logs one line, starts the DB cursor empty and counts OpenClaw's whole history once. This is correct because nothing was counted before, and cheap because a new instance has little history. The cursor is saved after the flush, as usual. No manual bootstrap is needed.
   - **Counted (upgraded host):** the collector refuses to collect OpenClaw usage and exits non-zero, because counting from zero would double count history. Bootstrap it with `regenerate-token-metrics.ts --from <upgrade hour>` (below). Claude Code collection still runs.
-- `recalculate-token-metrics.ts` refuses to run on a DB host. Use `regenerate-token-metrics.ts` instead.
 
 ### Regenerate
 
@@ -133,41 +132,16 @@ When OpenClaw bumps the agent schema, the collector exits non-zero naming the ex
 3. Verify the overlap: scratch-regenerate from before the schema upgrade and compare pre-upgrade days with the live store. They must match, apart from explained differences.
 4. Regenerate the live store from the schema-upgrade hour (dry run first). The cursor is keyed by transcript and seq, so if vNN keeps seq numbering, the existing cursor stays valid. If it doesn't, the full rebuild replaces it.
 
-## How to Safely Recalculate
+## How to Safely Rebuild Buckets
 
-On OpenClaw 2026.9+ hosts (agent DB present) use `regenerate-token-metrics.ts` (above). On legacy hosts, use `recalculate-token-metrics.ts` when bucket data needs correction (e.g., after a rate card fix, a collector bug, or corrupted bucket files).
+Use `regenerate-token-metrics.ts` (above) when bucket data needs correction (e.g. after a rate card fix, a collector bug or corrupted bucket files): dry run first, then a scratch `--out` run to compare, then live. It backs up the buckets it replaces (`.backup-{timestamp}.json`) and never touches hours outside the range.
 
-### Dry run first
-
-Always preview what will change before modifying data:
-
-```bash
-node node_modules/@karmaniverous/jeeves-scripts-core/dist/admin/recalculate-token-metrics.js --from 2026-06-01 --to 2026-06-03 --dry-run
-```
-
-This reports which bucket files would be backed up and deleted, without making changes.
-
-### Execute recalculation
-
-```bash
-node node_modules/@karmaniverous/jeeves-scripts-core/dist/admin/recalculate-token-metrics.js --from 2026-06-01 --to 2026-06-03
-```
-
-The script:
-
-1. **Backs up** all existing bucket files in the range (creates `.backup-{timestamp}.json` copies).
-2. **Deletes** the original bucket files for the range.
-3. **Resets cursors** — files whose last-processed timestamp falls within the range get their byte offsets reset to 0.
-4. **Re-collects** from source transcripts, only emitting records within the specified range.
-5. **Flushes** new buckets to disk.
-6. **Saves** updated cursor state.
-
-Without `--from`/`--to`, the script recalculates the entire transcript window (all time up to the previous closed UTC hour).
+Core has no rebuild for hosts still on legacy JSONL transcripts only (pre-2026.9, no agent DB); that one-off recalculation was instance remediation and is not shipped (Decision 36).
 
 ## What NOT to Do
 
-- **Never delete bucket files manually** outside the transcript window. The collector won't regenerate hours it has already processed unless cursors are also reset. Use the recalculation script instead.
-- **Never reset cursors without the recalculation script.** Resetting cursors without deleting the corresponding bucket files causes double-counting (merge-into semantics add to existing data).
+- **Never delete bucket files manually** outside the transcript window. The collector won't regenerate hours it has already processed unless cursors are also reset. Use `regenerate-token-metrics.ts` instead.
+- **Never reset cursors by hand.** Resetting cursors without deleting the corresponding bucket files causes double-counting (merge-into semantics add to existing data).
 - **Never edit bucket files by hand.** The merge-into semantics assume buckets are internally consistent. Manual edits can corrupt aggregation.
 - **Never delete cursor state from runner SQLite directly.** This forces a full rescan of all transcript files, which will double-count every hour that already has bucket files on disk.
 

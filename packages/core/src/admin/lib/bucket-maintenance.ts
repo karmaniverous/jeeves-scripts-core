@@ -2,7 +2,7 @@
  * @module bucket-maintenance
  *
  * Backup and delete hourly bucket files for a set of hours — the
- * destructive half of recalculate/regenerate. Backups are written beside
+ * destructive half of regenerate. Backups are written beside
  * each bucket as `<hour>.backup-<timestamp>.json` (one timestamp per call,
  * `:`/`.` replaced by `-`). Honors `dryRun` (log only, touch nothing).
  * A failed copy throws, so callers that back up before deleting never
@@ -24,7 +24,7 @@ import { bucketPath } from './bucket-io.js';
 export function backupBucketFiles(
   hours: string[],
   dryRun: boolean,
-  tag = '[recalc]',
+  tag = '[regen]',
   baseDir: string = constants().TOKEN_METRICS_DIR,
 ): number {
   let backed = 0;
@@ -50,7 +50,7 @@ export function backupBucketFiles(
 export function deleteBucketFiles(
   hours: string[],
   dryRun: boolean,
-  tag = '[recalc]',
+  tag = '[regen]',
   baseDir: string = constants().TOKEN_METRICS_DIR,
 ): number {
   let deleted = 0;

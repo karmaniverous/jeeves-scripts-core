@@ -5,7 +5,7 @@
  * gateway transcript JSONL lines and normalizes into the structured
  * record used by the hourly bucket pipeline.
  *
- * Shared by collect-token-metrics and recalculate-token-metrics.
+ * Used by collect-token-metrics and regenerate-token-metrics.
  */
 
 import type { TokenCategory } from '../types/token-metrics.js';

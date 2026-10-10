@@ -8,7 +8,7 @@
  * A host has counted OpenClaw usage, and must be bootstrapped with
  * regenerate-token-metrics, when either holds:
  * - the legacy JSONL cursor (TOKEN_METRICS_CURSOR_KEY) has an entry;
- * - a bucket file (or a recalc/regen backup of one) under the bucket root
+ * - a bucket file (or a regen backup of one) under the bucket root
  *   holds a channel that is not a Claude Code `cc:` channel, or can't be
  *   read or has no `channels` object (counted as OpenClaw usage, to stay
  *   safe).

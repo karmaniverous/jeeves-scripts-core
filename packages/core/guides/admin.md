@@ -1,6 +1,6 @@
 # admin/
 
-Token metrics collection, session cost management, and OpenClaw post-install patches.
+Token metrics collection and session cost management. OpenClaw post-install dist patches are not here: they live in `jeeves` (Decision 36).
 
 ## Scripts
 
@@ -10,13 +10,7 @@ Token metrics collection, session cost management, and OpenClaw post-install pat
 | `session-refresh.ts` | Rotates bloated gateway sessions by resetting idle sessions with high cacheRead values |
 | `token-metrics.ts` | Queries pre-rolled hourly buckets and aggregates into a cost report for a given time range (also a CLI module: `[--from ISO] [--to ISO]`) |
 | `refresh-token-rates.ts` | Seeds the rate card if missing, then refreshes every provider model's $/MTok rates from the public OpenRouter model endpoint (`openrouter.ai/api/v1/model/<id>`, base tier, no LLM). Also adds models the collector recorded as pending (`token-rates.pending.json`). Fetches 4 at a time (15 s per request, 60 s budget), writes changed rates atomically (advancing `updatedAt`), skips internal `openclaw/`/`clawdbot/` entries and entries marked `"manual": true`, and fails if any model can't be resolved (after applying the rest) or the card is missing or invalid. `--dry-run` reports changes without writing |
-| `recalculate-token-metrics.ts` | Safe recalculation of token metrics for a date range with backup and dry-run support |
 | `regenerate-token-metrics.ts` | Rebuilds hourly buckets for `[--from, --to)` from the agent DB plus Claude Code logs, and bootstraps the agent-DB cursor after the 2026.9 upgrade. Modes: `--out DIR` (scratch; refused when DIR is the live store, directly or through a symlink, or already holds buckets in range), live without `--to` (rebuild to the last closed hour, replaces cursors), live with `--to` (counted events only, cursors untouched); `--dry-run`. Live runs need the `OPENCLAW_UPGRADE_CUTOFF` environment variable (see [Regeneration settings](#regeneration-settings)) and refuse a `--from` before it without `--allow-pre-upgrade`; `--out` runs ignore it |
-| `patch-openclaw.ts` | Orchestrator that runs every OpenClaw post-install patch (one failure never skips the rest), prints a per-patch summary, exits non-zero on any failure. Forwards `--dry-run` |
-| `patch-tool-order.ts` | Patches OpenClaw's toolOrder array (located by content in any chunk) to insert Jeeves component tools above grep |
-| `patch-also-allow-policy.ts` | Ensures `tools.alsoAllow` is not treated as a restrictive allowlist. No-op on OpenClaw ≥ 2026.9.x (fixed upstream); legacy patch for older builds |
-
-All `patch-*.ts` scripts locate their target chunk by content across `.js` and `.mjs` files, are idempotent, refuse zero/multiple matches, write atomically, and accept `--dry-run` (print file, line, before/after; write nothing). Restart the gateway after a live run.
 
 ## Data Flow
 
@@ -29,9 +23,6 @@ flowchart LR
   card --> collect
 
   refresh["session-refresh"] --> gateway["gateway API\n(refresh idle/oversized sessions)"]
-
-  patch["patch-openclaw"] --> order["patch-tool-order\n(post npm install -g openclaw)"]
-  patch --> allow["patch-also-allow-policy\n(fix alsoAllow tool inheritance)"]
 ```
 
 - **collect-token-metrics** incrementally reads OpenClaw usage (agent DB `~/.openclaw/agents/main/agent/openclaw-agent.sqlite`, read-only, on 2026.9+; legacy JSONL transcripts in `SESSIONS_DIR` otherwise) and Claude Code logs (`~/.claude/projects`), and rolls usage into per-hour bucket files partitioned by channel and model. A fresh instance (no counted OpenClaw usage) starts the DB cursor empty; an upgraded host refuses until `regenerate-token-metrics` bootstraps it.
@@ -104,12 +95,6 @@ All three entries in the template manifest `jobs/admin.json` (carried in the ins
 | `lib/dm-names.ts` / `lib/dm-name-sources.ts` | Name `slack:dm:<USERID>` channels via the `people` config (configured name when one person owns the id, never cached; [config.md](./config.md#people)) → cache → Slack user map → gateway `member-info` |
 | `lib/openclaw-db/schema-v23-payloads.ts` | Schema-23 payload decoding and integrity checks (hot rows, cold and deleted/reset archives) |
 | `lib/claude-code-scanner.ts` | Scans Claude Code session JSONL files for Anthropic usage records |
-| `lib/also-allow-policy.ts` | Pure detection (upstream-fixed / legacy) and legacy patch for `hasRestrictiveAllowPolicy` |
-| `lib/dist-patch-io.ts` | Finds dist chunks by content (.js/.mjs), previews or atomically applies a patch plan, `--dry-run` flag |
-| `lib/openclaw-dist-fixtures.ts` | Verbatim OpenClaw v2026.9.6 dist snippets used as patch test fixtures |
-| `lib/patch-runner.ts` | Runs patch scripts independently and formats the per-patch summary |
-| `lib/patch-tool-order-utils.ts` | Pure helpers for toolOrder parsing/formatting and the per-chunk toolOrder patch evaluation |
-| `lib/text-patch.ts` | Pure anchored/idempotent text-patch primitives and cross-file plan reduction |
 | `lib/rate-card.ts` | Token rate card loader and cost calculator ($/MTok) |
 | `lib/rate-card-schema.ts` | Zod schema and validating file reader for the rate card (optional per-entry `manual` flag) |
 | `lib/rate-card-seed.ts` | Seed-if-missing: copies `config/token-rates.seed.json` into place, never overwrites |
@@ -117,8 +102,8 @@ All three entries in the template manifest `jobs/admin.json` (carried in the ins
 | `lib/refresh-rates-fetch.ts` | Bounded OpenRouter fetching: concurrency limit and overall time budget |
 | `lib/openrouter-pricing.ts` | OpenRouter single-model price fetch and per-token → $/MTok conversion |
 | `lib/rate-card-pending.ts` | Pending-models file (`token-rates.pending.json`): ids the collector found missing from the card, handed to refresh-token-rates to add |
-| `lib/recalc-utils.ts` | Pure helpers for recalculation: hour enumeration and cursor reset logic |
-| `lib/resolve-openclaw-dist.ts` | Resolves global npm openclaw dist directory for patching |
-| `lib/session-scanner.ts` | Session file scanning with cursor management (stop at the open hour) and range filtering (shared by collector and recalculator) |
-| `lib/usage-parser.ts` | OpenClaw transcript line parser and usage normalizer (shared by collector and recalculator) |
+| `lib/hour-range.ts` | Hour enumeration and cursor reset for a regeneration range (regen-run) |
+| `lib/resolve-openclaw-dist.ts` | Resolves the global npm openclaw install (its `openclaw.mjs`, for gateway RPC in `lib/gateway-rpc.ts`) |
+| `lib/session-scanner.ts` | Session file scanning with cursor management (stop at the open hour) and range filtering (collector and regeneration) |
+| `lib/usage-parser.ts` | OpenClaw transcript line parser and usage normalizer (collector and regeneration) |
 | `types/token-metrics.ts` | Shared types across collector and query layers |

@@ -59,7 +59,7 @@ Everything Slack can tell us about a channel or user is read from Slack with the
 
 Each account's workspace comes from `auth.test` with its bot token, cached in `{stateDir}/slack/accounts.json` (`lib/account-teams.ts`; delete the file to re-read). The **primary workspace** is the `default` account's; there is no setting for it.
 
-This replaces the separate `{configDir}/slack-channel-workspaces.json`. Until 2026-10-10 DMs fell back to the primary workspace and were archived in its silo; archives already written there stay where they are (moving them is an instance task). An instance moving from that file seeds the cache once with `jeeves-scripts slack seed-cache` ([cli.md](./cli.md)), which carries each channel's recorded account and workspace, except that a DM's workspace is its account's.
+Earlier versions kept channel workspaces in a separate `{configDir}/slack-channel-workspaces.json` and put DMs in the primary workspace. Core does not migrate either: an instance moving from them seeds the cache and moves misplaced archives with its own one-off cut-over steps (Decision 36).
 
 `stateDir` is `paths().stateDir` (`{baseDir}/state` unless set). A missing or unreadable cache is rebuilt from Slack on the next run; a failed refresh keeps the cached values. Read and write it with `lib/slack-cache.ts`; the token-metrics DM namer reads `users.json` too.
 

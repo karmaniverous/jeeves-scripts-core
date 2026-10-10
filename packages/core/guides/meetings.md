@@ -9,8 +9,6 @@ Meeting extraction from three independent sources — Google Meet (via email), F
 | `extract.ts` | Scans the email cache for meeting-related threads, detects source (Google Meet, Fathom), creates meeting packages with metadata and artifacts. For each new meeting it enqueues the Gmail `meeting` label (plus an archive if the message is in the inbox and not labelled `watch`, unless `emailConfig.meetings.archive` is `false`; see [lib/](./lib.md)) on `email-updates` through the email pipeline's `label-actions.ts`, so nothing is enqueued when `emailConfig.reportOnly` is true. Those actions are deferred, not dropped: see [reportOnly catch-up](#reportonly-catch-up). Gemini transcripts are not fetched here; the package gets `gemini_link.txt` and `fetch-notes.ts` exports the Doc |
 | `fetch-notes.ts` | Walks meeting directories, fetches Gemini doc transcripts (exported as the meeting's source mailbox, `meeting.json` `sources[0].account`) and Fathom transcripts for meetings that need them |
 | `ingest-notion.ts` | Polls a Notion inbox database, fetches meeting content via browser extraction, stages artifacts locally, archives the inbox page |
-| `migrate-alignment.ts` | One-shot: brings existing meeting packages into conformance with the canonical meeting-package contract |
-| `migrate-fathom.ts` | One-shot: remediates existing Fathom meetings — re-detects URLs, reclassifies, fetches missing transcripts |
 
 ## Data Flow
 
@@ -74,8 +72,6 @@ Each meeting lives in a directory under `{silo}/meetings/{meetingId}/`:
 | `lib/notion-browser-extract.ts` | Extracts meeting content from Notion public pages via gateway browser tool |
 | `lib/notion-inbox-processor.ts` | Processes a Notion inbox page end-to-end: fetch, extract, stage, archive |
 | `lib/meeting-cursor.ts` | Cursor and sort logic for global meetings meta steering |
-| `lib/migration-args.ts` | Shared CLI argument parsing for migration scripts (`--live`, `--max`) |
-| `lib/migration-backup.ts` | Backup and reversibility utilities for migrations |
 
 ## reportOnly catch-up
 

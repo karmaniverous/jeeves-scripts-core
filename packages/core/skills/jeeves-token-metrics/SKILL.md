@@ -15,5 +15,5 @@ Read [admin.md](../../guides/admin.md) for how token metrics work: the report co
 
 ## Operator rules
 
-- Regeneration and recalculation rewrite stored metrics: run them only when the operator asks, dry run first.
+- Regeneration rewrites stored metrics: run them only when the operator asks, dry run first.
 - Cost figures can be sensitive; share them only where the operator's rules allow.

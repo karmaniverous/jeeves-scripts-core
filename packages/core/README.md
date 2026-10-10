@@ -33,7 +33,7 @@ Job ids and schedules named in the docs are the template's manifest entries. Unt
 | [`guides/cli.md`](guides/cli.md) | The `jeeves-scripts` CLI and the instance launcher |
 | [`guides/config.md`](guides/config.md) | `jeeves-scripts.json`: schema, resolution, getters, silos |
 | [`guides/lib.md`](guides/lib.md) | Shared infrastructure: constants, gateway, workers, gh, gog, entity store |
-| [`guides/admin.md`](guides/admin.md) | Token metrics, rate card, session refresh, OpenClaw patches |
+| [`guides/admin.md`](guides/admin.md) | Token metrics, rate card, session refresh |
 | [`guides/calendar.md`](guides/calendar.md) | Google Calendar polling |
 | [`guides/convert.md`](guides/convert.md) | DOCX and PDF to Markdown |
 | [`guides/core.md`](guides/core.md) | Housekeeping: `.tmp` sweep, Qdrant health |
