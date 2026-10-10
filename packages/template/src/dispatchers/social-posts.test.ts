@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const mocks = vi.hoisted(() => ({
   run: { fn: undefined as undefined | (() => Promise<void>) },
   dispatchWithSlack: vi.fn(),
-  refs: {} as Record<string, string>,
+  refs: Object.create(null) as Record<string, string>,
 }));
 
 vi.mock('@karmaniverous/jeeves', () => ({
@@ -61,7 +61,7 @@ describe('generate-social-posts', () => {
       buildTask().slack,
     );
     mocks.dispatchWithSlack.mockReset();
-    mocks.refs = {};
+    mocks.refs = Object.create(null) as Record<string, string>;
     await mocks.run.fn?.();
     expect(mocks.dispatchWithSlack).not.toHaveBeenCalled();
   });
