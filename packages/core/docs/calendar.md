@@ -27,7 +27,7 @@ flowchart LR
 
 ## Account Configuration
 
-Calendar accounts are the entries in the `accounts` array of `pipeline-config.json` that have a `calendar` block (see [Configuration Files](../lib/README.md#configuration-files) for the full schema):
+Calendar accounts are the entries in the `accounts` array of `pipeline-config.json` that have a `calendar` block (see [Configuration Files](./lib.md#configuration-files) for the full schema):
 
 - `"calendar": { "serviceAccount": "auto" }`: a Workspace mailbox through domain-wide delegation. The poller uses the service-account registration gog keeps for that mailbox, `sa-<base64(email), "=" padding stripped>.json`, looked up in `<GOG_CONFIG_DIR>/data/` first, then in the `<GOG_CONFIG_DIR>` root (older gog builds without `data/`). Resolved by `findServiceAccountFile()` in `src/lib/gog-credentials.ts`.
 - `"calendar": { "tokenFile": "<path>" }`: a personal account with an OAuth refresh token. `tokenFile` is relative to `CREDENTIALS_DIR`, and the account also needs the gog OAuth client at `GOG_CLIENT_PATH` (`<GOG_CONFIG_DIR>/credentials.json`).

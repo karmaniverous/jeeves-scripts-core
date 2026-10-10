@@ -47,7 +47,7 @@ Supporting modules in `lib/`:
 
 | Module | Description |
 | --- | --- |
-| `../lib/entity-store.ts` | `upsertEntity`, `backfillEntity`, `deleteEntity`, `writeUnmatched`, `readStdinJson` — shared file I/O with diff history (see [entity-store docs](../lib/README.md#entity-storets)) |
+| `../lib/entity-store.ts` | `upsertEntity`, `backfillEntity`, `deleteEntity`, `writeUnmatched`, `readStdinJson` — shared file I/O with diff history (see [entity-store docs](./lib.md#entity-storets)) |
 | `lib/jira-client.ts` | `jiraGet`, `searchIssues` — typed Jira REST API v3 client |
 
 ## Archive Structure
@@ -220,7 +220,7 @@ tsx src/jira/backfill.ts --project WEB --type issue --live
 | `backfill.ts` | One-time historical backfill via REST API |
 | `refresh-fields.ts` | Daily custom field metadata refresh |
 | `sort-backlog.ts` | Backlog priority sort — stable re-rank by priority group via Agile API |
-| `../lib/entity-store.ts` | Shared file I/O helpers with reverse-diff history — `upsertEntity`, `backfillEntity`, `deleteEntity`, `writeUnmatched`, `readStdinJson` (see [entity-store docs](../lib/README.md#entity-storets)) |
+| `../lib/entity-store.ts` | Shared file I/O helpers with reverse-diff history — `upsertEntity`, `backfillEntity`, `deleteEntity`, `writeUnmatched`, `readStdinJson` (see [entity-store docs](./lib.md#entity-storets)) |
 | `lib/jira-client.ts` | Typed Jira REST API v3 client (fetch, paginate) |
 | `../../jobs/jira.json` | Runner job manifest (refresh-fields schedule) |
 | `../../src/lib/constants.ts` | Jira constants (`JIRA_SITE_URL`, `JIRA_EMAIL`, etc.) |

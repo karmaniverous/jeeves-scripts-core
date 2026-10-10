@@ -79,7 +79,7 @@ All three entries in `jobs/admin.json` have `"prerequisite": null`. `refresh-tok
 
 ## Documentation
 
-- [Token Metrics Operational Runbook](../../docs/token-metrics-runbook.md) — pipeline stages, recalculation procedures, troubleshooting
+- [Token Metrics Operational Runbook](../guides/token-metrics-runbook.md) — pipeline stages, recalculation procedures, troubleshooting
 
 ## Key Files
 

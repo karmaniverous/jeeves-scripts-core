@@ -50,7 +50,7 @@ Supporting modules in `lib/`:
 | Module | Description |
 | --- | --- |
 | `lib/linear-client.ts` | `loadConfig`, `linearQuery`, `paginateIssues`, `paginateComments`, `enrichComment`, `sleepMs` — typed GraphQL client and helpers |
-| `../lib/entity-store.ts` | `upsertEntity`, `backfillEntity`, `deleteEntity`, `writeUnmatched`, `readStdinJson` — shared file I/O with diff history (see [entity-store docs](../lib/README.md#entity-storets)) |
+| `../lib/entity-store.ts` | `upsertEntity`, `backfillEntity`, `deleteEntity`, `writeUnmatched`, `readStdinJson` — shared file I/O with diff history (see [entity-store docs](./lib.md#entity-storets)) |
 
 ## Archive Structure
 

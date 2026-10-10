@@ -4,7 +4,7 @@ Mirrors Google Drive content **shared to the assistant's Workspace account** int
 
 The sync is strictly **read-only** against Drive: it never writes back. Read-only is enforced by `gog --readonly` on every call (see [Safety](#safety)).
 
-Design record: [`guides/google-drive-spec.md`](../../guides/google-drive-spec.md) (`§` references in the code point there). Verified on a live instance: sharedWithMe, nested folders, a shared drive the account isn't a member of, and an external owner.
+Design record: [`guides/google-drive-spec.md`](../guides/google-drive-spec.md) (`§` references in the code point there). Verified on a live instance: sharedWithMe, nested folders, a shared drive the account isn't a member of, and an external owner.
 
 ## Scripts
 

@@ -70,5 +70,5 @@ All entries in `jobs/github.json` carry a non-null `prerequisite` (GitHub CLI au
 | File | Purpose |
 | --- | --- |
 | `../lib/gh.ts` | GitHub CLI wrappers — `gh()`, `ghJson()`, `ghApi()`, `setupGhConfig()` |
-| `../lib/silo-router.ts` | `getBasePathForGitHubOrg()` for org-based output routing (see [Configuration Files](../lib/README.md#configuration-files) for `silo-routing.json` schema) |
+| `../lib/silo-router.ts` | `getBasePathForGitHubOrg()` for org-based output routing (see [Configuration Files](./lib.md#configuration-files) for `silo-routing.json` schema) |
 | `../lib/constants.ts` | GitHub-specific constants (accounts, paths, registry location) |
