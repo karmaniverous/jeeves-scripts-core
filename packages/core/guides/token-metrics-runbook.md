@@ -92,7 +92,7 @@ When `~/.openclaw/agents/main/agent/openclaw-agent.sqlite` exists, the collector
 
 ```bash
 # this instance's OpenClaw 2026.9 upgrade hour (required for live runs; no default)
-# on this host: 2026-09-24T09:00:00Z (PowerShell: $env:OPENCLAW_UPGRADE_CUTOFF = '2026-09-24T09:00:00Z')
+# PowerShell: $env:OPENCLAW_UPGRADE_CUTOFF = '<YYYY-MM-DDTHH:00:00Z>'
 export OPENCLAW_UPGRADE_CUTOFF=<YYYY-MM-DDTHH:00:00Z>
 # scratch (never touches runner state or the live store; point TOKEN_METRICS_DIR at a dir holding a copied token-rates.json)
 node node_modules/@karmaniverous/jeeves-scripts-core/dist/admin/regenerate-token-metrics.js --from <ISO hour> --out /tmp/regen

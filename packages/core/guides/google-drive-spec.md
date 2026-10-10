@@ -129,7 +129,7 @@ Extensions come from the item's **class** (§5), not from string-splitting the D
 
 **Length budget.**
 
-- _Per segment:_ ≤ 255 **bytes** (ext4 `NAME_MAX`, confirmed on this host; NTFS allows 255 UTF-16 units, which a 255-byte UTF-8 name never exceeds). The name part is truncated to fit: `255 − len(" - " + tag + ext)` bytes, cut on a UTF-8 code-point boundary, trailing whitespace and dots trimmed. That leaves ≥ ~200 bytes of real name for any Drive item. Truncation is deterministic, so it doesn't flap.
+- _Per segment:_ ≤ 255 **bytes** (ext4 `NAME_MAX`; NTFS allows 255 UTF-16 units, which a 255-byte UTF-8 name never exceeds). The name part is truncated to fit: `255 − len(" - " + tag + ext)` bytes, cut on a UTF-8 code-point boundary, trailing whitespace and dots trimmed. That leaves ≥ ~200 bytes of real name for any Drive item. Truncation is deterministic, so it doesn't flap.
 - _Optional readability cap:_ `naming.maxNameBytes` (default: none, meaning fill to 255) can shorten the name part further.
 - _Whole path:_ ≤ 4096 bytes (`PATH_MAX`). On Windows, Node prefixes long paths itself, so `MAX_PATH` (260) doesn't apply to the sync. An item whose absolute path would exceed `naming.maxPathBytes` (default 4000) is skipped and reported, never truncated into a misleading path. In practice that needs a tree more than ~15 levels deep of near-maximal names.
 
@@ -261,7 +261,7 @@ Decided per file by MIME type, then extension. All tables are config with the de
 
 ### 6.1 State
 
-**Where it lives:** the jeeves-runner SQLite database (`JR_DB_PATH`: `J:/state/runner/runner.sqlite` on this host, `/opt/jeeves/state/runner/runner.sqlite` on managed instances), through the runner client's state API (`getRunnerClient()`). This is the same store the email, calendar and Linear scripts use. Nothing goes in the content tree, which the watcher indexes, and there are no sidecar files.
+**Where it lives:** the jeeves-runner SQLite database (`JR_DB_PATH`, e.g. `/opt/jeeves/state/runner/runner.sqlite`), through the runner client's state API (`getRunnerClient()`). This is the same store the email, calendar and Linear scripts use. Nothing goes in the content tree, which the watcher indexes, and there are no sidecar files.
 
 | Runner state | Namespace / key | Item key | Value |
 | --- | --- | --- | --- |
@@ -392,7 +392,7 @@ Exit 0, with warnings in `JR_RESULT`: parked items, unresolved paths, held meta 
 
 ### 6.5 Safety
 
-- **Dry run by default.** The script prints the plan and changes nothing, on disk **or in runner state** (no `setItem`/`deleteItem`/`setState`, no meta seeding), unless invoked with `--live`. The job manifest passes `--live`, so `runner_trigger` always runs live. A dry run is a manual `tsx` invocation with the runner DB path set: `JR_DB_PATH=J:/state/runner/runner.sqlite tsx src/google-drive/sync.ts` on this host (PowerShell form in the domain README).
+- **Dry run by default.** The script prints the plan and changes nothing, on disk **or in runner state** (no `setItem`/`deleteItem`/`setState`, no meta seeding), unless invoked with `--live`. The job manifest passes `--live`, so `runner_trigger` always runs live. A dry run is a manual invocation with the runner DB path set: `JR_DB_PATH=<runner.sqlite> node bin/jeeves-scripts.js run google-drive-sync` without `--live` (see [google-drive.md](./google-drive.md)).
 - **Mass-deletion guard.** Deletions (files and `.meta/` directories) are skipped for the run if enumeration hit any error, or if they would exceed **both** `deletion.maxFraction` (default 20%) of the files currently under `targetDir` **and** `deletion.minCount` (default 25) files. The min-count stops small mirrors tripping on routine un-shares. A trip exits non-zero (alert) and lists the blocked deletions in the run-summary state. When the guard trips only on size, additions, updates and moves still apply.
 - **Enumeration errors hold moves too.** An enumeration error (a failed folder listing, or a failed path or drive-name lookup, §4.2) means the snapshot may place items wrongly, not just omit them. So such a run also applies **no moves**: a written copy whose desired path changed stays where it is, its directories stay in the desired tree, and any pending update to it waits (it would otherwise be written at the new path). Held moves are listed (`HOLD` lines, `heldMoves` in the summary) and applied by the next clean run. Additions at paths that don't displace an existing copy still apply.
 - **`--allow-mass-delete`:** a manual `--live` run with this flag applies guard-blocked deletions (never deletions caused by an enumeration error). It's for when an operator has confirmed a large un-share is intended.

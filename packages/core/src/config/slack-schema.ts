@@ -11,7 +11,7 @@ import path from 'node:path';
 
 import { z } from 'zod';
 
-/** An absolute path on Windows (`J:/x`, `J:\x`, `\\host\share`) or POSIX (`/x`). */
+/** An absolute path on Windows (`D:/x`, `D:\x`, `\\host\share`) or POSIX (`/x`). */
 const isAbsolutePath = (p: string): boolean =>
   path.win32.isAbsolute(p) || path.posix.isAbsolute(p);
 
@@ -36,7 +36,7 @@ export type SlackChannelConfig = z.infer<typeof slackChannelConfigSchema>;
 /** A Slack channel id (`C…`, `G…` or `D…`). */
 export const slackChannelIdSchema = z
   .string()
-  .regex(/^[CDG][A-Z0-9]+$/, 'expected a Slack channel id like C0B3CHY4QKX');
+  .regex(/^[CDG][A-Z0-9]+$/, 'expected a Slack channel id like C0123456789');
 
 /** The `slack` block. */
 export const slackConfigSchema = z.object({

@@ -33,7 +33,7 @@ The package `bin` (`npx jeeves-scripts ...`, from the instance repo) does the sa
 
 Until the job registry lands, job ids come from the instance repo's `jobs/*.json` (arrays of runner job objects). `run` reads every `jobs/*.json` file, validates each entry (`id` and `script` strings; other runner fields pass through), and finds the entry whose `id` matches.
 
-1. If the instance repo has a file at the job's `script` path (e.g. `src/vc/daily-briefing.ts`), that file runs in a child process (`node --import tsx <file> [args...]`, working directory = the instance root). The exit code is the child's.
+1. If the instance repo has a file at the job's `script` path (e.g. `src/acme/daily-briefing.ts`), that file runs in a child process (`node --import tsx <file> [args...]`, working directory = the instance root). The exit code is the child's.
 2. Otherwise the same path is mapped into core's build: `src/<domain>/<name>.ts` â†’ `dist/<domain>/<name>.js`, and that module is imported in the CLI's process with `process.argv` set to `[node, <module>, ...args]`. The module's own `runScript()` sets `process.exitCode` on failure.
 3. Neither exists: `run` fails, naming both paths.
 

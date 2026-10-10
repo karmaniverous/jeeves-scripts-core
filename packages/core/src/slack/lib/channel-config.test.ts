@@ -43,7 +43,7 @@ beforeEach(() => {
       instance: { name: 't', baseDir: dir },
       slack: {
         channels: {
-          C0B3CHY4QKX: { project: 'jeeves-scripts', homeDir: 'J:/domains/x' },
+          C0123456789: { project: 'website', homeDir: 'D:/content/x' },
           C2: { project: 'other' },
         },
       },
@@ -91,12 +91,12 @@ describe('slackConfigSchema', () => {
 
 describe('getChannelConfig', () => {
   it("returns a configured channel's project and home dir", () => {
-    expect(getChannelConfig('C0B3CHY4QKX')).toEqual({
-      project: 'jeeves-scripts',
-      homeDir: 'J:/domains/x',
+    expect(getChannelConfig('C0123456789')).toEqual({
+      project: 'website',
+      homeDir: 'D:/content/x',
     });
     expect(getChannelConfig('C2')).toEqual({ project: 'other' });
-    expect(Object.keys(channelConfigs())).toEqual(['C0B3CHY4QKX', 'C2']);
+    expect(Object.keys(channelConfigs())).toEqual(['C0123456789', 'C2']);
   });
 
   it('returns undefined for a channel without an entry', () => {

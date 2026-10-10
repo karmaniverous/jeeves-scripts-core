@@ -70,9 +70,9 @@ What *we* decide about a channel is config, in `jeeves-scripts.json`, and nowher
 ```json
 "slack": {
   "channels": {
-    "C0B3CHY4QKX": {
-      "project": "jeeves-scripts",
-      "homeDir": "J:/domains/projects/jeeves-scripts"
+    "C0123456789": {
+      "project": "website-redesign",
+      "homeDir": "/srv/content/projects/website-redesign"
     }
   }
 }
