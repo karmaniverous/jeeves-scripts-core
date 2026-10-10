@@ -75,6 +75,10 @@ const spawnWorkerPath = (): string => {
   return path.join(path.dirname(here), `spawn-worker${path.extname(here)}`);
 };
 
+/** Core's shipped rate card seed: `config/` at the package root, two levels above this module (`src/lib/` or `dist/lib/`). */
+const tokenRatesSeedPath = (): string =>
+  fileURLToPath(new URL('../../config/token-rates.seed.json', import.meta.url));
+
 const derive = () => {
   const config = loadConfig();
   const p = paths();
@@ -144,11 +148,8 @@ const derive = () => {
     ),
     /** Instance data file in the instance repo. */
     SLACK_USERS_PATH: path.join(p.scriptsDir, 'src/slack/lib/users.json'),
-    /** Instance data file in the instance repo. */
-    TOKEN_RATES_SEED_PATH: path.join(
-      p.scriptsDir,
-      'config/token-rates.seed.json',
-    ),
+    /** The rate card seed core ships (`config/token-rates.seed.json` in the package). */
+    TOKEN_RATES_SEED_PATH: tokenRatesSeedPath(),
     CLAUDE_CODE_PROJECTS_DIR: path.join(os.homedir(), '.claude/projects'),
     JIRA_SITE_URL: i.jira.siteUrl,
     JIRA_EMAIL: i.jira.email,

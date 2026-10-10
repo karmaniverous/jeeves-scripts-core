@@ -7,7 +7,9 @@ vi.mock('node:child_process', () => ({
 }));
 
 import cp from 'node:child_process';
+import path from 'node:path';
 
+import { resetConfig } from '../config/loader.js';
 import { gh, ghApi, ghJson, setupGhConfig } from './gh.js';
 
 describe('gh', () => {
@@ -16,12 +18,16 @@ describe('gh', () => {
   });
 
   describe('setupGhConfig', () => {
-    it('sets GH_CONFIG_DIR environment variable', () => {
+    it('points GH_CONFIG_DIR at integrations.gh.configDir (default {configDir}/gh-cli)', () => {
       const prev = process.env.GH_CONFIG_DIR;
+      delete process.env.GH_CONFIG_DIR;
+      resetConfig();
       setupGhConfig();
-      expect(process.env.GH_CONFIG_DIR).toBeDefined();
-      expect(process.env.GH_CONFIG_DIR).not.toBe('');
+      expect(process.env.GH_CONFIG_DIR).toBe(
+        path.join('/opt/jeeves', 'config', 'gh-cli'),
+      );
       process.env.GH_CONFIG_DIR = prev;
+      resetConfig();
     });
   });
 

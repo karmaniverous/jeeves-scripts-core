@@ -216,7 +216,7 @@ describe('writeMeetingMeta', () => {
     });
 
     expect(meta.meetingId).toBe('test123');
-    expect(meta.updatedAt).toBeDefined();
+    expect(meta.updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
 
     const written = JSON.parse(
       fs.readFileSync(path.join(tmpDir, 'meeting.json'), 'utf8'),

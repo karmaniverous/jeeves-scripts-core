@@ -134,6 +134,6 @@ export function requireGogCredentials(
   throw new Error(
     `${job}: ${String(accountCount)} Google account(s) configured but no gog credentials found ` +
       `(no OAuth client at ${constants().GOG_CLIENT_PATH} and no service-account mailboxes in ` +
-      `${gogServiceAccountDirs().join(' or ')}). Configure gog or remove the accounts from pipeline-config.json.`,
+      `${gogServiceAccountDirs().join(' or ')}). Configure gog or remove the accounts from pipeline.accounts in jeeves-scripts.json.`,
   );
 }

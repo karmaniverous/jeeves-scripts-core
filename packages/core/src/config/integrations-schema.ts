@@ -2,7 +2,7 @@
  * @module config/integrations-schema
  *
  * Zod schema for the `integrations` block of `jeeves-scripts.json`:
- * today's `constants/integrations.ts` and `constants/trackers.ts` plus
+ * the template's `constants/integrations.ts` and `constants/trackers.ts` plus
  * the Qdrant/gateway/gog settings from `constants/instance.ts`, as
  * instance-settable config (Decision 3). All fields are optional;
  * core derives sensible defaults from `instance.baseDir` and `paths`

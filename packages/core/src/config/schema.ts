@@ -2,9 +2,9 @@
  * @module config/schema
  *
  * The single `jeeves-scripts.json` schema (Decision 3, Decision 19):
- * instance settings (today's constants), `paths` overrides,
- * `integrations`, `pipeline` (today's `pipeline-config.json`, same keys),
- * `siloRouting` (today's `silo-routing.json`), `jobs` deltas and
+ * instance settings (the template's constants), `paths` overrides,
+ * `integrations`, `pipeline` (the template's `pipeline-config.json`, same keys),
+ * `siloRouting` (the template's `silo-routing.json`), `jobs` deltas and
  * `extensions`.
  *
  * Rejects any literal secret value anywhere in the raw tree (Decision
@@ -59,7 +59,7 @@ export const configObjectSchema = z.object({
     linear: {},
     x: defaultXIntegration,
   }),
-  /** Mail, calendar and refs (today's `pipeline-config.json`). */
+  /** Mail, calendar and refs (the template's `pipeline-config.json`). */
   pipeline: pipelineSchema.optional(),
   /** Data silos (Decision 28). */
   siloRouting: siloRoutingSchema.default({ silos: {} }),

@@ -8,12 +8,12 @@
  * Run manually as an entry-point script. Iterates all thread-state
  * entries in SQLite, checks for missing labelApplied records against
  * existing classification fields (receipt, junk, and the thread's bucket
- * when it is one of the configured `buckets` in pipeline-config), and
+ * when it is one of the configured `pipeline.buckets`), and
  * enqueues addLabel actions to `email-updates` via label-actions.ts.
  * Supports --live flag; defaults to dry-run. Enqueues nothing when
  * emailConfig.reportOnly is true.
  *
- * Depends on email-state for thread data access and pipeline-config
+ * Depends on email-state for thread data access and the `pipeline` config
  * for the account list, bucket names and reportOnly.
  */
 

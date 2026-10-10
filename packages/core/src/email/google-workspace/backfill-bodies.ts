@@ -11,7 +11,7 @@
  * Supports --live flag; defaults to dry-run.
  *
  * Depends on silo-router for per-account thread paths and
- * pipeline-config for the account list.
+ * the `pipeline` config for the account list.
  */
 
 import fs from 'node:fs';

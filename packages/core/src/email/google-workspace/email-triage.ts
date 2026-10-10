@@ -8,7 +8,7 @@
  * thread processing. Classification drives label actions enqueued to
  * `email-updates` and controls which threads get deep-fetched.
  *
- * Bucket classification depends on pipeline-config domain mappings and
+ * Bucket classification depends on the `pipeline.buckets` domain mappings and
  * priority order. Missing config causes classifyBucket to return null.
  */
 
@@ -92,7 +92,7 @@ function extractDomains(to: string): string[] {
 }
 
 /**
- * Assign a configured bucket (`buckets` in pipeline-config) based on
+ * Assign a configured bucket (`pipeline.buckets`) based on
  * account domain, TO-domain priority, or content matching. Returns null
  * if no bucket matches.
  */

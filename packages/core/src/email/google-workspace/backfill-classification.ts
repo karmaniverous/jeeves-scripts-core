@@ -12,7 +12,7 @@
  * Supports --live and --reclassify-buckets flags; defaults to dry-run.
  * Label counters cover receipt, junk and the configured buckets.
  *
- * Depends on pipeline-config bucket domain mappings for classification
+ * Depends on the `pipeline.buckets` domain mappings for classification
  * and email-state/email-cache for thread data access.
  */
 

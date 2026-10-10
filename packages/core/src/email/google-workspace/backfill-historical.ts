@@ -8,7 +8,7 @@
  * classified, fetched (enqueued for download) and, unless
  * `emailConfig.reportOnly`, label actions are enqueued.
  *
- * Settings come from `emailConfig.backfill` in pipeline-config.json
+ * Settings come from `pipeline.emailConfig.backfill` in jeeves-scripts.json
  * (`accounts`, `lookbackDays`, `windowDays`), overridable per field with
  * `--accounts a,b`, `--lookback-days N`, `--window-days N`. There are no
  * defaults: missing settings fail the run.

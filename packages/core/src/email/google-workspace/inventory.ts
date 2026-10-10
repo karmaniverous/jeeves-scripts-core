@@ -9,7 +9,7 @@
  * account's threads directory on disk and queries jeeves-runner SQLite
  * for state item counts. Output is a formatted console table.
  *
- * Depends on silo-router for per-account paths, pipeline-config for
+ * Depends on silo-router for per-account paths, the `pipeline` config for
  * the account list, and email-state for the seenKey convention.
  */
 

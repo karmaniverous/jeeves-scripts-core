@@ -13,7 +13,7 @@
  * Trims old JSONL logs after 7 days (trim-jsonl.ts).
  *
  * Depends on constants().EMAIL_EVENTS_DIR, emailConfig.reportOnly, and bucket domain
- * config from pipeline-config. Missing config causes classification to
+ * config from the `pipeline` block. Missing config causes classification to
  * return null buckets (labels skipped). When reportOnly is true, threads
  * are still ingested but no Gmail label actions (classification or
  * curation-signal) are enqueued. Search output is schema-validated by

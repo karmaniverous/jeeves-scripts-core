@@ -155,7 +155,7 @@ describe('config', () => {
       parseGoogleDriveConfig({ syncs: [{ account: 'a@example.com' }] })?.syncs,
     ).toHaveLength(1);
     expect(() => parseGoogleDriveConfig({ syncs: [] })).toThrow(
-      /invalid googleDrive block/,
+      /invalid pipeline\.googleDrive block/,
     );
   });
 

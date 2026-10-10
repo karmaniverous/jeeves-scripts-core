@@ -10,7 +10,7 @@
  * `emailConfig.reportOnly`, via label-actions.ts), manages pending
  * follow-up tracking, and enqueues to `email-pending` for download.
  *
- * Depends on constants().EMAIL_EVENTS_DIR for event logging and pipeline-config
+ * Depends on constants().EMAIL_EVENTS_DIR for event logging and the `pipeline` config
  * bucket settings for triage decisions.
  */
 

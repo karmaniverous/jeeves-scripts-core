@@ -1,9 +1,9 @@
 /**
  * @module google-drive/lib/config
  *
- * Zod schema and types for the `googleDrive` pipeline-config block
+ * Zod schema and types for the `pipeline.googleDrive` block of jeeves-scripts.json
  * (spec §8), and its loader. The main `PipelineConfigSchema`
- * (`src/lib/pipeline-config.ts`) carries the block unvalidated; it is
+ * (`config/pipeline-schema.ts`) carries the block unvalidated; it is
  * validated here, when the Drive job loads it, so a mistake in it fails
  * only this job and `src/lib/` never depends on this domain.
  *
@@ -151,7 +151,7 @@ export function parseGoogleDriveConfig(raw: unknown): GoogleDriveConfig | null {
   const parsed = GoogleDriveConfigSchema.safeParse(raw);
   if (!parsed.success) {
     throw new Error(
-      `pipeline-config: invalid googleDrive block: ${z.prettifyError(parsed.error)}`,
+      `jeeves-scripts.json: invalid pipeline.googleDrive block: ${z.prettifyError(parsed.error)}`,
     );
   }
   return parsed.data;

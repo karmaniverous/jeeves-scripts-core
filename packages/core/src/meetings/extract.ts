@@ -206,7 +206,7 @@ function main(): void {
     archiveMeetingEmails = emailConfig.meetings?.archive ?? true;
   } catch {
     console.log(
-      '[skip] Meeting extraction not configured \u2014 pipeline-config.json missing or invalid',
+      '[skip] Meeting extraction not configured \u2014 no valid pipeline block in jeeves-scripts.json',
     );
     return;
   }

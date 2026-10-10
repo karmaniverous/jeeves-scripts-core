@@ -29,6 +29,11 @@
         "default": "./dist/cli/index.js"
       }
     },
+    "./package.json": "./package.json",
+    "./docs/*": "./docs/*",
+    "./guides/*": "./guides/*",
+    "./schema/*": "./schema/*",
+    "./config/*": "./config/*",
     "./*": {
       "import": {
         "types": "./dist/*.d.ts",
