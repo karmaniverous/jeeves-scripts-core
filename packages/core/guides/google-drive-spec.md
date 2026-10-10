@@ -10,7 +10,7 @@
 - v0.16: PR review hardening. Disjoint `targetDir`s and unique accounts (config error); symlinks refused in the owned tree; the content key is read before export; conversion-time skips leave the old copy for the next guarded plan; the planner reconciles the ledger against disk (lost copies re-download, completed moves adopted; moves persisted one by one); unseen records kept while deletions are blocked; no new syncs dispatched once the budget is spent; native text keeps a BOM.
 - v0.15: post-build corrections. VCS exclusion deferred (it also de-indexes via `respectGitignore`; jeeves-watcher#253). `targetDir` must be a strict subdirectory of `CONTENT_DIR`. Dot-entries in the owned tree are platform-owned and ignored. Module layout per the implementation (orchestrate/run-sync/report/seed-metas).
 - v0.14: jeeves-meta pre-implementation check (seed 409, 30-min stale lock, discovery cache); enumeration performance (batched parent queries).
-- v0.13: spike results folded in (the originating instance's spike notes): path resolution confirmed; `My Drive`/`Drive` root-name handling; two-stage revision content key for Google-native files; `/` in names; Google-native `size` ignored; empty exports; Sheets sizing; gog full scopes and `--readonly` as the sole write guard; non-member shared-drive sharing setting.
+- v0.13: spike results folded in: path resolution confirmed; `My Drive`/`Drive` root-name handling; two-stage revision content key for Google-native files; `/` in names; Google-native `size` ignored; empty exports; Sheets sizing; gog full scopes and `--readonly` as the sole write guard; non-member shared-drive sharing setting.
 - v0.12: all findings in the spec review applied (runner timeout/SIGTERM, `JR_RESULT`, exit codes, `--reset-state`, content-key change detection, export limit, gog scopes, temp staging, VCS exclusion, guard min-count, seeding/tree fixes, config gaps); decisions: guard trip fails the run, mirror excluded from VCS, temps staged outside content.
 - v0.11: Q7 (every tab), Q8 (13 min), meta edge case and download order confirmed; sync account registered in gog; share acceptance (§4.5).
 - v0.10: `-` separator confirmed; rejected naming alternatives recorded (§3.1).
@@ -23,7 +23,7 @@
 - v0.3: Q1 (impersonation approved), Q2 (identity dir = verbatim email), Q4 (tree is canonical: §7 rewritten), Q5 (only items shared to the account, recursed) resolved. Assistant-facing README and onboarding requirements added (§9.1, §11).
 - v0.2: explicit un-share handling (§6.2.1).
 
-**Origin:** designed and verified on a live instance's scripts repo, then hoisted unchanged to `jeeves-scripts-template`.
+**Origin:** designed in an instance's scripts repo, then hoisted unchanged to `jeeves-scripts-template`.
 
 ## 1. Purpose
 
@@ -135,7 +135,7 @@ Extensions come from the item's **class** (§5), not from string-splitting the D
 
 **Sanitization:** names are NFC-normalized. `/` (legal in Drive names; Google Meet auto-folders contain dates like `2026/10/04`), control characters (U+0000–U+001F, U+007F) and the characters Windows forbids in names (`\ : * ? " < > |`) are replaced with `_`. Leading/trailing whitespace and dots are trimmed (Windows also forbids a trailing dot or space). An empty result becomes `untitled`. A Windows reserved device name (`CON`, `PRN`, `AUX`, `NUL`, `COM0`–`COM9`, `LPT0`–`LPT9`, including superscript digits, with or without an extension) gets a `_` suffix. Identity roots are sanitized the same way. Every path is therefore valid on Linux, macOS and Windows, so the template's scripts run on Windows instances and the content tree can be cloned anywhere. _(v0.17: an existing mirror whose names contain one of the newly replaced characters sees those items move once, by the normal move path.)_
 
-**Validated on this instance (2026-10-05)** by writing test files under the content root and checking the platform end to end, then removing them:
+**Validated (2026-10-05)** by writing test files under the content root and checking the platform end to end, then removing them:
 
 | Case | Filesystem | Watcher index | Watcher VCS |
 | --- | --- | --- | --- |
@@ -153,11 +153,11 @@ For each item visible to the sync account, the Drive API returns `id`, `name`, `
 
 **What it cannot reliably see:** `parents` is only meaningful where the sync account can access the parent folder. For a single file a colleague shares out of `a/b/`, the sync account sees the file, its owner and its sharer, but **not** `a/b`. Likewise `drives.get` (the shared drive's _name_) fails unless the account is a member of the drive.
 
-So the account alone yields the share root identity for personal shares (owner email) but **not** the path, and for shared-drive items it yields only the `driveId`. Status: **confirmed in the spike** (spike notes §1, §6): `parents` is null for every shared item as the sync account, in both `files.list` and `files.get`; `owners` (My Drive) and `sharingUser` are visible, including for external owners; shared-drive items carry `driveId` and no `owners`; the sync account gets a 404 on a shared drive's root unless it's a member.
+So the account alone yields the share root identity for personal shares (owner email) but **not** the path, and for shared-drive items it yields only the `driveId`. Confirmed by the spike: `parents` is null for every shared item as the sync account, in both `files.list` and `files.get`; `owners` (My Drive) and `sharingUser` are visible, including for external owners; shared-drive items carry `driveId` and no `owners`; the sync account gets a 404 on a shared drive's root unless it's a member.
 
 ### 4.2 Resolving the path via domain-wide delegation
 
-The instance's gog service account has domain-wide delegation (confirmed working for a `drive` read as `owner@example.com`). Path resolution therefore impersonates someone who _can_ see the ancestors:
+The instance's gog service account has domain-wide delegation. Path resolution therefore impersonates someone who _can_ see the ancestors:
 
 | Item | Impersonate | Walk |
 | --- | --- | --- |
@@ -230,7 +230,7 @@ Google Drive needs **no acceptance step** for ordinary shares. Access is granted
 
 Things that can still stop a share from arriving:
 
-- **Workspace sharing policy.** The admin console can restrict which external domains users may receive files from, or block external receipt entirely. External shares (§4.3) depend on it. (Open on this instance.)
+- **Workspace sharing policy.** The admin console can restrict which external domains users may receive files from, or block external receipt entirely. External shares (§4.3) depend on it.
 - **Drive spam handling.** Drive can divert shares from unknown external senders to a Spam view. Whether those still appear in a `sharedWithMe` query is unverified.
 - **Link-only access** ("anyone with the link") is not a share to the account and never appears in `sharedWithMe` unless opened. Out of scope per Q5 anyway.
 
@@ -251,7 +251,7 @@ Decided per file by MIME type, then extension. All tables are config with the de
 | Everything else | images, media, archives, Drawings, Forms, … | **skipped**, counted in the report |
 
 - Converted output gets YAML frontmatter: `source: google-drive`, `driveFileId`, `driveUrl`, `mimeType`, `owner`, `sharedBy`, `modifiedTime`, `drivePath`. Native text files are written byte-for-byte with **no** frontmatter (it would corrupt code/config); their provenance lives in the sync state.
-- `maxFileBytes` (default 25 MB) skips oversize blobs (`oversize`), checked against Drive's `size` before downloading. Google-native `size` is a placeholder (always 1024 in the spike) and is ignored.
+- `maxFileBytes` (default 25 MB) skips oversize blobs (`oversize`), checked against Drive's `size` before downloading. Google-native `size` is a placeholder (always 1024) and is ignored.
 - **Empty exports are normal** (an empty Doc exports as 0 bytes): write an empty `.md` (plus frontmatter); don't treat it as a failure.
 - **Drive export limit:** `files.export` (Docs → Markdown, Slides → text) fails for exports over **10 MB**, and Google-native files have no `size` to pre-screen. An export-too-large error is a **permanent skip** (`export-limit`), not a retry. It's re-evaluated only when the file's content key changes (§6.2).
 - Other converter or download failures follow the failure policy in §6.4 (backoff, then park). They never delete an existing good copy.
@@ -315,7 +315,7 @@ Writes are atomic: temp file in the staging directory, then `rename` into place 
 
 **Why not `version`:** Drive's `version` increments on _any_ change, including renames and sharing changes (the spike saw a folder's `version` move with `modifiedTime` unchanged). Content keys change only when content does.
 
-**Google-native content key: two-stage check (spike §8).** A rename bumps a Google file's `modifiedTime` (confirmed), so `modifiedTime` alone would re-export on every rename. But the latest **revision ID** doesn't change on a rename. So:
+**Google-native content key: two-stage check.** A rename bumps a Google file's `modifiedTime` (confirmed), so `modifiedTime` alone would re-export on every rename. But the latest **revision ID** doesn't change on a rename. So:
 
 1. `modifiedTime` unchanged → unchanged. No extra call.
 2. Changed → `revisions.list` (paged to the last revision) → latest revision ID equals `written.contentKey` → **metadata-only change**: move/rename locally, no export, and update `written.modifiedTime`.
@@ -527,13 +527,7 @@ Same standard as the other domain READMEs (e.g. `email/`, `meetings/`). It is th
 ## 10. Rollout
 
 1. Prerequisites (§11).
-2. **Spike: done 2026-10-05**, see the originating instance's spike notes. Untested and optional: group shares, spam-diverted external shares, Viewer-only revision readability. Original checklist:
-   - what `parents`, `owners`, `sharingUser`, `driveId` return for a nested-file share, a folder share, a shared-drive item and an external share; and that owner impersonation resolves the path;
-   - the shared-drive ID `Uk9PVA` ending;
-   - whether a rename bumps `modifiedTime` on Google-native files (§6.2);
-   - which OAuth scopes gog requests for Drive and Sheets via the service account (§11);
-   - whether group shares and spam-diverted external shares appear in `sharedWithMe` (§4.5, §6.2.1);
-   - Docs Markdown export and per-tab Sheets reads on real files. Pre-implementation source check: jeeves-meta's behaviour when a meta directory disappears (§6.5).
+2. **Spike: done 2026-10-05.** Untested and optional: group shares, spam-diverted external shares, Viewer-only revision readability.
 3. Implement on a branch in the instance repo; dry runs against real shares; review plan output.
 4. PR → review → merge; (VCS exclusion deferred, §11); register the job with `runner_create_job` (absolute script path; deploy skips manifests with a prerequisite); first live run.
 5. Hoist to `jeeves-scripts-template` (template PR first, then mirror), per the template's hoisting rules.
@@ -550,8 +544,6 @@ These steps go into the README's Onboarding section (§9.1), written generically
 6. **Ask people to share** files, folders and shared drives with the assistant's address. Sharing is the whole interface.
 
 Follow-up outside this repo: the jeeves onboarding checklist (Phase 4, Google Workspace) should gain step 1 for every instance, and its §3.4 scope list should include the Drive scopes. I'll raise that against jeeves-tools once the design settles.
-
-**Verified on the originating instance:** sync account registered in gog; the DWD grant covers full `drive` + `spreadsheets`; external receipt open in the Admin console; non-member access on for a test shared drive.
 
 ## 12. Open questions
 
