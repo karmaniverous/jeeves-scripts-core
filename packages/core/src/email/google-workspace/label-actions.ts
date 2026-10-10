@@ -23,7 +23,7 @@
  * ({@link labelChangesFor}, {@link threadModifyArgs}).
  *
  * Called by email/poll.ts, email/google-workspace/backfill-window.ts,
- * email/google-workspace/email-fetch.ts,
+ * email/google-workspace/apply-labels.ts, email/google-workspace/email-fetch.ts,
  * email/google-workspace/drain-updates.ts and meetings/extract.ts.
  */
 

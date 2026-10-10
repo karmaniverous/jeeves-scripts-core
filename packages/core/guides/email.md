@@ -62,6 +62,20 @@ The template manifest (`jobs/email.json`, carried in the instance repo) is autho
 - Settings come only from `pipeline.emailConfig.backfill` in `jeeves-scripts.json` (`accounts`, `lookbackDays`, `windowDays`, all required) or the CLI overrides `--accounts` / `--lookback-days` / `--window-days` (per field, CLI wins). There are no defaults: a missing setting fails the run.
 - Cursor: runner state namespace `email-backfill`, key `cursor-<email>`. It advances only after a live window completes (after the window's last search page).
 
+### Label catch-up
+
+`poll` enqueues a thread's classification labels only when its classification changes, so labels skipped while `emailConfig.reportOnly` was on are never applied by the regular jobs. Run the catch-up once after turning `reportOnly` off (or whenever `labelApplied` lags the stored classification):
+
+```bash
+node bin/jeeves-scripts.js email apply-labels --dry-run
+node bin/jeeves-scripts.js email apply-labels [--since <date>] [--account <id>] [--max <n>]
+```
+
+- It reads each Gmail account's thread state (runner state `email` / `<email>.seenThreadIds`) and, for every thread whose stored classification (`receipt`, `junk`, a currently configured bucket) has labels missing from `labelApplied`, enqueues them on `email-updates` through `enqueueLabelActions()` and records them in `labelApplied`, exactly as `poll` does. It never calls Gmail itself: `drain-updates` applies the queue at its usual rate limit.
+- Idempotent: a second run finds nothing to do. `--max` (default 500 threads) bounds one run so the catch-up doesn't crowd out fresh work in the queue; the summary says when to run again.
+- `--since` keeps threads dated (else last seen) on or after the date; `--account` limits it to one configured Gmail account (polled or backfill).
+- While `reportOnly` is on it refuses (exit code 1), except as a `--dry-run`, which only reads state and prints what would be enqueued.
+
 ## State, Queues and Logs
 
 | Where | What |
@@ -91,7 +105,7 @@ The template manifest (`jobs/email.json`, carried in the instance repo) is autho
 
   Detection lives in one place, `lib/gog-credentials.ts`. If gog accounts are configured but neither credential type exists, `poll`, `download`, `drain-updates` and `backfill-historical` **fail** (non-zero exit, clear message) instead of skipping; `drain-updates` fails even when `reportOnly` is set. With no gog accounts configured they skip quietly. For `download` and `drain-updates`, "gog accounts" means `getGmailAccounts()`: polled accounts without an `imap` block plus `emailConfig.backfill.accounts`, so items queued by a backfill-only account are still consumed.
 
-- **`emailConfig.reportOnly: true`**: mail is still ingested and archived, but nothing is written back to Gmail. Every `email-updates` write goes through `google-workspace/label-actions.ts`, so `poll` and `backfill-historical` enqueue neither classification labels nor curation-signal actions (`watch` added/removed by `email-fetch.ts`), `meetings/extract.ts` enqueues no `meeting` label or archive (`meetings/lib/email-actions.ts`), and `drain-updates` dequeues and applies nothing (any items already queued are left pending until `reportOnly` is turned off). Actions skipped in `reportOnly` are dropped, not deferred: turning it off does not replay them. Core has no catch-up job for them (`labelApplied` records only labels actually enqueued, so an instance can write one if it needs it). Curation-signal actions are not replayed either. The `meeting` label and archive of a meeting packaged while `reportOnly` was on are the exception: `meetings/extract.ts` records them as pending and catches them up once `reportOnly` is off (see [meetings/](./meetings.md#reportonly-catch-up)).
+- **`emailConfig.reportOnly: true`**: mail is still ingested and archived, but nothing is written back to Gmail. Every `email-updates` write goes through `google-workspace/label-actions.ts`, so `poll` and `backfill-historical` enqueue neither classification labels nor curation-signal actions (`watch` added/removed by `email-fetch.ts`), `meetings/extract.ts` enqueues no `meeting` label or archive (`meetings/lib/email-actions.ts`), and `drain-updates` dequeues and applies nothing (any items already queued are left pending until `reportOnly` is turned off). Actions skipped in `reportOnly` are dropped, not deferred: turning it off does not replay them. Classification labels can be caught up afterwards with `email apply-labels` ([Label catch-up](#label-catch-up)): `labelApplied` records only labels actually enqueued, so the threads classified while `reportOnly` was on are exactly the ones still missing labels. Curation-signal actions are not replayed either. The `meeting` label and archive of a meeting packaged while `reportOnly` was on are the exception: `meetings/extract.ts` records them as pending and catches them up once `reportOnly` is off (see [meetings/](./meetings.md#reportonly-catch-up)).
 - **IMAP accounts**: `imap` connection block in pipeline config with host/port/user/password, the password normally a `secretRef` to a file in `IMAP_SECRETS_DIR` (see [IMAP passwords](#imap-passwords)).
 - All accounts: listed in `pipeline.accounts` with `emailPolling: true` and a `type` field (`gmail` or `imap`).
 
@@ -183,6 +197,7 @@ Gmail polling via the `gog` CLI (OAuth client or service-account mailboxes). Han
 | `backfill-settings.ts` | `resolveBackfillSettings()`: CLI args over `emailConfig.backfill`, per field; throws when any field is missing |
 | `backfill-window.ts` | Cursor and window arithmetic and `backfillAccount()`: processes the window one search page at a time and advances the cursor (live only) after the last page |
 | `label-actions.ts` | Every `email-updates` write, gated on `reportOnly` (`enqueueEmailUpdates`, `enqueueLabelActions`, `curationSignalActions`; meetings/extract.ts also enqueues through `enqueueEmailUpdates`); the drain-updates go/no-go (`planDrain`); action-to-label mapping for drain-updates (`labelChangesFor`, `threadModifyArgs`) |
+| `apply-labels.ts` | `applyPendingLabels()`: the label catch-up behind `email apply-labels` ([Label catch-up](#label-catch-up)); `pendingLabels()` is `computeLabelsToApply()` over stored thread state |
 | `inventory.ts` | Prints a summary table of thread directories, message files, and state counts per account |
 
 ### Classification

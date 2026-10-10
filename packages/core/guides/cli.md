@@ -26,6 +26,7 @@ The package `bin` (`npx jeeves-scripts ...`, from the instance repo) does the sa
 | `run <job-id> [args...]` | Run a job by id (below). Options after the job id are passed to the job unchanged. |
 | `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
 | `people propose [--all] [--out <file>]` | Read-only: reads `users.list` for every gateway Slack bot account (`slackBotTokens`), skips bots, deactivated users and Slackbot, groups users across workspaces by email (case-insensitive) and real name, and prints `{ summary, people, uncertain }`: a proposed `people` block ([config.md](./config.md#people)) of people with more than one account (`--all`: everyone) and the matches to check by hand (grouped by name only; a name shared inside one workspace; one email on two users of a workspace). Never writes config; `--out` writes the same JSON (UTF-8) to a file and refuses `jeeves-scripts.json`. |
+| `email apply-labels [--since <date>] [--account <id>] [--max <n>] [--dry-run] [--config <file>]` | Enqueue the classification labels stored thread state calls for but that were never applied (e.g. while `emailConfig.reportOnly` was on); `drain-updates` applies them. Idempotent. Refuses while `reportOnly` is on unless `--dry-run`. See [email.md](./email.md#label-catch-up). |
 
 `main()` resolves to the exit code and never calls `process.exit` itself.
 
@@ -47,6 +48,7 @@ A malformed `jobs/*.json` entry (missing `id` or `script`, or not an object) fai
 node bin/jeeves-scripts.js config check
 node bin/jeeves-scripts.js config check --config ./test/fixture.json
 node bin/jeeves-scripts.js run fetch-meeting-notes --dry-run
+node bin/jeeves-scripts.js email apply-labels --dry-run --since 2026-10-01
 JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run refresh-token-rates
 ```
 
@@ -55,5 +57,6 @@ JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run refresh-token
 | File | Purpose |
 | --- | --- |
 | `src/cli/index.ts` | `main`, `buildProgram`, `resolveRoot`, the `config` command |
+| `src/cli/email.ts` | The `email` command (`apply-labels`) |
 | `src/cli/run.ts` | `readJobs`, `resolveJob`, `runJob` |
 | `src/cli/bin.ts` | Package `bin`: runs `main` with the working directory as root |

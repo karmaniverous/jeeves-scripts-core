@@ -8,7 +8,7 @@
  * The instance launcher (Decision 16) calls {@link main} with the instance
  * repo root, so config resolution never depends on the working directory
  * (Architecture → Config Resolution). Commands land here as their domains
- * are ported; this slice carries `config check`.
+ * are ported: `config check`, `run`, `people propose`, `email apply-labels`.
  */
 
 import fs from 'node:fs';
@@ -19,6 +19,7 @@ import { Command } from '@commander-js/extra-typings';
 
 import { configCheck } from '../config/check.js';
 import { proposeFromSlack } from '../people/propose.js';
+import { buildEmailCommand } from './email.js';
 import { runJob } from './run.js';
 
 /** Options for {@link buildProgram} and {@link main}. */
@@ -104,7 +105,8 @@ export const buildProgram = (options: CliOptions) => {
     .enablePositionalOptions()
     .addCommand(buildConfigCommand(root))
     .addCommand(buildRunCommand(root))
-    .addCommand(buildPeopleCommand());
+    .addCommand(buildPeopleCommand())
+    .addCommand(buildEmailCommand(root));
 };
 
 /**
