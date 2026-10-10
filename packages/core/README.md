@@ -53,7 +53,7 @@ Guides: [`guides/google-drive-spec.md`](guides/google-drive-spec.md) (Drive sync
 
 ## Skills
 
-Core ships its own OpenClaw skills, one per domain whose behaviour lives here, plus `jeeves-scripts` for the package as a whole: `jeeves-scripts`, `jeeves-email`, `jeeves-slack`, `jeeves-calendar`, `jeeves-github`, `jeeves-jira`, `jeeves-linear`, `jeeves-x`, `jeeves-token-metrics`, `jeeves-daily-briefings`. They are thin (when to use, operator rules) and link to the docs above by package-relative paths, so a skill always matches the installed core version. The gateway loads them by listing the installed package's `skills/` directory in OpenClaw's `skills.load.extraDirs`. `test/skills.test.ts` checks every shipped skill: frontmatter, size, no instance paths, links that resolve inside the package.
+Core ships its own OpenClaw skills, one per domain or pattern whose behaviour lives here, plus `jeeves-scripts` for the package as a whole: `jeeves-scripts`, `jeeves-email`, `jeeves-slack`, `jeeves-calendar`, `jeeves-github`, `jeeves-jira`, `jeeves-linear`, `jeeves-x`, `jeeves-token-metrics`, `jeeves-daily-briefings`, `jeeves-standing-meetings`, and `jeeves-dates` (core's date utilities; never state a weekday without computing it). They are thin (when to use, operator rules) and link to the docs above by package-relative paths, so a skill always matches the installed core version. The gateway loads them by listing the installed package's `skills/` directory in OpenClaw's `skills.load.extraDirs`. `test/skills.test.ts` checks every shipped skill: frontmatter, size, no instance paths, links that resolve inside the package.
 
 ## Install
 

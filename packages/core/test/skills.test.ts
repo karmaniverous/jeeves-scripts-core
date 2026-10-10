@@ -22,12 +22,14 @@ const skillsDir = path.join(pkgRoot, 'skills');
 const EXPECTED = [
   'jeeves-calendar',
   'jeeves-daily-briefings',
+  'jeeves-dates',
   'jeeves-email',
   'jeeves-github',
   'jeeves-jira',
   'jeeves-linear',
   'jeeves-scripts',
   'jeeves-slack',
+  'jeeves-standing-meetings',
   'jeeves-token-metrics',
   'jeeves-x',
 ];
