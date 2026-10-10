@@ -1,12 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
+import { isFathomShareManifest, parseFathomArgs } from './fathom-extract.js';
 import {
   decodeHtmlEntities,
   extractHiddenDivInnerHtml,
   htmlToText,
-  isFathomShareManifest,
-  parseFathomArgs,
-} from './fathom-extract.js';
+} from './fathom-html.js';
 
 describe('decodeHtmlEntities', () => {
   it('decodes named entities', () => {

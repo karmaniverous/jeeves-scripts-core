@@ -19,13 +19,13 @@ import {
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
 
-import { detectFathomUrl, normalizeFathomUrl } from './lib/detect.js';
+import type { FathomCandidate } from './lib/fathom-package-detect.js';
+import { detectFathomInPackage } from './lib/fathom-package-detect.js';
 import { fetchFathomSharePage } from './lib/fathom-share-fetch.js';
 import {
   buildSortTimestampInput,
   checkHasTranscript,
   computeSortTimestamp,
-  type FathomKind,
   writeMeetingMeta,
 } from './lib/meeting-schema.js';
 import { getMeetingsDirs } from './lib/meetings-dirs.js';
@@ -37,16 +37,6 @@ import {
   writeChangeRecord,
 } from './lib/migration-backup.js';
 
-// ── Types ───────────────────────────────────────────────────────────
-
-interface FathomCandidate {
-  meetingId: string;
-  meetingDir: string;
-  fathomKind: FathomKind;
-  fathomUrl: string;
-  existingMeta: Record<string, unknown>;
-}
-
 interface MigrationStats {
   scanned: number;
   fathomDetected: number;
@@ -54,62 +44,6 @@ interface MigrationStats {
   callProcessed: number;
   errors: number;
   skippedAlreadyProcessed: number;
-}
-
-// ── Helpers ─────────────────────────────────────────────────────────
-
-/**
- * Scan a meeting directory for Fathom URLs in all text/HTML artifacts
- * and in existing metadata.
- */
-function detectFathomInPackage(
-  meetingDir: string,
-  meta: Record<string, unknown>,
-): { kind: FathomKind; url: string } | null {
-  // Check existing fathomUrl
-  if (typeof meta.fathomUrl === 'string' && meta.fathomUrl) {
-    const kind =
-      meta.fathomKind === 'share' || meta.fathomKind === 'call'
-        ? meta.fathomKind
-        : meta.fathomUrl.includes('/share/')
-          ? 'share'
-          : 'call';
-    return { kind, url: normalizeFathomUrl(meta.fathomUrl) };
-  }
-
-  // Check fathom_link.txt
-  const linkPath = path.join(meetingDir, 'fathom_link.txt');
-  if (fs.existsSync(linkPath)) {
-    const url = fs.readFileSync(linkPath, 'utf8').trim();
-    const detection = detectFathomUrl(url);
-    if (detection) return detection;
-  }
-
-  // Scan text/HTML artifacts for Fathom URLs
-  try {
-    const files = fs.readdirSync(meetingDir);
-    for (const file of files) {
-      if (
-        !file.endsWith('.txt') &&
-        !file.endsWith('.html') &&
-        file !== 'meeting.json'
-      )
-        continue;
-      if (file === 'meeting.json') continue;
-
-      try {
-        const content = fs.readFileSync(path.join(meetingDir, file), 'utf8');
-        const detection = detectFathomUrl(content);
-        if (detection) return detection;
-      } catch {
-        // skip unreadable files
-      }
-    }
-  } catch {
-    // skip unreadable dirs
-  }
-
-  return null;
 }
 
 // ── Main ────────────────────────────────────────────────────────────

@@ -12,10 +12,6 @@
  * Output: per-thread directories written to silo-routed content paths.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-
-import { ensureDir, nowIso, writeJsonAtomic } from '@karmaniverous/jeeves';
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';
 import type { MailboxLockObject, MailboxObject } from 'imapflow';
 import { ImapFlow } from 'imapflow';
@@ -23,111 +19,19 @@ import { simpleParser } from 'mailparser';
 
 import type { AccountConfig } from '../../config/index.js';
 import { resolveImapPassword } from '../../config/index.js';
-import { createOrUpdateCache, getThreadsPath } from '../email-cache.js';
 import type { AccountTypeDefinition } from './account-types.js';
 import { getAccountType } from './account-types.js';
 import { resolveKey } from './key-resolver.js';
-import type { NormalizedMessage } from './normalize.js';
+import { messageExists, writeMessage } from './message-store.js';
 import { normalizeMessage } from './normalize.js';
+import type { FolderWatermark, ImapPollState } from './poll-state.js';
+import { loadState, saveState } from './poll-state.js';
 
 // ── Helpers ───────────────────────────────────────────────────────────
 
 /** Extract a readable message from an unknown error value. */
 function errMsg(e: unknown): string {
   return e instanceof Error ? e.message : String(e);
-}
-
-// ── State ─────────────────────────────────────────────────────────────
-
-interface FolderWatermark {
-  uidValidity: number;
-  lastUid: number;
-}
-
-interface ImapPollState {
-  folders: Record<string, FolderWatermark>;
-}
-
-const STATE_NS = 'imap-poll';
-
-function loadState(email: string, client: RunnerClient): ImapPollState {
-  const raw = client.getState(STATE_NS, email);
-  if (!raw) return { folders: {} };
-  return JSON.parse(raw) as ImapPollState;
-}
-
-function saveState(
-  email: string,
-  state: ImapPollState,
-  client: RunnerClient,
-): void {
-  client.setState(STATE_NS, email, JSON.stringify(state));
-}
-
-// ── Disk writes ───────────────────────────────────────────────────────
-
-function messageExists(
-  account: string,
-  threadId: string,
-  msgId: string,
-): boolean {
-  return fs.existsSync(
-    path.join(getThreadsPath(account, threadId), `${msgId}.json`),
-  );
-}
-
-/** Write thread cache + per-message JSON from a NormalizedMessage. */
-function writeMessage(
-  account: string,
-  threadId: string,
-  messageId: string,
-  msg: NormalizedMessage,
-  labels: string[],
-): void {
-  const dir = getThreadsPath(account, threadId);
-  ensureDir(dir);
-
-  createOrUpdateCache({
-    account,
-    threadId,
-    subject: msg.headers.subject,
-    participants: [
-      ...new Set(
-        [msg.headers.from, msg.headers.to, msg.headers.cc].filter(Boolean),
-      ),
-    ],
-    messages: {
-      [messageId]: {
-        messageId,
-        from: msg.headers.from,
-        to: msg.headers.to,
-        cc: msg.headers.cc,
-        date: msg.headers.date || null,
-        internalDateMs: msg.internalDate.getTime(),
-        labels,
-        snippet: msg.computed.snippet,
-        hasAttachments: msg.attachments.length > 0,
-        attachments: msg.attachments,
-      },
-    },
-    provenance: [],
-  });
-
-  writeJsonAtomic(path.join(dir, `${messageId}.json`), {
-    messageId,
-    threadId,
-    account,
-    subject: msg.headers.subject,
-    from: msg.headers.from,
-    to: msg.headers.to,
-    cc: msg.headers.cc,
-    date: msg.headers.date || null,
-    internalDateMs: msg.internalDate.getTime(),
-    labels,
-    body: msg.body,
-    attachments: msg.attachments,
-    downloadedAt: nowIso(),
-  });
 }
 
 // ── Folder poller ─────────────────────────────────────────────────────
