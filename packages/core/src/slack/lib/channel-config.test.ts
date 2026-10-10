@@ -64,7 +64,7 @@ describe('slackConfigSchema', () => {
     expect(slackConfigSchema.parse({})).toEqual({ channels: {} });
   });
 
-  it.each(['J:/domains/x', 'J:\\domains\\x', '/srv/x', '\\\\host\\share'])(
+  it.each(['D:/content/x', 'D:\\content\\x', '/srv/x', '\\\\host\\share'])(
     'accepts the absolute homeDir %s',
     (homeDir) => {
       expect(

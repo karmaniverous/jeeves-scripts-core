@@ -3,13 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { configSchema } from './schema.js';
 
 const MINIMAL_CONFIG = {
-  instance: { name: 'test', baseDir: 'J:/' },
+  instance: { name: 'test', baseDir: '/base' },
 };
 
 describe('configSchema', () => {
   it('accepts a minimal config, deriving empty defaults', () => {
     const result = configSchema.parse(MINIMAL_CONFIG);
-    expect(result.instance).toEqual({ name: 'test', baseDir: 'J:/' });
+    expect(result.instance).toEqual({ name: 'test', baseDir: '/base' });
     expect(result.paths).toEqual({});
     expect(result.siloRouting).toEqual({ silos: {} });
     expect(result.jobs).toEqual({});
@@ -23,8 +23,8 @@ describe('configSchema', () => {
 
   it('accepts a full pipeline + siloRouting + jobs block', () => {
     const result = configSchema.parse({
-      instance: { name: 'jgs', baseDir: 'J:/' },
-      paths: { contentDir: 'J:/domains' },
+      instance: { name: 'acme', baseDir: '/base' },
+      paths: { contentDir: '/base/domains' },
       integrations: { gh: { account: 'karmaniverous' } },
       pipeline: {
         accounts: [
@@ -42,9 +42,9 @@ describe('configSchema', () => {
         },
       },
       siloRouting: {
-        defaultBasePath: 'J:/domains',
+        defaultBasePath: '/base/domains',
         silos: {
-          tcs: { basePath: 'J:/tcs' },
+          tcs: { basePath: '/base/tcs' },
         },
       },
       jobs: {
@@ -52,7 +52,7 @@ describe('configSchema', () => {
       },
     });
     expect(result.pipeline?.accounts).toHaveLength(1);
-    expect(result.siloRouting.silos.tcs?.basePath).toBe('J:/tcs');
+    expect(result.siloRouting.silos.tcs?.basePath).toBe('/base/tcs');
     expect(result.jobs['email-poll']?.enabled).toBe(true);
   });
 

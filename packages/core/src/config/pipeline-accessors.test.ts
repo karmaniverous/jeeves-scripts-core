@@ -16,7 +16,7 @@ import {
 } from './pipeline-accessors.js';
 
 const VALID_CONFIG = {
-  instance: { name: 'test', baseDir: 'J:/' },
+  instance: { name: 'test', baseDir: '/base' },
   pipeline: {
     accounts: [
       {
@@ -83,7 +83,7 @@ describe('pipeline-accessors', () => {
 
   it('throws a clear error when no pipeline block is configured', () => {
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
-      JSON.stringify({ instance: { name: 'test', baseDir: 'J:/' } }),
+      JSON.stringify({ instance: { name: 'test', baseDir: '/base' } }),
     );
     resetConfig();
     expect(() => pipeline(options)).toThrow(/no "pipeline" block/);

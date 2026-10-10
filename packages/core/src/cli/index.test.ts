@@ -31,7 +31,7 @@ describe('jeeves-scripts CLI', () => {
     const read = vi
       .spyOn(fs, 'readFileSync')
       .mockReturnValue(
-        JSON.stringify({ instance: { name: 'test', baseDir: 'J:/' } }),
+        JSON.stringify({ instance: { name: 'test', baseDir: '/base' } }),
       );
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
@@ -71,7 +71,7 @@ describe('jeeves-scripts CLI', () => {
 
   it('main accepts a file URL root, as the launcher passes it, and returns the exit code', async () => {
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
-      JSON.stringify({ instance: { name: 'test', baseDir: 'J:/' } }),
+      JSON.stringify({ instance: { name: 'test', baseDir: '/base' } }),
     );
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
