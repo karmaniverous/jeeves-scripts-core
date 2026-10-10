@@ -30,14 +30,14 @@ afterEach(() => {
 describe('accountTeams', () => {
   it('asks auth.test once per account and caches the answers', async () => {
     const teamOf = vi.fn((t: string) =>
-      Promise.resolve(t === 'xoxb-vc' ? 'Tvc' : 'Tjgs'),
+      Promise.resolve(t === 'xoxb-work' ? 'Twork' : 'Tmain'),
     );
-    const tokens = { default: 'xoxb-d', vc: 'xoxb-vc' };
+    const tokens = { default: 'xoxb-d', work: 'xoxb-work' };
     await expect(accountTeams(tokens, file, teamOf)).resolves.toEqual({
-      default: 'Tjgs',
-      vc: 'Tvc',
+      default: 'Tmain',
+      work: 'Twork',
     });
-    expect(loadAccountTeams(file)).toEqual({ default: 'Tjgs', vc: 'Tvc' });
+    expect(loadAccountTeams(file)).toEqual({ default: 'Tmain', work: 'Twork' });
     await accountTeams(tokens, file, teamOf);
     expect(teamOf).toHaveBeenCalledTimes(2);
   });
@@ -45,15 +45,15 @@ describe('accountTeams', () => {
   it('leaves out an account whose auth.test fails, and retries it next time', async () => {
     const teamOf = vi
       .fn()
-      .mockResolvedValueOnce('Tjgs')
+      .mockResolvedValueOnce('Tmain')
       .mockRejectedValueOnce(new Error('invalid_auth'));
     await expect(
-      accountTeams({ default: 'a', vc: 'b' }, file, teamOf),
-    ).resolves.toEqual({ default: 'Tjgs' });
-    teamOf.mockResolvedValueOnce('Tvc');
+      accountTeams({ default: 'a', work: 'b' }, file, teamOf),
+    ).resolves.toEqual({ default: 'Tmain' });
+    teamOf.mockResolvedValueOnce('Twork');
     await expect(
-      accountTeams({ default: 'a', vc: 'b' }, file, teamOf),
-    ).resolves.toEqual({ default: 'Tjgs', vc: 'Tvc' });
+      accountTeams({ default: 'a', work: 'b' }, file, teamOf),
+    ).resolves.toEqual({ default: 'Tmain', work: 'Twork' });
   });
 
   it('treats an unreadable cache as empty', () => {
@@ -65,15 +65,15 @@ describe('accountTeams', () => {
 
 describe('helpers', () => {
   it("the primary workspace is the default account's", () => {
-    expect(primaryTeam({ vc: 'Tvc', default: 'Tjgs' })).toBe('Tjgs');
-    expect(primaryTeam({ vc: 'Tvc' })).toBe('Tvc');
+    expect(primaryTeam({ work: 'Twork', default: 'Tmain' })).toBe('Tmain');
+    expect(primaryTeam({ work: 'Twork' })).toBe('Twork');
     expect(primaryTeam({})).toBe('');
   });
 
   it('inverts accounts to teams', () => {
-    expect(teamToAccount({ default: 'Tjgs', vc: 'Tvc' })).toEqual({
-      Tjgs: 'default',
-      Tvc: 'vc',
+    expect(teamToAccount({ default: 'Tmain', work: 'Twork' })).toEqual({
+      Tmain: 'default',
+      Twork: 'work',
     });
   });
 });

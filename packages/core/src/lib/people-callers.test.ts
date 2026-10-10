@@ -85,7 +85,7 @@ beforeAll(() => {
           emails: ['jane@example.com', 'jane.doe@example.org'],
           accounts: [
             { channel: 'slack', account: 'default', id: 'U0JANE0001' },
-            { channel: 'slack', account: 'vc', id: 'U0JANE0002' },
+            { channel: 'slack', account: 'work', id: 'U0JANE0002' },
           ],
         },
       },
@@ -132,7 +132,7 @@ describe('Slack message authors', () => {
   };
 
   it('names a listed author by person, per account', () => {
-    expect(write('U0JANE0002', 'vc')).toMatchObject({
+    expect(write('U0JANE0002', 'work')).toMatchObject({
       userName: JANE.name,
       personId: JANE.id,
     });
@@ -141,7 +141,7 @@ describe('Slack message authors', () => {
   });
 
   it('leaves unlisted authors (and listed ids in another account) as before', () => {
-    const other = write('U0OTHER', 'vc');
+    const other = write('U0OTHER', 'work');
     expect(other.userName).toBe('Other Person');
     expect(other).not.toHaveProperty('personId');
     expect(write('U0JANE0002', 'default')).not.toHaveProperty('personId');

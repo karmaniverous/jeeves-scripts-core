@@ -13,7 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   slackApi: vi.fn(),
-  slackBotTokens: vi.fn(() => ({ default: 'xoxb-d', vc: 'xoxb-vc' })),
+  slackBotTokens: vi.fn(() => ({ default: 'xoxb-d', work: 'xoxb-work' })),
   basePath: '',
 }));
 
@@ -65,7 +65,7 @@ describe('channel-token', () => {
     vi.stubEnv('SLACK_BOT_TOKEN', 'env-token');
     expect(getTokens()).toEqual({ default: 'env-token' });
     vi.stubEnv('SLACK_BOT_TOKEN', '');
-    expect(getTokens()).toEqual({ default: 'xoxb-d', vc: 'xoxb-vc' });
+    expect(getTokens()).toEqual({ default: 'xoxb-d', work: 'xoxb-work' });
   });
 
   it('getTeamId returns auth.test team_id and rejects a missing one', async () => {
@@ -78,44 +78,44 @@ describe('channel-token', () => {
     );
   });
 
-  const tokens = { default: 'xoxb-d', vc: 'xoxb-vc' };
-  const teams = { default: 'Tjgs', vc: 'Tvc' };
+  const tokens = { default: 'xoxb-d', work: 'xoxb-work' };
+  const teams = { default: 'Tmain', work: 'Twork' };
 
   it('uses the tagged account first', async () => {
     await expect(
-      resolveChannelToken('C1', channel({ _account: 'vc' }), tokens, {}),
-    ).resolves.toBe('xoxb-vc');
+      resolveChannelToken('C1', channel({ _account: 'work' }), tokens, {}),
+    ).resolves.toBe('xoxb-work');
     expect(mocks.slackApi).not.toHaveBeenCalled();
   });
 
   it('then a known sharedTeams workspace, tagging the channel', async () => {
-    const info = channel({ sharedTeams: ['Tx', 'Tvc'] });
+    const info = channel({ sharedTeams: ['Tx', 'Twork'] });
     await expect(resolveChannelToken('C1', info, tokens, teams)).resolves.toBe(
-      'xoxb-vc',
+      'xoxb-work',
     );
-    expect(info._account).toBe('vc');
+    expect(info._account).toBe('work');
   });
 
   it("then the account of the channel's workspace, looked up with the first token", async () => {
     mocks.slackApi.mockResolvedValueOnce({
-      channel: { shared_team_ids: ['Tvc'] },
+      channel: { shared_team_ids: ['Twork'] },
     });
     const info = channel();
     await expect(resolveChannelToken('C1', info, tokens, teams)).resolves.toBe(
-      'xoxb-vc',
+      'xoxb-work',
     );
     expect(mocks.slackApi).toHaveBeenCalledWith(
       'conversations.info',
       { channel: 'C1' },
       'xoxb-d',
     );
-    expect(info).toMatchObject({ _account: 'vc', teamId: 'Tvc' });
+    expect(info).toMatchObject({ _account: 'work', teamId: 'Twork' });
   });
 
   it('uses a cached workspace without asking Slack', async () => {
-    const info = channel({ teamId: 'Tvc' });
+    const info = channel({ teamId: 'Twork' });
     await expect(resolveChannelToken('C1', info, tokens, teams)).resolves.toBe(
-      'xoxb-vc',
+      'xoxb-work',
     );
     expect(mocks.slackApi).not.toHaveBeenCalled();
   });
@@ -126,7 +126,7 @@ describe('channel-token', () => {
     await expect(resolveChannelToken('C1', info, tokens, teams)).resolves.toBe(
       'xoxb-d',
     );
-    expect(info).toMatchObject({ _account: 'default', teamId: 'Tjgs' });
+    expect(info).toMatchObject({ _account: 'default', teamId: 'Tmain' });
   });
 
   it('throws when there is no token at all', async () => {
@@ -259,23 +259,29 @@ describe('channel-workspace', () => {
 
   it("gives channels without shared teams, and unreadable ones, the reading account's workspace", async () => {
     mocks.slackApi.mockResolvedValueOnce({
-      channel: { context_team_id: 'Tvc' },
+      channel: { context_team_id: 'Twork' },
     });
-    await expect(queryChannelTeam('D1', 't', 'Tp', 'Tvc')).resolves.toBe('Tvc');
+    await expect(queryChannelTeam('D1', 't', 'Tp', 'Twork')).resolves.toBe(
+      'Twork',
+    );
     mocks.slackApi.mockRejectedValueOnce(new Error('channel_not_found'));
-    await expect(queryChannelTeam('C1', 't', 'Tp', 'Tvc')).resolves.toBe('Tvc');
+    await expect(queryChannelTeam('C1', 't', 'Tp', 'Twork')).resolves.toBe(
+      'Twork',
+    );
     // Shared channels keep the old rule.
     mocks.slackApi.mockResolvedValueOnce({
-      channel: { shared_team_ids: ['Tvc', 'Tp'] },
+      channel: { shared_team_ids: ['Twork', 'Tp'] },
     });
-    await expect(queryChannelTeam('C2', 't', 'Tp', 'Tvc')).resolves.toBe('Tp');
+    await expect(queryChannelTeam('C2', 't', 'Tp', 'Twork')).resolves.toBe(
+      'Tp',
+    );
   });
 
   it("puts a DM in its reading account's workspace, without Slack and over a cached value", async () => {
-    const teams = { default: 'Tp', vc: 'Tvc' };
-    const dm = channel({ type: 'dm', _account: 'vc', teamId: 'Tp' });
-    await expect(channelTeamId('D1', dm, 't', teams)).resolves.toBe('Tvc');
-    expect(dm.teamId).toBe('Tvc');
+    const teams = { default: 'Tp', work: 'Twork' };
+    const dm = channel({ type: 'dm', _account: 'work', teamId: 'Tp' });
+    await expect(channelTeamId('D1', dm, 't', teams)).resolves.toBe('Twork');
+    expect(dm.teamId).toBe('Twork');
     const mpim = channel({ type: 'mpim' });
     await expect(channelTeamId('G1', mpim, 't', teams)).resolves.toBe('Tp');
     expect(mocks.slackApi).not.toHaveBeenCalled();

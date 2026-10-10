@@ -41,13 +41,13 @@ describe('helpers', () => {
 
   it('reads the real name and lowercases the email', () => {
     expect(
-      seedUser('vc', {
+      seedUser('work', {
         id: 'U1',
         name: 'jw',
         profile: { real_name: ' Jane D ', email: 'J@X.com' },
       }),
     ).toEqual({
-      account: 'vc',
+      account: 'work',
       id: 'U1',
       handle: 'jw',
       realName: 'Jane D',
@@ -66,8 +66,8 @@ describe('proposePeople', () => {
   it('groups by email across workspaces, with certainty', () => {
     const p = proposePeople([
       u('default', 'U0JANE0001', 'Jane Doe', 'jane@example.com'),
-      u('vc', 'U0VC1', 'Jane Doe', 'jane@example.com'),
-      u('vc', 'U0VC2', 'Solo Person', 'solo@x.com'),
+      u('work', 'U0WK1', 'Jane Doe', 'jane@example.com'),
+      u('work', 'U0WK2', 'Solo Person', 'solo@x.com'),
     ]);
     expect(p.people).toEqual({
       'jane-doe': {
@@ -75,7 +75,7 @@ describe('proposePeople', () => {
         emails: ['jane@example.com'],
         accounts: [
           { channel: 'slack', account: 'default', id: 'U0JANE0001' },
-          { channel: 'slack', account: 'vc', id: 'U0VC1' },
+          { channel: 'slack', account: 'work', id: 'U0WK1' },
         ],
       },
     });
@@ -84,7 +84,7 @@ describe('proposePeople', () => {
       usersRead: 3,
       proposedPeople: 1,
       multiAccountPeople: 1,
-      accounts: { default: 1, vc: 2 },
+      accounts: { default: 1, work: 2 },
     });
     expect(peopleSchema.safeParse(p.people).success).toBe(true);
   });
@@ -92,7 +92,7 @@ describe('proposePeople', () => {
   it('groups by real name across workspaces, as uncertain', () => {
     const p = proposePeople([
       u('default', 'U1', 'Jane Doe', 'jane@example.com'),
-      u('vc', 'U2', 'jane  doe', 'jane.doe@example.org'),
+      u('work', 'U2', 'jane  doe', 'jane.doe@example.org'),
     ]);
     expect(p.people['jane-doe']?.emails).toEqual([
       'jane@example.com',
@@ -111,7 +111,7 @@ describe('proposePeople', () => {
     const p = proposePeople([
       u('default', 'U1', 'Alex Smith'),
       u('default', 'U2', 'Alex Smith'),
-      u('vc', 'U3', 'Alex Smith'),
+      u('work', 'U3', 'Alex Smith'),
     ]);
     expect(p.people).toEqual({});
     expect(p.uncertain[0]?.reason).toContain('shared by more than one user');
@@ -119,8 +119,8 @@ describe('proposePeople', () => {
 
   it('flags one email on two users of the same workspace', () => {
     const p = proposePeople([
-      u('vc', 'U1', 'Ops', 'ops@x.com'),
-      u('vc', 'U2', 'Ops Two', 'ops@x.com'),
+      u('work', 'U1', 'Ops', 'ops@x.com'),
+      u('work', 'U2', 'Ops Two', 'ops@x.com'),
     ]);
     expect(Object.keys(p.people)).toEqual(['ops']);
     expect(p.uncertain[0]?.reason).toContain('same workspace');
@@ -131,8 +131,8 @@ describe('proposePeople', () => {
     const p = proposePeople(
       [
         u('default', 'U1', 'Sam'),
-        u('vc', 'U2', 'Sam Two'),
-        u('vc', 'U3', 'Sam'),
+        u('work', 'U2', 'Sam Two'),
+        u('work', 'U3', 'Sam'),
       ],
       { all: true },
     );
@@ -159,14 +159,14 @@ describe('proposeFromSlack', () => {
     };
     const list = vi.fn((token: string) => Promise.resolve(lists[token] ?? []));
     const p = await proposeFromSlack({
-      tokens: { default: 'xoxb-a', vc: 'xoxb-b' },
+      tokens: { default: 'xoxb-a', work: 'xoxb-b' },
       list,
     });
     expect(list).toHaveBeenCalledTimes(2);
     expect(p.summary.usersRead).toBe(2);
     expect(p.people['j-w']?.accounts).toEqual([
       { channel: 'slack', account: 'default', id: 'U1' },
-      { channel: 'slack', account: 'vc', id: 'U9' },
+      { channel: 'slack', account: 'work', id: 'U9' },
     ]);
   });
 });

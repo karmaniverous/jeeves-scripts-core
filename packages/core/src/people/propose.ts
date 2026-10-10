@@ -15,7 +15,7 @@ import { fetchUsers, type SlackApiUser } from '../slack/lib/slack-api.js';
 
 /** One Slack user in one workspace. */
 export interface SeedUser {
-  /** Gateway Slack account (`default`, `vc`, ...). */
+  /** Gateway Slack account (`default`, `work`, ...). */
   account: string;
   id: string;
   handle: string;

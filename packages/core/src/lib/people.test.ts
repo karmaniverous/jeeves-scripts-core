@@ -20,12 +20,12 @@ const people: People = peopleSchema.parse({
     emails: ['jane@example.com', 'Jane.Doe@Example.org'],
     accounts: [
       { channel: 'slack', account: 'default', id: 'U0JANE0001' },
-      { channel: 'slack', account: 'vc', id: 'U0JANE0002' },
+      { channel: 'slack', account: 'work', id: 'U0JANE0002' },
     ],
   },
   'ann-bee': {
     name: 'Ann Bee',
-    accounts: [{ channel: 'slack', account: 'vc', id: 'U0ANN' }],
+    accounts: [{ channel: 'slack', account: 'work', id: 'U0ANN' }],
   },
   shared: {
     name: 'Shared Id',
@@ -52,16 +52,16 @@ describe('peopleSchema', () => {
     const r = peopleSchema.safeParse({
       a: {
         name: 'A',
-        accounts: [{ channel: 'slack', account: 'vc', id: 'U1' }],
+        accounts: [{ channel: 'slack', account: 'work', id: 'U1' }],
       },
       b: {
         name: 'B',
-        accounts: [{ channel: 'slack', account: 'vc', id: 'U1' }],
+        accounts: [{ channel: 'slack', account: 'work', id: 'U1' }],
       },
     });
     expect(r.success).toBe(false);
     expect(r.error?.issues[0]).toMatchObject({
-      message: 'account slack/vc/U1 belongs to both "a" and "b"',
+      message: 'account slack/work/U1 belongs to both "a" and "b"',
       path: ['b', 'accounts', 0],
     });
   });
@@ -93,16 +93,18 @@ describe('peopleSchema', () => {
 
 describe('resolver', () => {
   it('resolves an account to its person', () => {
-    expect(personForAccount('slack', 'vc', 'U0JANE0002', people)).toMatchObject(
-      {
-        id: 'jane-doe',
-        name: 'Jane Doe',
-      },
-    );
+    expect(
+      personForAccount('slack', 'work', 'U0JANE0002', people),
+    ).toMatchObject({
+      id: 'jane-doe',
+      name: 'Jane Doe',
+    });
     expect(
       personForAccount('slack', 'default', 'U0ANN', people),
     ).toBeUndefined();
-    expect(personForAccount('telegram', 'vc', 'U0ANN', people)).toBeUndefined();
+    expect(
+      personForAccount('telegram', 'work', 'U0ANN', people),
+    ).toBeUndefined();
   });
 
   it('resolves a channel id across accounts only when unambiguous', () => {

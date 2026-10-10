@@ -28,12 +28,12 @@ beforeEach(() => {
     path.join(root, 'jobs', 'a.json'),
     JSON.stringify([
       { id: 'core-job', script: 'src/email/poll.ts' },
-      { id: 'local-job', script: 'src/vc/local.ts' },
+      { id: 'local-job', script: 'src/acme/local.ts' },
       { id: 'missing-job', script: 'src/nowhere/gone.ts', enabled: false },
     ]),
   );
   write(path.join(root, 'jobs', 'notes.txt'), 'ignored');
-  write(path.join(root, 'src', 'vc', 'local.ts'), 'export {};\n');
+  write(path.join(root, 'src', 'acme', 'local.ts'), 'export {};\n');
   write(
     path.join(dist, 'email', 'poll.js'),
     'globalThis.__jscRunArgv = process.argv.slice(2);\n',
@@ -86,7 +86,7 @@ describe('resolveJob', () => {
   it('prefers the instance script at the job path', () => {
     const r = resolveJob(root, 'local-job', dist);
     expect(r.kind).toBe('instance');
-    expect(r.file).toBe(path.join(root, 'src', 'vc', 'local.ts'));
+    expect(r.file).toBe(path.join(root, 'src', 'acme', 'local.ts'));
   });
 
   it("falls back to core's built module for the same path", () => {
@@ -119,7 +119,7 @@ describe('runJob', () => {
 
     expect(await runJob(root, 'local-job', ['--live'], dist)).toBe(3);
 
-    const file = path.join(root, 'src', 'vc', 'local.ts');
+    const file = path.join(root, 'src', 'acme', 'local.ts');
     expect(spawnSync).toHaveBeenCalledWith(
       process.execPath,
       ['--import', 'tsx', file, '--live'],

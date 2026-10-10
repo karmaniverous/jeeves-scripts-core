@@ -93,12 +93,12 @@ describe('slackBotTokens / slackBotToken', () => {
       channels: {
         slack: {
           botToken: 'flat',
-          accounts: { default: { botToken: 'a' }, vc: { botToken: 'b' } },
+          accounts: { default: { botToken: 'a' }, work: { botToken: 'b' } },
         },
       },
     });
-    expect(slackBotTokens([primary])).toEqual({ default: 'a', vc: 'b' });
-    expect(slackBotToken('vc', [primary])).toBe('b');
+    expect(slackBotTokens([primary])).toEqual({ default: 'a', work: 'b' });
+    expect(slackBotToken('work', [primary])).toBe('b');
   });
 
   it('falls back to the flat token as the default account', () => {
@@ -117,8 +117,8 @@ describe('slackBotTokens / slackBotToken', () => {
       'No Slack bot token found in OpenClaw config',
     );
     write(primary, { channels: { slack: { botToken: 'flat' } } });
-    expect(() => slackBotToken('vc', [primary])).toThrow(
-      'No Slack bot token for account "vc"',
+    expect(() => slackBotToken('work', [primary])).toThrow(
+      'No Slack bot token for account "work"',
     );
   });
 });

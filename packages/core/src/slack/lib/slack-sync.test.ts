@@ -78,7 +78,7 @@ describe('mergeDiscovered', () => {
         type: 'channel',
         isSlackConnect: true,
         participants: ['U1'],
-        _account: 'vc',
+        _account: 'work',
         _autoDiscovered: 'then',
       },
     };
@@ -100,7 +100,7 @@ describe('mergeDiscovered', () => {
       isPrivate: false,
       isArchived: false,
       participants: ['U1'],
-      _account: 'vc',
+      _account: 'work',
       _autoDiscovered: 'then',
     });
     expect(channels.C2).toMatchObject({

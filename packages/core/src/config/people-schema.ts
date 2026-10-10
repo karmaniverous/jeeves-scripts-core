@@ -17,11 +17,11 @@ export const personIdSchema = z
     'expected a lowercase slug like jane-doe',
   );
 
-/** One account of a person on a channel (`slack` / `vc` / `U0123`). */
+/** One account of a person on a channel (`slack` / `work` / `U0123`). */
 export const personAccountSchema = z.strictObject({
   /** Channel kind, as OpenClaw names it: `slack`, `telegram`, ... */
   channel: z.string().min(1),
-  /** The channel account (gateway account id): `default`, `vc`, ... */
+  /** The channel account (gateway account id): `default`, `work`, ... */
   account: z.string().min(1),
   /** The person's id on that account (Slack user id, ...). */
   id: z.string().min(1),
