@@ -29,7 +29,7 @@ flowchart LR
 - Writes one JSON file per message, `{silo}/slack/{channelName} ({channelId})/{ts}.json`; a message whose file already exists is not rewritten.
 - Handles channel renames by detecting the directory ending in `({channelId})` under another name and renaming it.
 - Resolves workspace routing via `getBasePathForSlackWorkspace()` for multi-workspace setups.
-- Names message authors (`userName`: real name, else handle) from the Slack user cache, re-read from `users.list` when more than a day old.
+- Names message authors (`userName`: real name, else handle) from the Slack user cache, re-read from `users.list` when more than a day old. An author listed in `people` (`slack` / the channel's `_account`, `default` when unset / user id; [config.md](./config.md#people)) gets the configured name as `userName` and a `personId` field instead; unlisted authors have no `personId`.
 
 ## Read Positions (State)
 

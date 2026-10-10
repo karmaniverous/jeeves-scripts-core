@@ -13,6 +13,7 @@ The scripts repo (`{scriptsDir}`) is a thin instance repo. The shared behaviour 
 - **`jeeves-scripts.json`:** every setting of this instance, and nothing else (see [config.md](../../guides/config.md)). State goes to the runner store or the state folder, secrets to the credentials folder; another component's settings are read from that component's own config, never copied here.
 - **`jobs/*.json`:** this instance's job manifest (ids, schedules, the module each job runs).
 - **`src/` + `jeeves-scripts.plugin.ts`:** instance-only code. Shared behaviour belongs in core, not here.
+- **Who someone is** comes from `people` in `jeeves-scripts.json` ([config.md](../../guides/config.md#people)); draft it with `people propose`.
 
 ## Running jobs
 

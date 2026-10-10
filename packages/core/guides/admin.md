@@ -101,7 +101,7 @@ All three entries in the template manifest `jobs/admin.json` (carried in the ins
 | `lib/bucket-maintenance.ts` | Bucket backup (`.backup-<ts>.json`, never overwritten) and deletion for rebuilds |
 | `lib/claude-code-session-scan.ts` | Claude Code usage scan with byte cursors (stop at the open hour); `countedOnly` for bounded rebuilds |
 | `lib/jsonl-cursor.ts` | Byte-span line walking and the resume-offset rule shared by both session scanners: resume at the first open-hour record, else after the last complete line (an unterminated last line only once it parsed) |
-| `lib/dm-names.ts` / `lib/dm-name-sources.ts` | Name `slack:dm:<USERID>` channels via cache → Slack user map → gateway `member-info` |
+| `lib/dm-names.ts` / `lib/dm-name-sources.ts` | Name `slack:dm:<USERID>` channels via the `people` config (configured name when one person owns the id, never cached; [config.md](./config.md#people)) → cache → Slack user map → gateway `member-info` |
 | `lib/openclaw-db/schema-v23-payloads.ts` | Schema-23 payload decoding and integrity checks (hot rows, cold and deleted/reset archives) |
 | `lib/claude-code-scanner.ts` | Scans Claude Code session JSONL files for Anthropic usage records |
 | `lib/also-allow-policy.ts` | Pure detection (upstream-fixed / legacy) and legacy patch for `hasRestrictiveAllowPolicy` |

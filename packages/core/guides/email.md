@@ -207,3 +207,5 @@ Gmail polling via the `gog` CLI (OAuth client or service-account mailboxes). Han
 ## Output Format
 
 Both transports produce identical on-disk output — `thread.json` (ThreadCache) + `{messageId}.json` per thread directory at `{siloBase}/email/threads/{account}/{threadId}/`.
+
+People: when a sender or recipient is in the `people` config ([config.md](./config.md#people)), IMAP message files and Gmail `message` events gain `fromPerson` (`{ id, name }`, for the sender) and `people` (every listed party). Messages with no listed party carry neither field.

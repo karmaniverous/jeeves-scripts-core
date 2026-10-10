@@ -25,6 +25,7 @@ The package `bin` (`npx jeeves-scripts ...`, from the instance repo) does the sa
 | --- | --- |
 | `run <job-id> [args...]` | Run a job by id (below). Options after the job id are passed to the job unchanged. |
 | `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
+| `people propose [--all] [--out <file>]` | Read-only: reads `users.list` for every gateway Slack bot account (`slackBotTokens`), skips bots, deactivated users and Slackbot, groups users across workspaces by email (case-insensitive) and real name, and prints `{ summary, people, uncertain }`: a proposed `people` block ([config.md](./config.md#people)) of people with more than one account (`--all`: everyone) and the matches to check by hand (grouped by name only; a name shared inside one workspace; one email on two users of a workspace). Never writes config; `--out` writes the same JSON (UTF-8) to a file and refuses `jeeves-scripts.json`. |
 
 `main()` resolves to the exit code and never calls `process.exit` itself.
 

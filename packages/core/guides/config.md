@@ -58,6 +58,7 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
 | `pipeline` | `pipelineSchema` | Optional. `accounts[]` (mail and calendar), `buckets` (`domains[]`, `priority[]`), `refs` (dotted key → string: Slack ids, Notion ids, time zones), `emailConfig`, `googleDrive`. |
 | `siloRouting` | `siloRoutingSchema` | `defaultBasePath` (default: `paths().contentDir`) and named `silos.<name>`: `basePath`, `emailDomains`, `githubOrgs`, `slackWorkspaces`, `jira`, `linear`. |
 | `slack` | `slackConfigSchema` | `channels.<channelId>`: `project`, `homeDir` (absolute path). What this instance decides about a channel; see [Slack channels](#slack-channels). |
+| `people` | `peopleSchema` | `<personId>` (slug): `name`, `emails?`, `accounts?: { channel, account, id }[]`. Which accounts and addresses belong to one person; see [People](#people). |
 | `jobs` | `jobsSchema` | Per-job deltas by job id: `enabled`, `schedule`, `env`, `args`, `timeout_seconds`, `silo`, `taskFile`. Today `silo` and `taskFile` are read by the task-file dispatcher (see [dispatchers](./dispatchers.md)) and `silo` is checked by `config check`; the rest are validated and wait for the job registry (Decision 32). |
 | `extensions` | `extensionsSchema` | Named seam → `local:<module>` (reserved for the extension-point registry). |
 
@@ -66,6 +67,29 @@ Every schema is exported (Zod 4), with its `z.infer` type (`Config`, `PathsConfi
 ### Slack channels
 
 `slack.channels` maps a Slack channel id to what this instance decides about it: `project` (tags the channel's indexed messages) and `homeDir` (the channel's home directory; must be an absolute path). It is the only place those decisions live; channel names, types, members and user details come from Slack and are cached in `{stateDir}/slack` (state, not config). See [slack.md](./slack.md#channel-config).
+
+### People
+
+`people` says which accounts and email addresses belong to one person, which is a decision we make, so it is config:
+
+```json
+"people": {
+  "jason-williscroft": {
+    "name": "Jason Williscroft",
+    "emails": ["jason@johngalt.id", "jason.williscroft@veterancrowd.com"],
+    "accounts": [
+      { "channel": "slack", "account": "default", "id": "U0AB7J9RCHF" },
+      { "channel": "slack", "account": "vc", "id": "U0123VCID" }
+    ]
+  }
+}
+```
+
+- The key is a lowercase slug. `channel` is the channel kind (`slack`, later `telegram`, ...), `account` the gateway's account id for it, `id` the person's id there.
+- No account (`channel` + `account` + `id`) and no email (compared case-insensitively) may belong to two people; `config check` reports the clash.
+- Code resolves with `lib/people`: `personForAccount(channel, account, id)`, `personForEmail(email)` (accepts `Name <addr>`), `personForChannelId(channel, id)` (the one owner of an id across accounts), `peopleForEmails`, `emailPeopleFields`. Unlisted accounts and addresses resolve to `undefined`.
+- Where it is used: Slack message authors ([slack.md](./slack.md)), token-metrics DM names ([admin.md](./admin.md)), meeting packages ([meetings.md](./meetings.md)), email messages ([email.md](./email.md#output-format)) and calendar events ([calendar.md](./calendar.md)). A listed person gets the configured `name` and their person id; anyone unlisted is recorded as before.
+- Facts about each account (name, email, bot flag) still come from the channel, e.g. the Slack cache. To draft the block, run `jeeves-scripts people propose` ([cli.md](./cli.md)), check it, and copy what is right.
 
 ### Other components' settings
 

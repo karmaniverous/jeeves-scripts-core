@@ -19,6 +19,8 @@ What we decide about a channel lives in one place: `slack.channels.<channelId>` 
 
 Channel names, types, privacy, archive state and members, and user names, emails and bot flags, are read from Slack with the bot tokens and cached in the state folder ([Slack Cache](../../guides/slack.md#slack-cache-state)). Never hand-edit the cache or copy those facts into config; a missing cache is rebuilt by the next poll.
 
+Who a Slack user is across workspaces (and other channels) is `people` in `jeeves-scripts.json` ([config.md](../../guides/config.md#people)): a listed author is named by it, everyone else by Slack.
+
 ## Operator rules
 
 - The bot must be a member of a channel for it to be archived.

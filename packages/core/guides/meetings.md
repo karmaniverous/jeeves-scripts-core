@@ -30,7 +30,7 @@ flowchart TD
 
 Each meeting lives in a directory under `{silo}/meetings/{meetingId}/`:
 
-- `meeting.json` — canonical metadata (Zod-validated via `meeting-schema.ts`)
+- `meeting.json` — canonical metadata (Zod-validated via `meeting-schema.ts`). `participants` holds email addresses (they derive the meeting id); `people` lists the participants who are in the `people` config as `{ id, name }` ([config.md](./config.md#people)) and is absent when none are
 - `transcript.txt` — extracted transcript (from Gemini, Fathom, or Notion)
 - `summary.txt` — meeting summary (from Fathom or Notion)
 - `gemini_link.txt` — Google Meet Gemini doc URL
