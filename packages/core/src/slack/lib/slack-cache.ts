@@ -39,6 +39,7 @@ const channelInfoSchema = z.looseObject({
   participantsAt: z.string().optional(),
   _autoDiscovered: z.string().optional(),
   _account: z.string().optional(),
+  teamId: z.string().optional(),
 });
 
 /** A cached Slack user. */

@@ -4,7 +4,7 @@
  * The single `jeeves-scripts.json` schema (Decision 3, Decision 19):
  * instance settings (the template's constants), `paths` overrides,
  * `integrations`, `pipeline` (the template's `pipeline-config.json`, same keys),
- * `siloRouting` (the template's `silo-routing.json`), `jobs` deltas and
+ * `siloRouting` (silo routing), `jobs` deltas and
  * `extensions`.
  *
  * Rejects any literal secret value anywhere in the raw tree (Decision

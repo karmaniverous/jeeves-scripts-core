@@ -23,4 +23,6 @@ export interface ChannelInfo {
   _autoDiscovered?: string;
   /** Gateway Slack account whose token reads the channel. */
   _account?: string;
+  /** The channel's workspace (team id), for silo routing; see channel-workspace. */
+  teamId?: string;
 }

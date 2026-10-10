@@ -7,8 +7,9 @@
  * Called by jeeves-runner on a schedule. Discovers the channels each bot
  * can read, fetches history and thread replies via the Slack API, and
  * writes individual JSON files per message to silo-routed directories.
- * Depends on constants().PRIMARY_WORKSPACE, constants().SLACK_DOMAIN_DIR, and
- * constants().SLACK_WORKSPACE_CACHE_PATH from constants for workspace routing.
+ * Depends on constants().PRIMARY_WORKSPACE and constants().SLACK_DOMAIN_DIR;
+ * a channel's workspace (for routing) is cached on its Slack cache entry
+ * (lib/channel-workspace).
  *
  * Channel and user facts come from Slack and are cached in the state
  * folder (lib/slack-cache, refreshed by lib/slack-sync). Read positions
@@ -19,7 +20,7 @@
 
 import fs from 'node:fs';
 
-import { runScript, saveCache } from '@karmaniverous/jeeves';
+import { runScript } from '@karmaniverous/jeeves';
 import {
   getRunnerClient,
   type RunnerClient,
@@ -60,11 +61,7 @@ async function pollChannel(
   userMap: Record<string, string>,
   cursors: Cursors,
 ): Promise<number> {
-  const channelDir = await resolveChannelDir(
-    channelId,
-    channelInfo.name,
-    token,
-  );
+  const channelDir = await resolveChannelDir(channelId, channelInfo, token);
   const oldest = cursors[channelId] ?? '0';
 
   const { messages, newestTs } = await fetchHistory(channelId, oldest, token);
@@ -165,10 +162,8 @@ async function pollAll(client: RunnerClient): Promise<void> {
     }
   }
 
-  // Persist the channel cache (accounts and members learned), then the
-  // workspace cache.
+  // Persist the channel cache (accounts, workspaces and members learned).
   saveChannelCache(channels);
-  saveCache();
 
   if (totalWritten > 0) {
     console.log(`Total: ${String(totalWritten)} new messages`);

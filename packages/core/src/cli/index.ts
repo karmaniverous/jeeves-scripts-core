@@ -18,7 +18,14 @@ import { fileURLToPath } from 'node:url';
 import { Command } from '@commander-js/extra-typings';
 
 import { configCheck } from '../config/check.js';
+import { loadConfig } from '../config/loader.js';
 import { proposeFromSlack } from '../people/propose.js';
+import { readJsonFile, seedChannelCache } from '../slack/lib/cache-seed.js';
+import {
+  channelCacheFile,
+  loadChannelCache,
+  saveChannelCache,
+} from '../slack/lib/slack-cache.js';
 import { runJob } from './run.js';
 
 /** Options for {@link buildProgram} and {@link main}. */
@@ -96,6 +103,35 @@ const buildPeopleCommand = () => {
   return people;
 };
 
+const buildSlackCommand = (root: string) => {
+  const slack = new Command('slack').description('Slack pipeline maintenance.');
+  slack
+    .command('seed-cache')
+    .description(
+      "One-time switchover: carry each channel's account and workspace from the old channels.json and slack-channel-workspaces.json into the Slack cache ({stateDir}/slack/channels.json). Never overwrites cached values; reads the old files only.",
+    )
+    .requiredOption('--channels <file>', 'the old committed channels.json')
+    .requiredOption(
+      '--workspaces <file>',
+      'the old slack-channel-workspaces.json',
+    )
+    .option('--dry-run', 'report what would change without writing')
+    .action((options) => {
+      loadConfig({ root });
+      const cache = loadChannelCache();
+      const result = seedChannelCache(
+        cache,
+        readJsonFile(options.channels),
+        readJsonFile(options.workspaces),
+      );
+      if (!options.dryRun) saveChannelCache(cache);
+      process.stdout.write(
+        `${JSON.stringify({ ...result, file: channelCacheFile(), written: !options.dryRun })}\n`,
+      );
+    });
+  return slack;
+};
+
 /** Build the `jeeves-scripts` program for an instance repo root. */
 export const buildProgram = (options: CliOptions) => {
   const root = resolveRoot(options.root);
@@ -104,7 +140,8 @@ export const buildProgram = (options: CliOptions) => {
     .enablePositionalOptions()
     .addCommand(buildConfigCommand(root))
     .addCommand(buildRunCommand(root))
-    .addCommand(buildPeopleCommand());
+    .addCommand(buildPeopleCommand())
+    .addCommand(buildSlackCommand(root));
 };
 
 /**

@@ -117,10 +117,6 @@ const derive = () => {
     DEFAULT_MEETINGS_DIR: path.join(p.contentDir, 'meetings'),
     SLACK_DOMAIN_DIR: path.join(p.contentDir, 'slack'),
     PRIMARY_WORKSPACE: i.slack.primaryWorkspace,
-    SLACK_WORKSPACE_CACHE_PATH: path.join(
-      p.configDir,
-      'slack-channel-workspaces.json',
-    ),
     NOTION_VERSION: i.notion.version,
     NOTION_API_KEY_PATH: path.join(p.credentialsDir, 'notion-api-key'),
     X_OAUTH_DIR: path.join(p.credentialsDir, 'oauth'),

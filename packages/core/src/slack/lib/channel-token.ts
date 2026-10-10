@@ -3,16 +3,15 @@
  *
  * Which gateway Slack account's bot token reads a channel, for slack/poll:
  * the account tagged on the channel, else a workspace in its
- * `sharedTeams`, else the first token whose workspace lookup succeeds,
- * else the default token. Tags the resolved account on the channel entry
- * (`_account`) so later runs skip the lookup.
+ * `sharedTeams`, else the account of the channel's workspace
+ * (channel-workspace, looked up with the first token), else that first
+ * token. Tags the resolved account on the channel entry (`_account`) so
+ * later runs skip the lookup.
  */
 
-import { getChannelWorkspace } from '@karmaniverous/jeeves';
-
-import { constants } from '../../lib/constants.js';
 import { slackBotTokens } from '../../lib/openclaw-config.js';
 import type { ChannelInfo } from './channel-info.js';
+import { channelTeamId } from './channel-workspace.js';
 import { RATE_LIMIT_MS, slackApi, sleep } from './slack-api.js';
 
 /** Bot tokens by gateway Slack account: `SLACK_BOT_TOKEN` as `default`, else the OpenClaw config. */
@@ -62,43 +61,16 @@ export async function resolveChannelToken(
     }
   }
 
-  // 3. Try getChannelWorkspace with each token until one resolves
-  let lastError: unknown;
-  for (const [account, token] of Object.entries(tokensByAccount)) {
-    try {
-      await sleep(RATE_LIMIT_MS);
-      const teamId = await getChannelWorkspace(channelId, token, {
-        cachePath: constants().SLACK_WORKSPACE_CACHE_PATH,
-        defaultWorkspace: constants().PRIMARY_WORKSPACE,
-      });
-      const resolvedAccount = teamToAccount[teamId] ?? account;
-      channelInfo._account = resolvedAccount;
-      return tokensByAccount[resolvedAccount] ?? token;
-    } catch (err) {
-      lastError = err;
-      const msg = err instanceof Error ? err.message : String(err);
-      if (!/not_in_channel|channel_not_found|missing_scope/i.test(msg)) {
-        console.error(
-          `Unexpected error resolving channel ${channelId} with account "${account}": ${msg}`,
-        );
-      }
-      continue;
-    }
-  }
-
-  if (lastError instanceof Error) {
-    console.error(
-      `Could not resolve token for channel ${channelId}, falling back. Last error: ${lastError.message}`,
-    );
-  } else if (lastError) {
-    console.error(
-      `Could not resolve token for channel ${channelId}, falling back.`,
-    );
-  }
-
-  // 4. Fallback to default or first available token
-  const fallback = tokensByAccount.default ?? Object.values(tokensByAccount)[0];
-  if (fallback === undefined)
+  // 3. The account of the channel's workspace, looked up with the first
+  // token. The lookup never fails (an unreadable channel belongs to the
+  // primary workspace), so this is the last step whenever a token exists.
+  const first = Object.entries(tokensByAccount)[0];
+  if (first === undefined)
     throw new Error(`No Slack token available for channel ${channelId}.`);
-  return fallback;
+  const [account, token] = first;
+  if (!channelInfo.teamId) await sleep(RATE_LIMIT_MS);
+  const teamId = await channelTeamId(channelId, channelInfo, token);
+  const resolvedAccount = teamToAccount[teamId] ?? account;
+  channelInfo._account = resolvedAccount;
+  return tokensByAccount[resolvedAccount] ?? token;
 }

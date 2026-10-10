@@ -1,8 +1,8 @@
 /**
  * Tests for the modules split out of slack/poll: token resolution
  * (channel-token), file text inlining (file-content), message files
- * (message-writer) and channel directories (channel-dir). Slack, the
- * workspace lookup and silo routing are mocked.
+ * (message-writer), channel workspaces (channel-workspace) and channel
+ * directories (channel-dir). Slack and silo routing are mocked.
  */
 
 import fs from 'node:fs';
@@ -13,7 +13,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   slackApi: vi.fn(),
-  getChannelWorkspace: vi.fn(),
   slackBotTokens: vi.fn(() => ({ default: 'xoxb-d', vc: 'xoxb-vc' })),
   basePath: '',
 }));
@@ -22,9 +21,6 @@ vi.mock('./slack-api.js', () => ({
   RATE_LIMIT_MS: 0,
   sleep: () => Promise.resolve(),
   slackApi: mocks.slackApi,
-}));
-vi.mock('@karmaniverous/jeeves', () => ({
-  getChannelWorkspace: mocks.getChannelWorkspace,
 }));
 vi.mock('../../lib/openclaw-config.js', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -39,6 +35,9 @@ const { getTeamId, getTokens, resolveChannelToken } =
 const { enrichFileContent } = await import('./file-content.js');
 const { writeMessage } = await import('./message-writer.js');
 const { resolveChannelDir } = await import('./channel-dir.js');
+const { channelTeamId, queryChannelTeam } =
+  await import('./channel-workspace.js');
+const { constants } = await import('../../lib/constants.js');
 import type { ChannelInfo } from './channel-info.js';
 import type { SlackMessage } from './slack-api.js';
 
@@ -86,7 +85,7 @@ describe('channel-token', () => {
     await expect(
       resolveChannelToken('C1', channel({ _account: 'vc' }), tokens, {}),
     ).resolves.toBe('xoxb-vc');
-    expect(mocks.getChannelWorkspace).not.toHaveBeenCalled();
+    expect(mocks.slackApi).not.toHaveBeenCalled();
   });
 
   it('then a known sharedTeams workspace, tagging the channel', async () => {
@@ -97,22 +96,40 @@ describe('channel-token', () => {
     expect(info._account).toBe('vc');
   });
 
-  it('then the first token whose workspace lookup succeeds', async () => {
-    mocks.getChannelWorkspace
-      .mockRejectedValueOnce(new Error('not_in_channel'))
-      .mockResolvedValueOnce('Tvc');
+  it("then the account of the channel's workspace, looked up with the first token", async () => {
+    mocks.slackApi.mockResolvedValueOnce({
+      channel: { shared_team_ids: ['Tvc'] },
+    });
     const info = channel();
     await expect(
       resolveChannelToken('C1', info, tokens, { Tvc: 'vc' }),
     ).resolves.toBe('xoxb-vc');
-    expect(info._account).toBe('vc');
+    expect(mocks.slackApi).toHaveBeenCalledWith(
+      'conversations.info',
+      { channel: 'C1' },
+      'xoxb-d',
+    );
+    expect(info).toMatchObject({ _account: 'vc', teamId: 'Tvc' });
   });
 
-  it('falls back to the default token when every lookup fails', async () => {
-    mocks.getChannelWorkspace.mockRejectedValue(new Error('channel_not_found'));
+  it('uses a cached workspace without asking Slack', async () => {
+    const info = channel({ teamId: 'Tvc' });
     await expect(
-      resolveChannelToken('C1', channel(), tokens, {}),
-    ).resolves.toBe('xoxb-d');
+      resolveChannelToken('C1', info, tokens, { Tvc: 'vc' }),
+    ).resolves.toBe('xoxb-vc');
+    expect(mocks.slackApi).not.toHaveBeenCalled();
+  });
+
+  it('falls back to the first token when the channel cannot be read', async () => {
+    mocks.slackApi.mockRejectedValue(new Error('channel_not_found'));
+    const info = channel();
+    await expect(resolveChannelToken('C1', info, tokens, {})).resolves.toBe(
+      'xoxb-d',
+    );
+    expect(info).toMatchObject({
+      _account: 'default',
+      teamId: constants().PRIMARY_WORKSPACE,
+    });
   });
 
   it('throws when there is no token at all', async () => {
@@ -218,18 +235,58 @@ describe('message-writer', () => {
   });
 });
 
+describe('channel-workspace', () => {
+  const ask = (resp: unknown) => {
+    mocks.slackApi.mockResolvedValueOnce(resp);
+    return queryChannelTeam('C1', 't', 'Tp');
+  };
+
+  it('is the first shared team when the primary is not among them', async () => {
+    await expect(
+      ask({ channel: { shared_team_ids: ['Tx', 'Ty'] } }),
+    ).resolves.toBe('Tx');
+  });
+
+  it('is the primary workspace otherwise, or on any error', async () => {
+    await expect(
+      ask({ channel: { shared_team_ids: ['Tx', 'Tp'] } }),
+    ).resolves.toBe('Tp');
+    // DMs carry no shared_team_ids (as before: they route to the primary).
+    await expect(ask({ channel: { context_team_id: 'Tx' } })).resolves.toBe(
+      'Tp',
+    );
+    await expect(ask({})).resolves.toBe('Tp');
+    mocks.slackApi.mockRejectedValueOnce(new Error('channel_not_found'));
+    await expect(queryChannelTeam('C1', 't', 'Tp')).resolves.toBe('Tp');
+  });
+
+  it('records the workspace on the channel entry and reuses it', async () => {
+    const info = channel();
+    mocks.slackApi.mockResolvedValueOnce({
+      channel: { shared_team_ids: ['Tx'] },
+    });
+    await expect(channelTeamId('C1', info, 't', 'Tp')).resolves.toBe('Tx');
+    expect(info.teamId).toBe('Tx');
+    await expect(channelTeamId('C1', info, 't', 'Tp')).resolves.toBe('Tx');
+    expect(mocks.slackApi).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('channel-dir', () => {
   it('is {silo}/slack/{name} ({id})', async () => {
-    mocks.getChannelWorkspace.mockResolvedValue('T1');
-    await expect(resolveChannelDir('C1', 'general', 't')).resolves.toBe(
-      path.join(dir, 'slack', 'general (C1)'),
-    );
+    await expect(
+      resolveChannelDir('C1', channel({ teamId: 'T1' }), 't'),
+    ).resolves.toBe(path.join(dir, 'slack', 'general (C1)'));
+    expect(mocks.slackApi).not.toHaveBeenCalled();
   });
 
   it('renames the directory of a channel renamed in Slack', async () => {
-    mocks.getChannelWorkspace.mockResolvedValue('T1');
     fs.mkdirSync(path.join(dir, 'slack', 'old-name (C1)'), { recursive: true });
-    const target = await resolveChannelDir('C1', 'new-name', 't');
+    const target = await resolveChannelDir(
+      'C1',
+      channel({ name: 'new-name', teamId: 'T1' }),
+      't',
+    );
     expect(target).toBe(path.join(dir, 'slack', 'new-name (C1)'));
     expect(fs.readdirSync(path.join(dir, 'slack'))).toEqual(['new-name (C1)']);
   });
