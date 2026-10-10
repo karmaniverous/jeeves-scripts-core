@@ -28,7 +28,6 @@
   "plugin": ["typedoc-plugin-mdn-links", "typedoc-plugin-replace-text"],
   "projectDocuments": [
     "./packages/core/README.md",
-    "./packages/core/docs/*.md",
     "./packages/core/guides/*.md",
     "./packages/core/CHANGELOG.md"
   ],

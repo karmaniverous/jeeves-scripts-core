@@ -5,12 +5,12 @@ description: Jira integration - webhook drain, backfill, field refresh, backlog 
 
 # Jira
 
-Read [jira.md](../../docs/jira.md) for how the Jira pipeline works: webhook drain, archive layout and entity format, custom fields, backfill, backlog sort and the event gateway route.
+Read [jira.md](../../guides/jira.md) for how the Jira pipeline works: webhook drain, archive layout and entity format, custom fields, backfill, backlog sort and the event gateway route.
 
 ## Prerequisites
 
-- Site, email, token file and board are `integrations.jira` in `jeeves-scripts.json` ([config.md](../../docs/config.md)). The token is a file in the credentials folder, never a config value or a repo file.
-- Webhooks reach the drain through the jeeves-server Event Gateway ([Event Gateway Config](../../docs/jira.md#event-gateway-config)). The route lives in the instance's server config: ask the operator to change it rather than editing the live file.
+- Site, email, token file and board are `integrations.jira` in `jeeves-scripts.json` ([config.md](../../guides/config.md)). The token is a file in the credentials folder, never a config value or a repo file.
+- Webhooks reach the drain through the jeeves-server Event Gateway ([Event Gateway Config](../../guides/jira.md#event-gateway-config)). The route lives in the instance's server config: ask the operator to change it rather than editing the live file.
 
 ## Ticket creation conventions
 

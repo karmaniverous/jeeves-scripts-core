@@ -5,11 +5,11 @@ description: Email pipeline - Gmail (via gog CLI) and IMAP polling, download, tr
 
 # Email Pipeline
 
-Read [email.md](../../docs/email.md) for how the pipeline works: transports, jobs, account configuration, classification and labels, state and queues, output layout.
+Read [email.md](../../guides/email.md) for how the pipeline works: transports, jobs, account configuration, classification and labels, state and queues, output layout.
 
 ## Operator rules
 
-- **Per-instance settings are the operator's call.** Which accounts to poll, how far back to ingest, labels and forwarding destinations live in this instance's `jeeves-scripts.json` (`pipeline` block, [config.md](../../docs/config.md#the-pipeline-block)). Ask; don't guess or copy another instance's values.
+- **Per-instance settings are the operator's call.** Which accounts to poll, how far back to ingest, labels and forwarding destinations live in this instance's `jeeves-scripts.json` (`pipeline` block, [config.md](../../guides/config.md#the-pipeline-block)). Ask; don't guess or copy another instance's values.
 - **Never commit secrets.** IMAP passwords are secret references resolved from the credentials folder, never values in `jeeves-scripts.json`. Ask the operator how to provision one before configuring an account that needs it.
 - **Report-only first.** A new instance starts with report-only on, so no Gmail labels change until the operator turns it off.
 - Run `config check` after editing accounts (see `jeeves-scripts`).

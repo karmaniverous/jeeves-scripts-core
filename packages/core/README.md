@@ -9,8 +9,7 @@ Everything below ships in the npm package. From an instance repo, the package ro
 | Path in the package | What it is |
 | --- | --- |
 | `README.md` | This file: overview, CLI, config, docs index. |
-| `docs/<domain>.md` | One reference per domain (table below). |
-| `guides/` | Design records and runbooks referenced from the domain docs. |
+| `guides/<domain>.md` | One hand-written reference per domain (table below), plus design records and runbooks. TypeDoc renders them with the API reference; its output goes to the repo's root `docs/`, which is never shipped or authored. |
 | `skills/<name>/SKILL.md` | The assistant skills core ships ([Skills](#skills)). |
 | `schema/jeeves-scripts.schema.json` | JSON Schema for `jeeves-scripts.json`, generated from the Zod config schema. |
 | `config/token-rates.seed.json` | The token rate card seed (`constants().TOKEN_RATES_SEED_PATH`). |
@@ -23,7 +22,7 @@ To locate the package root from code or a shell without assuming a layout:
 node -p "path.dirname(require.resolve('@karmaniverous/jeeves-scripts-core/package.json'))"
 ```
 
-The `exports` map publishes `./package.json`, `./docs/*`, `./guides/*`, `./schema/*` and `./config/*`, so `require.resolve('@karmaniverous/jeeves-scripts-core/docs/<domain>.md')` (or `import.meta.resolve`) returns a doc's absolute path from anywhere in the instance repo. `test/package-docs.test.ts` keeps this true: every doc and guide ships, resolves, and is indexed below.
+The `exports` map publishes `./package.json`, `./guides/*`, `./skills/*`, `./schema/*` and `./config/*`, so `require.resolve('@karmaniverous/jeeves-scripts-core/guides/<domain>.md')` (or `import.meta.resolve`) returns a doc's absolute path from anywhere in the instance repo. `test/package-docs.test.ts` keeps this true: every doc and guide ships, resolves, and is indexed below.
 
 Job ids and schedules named in the docs are the template's manifest entries. Until the job registry ships them in core (Decision 32), each instance carries them in its own `jobs/*.json`; a module without a manifest entry (backfills, migrations, event-gateway drains) needs one before `run` can start it.
 
@@ -31,23 +30,23 @@ Job ids and schedules named in the docs are the template's manifest entries. Unt
 
 | Doc | Domain |
 | --- | --- |
-| [`docs/cli.md`](docs/cli.md) | The `jeeves-scripts` CLI and the instance launcher |
-| [`docs/config.md`](docs/config.md) | `jeeves-scripts.json`: schema, resolution, getters, silos |
-| [`docs/lib.md`](docs/lib.md) | Shared infrastructure: constants, gateway, workers, gh, gog, entity store |
-| [`docs/admin.md`](docs/admin.md) | Token metrics, rate card, session refresh, OpenClaw patches |
-| [`docs/calendar.md`](docs/calendar.md) | Google Calendar polling |
-| [`docs/convert.md`](docs/convert.md) | DOCX and PDF to Markdown |
-| [`docs/core.md`](docs/core.md) | Housekeeping: `.tmp` sweep, Qdrant health |
-| [`docs/dispatchers.md`](docs/dispatchers.md) | Task-file dispatchers and job-side Slack I/O |
-| [`docs/email.md`](docs/email.md) | Gmail (gog) and IMAP polling, download, backfills |
-| [`docs/github.md`](docs/github.md) | Repo and issue sync, notifications, collaborators |
-| [`docs/google-drive.md`](docs/google-drive.md) | Drive sync into the content tree |
-| [`docs/jira.md`](docs/jira.md) | Jira webhook drain, backfill, backlog sort |
-| [`docs/linear.md`](docs/linear.md) | Linear webhook drain, sync, backfill |
-| [`docs/meetings.md`](docs/meetings.md) | Meeting extraction (Meet, Fathom, Notion) |
-| [`docs/meta.md`](docs/meta.md) | Entity lifecycle maintenance |
-| [`docs/slack.md`](docs/slack.md) | Slack polling and archiving |
-| [`docs/x.md`](docs/x.md) | X/Twitter polling, posting, engagement |
+| [`guides/cli.md`](guides/cli.md) | The `jeeves-scripts` CLI and the instance launcher |
+| [`guides/config.md`](guides/config.md) | `jeeves-scripts.json`: schema, resolution, getters, silos |
+| [`guides/lib.md`](guides/lib.md) | Shared infrastructure: constants, gateway, workers, gh, gog, entity store |
+| [`guides/admin.md`](guides/admin.md) | Token metrics, rate card, session refresh, OpenClaw patches |
+| [`guides/calendar.md`](guides/calendar.md) | Google Calendar polling |
+| [`guides/convert.md`](guides/convert.md) | DOCX and PDF to Markdown |
+| [`guides/core.md`](guides/core.md) | Housekeeping: `.tmp` sweep, Qdrant health |
+| [`guides/dispatchers.md`](guides/dispatchers.md) | Task-file dispatchers and job-side Slack I/O |
+| [`guides/email.md`](guides/email.md) | Gmail (gog) and IMAP polling, download, backfills |
+| [`guides/github.md`](guides/github.md) | Repo and issue sync, notifications, collaborators |
+| [`guides/google-drive.md`](guides/google-drive.md) | Drive sync into the content tree |
+| [`guides/jira.md`](guides/jira.md) | Jira webhook drain, backfill, backlog sort |
+| [`guides/linear.md`](guides/linear.md) | Linear webhook drain, sync, backfill |
+| [`guides/meetings.md`](guides/meetings.md) | Meeting extraction (Meet, Fathom, Notion) |
+| [`guides/meta.md`](guides/meta.md) | Entity lifecycle maintenance |
+| [`guides/slack.md`](guides/slack.md) | Slack polling and archiving |
+| [`guides/x.md`](guides/x.md) | X/Twitter polling, posting, engagement |
 
 Guides: [`guides/google-drive-spec.md`](guides/google-drive-spec.md) (Drive sync design record), [`guides/token-metrics-runbook.md`](guides/token-metrics-runbook.md) (token metrics operations).
 
@@ -79,7 +78,7 @@ node <scriptsDir>/bin/jeeves-scripts.js run <job-id> [args...]
 node <scriptsDir>/bin/jeeves-scripts.js config check
 ```
 
-See [`docs/cli.md`](docs/cli.md) for every command and how `run` resolves a job id.
+See [`guides/cli.md`](guides/cli.md) for every command and how `run` resolves a job id.
 
 ## Configuration
 
@@ -92,7 +91,7 @@ One file, `{root}/jeeves-scripts.json`, holds every setting; it never holds a se
 }
 ```
 
-See [`docs/config.md`](docs/config.md).
+See [`guides/config.md`](guides/config.md).
 
 ## Public API
 

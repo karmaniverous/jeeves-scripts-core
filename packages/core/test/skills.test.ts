@@ -139,7 +139,7 @@ describe('shipped skills', () => {
     });
 
     it('points at core documentation', () => {
-      expect(text).toMatch(/\]\(\.\.\/\.\.\/(docs|guides)\/[\w-]+\.md/);
+      expect(text).toMatch(/\]\(\.\.\/\.\.\/guides\/[\w-]+\.md/);
     });
 
     it('names no instance path', () => {

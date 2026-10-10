@@ -31,7 +31,7 @@ const shipped = (dir: string): string[] =>
     .filter((name) => name.endsWith('.md'))
     .map((name) => `${dir}/${name}`);
 
-const docs = [...shipped('docs'), ...shipped('guides')];
+const docs = shipped('guides');
 
 /** Markdown without fenced code blocks. */
 const prose = (file: string): string =>
@@ -69,16 +69,15 @@ const relativeLinks = (file: string) =>
     });
 
 describe('package documentation', () => {
-  it('ships docs/, guides/, schema/, config/ and the changelog in the package', () => {
+  it('ships guides/, schema/, config/ and the changelog in the package', () => {
     expect(pkg.files).toEqual(
-      expect.arrayContaining([
-        'docs',
-        'guides',
-        'schema',
-        'config',
-        'CHANGELOG.md',
-      ]),
+      expect.arrayContaining(['guides', 'schema', 'config', 'CHANGELOG.md']),
     );
+  });
+
+  it('keeps authored docs out of docs/, which is TypeDoc output', () => {
+    expect(fs.existsSync(path.join(pkgRoot, 'docs'))).toBe(false);
+    expect(pkg.files).not.toContain('docs');
   });
 
   it.each(docs)('%s resolves through the exports map', (doc) => {
@@ -96,7 +95,7 @@ describe('package documentation', () => {
   });
 
   it('every doc the README links exists', () => {
-    const linked = [...readme.matchAll(/\]\(((?:docs|guides)\/[^)#]+)\)/g)]
+    const linked = [...readme.matchAll(/\]\((guides\/[^)#]+)\)/g)]
       .map((m) => m[1] ?? '')
       .filter((target) => target.endsWith('.md'));
     expect(linked.length).toBeGreaterThan(0);

@@ -79,7 +79,7 @@ All three entries in the template manifest `jobs/admin.json` (carried in the ins
 
 ## Documentation
 
-- [Token Metrics Operational Runbook](../guides/token-metrics-runbook.md) — pipeline stages, recalculation procedures, troubleshooting
+- [Token Metrics Operational Runbook](./token-metrics-runbook.md) — pipeline stages, recalculation procedures, troubleshooting
 
 ## Key Files
 

@@ -5,12 +5,12 @@ description: Linear integration - webhook drain, polling sync, backfill, and ent
 
 # Linear
 
-Read [linear.md](../../docs/linear.md) for how the Linear pipeline works: webhook drain, polling sync, backfill, archive layout and reverse-diff entity format, API client, watcher configuration.
+Read [linear.md](../../guides/linear.md) for how the Linear pipeline works: webhook drain, polling sync, backfill, archive layout and reverse-diff entity format, API client, watcher configuration.
 
 ## Prerequisites
 
-- The API key is a file in the credentials folder whose path is `integrations.linear.configPath` in `jeeves-scripts.json` ([config.md](../../docs/config.md)); never a config value or a repo file.
-- Webhooks reach the drain through the jeeves-server Event Gateway ([Event Gateway Config](../../docs/linear.md#event-gateway-config)); ask the operator to change the route rather than editing the live server config.
+- The API key is a file in the credentials folder whose path is `integrations.linear.configPath` in `jeeves-scripts.json` ([config.md](../../guides/config.md)); never a config value or a repo file.
+- Webhooks reach the drain through the jeeves-server Event Gateway ([Event Gateway Config](../../guides/linear.md#event-gateway-config)); ask the operator to change the route rather than editing the live server config.
 
 ## Operator rules
 

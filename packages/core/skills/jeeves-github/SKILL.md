@@ -5,11 +5,11 @@ description: GitHub integration - repo sync, issue sync, notifications, and coll
 
 # GitHub
 
-Read [github.md](../../docs/github.md) for how the GitHub pipeline works: jobs, the repo registry, state and queues, data flow.
+Read [github.md](../../guides/github.md) for how the GitHub pipeline works: jobs, the repo registry, state and queues, data flow.
 
 ## Prerequisites
 
-The `gh` CLI must be logged in as the instance's bot identity (`gh auth status`). Which `gh` binary, config dir, account and bot user the jobs use is `integrations.gh` in `jeeves-scripts.json` ([config.md](../../docs/config.md)).
+The `gh` CLI must be logged in as the instance's bot identity (`gh auth status`). Which `gh` binary, config dir, account and bot user the jobs use is `integrations.gh` in `jeeves-scripts.json` ([config.md](../../guides/config.md)).
 
 ## Operator rules
 

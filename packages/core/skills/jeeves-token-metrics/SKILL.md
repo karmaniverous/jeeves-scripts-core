@@ -5,11 +5,11 @@ description: Token usage and cost metrics. Use when asked about token consumptio
 
 # Token Metrics
 
-Read [admin.md](../../docs/admin.md) for how token metrics work: the report command and its options, what it contains, the collection and rate-card jobs, data flow and where the data lives. Operations (rate card updates, regeneration, recovery): [token-metrics-runbook.md](../../guides/token-metrics-runbook.md).
+Read [admin.md](../../guides/admin.md) for how token metrics work: the report command and its options, what it contains, the collection and rate-card jobs, data flow and where the data lives. Operations (rate card updates, regeneration, recovery): [token-metrics-runbook.md](../../guides/token-metrics-runbook.md).
 
 ## Answering cost questions
 
-- Answer from the report core produces ([Querying Costs](../../docs/admin.md#querying-costs)), run from the scripts repo, never from estimates.
+- Answer from the report core produces ([Querying Costs](../../guides/admin.md#querying-costs)), run from the scripts repo, never from estimates.
 - Scope the report to the period the question asks about.
 - Costs come from the rate card; a model missing from it shows as unpriced. Say so instead of guessing a price, and follow the runbook to add the rate.
 

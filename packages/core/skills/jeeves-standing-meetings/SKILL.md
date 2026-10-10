@@ -5,7 +5,7 @@ description: Automate standing meeting operations - post-meeting notes and next-
 
 # Standing Meetings
 
-Two task-file dispatcher jobs for a recurring meeting between known participants: a **notes** job (hourly in business hours on meeting days; finds today's meeting and transcript, writes structured notes, idempotent once today's notes exist) and an **agenda** job (once, early on meeting days; reads the last notes and agenda, reconciles checkboxes, writes the next agenda). Each returns a Slack summary, and both keep one pinned quick-links message current. Read [dispatchers.md](../../docs/dispatchers.md) for the framework, the TASK file anatomy and the Slack contract (posts, pins, edits); transcripts come from the meetings pipeline ([meetings.md](../../docs/meetings.md)).
+Two task-file dispatcher jobs for a recurring meeting between known participants: a **notes** job (hourly in business hours on meeting days; finds today's meeting and transcript, writes structured notes, idempotent once today's notes exist) and an **agenda** job (once, early on meeting days; reads the last notes and agenda, reconciles checkboxes, writes the next agenda). Each returns a Slack summary, and both keep one pinned quick-links message current. Read [dispatchers.md](../../guides/dispatchers.md) for the framework, the TASK file anatomy and the Slack contract (posts, pins, edits); transcripts come from the meetings pipeline ([meetings.md](../../guides/meetings.md)).
 
 ## Operator rules
 

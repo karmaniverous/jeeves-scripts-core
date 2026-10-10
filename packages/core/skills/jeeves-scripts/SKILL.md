@@ -9,8 +9,8 @@ The scripts repo (`{scriptsDir}`) is a thin instance repo. The shared behaviour 
 
 ## What lives where
 
-- **Core (the package):** domain code, the `jeeves-scripts` CLI, the config schema, and the docs: [README](../../README.md), [docs/](../../docs/cli.md), [guides/](../../guides/token-metrics-runbook.md).
-- **`jeeves-scripts.json`:** every setting of this instance, and nothing else (see [config.md](../../docs/config.md)). State goes to the runner store or the state folder, secrets to the credentials folder; another component's settings are read from that component's own config, never copied here.
+- **Core (the package):** domain code, the `jeeves-scripts` CLI, the config schema, and the docs: [README](../../README.md), [guides/](../../guides/cli.md) (one per domain, plus runbooks such as [token metrics](../../guides/token-metrics-runbook.md)).
+- **`jeeves-scripts.json`:** every setting of this instance, and nothing else (see [config.md](../../guides/config.md)). State goes to the runner store or the state folder, secrets to the credentials folder; another component's settings are read from that component's own config, never copied here.
 - **`jobs/*.json`:** this instance's job manifest (ids, schedules, the module each job runs).
 - **`src/` + `jeeves-scripts.plugin.ts`:** instance-only code. Shared behaviour belongs in core, not here.
 
@@ -23,7 +23,7 @@ node {scriptsDir}/bin/jeeves-scripts.js run <job-id> [args...]
 node {scriptsDir}/bin/jeeves-scripts.js config check
 ```
 
-How `run` resolves an id and every other command: [cli.md](../../docs/cli.md).
+How `run` resolves an id and every other command: [cli.md](../../guides/cli.md).
 
 ## Operator rules
 
@@ -31,7 +31,7 @@ How `run` resolves an id and every other command: [cli.md](../../docs/cli.md).
 - **Never put a secret in `jeeves-scripts.json`** or commit one; the config's secret guard rejects them.
 - **Fix shared behaviour in core** (branch, PR, release, bump the pin), never by editing `node_modules` or copying core code into `src/`.
 - **Per-instance values are the operator's call:** accounts, channels, schedules. Ask; don't copy another instance's values.
-- To read a doc from a shell: `node -p "require.resolve('@karmaniverous/jeeves-scripts-core/docs/<domain>.md')"` in `{scriptsDir}`.
+- To read a doc from a shell: `node -p "require.resolve('@karmaniverous/jeeves-scripts-core/guides/<domain>.md')"` in `{scriptsDir}`.
 
 ## Domain skills
 
