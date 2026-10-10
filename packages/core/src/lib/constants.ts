@@ -24,6 +24,7 @@ import { integrations } from '../config/integrations.js';
 import { getLoadedConfigPath, loadConfig } from '../config/loader.js';
 import { paths } from '../config/paths.js';
 import { siloPath } from '../config/silo-router.js';
+import { gatewayPort } from './openclaw-config.js';
 
 // ========== Fixed values ==========
 
@@ -98,8 +99,9 @@ const derive = () => {
     CREDENTIALS_DIR: p.credentialsDir,
     QDRANT_API_URL: i.qdrant.apiUrl,
     QDRANT_SERVICE_NAME: i.qdrant.serviceName,
-    GATEWAY_HOST: i.gateway.host,
-    GATEWAY_PORT: i.gateway.port,
+    /** The gateway listens on loopback; its port is OpenClaw's own setting. */
+    GATEWAY_HOST: '127.0.0.1',
+    GATEWAY_PORT: gatewayPort(),
     SPAWN_WORKER_PATH: spawnWorkerPath(),
     GH_BIN: i.gh.bin,
     GH_CONFIG_DIR: i.gh.configDir,

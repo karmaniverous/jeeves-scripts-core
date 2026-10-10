@@ -25,7 +25,6 @@ fs.writeFileSync(
     instance: { name: 'template', baseDir: '/opt/jeeves' },
     integrations: {
       qdrant: { apiUrl: 'http://localhost:6333', serviceName: 'qdrant' },
-      gateway: { host: '127.0.0.1', port: 18789 },
     },
     pipeline: {
       accounts: [],

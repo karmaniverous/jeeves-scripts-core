@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import {
   findInOpenclawConfig,
+  gatewayPort,
   gatewayToken,
   openclawConfigPaths,
   slackBotToken,
@@ -119,5 +120,17 @@ describe('slackBotTokens / slackBotToken', () => {
     expect(() => slackBotToken('vc', [primary])).toThrow(
       'No Slack bot token for account "vc"',
     );
+  });
+});
+
+describe('gatewayPort', () => {
+  it('reads gateway.port from the OpenClaw config', () => {
+    write(primary, { gateway: { port: 4321 } });
+    expect(gatewayPort([primary, legacy])).toBe(4321);
+  });
+
+  it("falls back to OpenClaw's default when no file sets it", () => {
+    write(primary, { gateway: { auth: { token: 't' } } });
+    expect(gatewayPort([primary, legacy])).toBe(18789);
   });
 });

@@ -1,17 +1,37 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { deriveIntegrations } from './integrations.js';
 import { type Config } from './schema.js';
 
+let baseDir: string;
+
+beforeEach(() => {
+  baseDir = fs.mkdtempSync(path.join(os.tmpdir(), 'integrations-'));
+});
+
+afterEach(() => {
+  fs.rmSync(baseDir, { recursive: true, force: true });
+});
+
+/** Write the watcher's config under `{baseDir}/config`. */
+const writeWatcherConfig = (content: unknown) => {
+  const dir = path.join(baseDir, 'config', 'jeeves-watcher');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify(content));
+};
+
 const baseConfig = (
   integrations: Partial<Config['integrations']> = {},
 ): Config => ({
-  instance: { name: 'test', baseDir: 'J:/' },
+  instance: { name: 'test', baseDir },
   paths: {},
   integrations: {
     gh: {},
     qdrant: {},
-    gateway: {},
     gog: {},
     slack: {},
     notion: {},
@@ -35,7 +55,6 @@ describe('deriveIntegrations', () => {
     expect(result.gh.bin).toBe('gh');
     expect(result.qdrant.apiUrl).toBe('http://localhost:6333');
     expect(result.qdrant.serviceName).toBe('qdrant');
-    expect(result.gateway).toEqual({ host: '127.0.0.1', port: 18789 });
     expect(result.gog.bin).toBe('gog');
     expect(result.notion.version).toBe('2025-09-03');
     expect(result.jira.maxHistory).toBe(50);
@@ -54,6 +73,31 @@ describe('deriveIntegrations', () => {
     expect(result.gh.botUser).toBe('jgs-jeeves');
     expect(result.qdrant.serviceName).toBe('Qdrant');
     expect(result.jira.boardId).toBe(6);
+  });
+
+  it("defaults the Qdrant URL to the watcher's vectorStore.url", () => {
+    writeWatcherConfig({ vectorStore: { url: 'http://watcher:6333' } });
+    expect(deriveIntegrations(baseConfig()).qdrant.apiUrl).toBe(
+      'http://watcher:6333',
+    );
+  });
+
+  it('configured qdrant.apiUrl wins over the watcher config', () => {
+    writeWatcherConfig({ vectorStore: { url: 'http://watcher:6333' } });
+    expect(
+      deriveIntegrations(
+        baseConfig({ qdrant: { apiUrl: 'http://configured:6333' } }),
+      ).qdrant.apiUrl,
+    ).toBe('http://configured:6333');
+  });
+
+  it('falls back to localhost when the watcher config is unreadable', () => {
+    const dir = path.join(baseDir, 'config', 'jeeves-watcher');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'config.json'), 'not json');
+    expect(deriveIntegrations(baseConfig()).qdrant.apiUrl).toBe(
+      'http://localhost:6333',
+    );
   });
 
   it('QDRANT_API_URL env wins over configured and default', () => {
@@ -88,11 +132,11 @@ describe('deriveIntegrations', () => {
 
   it('derives jira.apiTokenPath and linear.configPath from credentialsDir', () => {
     const result = deriveIntegrations(baseConfig());
-    expect(result.jira.apiTokenPath.replace(/\\/g, '/')).toBe(
-      'J:/config/credentials/atlassian/acli-token.txt',
+    expect(result.jira.apiTokenPath).toBe(
+      path.join(baseDir, 'config', 'credentials', 'atlassian/acli-token.txt'),
     );
-    expect(result.linear.configPath.replace(/\\/g, '/')).toBe(
-      'J:/config/credentials/linear.json',
+    expect(result.linear.configPath).toBe(
+      path.join(baseDir, 'config', 'credentials', 'linear.json'),
     );
   });
 });

@@ -71,7 +71,7 @@ Single source of truth for which gog credentials exist. Depends on `GOG_CLIENT_P
 
 ### gateway-client.ts
 
-Gateway HTTP client for OpenClaw tool invocation. Depends on `GATEWAY_HOST`, `GATEWAY_PORT`.
+Gateway HTTP client for OpenClaw tool invocation. Depends on `GATEWAY_HOST` (loopback) and `GATEWAY_PORT` (OpenClaw's own `gateway.port`, via `gatewayPort()`).
 
 - `loadGatewayToken()` — the bearer token from `CLAWDBOT_GATEWAY_TOKEN` or the OpenClaw config (`gatewayToken()`, below)
 - `gatewayInvoke(tool, args, options?)` — invoke an OpenClaw gateway HTTP API tool
@@ -85,14 +85,34 @@ Gateway RPC caller for methods that are not HTTP tools, or whose tool wrapper li
 
 ### openclaw-config.ts
 
-Reads credentials from the local OpenClaw config, `~/.openclaw/openclaw.json`, then the legacy `~/.clawdbot/clawdbot.json` (home: `USERPROFILE`, else the OS home dir). Only the fields read here are validated (`openclawConfigSchema`, Zod 4); missing, unreadable or invalid files are skipped. Never logs a token. Exported from the package root.
+Reads the gateway port and credentials from the local OpenClaw config, `~/.openclaw/openclaw.json`, then the legacy `~/.clawdbot/clawdbot.json` (home: `USERPROFILE`, else the OS home dir). Only the fields read here are validated (`openclawConfigSchema`, Zod 4); missing, unreadable or invalid files are skipped. Never logs a token. Exported from the package root.
 
+- `gatewayPort(files?)` — `gateway.port`, else OpenClaw's default `18789` (`OPENCLAW_DEFAULT_GATEWAY_PORT`)
 - `gatewayToken(files?)` — a non-empty `CLAWDBOT_GATEWAY_TOKEN`, else `gateway.auth.token`; `null` when neither exists
 - `slackBotTokens(files?)` — every Slack bot token by gateway account id (`channels.slack.accounts.<id>.botToken`, else the flat `channels.slack.botToken` as `default`), from the first file that has any; throws when none does
 - `slackBotToken(accountId = 'default', files?)` — one account's token; throws when it has none
 - `findInOpenclawConfig(pick, files?)` / `openclawConfigPaths(home?)` — the search primitives
 
 Used by `gateway-client` (and so `spawn-worker`), `slack/poll` and instance code.
+
+### component-config.ts
+
+Another Jeeves component's settings belong in that component's config file, not in `jeeves-scripts.json`: code locates the file and reads from it. The layout is the platform's (`@karmaniverous/jeeves`): `{configRoot}/jeeves-<name>/config.json`, where the platform config root is `paths().configDir`. Exported from the package root.
+
+- `componentConfigPath(name, configRoot?)` — e.g. `componentConfigPath('runner')` is `{configDir}/jeeves-runner/config.json`
+- `readComponentConfig(name, schema, file?)` — the file validated with a Zod schema for the parts the caller reads; `undefined` when it does not exist; throws on bad JSON or a schema mismatch
+
+`integrations().qdrant.apiUrl` defaults to the watcher's `vectorStore.url` this way.
+
+### runner-config.ts
+
+The jeeves-runner's HTTP API address, from the runner's own config (validated with the runner's `runnerConfigSchema`; `port` defaults to 1937). Exported from the package root.
+
+- `runnerConfig(file?)` — the runner's config with defaults applied (schema defaults when the file does not exist)
+- `runnerUrl(file?)` — `http://127.0.0.1:<port>`
+- `triggerRunnerJob(jobId, file?)` — `POST /jobs/<id>/run`; resolves `{ status, body }`, rejects when the runner is unreachable
+
+Used by `admin/collect-token-metrics` (to start `refresh-token-rates`) and instance code that chains jobs.
 
 ### worker-output.ts
 
@@ -111,7 +131,7 @@ Job-side Slack I/O for LLM workers. On OpenClaw 2026.9, sub-agent sessions have 
 
 ### spawn-worker.ts
 
-Gateway session spawner: the executable `runDispatcher()` / `dispatchSession()` run (`constants().SPAWN_WORKER_PATH`, core's built `dist/lib/spawn-worker.js`). It uses `gateway-client`, so it reads the gateway host and port from `integrations.gateway` and the token from the OpenClaw config.
+Gateway session spawner: the executable `runDispatcher()` / `dispatchSession()` run (`constants().SPAWN_WORKER_PATH`, core's built `dist/lib/spawn-worker.js`). It uses `gateway-client`, so it reads the gateway port and token from the OpenClaw config.
 
 Usage: `echo "task" | node <core>/dist/lib/spawn-worker.js --job-id=<id> [--label=<label>] [--thinking=<level>]`
 

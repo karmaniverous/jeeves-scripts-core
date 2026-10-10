@@ -138,7 +138,7 @@ TASK files are instance content, in a silo (Decision 23), e.g. `{contentDir}/dig
 
 ## Prerequisites
 
-- Gateway API reachable at `integrations.gateway` (`host`, `port`), token from the OpenClaw config (`lib/openclaw-config`)
+- Gateway API reachable on loopback at the OpenClaw config's `gateway.port`, token from the same config (`lib/openclaw-config`)
 - Per-dispatcher prerequisites documented in each script's module-level TSDoc
 
 ## Key Files

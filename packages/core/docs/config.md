@@ -54,13 +54,17 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
 | --- | --- | --- |
 | `instance` | `instanceSchema` | `name`, `baseDir` (required). Every default path derives from `baseDir`. |
 | `paths` | `pathsSchema` | Optional overrides: `configDir`, `contentDir`, `scriptsDir`, `credentialsDir`, `stateDir`, `gogHome`, `tokenMetricsDir`. |
-| `integrations` | `integrationsSchema` | `gh` (`bin`, `configDir`, `account`, `botUser`), `qdrant` (`apiUrl`, `serviceName`), `gateway` (`host`, `port`), `gog` (`bin`), `slack` (`primaryWorkspace`), `notion` (`version`), `jira` (`siteUrl`, `email`, `apiTokenPath`, `boardId`, `fieldsFilename`, `maxHistory`), `linear` (`configPath`, `maxHistory`), `x` (`accounts.<handle>.silo`, `.relativePath`). |
+| `integrations` | `integrationsSchema` | `gh` (`bin`, `configDir`, `account`, `botUser`), `qdrant` (`apiUrl`, `serviceName`), `gog` (`bin`), `slack` (`primaryWorkspace`), `notion` (`version`), `jira` (`siteUrl`, `email`, `apiTokenPath`, `boardId`, `fieldsFilename`, `maxHistory`), `linear` (`configPath`, `maxHistory`), `x` (`accounts.<handle>.silo`, `.relativePath`). |
 | `pipeline` | `pipelineSchema` | Optional. `accounts[]` (mail and calendar), `buckets` (`domains[]`, `priority[]`), `refs` (dotted key → string: Slack ids, Notion ids, time zones), `emailConfig`, `googleDrive`. |
 | `siloRouting` | `siloRoutingSchema` | `defaultBasePath` (default: `paths().contentDir`) and named `silos.<name>`: `basePath`, `emailDomains`, `githubOrgs`, `slackWorkspaces`, `jira`, `linear`. |
 | `jobs` | `jobsSchema` | Per-job deltas by job id: `enabled`, `schedule`, `env`, `args`, `timeout_seconds`, `silo`, `taskFile`. Today `silo` and `taskFile` are read by the task-file dispatcher (see [dispatchers](./dispatchers.md)) and `silo` is checked by `config check`; the rest are validated and wait for the job registry (Decision 32). |
 | `extensions` | `extensionsSchema` | Named seam → `local:<module>` (reserved for the extension-point registry). |
 
 Every schema is exported (Zod 4), with its `z.infer` type (`Config`, `PathsConfigInput`, `IntegrationsConfig`, `PipelineConfig`, `SiloRoutingConfig`, `JobDelta`, ...).
+
+### Other components' settings
+
+`jeeves-scripts.json` holds this instance's settings only. A setting that belongs to another component is read from that component's own config, never copied here: the gateway port from the OpenClaw config (`gatewayPort()`), the runner's port from `{configDir}/jeeves-runner/config.json` (`runnerUrl()`), Qdrant's URL from the watcher's `vectorStore.url` (the `qdrant.apiUrl` default). See [lib.md](./lib.md#component-configts). There is no `integrations.gateway` block; like any unknown key, an old one is ignored.
 
 ### Secrets
 
@@ -126,7 +130,7 @@ The schema rejects a literal secret value anywhere in the file, including under 
 | --- | --- |
 | `loadConfig(options?)` | The validated `Config`. |
 | `paths(options?)` | Every resolved path (`ResolvedPaths`): `baseDir`, `configDir` (`{baseDir}/config`), `contentDir` (`{baseDir}/content`), `scriptsDir` (`{baseDir}/jeeves-scripts`), `credentialsDir` (`{configDir}/credentials`), `stateDir` (`{baseDir}/state`), `imapSecretsDir`, `gogHome` (`{configDir}/gogcli`), `tokenMetricsDir` (`{stateDir}/jeeves-runner/token-metrics`). |
-| `integrations(options?)` | Every integration block with defaults applied (`gh.bin` `gh`, `gh.configDir` `{configDir}/gh-cli`, `qdrant.apiUrl` `http://localhost:6333`, `gateway` `127.0.0.1:18789`, ...). `jira.boardId` has no default. |
+| `integrations(options?)` | Every integration block with defaults applied (`gh.bin` `gh`, `gh.configDir` `{configDir}/gh-cli`, `qdrant.apiUrl` the watcher's `vectorStore.url`, else `http://localhost:6333`, ...). `jira.boardId` has no default. |
 | `pipeline(options?)` | The `pipeline` block. Throws when the config has none. |
 | `getRef(key)` / `tryGetRef(key)` | A `pipeline.refs` value; `getRef` throws when missing, `tryGetRef` returns `''`. |
 | `getEmailAccounts()`, `getGmailAccounts()`, `getCalendarAccounts()` | Account lists from `pipeline.accounts`. |

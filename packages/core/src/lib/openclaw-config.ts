@@ -1,8 +1,8 @@
 /**
  * @module lib/openclaw-config
  *
- * Read credentials from the local OpenClaw config: the gateway bearer
- * token and Slack bot tokens. Searches `~/.openclaw/openclaw.json`, then
+ * Read the local OpenClaw config: the gateway port and bearer token and
+ * the Slack bot tokens. Searches `~/.openclaw/openclaw.json`, then
  * the legacy `~/.clawdbot/clawdbot.json` (home: `USERPROFILE`, else the
  * OS home dir). Only the fields read here are validated (Zod 4); the rest
  * of the file passes through. Reads files; never logs a token.
@@ -32,6 +32,8 @@ export const openclawConfigSchema = z.looseObject({
           token: z.string().min(1).optional(),
         })
         .optional(),
+      /** Port the gateway listens on. */
+      port: z.number().int().positive().optional(),
     })
     .optional(),
   /** Channel settings. */
@@ -144,3 +146,13 @@ export const gatewayToken = (
     findInOpenclawConfig((config) => config.gateway?.auth?.token, files) ?? null
   );
 };
+
+/** OpenClaw's default gateway port, used when `gateway.port` is unset. */
+export const OPENCLAW_DEFAULT_GATEWAY_PORT = 18789;
+
+/** The gateway's port: `gateway.port` from the OpenClaw config, else OpenClaw's default (18789). */
+export const gatewayPort = (
+  files: readonly string[] = openclawConfigPaths(),
+): number =>
+  findInOpenclawConfig((config) => config.gateway?.port, files) ??
+  OPENCLAW_DEFAULT_GATEWAY_PORT;

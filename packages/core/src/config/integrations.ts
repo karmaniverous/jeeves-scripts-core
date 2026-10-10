@@ -5,11 +5,20 @@
  * the template's `constants/integrations.ts` and `constants/trackers.ts` as a
  * function of the loaded config, with the environment overrides that
  * exist today (`QDRANT_API_URL`, `GH_CONFIG_DIR`, `LINEAR_CONFIG_PATH`,
- * `JIRA_BOARD_ID`) honoured and derived defaults applied.
+ * `JIRA_BOARD_ID`) honoured and derived defaults applied. Settings that
+ * belong to another component are read from that component's own config
+ * (Qdrant's URL from the watcher's); the gateway port comes from the
+ * OpenClaw config (`lib/openclaw-config`).
  */
 
 import path from 'node:path';
 
+import { z } from 'zod';
+
+import {
+  componentConfigPath,
+  readComponentConfig,
+} from '../lib/component-config.js';
 import { loadConfig, type LoadConfigOptions } from './loader.js';
 import { derivePaths } from './paths.js';
 import type { Config, IntegrationsConfig } from './schema.js';
@@ -32,6 +41,30 @@ export type ResolvedIntegrations = {
     Pick<IntegrationsConfig['jira'], 'boardId'>;
 };
 
+/** The parts of the watcher's config read here. */
+const watcherConfigSchema = z.looseObject({
+  vectorStore: z.looseObject({ url: z.string().min(1).optional() }).optional(),
+});
+
+/**
+ * The Qdrant URL the watcher uses (`vectorStore.url` in its own config),
+ * so the Qdrant address is not copied into `jeeves-scripts.json`.
+ * `undefined` when there is no readable watcher config: every script
+ * resolves integrations, so a broken watcher file must not stop them all;
+ * the health check then probes the default URL and reports what it finds.
+ */
+const watcherQdrantUrl = (configDir: string): string | undefined => {
+  try {
+    return readComponentConfig(
+      'watcher',
+      watcherConfigSchema,
+      componentConfigPath('watcher', configDir),
+    )?.vectorStore?.url;
+  } catch {
+    return undefined;
+  }
+};
+
 /** Derive resolved integration settings from a loaded config. */
 export const deriveIntegrations = (config: Config): ResolvedIntegrations => {
   const resolvedPaths = derivePaths(config);
@@ -50,12 +83,9 @@ export const deriveIntegrations = (config: Config): ResolvedIntegrations => {
       apiUrl:
         process.env.QDRANT_API_URL ??
         i.qdrant.apiUrl ??
+        watcherQdrantUrl(resolvedPaths.configDir) ??
         'http://localhost:6333',
       serviceName: i.qdrant.serviceName ?? 'qdrant',
-    },
-    gateway: {
-      host: i.gateway.host ?? '127.0.0.1',
-      port: i.gateway.port ?? 18789,
     },
     gog: { bin: i.gog.bin ?? 'gog' },
     slack: { primaryWorkspace: i.slack.primaryWorkspace ?? '' },

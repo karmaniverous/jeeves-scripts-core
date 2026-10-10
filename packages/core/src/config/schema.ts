@@ -51,7 +51,6 @@ export const configObjectSchema = z.object({
   integrations: integrationsSchema.default({
     gh: {},
     qdrant: {},
-    gateway: {},
     gog: {},
     slack: {},
     notion: {},

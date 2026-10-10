@@ -30,6 +30,7 @@ const seen: Seen = {};
 const saved = {
   config: process.env[CONFIG_PATH_ENV],
   token: process.env.CLAWDBOT_GATEWAY_TOKEN,
+  home: process.env.USERPROFILE,
 };
 
 beforeAll(async () => {
@@ -54,9 +55,15 @@ beforeAll(async () => {
     configPath,
     JSON.stringify({
       instance: { name: 't', baseDir: dir },
-      integrations: { gateway: { host: '127.0.0.1', port } },
     }),
   );
+  // The gateway port is OpenClaw's own setting: a temp ~/.openclaw/openclaw.json.
+  fs.mkdirSync(path.join(dir, '.openclaw'));
+  fs.writeFileSync(
+    path.join(dir, '.openclaw', 'openclaw.json'),
+    JSON.stringify({ gateway: { port } }),
+  );
+  process.env.USERPROFILE = dir;
   process.env[CONFIG_PATH_ENV] = configPath;
   process.env.CLAWDBOT_GATEWAY_TOKEN = 'test-token';
   resetConfig();
@@ -73,6 +80,8 @@ afterAll(async () => {
     }),
   );
   process.env[CONFIG_PATH_ENV] = saved.config;
+  if (saved.home === undefined) delete process.env.USERPROFILE;
+  else process.env.USERPROFILE = saved.home;
   if (saved.token === undefined) delete process.env.CLAWDBOT_GATEWAY_TOKEN;
   else process.env.CLAWDBOT_GATEWAY_TOKEN = saved.token;
   resetConfig();

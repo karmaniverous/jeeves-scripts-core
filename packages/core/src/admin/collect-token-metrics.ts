@@ -36,6 +36,7 @@ import fs from 'node:fs';
 import { runScript } from '@karmaniverous/jeeves';
 
 import { constants } from '../lib/constants.js';
+import { triggerRunnerJob } from '../lib/runner-config.js';
 import { currentHourBoundaryMs, flushBuckets } from './lib/bucket-io.js';
 import { scanClaudeCodeSessions } from './lib/claude-code-session-scan.js';
 import { runCollect } from './lib/collect-run.js';
@@ -49,8 +50,9 @@ import { openTokenMetricsState } from './lib/token-metrics-state.js';
 
 /**
  * Record the unknown models as pending (refresh-token-rates adds them from
- * OpenRouter), then trigger the refresh job via the runner HTTP API.
- * Fire-and-forget — the collector doesn't wait for it to complete.
+ * OpenRouter), then trigger the refresh job via the runner HTTP API (the
+ * port comes from the runner's own config). Fire-and-forget: the collector
+ * doesn't wait for it to complete; a refused trigger is logged.
  *
  * @param unknownModels - Model ids missing from the rate card.
  */
@@ -64,10 +66,16 @@ function triggerRateCardRefresh(unknownModels: string[]): void {
     );
   }
   try {
-    const url = 'http://127.0.0.1:1937/jobs/refresh-token-rates/trigger';
-    fetch(url, { method: 'POST' }).catch(() => {
-      // Ignore errors — the failure notification from this job is enough
-    });
+    triggerRunnerJob('refresh-token-rates')
+      .then(({ status, body }) => {
+        if (status >= 300)
+          console.error(
+            `[collect-token-metrics] Runner refused refresh-token-rates (${String(status)}): ${body.slice(0, 200)}`,
+          );
+      })
+      .catch(() => {
+        // Ignore errors — the failure notification from this job is enough
+      });
   } catch {
     // Best effort
   }

@@ -25,18 +25,14 @@ export const ghIntegrationSchema = z.object({
 
 /** Qdrant (vector store) settings, used by the health check. */
 export const qdrantIntegrationSchema = z.object({
-  /** Qdrant HTTP API base URL. */
+  /**
+   * Qdrant HTTP API base URL. Default: the watcher's `vectorStore.url`
+   * (`{configDir}/jeeves-watcher/config.json`), else `http://localhost:6333`.
+   * Set it only when no watcher config names the Qdrant this instance uses.
+   */
   apiUrl: z.string().optional(),
   /** OS service name the health check restarts (case-sensitive on Windows). */
   serviceName: z.string().optional(),
-});
-
-/** OpenClaw gateway settings, used by dispatchers and gateway RPC. */
-export const gatewayIntegrationSchema = z.object({
-  /** Gateway host. */
-  host: z.string().optional(),
-  /** Gateway port. */
-  port: z.number().int().positive().optional(),
 });
 
 /** gog (Google Workspace CLI) settings; its home directory is `paths.gogHome`. */
@@ -109,8 +105,6 @@ export const integrationsSchema = z.object({
   gh: ghIntegrationSchema.default({}),
   /** Qdrant. */
   qdrant: qdrantIntegrationSchema.default({}),
-  /** OpenClaw gateway. */
-  gateway: gatewayIntegrationSchema.default({}),
   /** gog. */
   gog: gogIntegrationSchema.default({}),
   /** Slack. */
