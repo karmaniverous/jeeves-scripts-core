@@ -6,8 +6,12 @@
  * Pure HTTP wrappers consumed by calendar/poll. Both lists are paged by
  * the API; every page is followed (`nextPageToken`), so callers get every
  * calendar and every event. Callers supply an OAuth access token and
- * receive typed results. No dependency on project constants or config.
+ * receive typed results. `eventPeopleField` names the listed people on an
+ * event (lib/people).
  */
+
+import type { People } from '../../config/people-schema.js';
+import { peopleForEmails, type PersonRef } from '../../lib/people.js';
 
 const CAL_BASE = 'https://www.googleapis.com/calendar/v3';
 
@@ -105,4 +109,30 @@ export async function getAllEvents(
     accessToken,
     `events.list failed (${calendarId})`,
   );
+}
+
+/** The email addresses on an event: organizer, creator and attendees. */
+export function eventEmails(event: CalendarEvent): string[] {
+  const one = (v: unknown): string[] => {
+    const email = (v as { email?: unknown } | undefined)?.email;
+    return typeof email === 'string' && email ? [email] : [];
+  };
+  return [
+    ...one(event.organizer),
+    ...one(event.creator),
+    ...(event.attendees ?? []).flatMap((a) => one(a)),
+  ];
+}
+
+/**
+ * The listed people on an event (`people` in jeeves-scripts.json), as the
+ * `_people` field of the stored event; `{}` when none are listed, so
+ * events without listed people are stored as before.
+ */
+export function eventPeopleField(
+  event: CalendarEvent,
+  people?: People,
+): { _people?: PersonRef[] } {
+  const found = peopleForEmails(eventEmails(event), people);
+  return found.length ? { _people: found } : {};
 }

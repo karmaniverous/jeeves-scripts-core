@@ -11,6 +11,7 @@ import path from 'node:path';
 
 import { ensureDir, nowIso, writeJsonAtomic } from '@karmaniverous/jeeves';
 
+import { emailPeopleFields } from '../../lib/people.js';
 import { createOrUpdateCache, getThreadsPath } from '../email-cache.js';
 import { type NormalizedMessage } from './normalize.js';
 
@@ -72,6 +73,7 @@ export function writeMessage(
     from: msg.headers.from,
     to: msg.headers.to,
     cc: msg.headers.cc,
+    ...emailPeopleFields(msg.headers),
     date: msg.headers.date || null,
     internalDateMs: msg.internalDate.getTime(),
     labels,

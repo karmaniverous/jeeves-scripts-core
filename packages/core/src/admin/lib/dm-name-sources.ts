@@ -2,6 +2,7 @@
  * @module dm-name-sources
  *
  * I/O for Slack DM naming (dm-names.ts):
+ * - configured people (`people` in jeeves-scripts.json, lib/people), first;
  * - the DM-name cache (user id → name JSON beside the buckets; written only
  *   with names learned from the live lookup);
  * - the Slack user cache (`{stateDir}/slack/users.json`, slack/lib/slack-cache), read-only;
@@ -15,7 +16,9 @@ import fs from 'node:fs';
 import { writeJsonAtomic } from '@karmaniverous/jeeves';
 import { z } from 'zod';
 
+import type { People } from '../../config/people-schema.js';
 import { gatewayInvoke, unwrapResult } from '../../lib/gateway-client.js';
+import { peopleRegistry, personForChannelId } from '../../lib/people.js';
 import type { HourlyBucket } from '../types/token-metrics.js';
 import type { DmNameLookup } from './dm-names.js';
 import { dmUserIds, renameDmChannels, resolveDmNames } from './dm-names.js';
@@ -121,6 +124,22 @@ export async function gatewayMemberName(
   }
 }
 
+/**
+ * Configured names of the listed people among Slack user ids (any Slack
+ * account, when one person owns the id); unlisted ids are absent.
+ */
+export function dmPeopleNames(
+  ids: readonly string[],
+  people: People = peopleRegistry(),
+): Record<string, string> {
+  const names: Record<string, string> = {};
+  for (const id of ids) {
+    const p = personForChannelId('slack', id, people);
+    if (p) names[id] = p.name;
+  }
+  return names;
+}
+
 /** Inputs for {@link applyDmNames}. */
 export interface ApplyDmNamesParams {
   cachePath: string;
@@ -145,6 +164,7 @@ export async function applyDmNames(
   if (ids.length === 0) return 0;
   const cache = readDmNameCache(params.cachePath);
   const { names, learned } = await resolveDmNames(ids, {
+    people: dmPeopleNames(ids),
     cache,
     userMap: loadSlackUserNames(params.usersPath),
     lookup: params.lookup,

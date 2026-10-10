@@ -17,6 +17,7 @@ import type { RunnerClient } from '@karmaniverous/jeeves-runner';
 
 import { getBasePathForEmailDomain } from '../../config/index.js';
 import { constants } from '../../lib/constants.js';
+import { peopleForEmails } from '../../lib/people.js';
 import {
   checkHasTranscript,
   computeSortTimestamp,
@@ -119,6 +120,11 @@ export function updateMeetingPackage(
   const allParticipants = new Set(manifest.participants ?? []);
   for (const p of meeting.participants) allParticipants.add(p);
   manifest.participants = Array.from(allParticipants);
+  // Listed people among the participants (lib/people); participant emails
+  // stay as they are, since the meeting id is derived from them.
+  const people = peopleForEmails(manifest.participants);
+  if (people.length) manifest.people = people;
+  else delete manifest.people;
 
   // Write body artifacts
   const artifacts = manifest.artifacts ?? [];

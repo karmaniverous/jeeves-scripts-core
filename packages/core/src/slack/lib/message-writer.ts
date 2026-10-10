@@ -2,7 +2,8 @@
  * @module slack/lib/message-writer
  *
  * Write one polled Slack message as `{channelDir}/{ts}.json`: author name
- * from the users map, thread and reaction fields, file metadata with
+ * and `personId` from the `people` registry when the author is listed
+ * there (lib/people), else the name from the users map, thread and reaction fields, file metadata with
  * native audio transcripts and inlined text. Never overwrites an existing
  * message file.
  */
@@ -10,6 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { personForAccount } from '../../lib/people.js';
 import type { ChannelInfo } from './channel-info.js';
 import { type SlackFileMetadata, type SlackMessage } from './slack-api.js';
 
@@ -34,6 +36,10 @@ export function writeMessage(
   const filePath = path.join(channelDir, `${msg.ts}.json`);
   if (fs.existsSync(filePath)) return false;
 
+  // Listed people get their configured name and id; others keep Slack's.
+  const person = msg.user
+    ? personForAccount('slack', channelInfo._account ?? 'default', msg.user)
+    : undefined;
   const doc: Record<string, unknown> = {
     ts: msg.ts,
     channelId,
@@ -41,10 +47,12 @@ export function writeMessage(
     channelType: channelInfo.type,
     user: msg.user ?? msg.bot_id ?? 'unknown',
     userName:
+      person?.name ??
       (msg.user ? userMap[msg.user] : undefined) ??
       msg.username ??
       msg.bot_id ??
       'unknown',
+    ...(person ? { personId: person.id } : {}),
     text: msg.text ?? '',
     date: tsToDate(msg.ts),
     participants: channelInfo.participants,

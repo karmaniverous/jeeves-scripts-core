@@ -54,6 +54,8 @@ export const meetingMetaSchema = meetingMetaRequiredSchema.extend({
   title: z.string().nullable().optional(),
   normalizedTitle: z.string().optional(),
   participants: z.array(z.string()).optional(),
+  /** Listed people among the participants (`people` config): id and name. */
+  people: z.array(z.object({ id: z.string(), name: z.string() })).optional(),
   sources: z.array(z.record(z.string(), z.unknown())).optional(),
   artifacts: z.array(z.string()).optional(),
   createdAt: z.string().optional(),

@@ -112,3 +112,36 @@ export function peopleForEmails(
   }
   return [...seen.values()];
 }
+
+/** Split address headers (`From`/`To`/`Cc` values) into single addresses. */
+export const splitAddresses = (...headers: (string | undefined)[]): string[] =>
+  headers.flatMap((h) =>
+    h
+      ? h
+          .split(',')
+          .map((a) => a.trim())
+          .filter(Boolean)
+      : [],
+  );
+
+/**
+ * The person fields for an email message: `fromPerson` when the sender
+ * is listed, `people` for every listed sender or recipient. Empty when
+ * nobody is listed, so unlisted mail is recorded as before.
+ */
+export function emailPeopleFields(
+  headers: { from?: string; to?: string; cc?: string },
+  people: People = peopleRegistry(),
+): { fromPerson?: PersonRef; people?: PersonRef[] } {
+  const sender = headers.from
+    ? personForEmail(headers.from, people)
+    : undefined;
+  const all = peopleForEmails(
+    splitAddresses(headers.from, headers.to, headers.cc),
+    people,
+  );
+  return {
+    ...(sender ? { fromPerson: personRef(sender) } : {}),
+    ...(all.length ? { people: all } : {}),
+  };
+}

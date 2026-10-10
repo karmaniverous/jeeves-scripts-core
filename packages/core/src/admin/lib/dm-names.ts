@@ -21,6 +21,8 @@ export type DmNameLookup = (userId: string) => Promise<string | undefined>;
 
 /** Where DM names come from. */
 export interface DmNameSources {
+  /** Configured people names (user id → name), tried first; see lib/people. */
+  people?: Record<string, string>;
   /** Previously resolved names (user id → name). */
   cache: Record<string, string>;
   /** Cached Slack user map (user id → name), read-only. */
@@ -54,7 +56,7 @@ export async function resolveDmNames(
   const names = new Map<string, string>();
   const learned: Record<string, string> = {};
   for (const id of ids) {
-    let name = sources.cache[id] ?? sources.userMap[id];
+    let name = sources.people?.[id] ?? sources.cache[id] ?? sources.userMap[id];
     if (!name && sources.lookup) {
       try {
         name = (await sources.lookup(id))?.trim() ?? '';

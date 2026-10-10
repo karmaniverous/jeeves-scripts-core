@@ -38,6 +38,7 @@ import {
 import { resolveCalendarAccounts } from './lib/calendar-accounts.js';
 import {
   type CalendarEvent,
+  eventPeopleField,
   getAllEvents,
   listCalendars,
 } from './lib/calendar-api.js';
@@ -110,6 +111,7 @@ function writeEvent(
     _calendarSummary: calendarSummary,
     _ingestedAt: new Date().toISOString(),
     _hash: eventHash(event),
+    ...eventPeopleField(event),
     ...event,
   };
 

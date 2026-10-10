@@ -21,6 +21,7 @@ import { appendJsonl, ensureDir, nowIso } from '@karmaniverous/jeeves';
 
 import { constants } from '../../lib/constants.js';
 import { gogWithRetry } from '../../lib/gog.js';
+import { emailPeopleFields } from '../../lib/people.js';
 import {
   type CacheMessage,
   createOrUpdateCache,
@@ -87,6 +88,7 @@ function appendMessageEvent(
     from: p.from,
     to: p.to,
     cc: p.cc,
+    ...emailPeopleFields(p),
     labels: p.labels,
     direction: p.direction,
     snippet: p.snippet,
