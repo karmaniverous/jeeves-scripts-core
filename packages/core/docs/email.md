@@ -53,13 +53,13 @@ flowchart TD
 | `email-drain-updates` | `google-workspace/drain-updates.ts` | Every 17 min |
 | `email-backfill-historical` | `google-workspace/backfill-historical.ts --live` | Hourly; needs `emailConfig.backfill` |
 
-The manifest (`jobs/email.json`) is authoritative. All four entries carry a non-null `prerequisite` (gog credentials or IMAP, plus `emailConfig.backfill` for the backfill).
+The template manifest (`jobs/email.json`, carried in the instance repo) is authoritative. All four entries carry a non-null `prerequisite` (gog credentials or IMAP, plus `emailConfig.backfill` for the backfill).
 
 ### Historical backfill
 
 `email-backfill-historical` runs `backfill-historical.ts --live` (the manifest passes `--live` in `args`; a manual run without it is a dry run). Each run searches one window per account (all result pages), walking back from the newest unprocessed point until the lookback limit, then does nothing.
 
-- Settings come only from `emailConfig.backfill` in pipeline-config (`accounts`, `lookbackDays`, `windowDays`, all required) or the CLI overrides `--accounts` / `--lookback-days` / `--window-days` (per field, CLI wins). There are no defaults: a missing setting fails the run.
+- Settings come only from `pipeline.emailConfig.backfill` in `jeeves-scripts.json` (`accounts`, `lookbackDays`, `windowDays`, all required) or the CLI overrides `--accounts` / `--lookback-days` / `--window-days` (per field, CLI wins). There are no defaults: a missing setting fails the run.
 - Cursor: runner state namespace `email-backfill`, key `cursor-<email>`. It advances only after a live window completes (after the window's last search page).
 
 ## State, Queues and Logs
@@ -89,15 +89,15 @@ The manifest (`jobs/email.json`) is authoritative. All four entries carry a non-
   - an OAuth client at `GOG_CLIENT_PATH` (`<GOG_CONFIG_DIR>/credentials.json`) plus per-account tokens; or
   - service-account mailboxes (domain-wide delegation) registered by gog at `<GOG_CONFIG_DIR>/data/sa-<base64(email)>.json` (padding stripped; checked first, then the `<GOG_CONFIG_DIR>` root for older gog builds without `data/`). jeeves-tools deploy writes the key to `<GOG_CONFIG_DIR>/service-account.json`.
 
-  Detection lives in one place, `src/lib/gog-credentials.ts`. If gog accounts are configured but neither credential type exists, `poll`, `download`, `drain-updates` and `backfill-historical` **fail** (non-zero exit, clear message) instead of skipping; `drain-updates` fails even when `reportOnly` is set. With no gog accounts configured they skip quietly. For `download` and `drain-updates`, "gog accounts" means `getGmailAccounts()`: polled accounts without an `imap` block plus `emailConfig.backfill.accounts`, so items queued by a backfill-only account are still consumed.
+  Detection lives in one place, `lib/gog-credentials.ts`. If gog accounts are configured but neither credential type exists, `poll`, `download`, `drain-updates` and `backfill-historical` **fail** (non-zero exit, clear message) instead of skipping; `drain-updates` fails even when `reportOnly` is set. With no gog accounts configured they skip quietly. For `download` and `drain-updates`, "gog accounts" means `getGmailAccounts()`: polled accounts without an `imap` block plus `emailConfig.backfill.accounts`, so items queued by a backfill-only account are still consumed.
 
 - **`emailConfig.reportOnly: true`**: mail is still ingested and archived, but nothing is written back to Gmail. Every `email-updates` write goes through `google-workspace/label-actions.ts`, so `poll`, `backfill-historical` and the one-shot `backfill-classification.ts` / `backfill-labels.ts` enqueue neither classification labels nor curation-signal actions (`watch` added/removed by `email-fetch.ts`), `meetings/extract.ts` enqueues no `meeting` label or archive (`meetings/lib/email-actions.ts`), and `drain-updates` dequeues and applies nothing (any items already queued are left pending until `reportOnly` is turned off). Actions skipped in `reportOnly` are dropped, not deferred: turning it off does not replay them. Classification labels can be caught up afterwards with `backfill-labels.ts --live`, because `labelApplied` records only labels actually enqueued. Curation-signal actions are not replayed. The `meeting` label and archive of a meeting packaged while `reportOnly` was on are the exception: `meetings/extract.ts` records them as pending and catches them up once `reportOnly` is off (see [meetings/](./meetings.md#reportonly-catch-up)).
 - **IMAP accounts**: `imap` connection block in pipeline config with host/port/user/password, the password normally a `secretRef` to a file in `IMAP_SECRETS_DIR` (see [IMAP passwords](#imap-passwords)).
-- All accounts: listed in `pipeline-config.json` with `emailPolling: true` and a `type` field (`gmail` or `imap`).
+- All accounts: listed in `pipeline.accounts` with `emailPolling: true` and a `type` field (`gmail` or `imap`).
 
 ## Account Configuration
 
-Accounts are entries in the `accounts` array of `pipeline-config.json` (schema: `src/lib/pipeline-config.ts`; full example in [Configuration Files](./lib.md#configuration-files)):
+Accounts are the entries of `pipeline.accounts` in `jeeves-scripts.json` (schema: `config/pipeline-schema.ts`; full example in [the `pipeline` block](./config.md#the-pipeline-block)):
 
 ```json
 {
@@ -117,14 +117,14 @@ Accounts are entries in the `accounts` array of `pipeline-config.json` (schema: 
 
 - `type` is `gmail` or `imap`; `type: "imap"` requires the `imap` block (schema error otherwise). A `gmail` account **with** an `imap` block is polled over IMAP using the Gmail extensions (thread ids, labels); a `gmail` account without one goes through gog.
 - `folders` is optional (IMAP only). Without it, `gmail` accounts poll `[Gmail]/All Mail`, `[Gmail]/Spam` and `[Gmail]/Trash`; generic IMAP accounts poll every folder the server lists.
-- `imap.password` is a secret reference (below). `pipeline-config.json` is gitignored and holds no secrets.
+- `imap.password` is a secret reference (below). `jeeves-scripts.json` holds no secrets (the schema rejects literal secret values).
 
 ### IMAP passwords
 
-`imap.password` takes one of two forms (schema: `src/lib/pipeline-config.ts`; resolver: `src/lib/imap-secrets.ts`):
+`imap.password` takes one form (schema: `config/pipeline-schema.ts`; resolver: `config/imap-secrets.ts`):
 
-- **`{ "secretRef": "<name>" }`** (preferred). The password lives in the file `IMAP_SECRETS_DIR/<name>`, i.e. `<CREDENTIALS_DIR>/imap/<name>` (`/opt/jeeves/config/credentials/imap/<name>` on a standard instance). `<name>` follows the jeeves-tools secret-name rule: 1-64 characters, letters, digits, `_` and `-`, starting with a letter or digit (no dots, no path separators); anything else fails config validation. The poller reads the file each time it connects, so a rotated password needs no restart; trailing newlines are removed. A missing, unreadable or empty file fails that account's poll with an error naming the ref and the path (never the value); the other accounts are still polled.
-- **A literal string** (deprecated). Still accepted, but loading the config logs one warning per process: `pipeline-config: accounts[].imap.password as a plain string is deprecated; put the password in a file in <IMAP_SECRETS_DIR> and set imap.password to { "secretRef": "<file name>" }.`
+- **`{ "secretRef": "<name>" }`**. The password lives in the file `IMAP_SECRETS_DIR/<name>`, i.e. `<CREDENTIALS_DIR>/imap/<name>` (`/opt/jeeves/config/credentials/imap/<name>` on a standard instance). `<name>` follows the jeeves-tools secret-name rule: 1-64 characters, letters, digits, `_` and `-`, starting with a letter or digit (no dots, no path separators); anything else fails config validation. The poller reads the file each time it connects, so a rotated password needs no restart; trailing newlines are removed. A missing, unreadable or empty file fails that account's poll with an error naming the ref and the path (never the value); the other accounts are still polled.
+- A literal string is a config error (core carries no deprecated aliases, Decision 29): put the password in a file in `IMAP_SECRETS_DIR` and set `imap.password` to `{ "secretRef": "<file name>" }`.
 
 Provisioning: on a jeeves-tools-managed instance, put each password in the instance config's `secrets` map under the same name as the `secretRef`; deploy writes it to `IMAP_SECRETS_DIR/<name>` (owner jeeves, mode 0600) and never logs it (see [jeeves-tools#178](https://github.com/karmaniverous/jeeves-tools/issues/178)). On a standalone instance, create the file yourself with the same owner and mode. The password is never logged, written to runner state or included in an error.
 
@@ -192,7 +192,7 @@ Gmail polling via the `gog` CLI (OAuth client or service-account mailboxes). Han
 
 - **Receipt candidate**: matches financial receipt/invoice keywords in subject/snippet/from
 - **Junk candidate**: matches newsletter/promo/marketing keywords, and is never set on a receipt candidate. `poll`, `backfill-historical` and the one-shot `backfill-classification.ts` (including `--reclassify-buckets`, which keeps stored flags) all classify through `classifyCandidates()` in `email-triage.ts`, so the rule holds on every path.
-- **Bucket**: domain-based classification via pipeline-config. Bucket names come only from `buckets` (`priority` order, then buckets that appear only in `domains`; see `getBucketNames()`), and each bucket name is also its Gmail label. Code hard-codes no bucket name.
+- **Bucket**: domain-based classification via `pipeline.buckets`. Bucket names come only from `buckets` (`priority` order, then buckets that appear only in `domains`; see `getBucketNames()`), and each bucket name is also its Gmail label. Code hard-codes no bucket name.
 - Labels (`receipt`, `junk`, the bucket name) are computed by `computeLabelsToApply()`, enqueued on `email-updates` only when the classification changes, and recorded per thread (`labelApplied`) so each is applied once.
 
 ### Curation signals and provenance
@@ -202,7 +202,7 @@ Gmail polling via the `gog` CLI (OAuth client or service-account mailboxes). Han
 
 ### Receipt forwarding settings
 
-`emailConfig.receipt.forwardEnabled` (on/off) and `emailConfig.receipt.sparkReceiptsForwardTo` (destination) are validated by `pipeline-config-email.ts`, but no template script forwards receipts; instance scripts read them. The deprecated key `forwardJGS` is still read as an alias with a one-line warning (see [Configuration Files](./lib.md#configuration-files)).
+`emailConfig.receipt.forwardEnabled` (on/off) and `emailConfig.receipt.sparkReceiptsForwardTo` (destination) are validated by `config/pipeline-email-schema.ts`, but no core script forwards receipts; instance scripts read them. The retired key `forwardJGS` is a config error (see [the `pipeline` block](./config.md#the-pipeline-block)).
 
 ## Output Format
 

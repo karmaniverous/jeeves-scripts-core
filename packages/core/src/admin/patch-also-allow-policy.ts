@@ -15,7 +15,8 @@
  *   drift gets reviewed (nothing is patched).
  * - `--dry-run`: preview only.
  *
- * Usage: tsx src/admin/patch-also-allow-policy.ts [--dry-run]
+ * Usage: jeeves-scripts run <job-id> [--dry-run]
+ * (a manifest entry in the instance's jobs/*.json with script src/admin/patch-also-allow-policy.ts)
  */
 
 import { runScript } from '@karmaniverous/jeeves';

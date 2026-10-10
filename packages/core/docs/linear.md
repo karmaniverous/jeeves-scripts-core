@@ -176,14 +176,15 @@ Add this block to your jeeves-server Event Gateway configuration:
           "type": { "type": "string" },
         },
       },
-      "cmd": "tsx {SCRIPTS_DIR}/src/linear/drain.ts",
+      "cmd": "node {SCRIPTS_DIR}/bin/jeeves-scripts.js run linear-drain",
       "timeoutMs": 10000,
     },
   },
 }
 ```
 
-- `{SCRIPTS_DIR}` — absolute path to the scripts repo checkout (from `SCRIPTS_DIR` in `constants.ts`)
+- `{SCRIPTS_DIR}` — absolute path to the instance repo (`paths().scriptsDir`)
+- `linear-drain` — a manifest entry in the instance's `jobs/*.json` with `script: "src/linear/drain.ts"` and no schedule (`run` resolves job ids only from manifests until the job registry, Decision 32)
 - `schema` — JSON Schema validated against the POST body (ajv, first match wins across all configured events)
 - `cmd` — the server spawns this command and pipes the request body JSON to stdin
 - `timeoutMs` — kill timeout for the drain process (falls back to global `eventTimeoutMs`)
@@ -203,17 +204,17 @@ On first run (no cursor), all issues/comments are fetched from the beginning. On
 
 ## Backfill
 
-Run the backfill once after setting up the webhook to populate historical data:
+Run the backfill once after setting up the webhook to populate historical data: add a manifest entry with `script: "src/linear/backfill.ts"` and no schedule to the instance's `jobs/*.json` (here `linear-backfill`; `run` resolves job ids only from manifests until the job registry, Decision 32), then:
 
 ```bash
 # Dry run (preview — no writes)
-tsx src/linear/backfill.ts --team CRE
+node bin/jeeves-scripts.js run linear-backfill --team CRE
 
 # Live run (actual writes)
-tsx src/linear/backfill.ts --team CRE --live
+node bin/jeeves-scripts.js run linear-backfill --team CRE --live
 
 # Backfill comments (no team filter needed)
-tsx src/linear/backfill.ts --type comment --live
+node bin/jeeves-scripts.js run linear-backfill --type comment --live
 ```
 
 **CLI arguments:**
@@ -265,7 +266,7 @@ Tracked as [jeeves-tools #99](https://github.com/karmaniverous/jeeves-tools/issu
 | Prerequisite | Where to configure |
 | --- | --- |
 | Linear API key | [Linear Settings → API → Personal API keys](https://linear.app/settings/api) |
-| `LINEAR_CONFIG_PATH` | `src/lib/constants.ts` — default: `/opt/jeeves/config/linear/config.json` |
+| `LINEAR_CONFIG_PATH` | `LINEAR_CONFIG_PATH` env, else `integrations.linear.configPath`, else `{configDir}/linear/config.json` |
 | Config file format | `{ "apiKey": "lin_api_...", "apiUrl": "https://api.linear.app/graphql" }` |
 | Linear webhook configured to POST to jeeves-server | Linear Settings → API → Webhooks |
 | jeeves-server Event Gateway configured with `linear` schema | `jeeves-server` config (see Event Gateway Config above) |
@@ -282,5 +283,5 @@ Tracked as [jeeves-tools #99](https://github.com/karmaniverous/jeeves-tools/issu
 | `backfill.ts` | One-time historical backfill via GraphQL API |
 | `lib/linear-client.ts` | Typed Linear GraphQL client (fetch, paginate) |
 | `../lib/entity-store.ts` | File I/O helpers with reverse-diff history (shared with Jira) |
-| `../../jobs/linear.json` | Runner job manifest (sync-issues, sync-comments schedules) |
-| `../../src/lib/constants.ts` | Linear constants (`LINEAR_CONFIG_PATH`, `LINEAR_MAX_HISTORY`) |
+| template `jobs/linear.json` | Runner job manifest (sync-issues, sync-comments schedules), carried in the instance repo |
+| `../lib/constants.ts` | Linear values from `constants()` (`LINEAR_CONFIG_PATH`, `LINEAR_MAX_HISTORY`) |

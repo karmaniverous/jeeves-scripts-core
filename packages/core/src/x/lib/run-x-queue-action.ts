@@ -84,7 +84,7 @@ export function runXQueueAction(options: XQueueActionOptions): void {
     const handle = process.argv[2];
     if (!handle) {
       console.log(
-        `[skip] No X account handle provided. Usage: tsx ${options.scriptName} <handle>`,
+        `[skip] No X account handle provided. Usage: jeeves-scripts run <job-id> <handle> (${options.scriptName})`,
       );
       return;
     }

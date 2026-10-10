@@ -1,27 +1,23 @@
 # lib/
 
-Shared infrastructure consumed by all domain scripts. This is where instance configuration, CLI wrappers, and cross-cutting utilities live.
+Shared infrastructure consumed by every domain: config-derived constants, CLI wrappers (`gh`, `gog`), the gateway client, worker dispatch and job-side Slack I/O, and the entity store. Configuration itself (schema, loader, getters, refs, silos, IMAP secrets) is in [config.md](./config.md). Every module is importable as `@karmaniverous/jeeves-scripts-core/lib/<module>`.
 
 ## Modules
 
 ### constants.ts
 
-**The first file to edit on a new instance.** Centralized paths, credentials, and integration-specific values used across all scripts. `constants.ts` is a barrel; the values live in cohesive modules under `constants/` (`instance.ts`, `integrations.ts`, `trackers.ts`, `token-metrics.ts`). Always import from the barrel.
+Fixed values plus the template's config-derived names, now read from `jeeves-scripts.json` (Decision 3). Nothing here is edited per instance: set the value in the config file.
 
-Key exports:
+- **Fixed exports** (plain constants): `TOKEN_METRICS_NAMESPACE`, `TOKEN_METRICS_CURSOR_KEY`, `TOKEN_METRICS_DB_CURSOR_KEY`, `TOKEN_METRICS_CC_CURSOR_KEY`, `SESSION_REFRESH_CACHE_READ_THRESHOLD` (150,000), `SESSION_REFRESH_IDLE_MINUTES` (60), `OPENCLAW_UPGRADE_CUTOFF_ENV`, and `ENTITY_TYPES` (`subdir`, `rejectionKeys`, `maxAgeDays` per entity type in the meta lifecycle).
+- **`constants()`** returns every config-derived value under its template name, computed from the loaded config on first call and cached until the config is reset. Importing the module reads nothing.
+  - Paths (from `paths()`): `JEEVES_BASE_DIR`, `CONFIG_DIR`, `CONTENT_DIR`, `SCRIPTS_DIR`, `CREDENTIALS_DIR`, `IMAP_SECRETS_DIR`, `GOG_CONFIG_DIR` (`paths().gogHome`), `TOKEN_METRICS_DIR`. `PIPELINE_CONFIG_PATH` and `SILO_ROUTING_CONFIG_PATH` both name the loaded `jeeves-scripts.json`.
+  - Derived from the content dir: `GITHUB_DIR`, `GITHUB_REGISTRY_PATH`, `DEFAULT_MEETINGS_DIR`, `SLACK_DOMAIN_DIR`; from the state dir: `EMAIL_EVENTS_DIR`; from the config dir: `SLACK_WORKSPACE_CACHE_PATH`; from the credentials dir: `NOTION_API_KEY_PATH`, `X_OAUTH_DIR`; from the gog home: `GOG_CLIENT_PATH`.
+  - Integrations (from `integrations()`): `INSTANCE_NAME`, `QDRANT_API_URL`, `QDRANT_SERVICE_NAME`, `GATEWAY_HOST`, `GATEWAY_PORT`, `GH_BIN`, `GH_CONFIG_DIR`, `GH_ACCOUNT`, `GH_BOT_USER`, `GOG_BIN`, `PRIMARY_WORKSPACE`, `NOTION_VERSION`, `JIRA_SITE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN_PATH`, `JIRA_FIELDS_FILENAME`, `JIRA_MAX_HISTORY`, `LINEAR_CONFIG_PATH`, `LINEAR_MAX_HISTORY`.
+  - `X_ACCOUNTS`: handle → content directory, each resolved through the account's silo (`integrations.x.accounts.<handle>.silo`, default silo) and `relativePath` (default `x/<handle>`).
+  - Token metrics: `TOKEN_RATES_PATH`, `TOKEN_RATES_PENDING_PATH`, `SLACK_DM_NAMES_CACHE_PATH` (under `TOKEN_METRICS_DIR`), `TOKEN_RATES_SEED_PATH` (the seed core ships, `config/token-rates.seed.json` in the package), `SLACK_USERS_PATH` (`{scriptsDir}/src/slack/lib/users.json`, instance data).
+  - OpenClaw: `SESSIONS_DIR`, `OPENCLAW_AGENT_DB_PATH`, `CLAUDE_CODE_PROJECTS_DIR` (under the OS home dir), `OPENCLAW_UPGRADE_CUTOFF` (env), `SPAWN_WORKER_PATH` (core's own `spawn-worker` module).
 
-- Directory paths: `JEEVES_BASE_DIR` (`/opt/jeeves`), `CONFIG_DIR` (`/opt/jeeves/config`), `CONTENT_DIR`, `SCRIPTS_DIR`, `CREDENTIALS_DIR`, `SESSIONS_DIR`, etc. On jeeves-tools-managed instances, `CONTENT_DIR` must be `/opt/jeeves/<contentDir>` (default `/opt/jeeves/content`), the root the watcher indexes and the server serves. The other `/opt/jeeves` paths in `constants/instance.ts` and `constants/integrations.ts` derive from `JEEVES_BASE_DIR` or `CONFIG_DIR`. Pipeline output written anywhere else is not indexed by the watcher or visible in jeeves-server. The template ships `/opt/jeeves/content`; repos created from an older template that used `/opt/jeeves/openclaw/content`, and instances whose config sets a different `contentDir`, must set `CONTENT_DIR` to their content root and commit it.
-- Instance (`constants/instance.ts`): `INSTANCE_NAME`, `PIPELINE_CONFIG_PATH` (`<SCRIPTS_DIR>/pipeline-config.json`), `SILO_ROUTING_CONFIG_PATH` (`<CONFIG_DIR>/silo-routing.json`), `QDRANT_API_URL`, `QDRANT_SERVICE_NAME`
-- GitHub: `GH_BIN`, `GH_CONFIG_DIR` (`<CONFIG_DIR>/gh-cli`), `GH_ACCOUNT`, `GH_BOT_USER` (both empty in the template; set per instance), `GITHUB_DIR`, `GITHUB_REGISTRY_PATH`
-- Google: `GOG_BIN`, `GOG_CONFIG_DIR` (`GOG_HOME` if set, else `/opt/jeeves/config/gogcli`, where jeeves-tools provisions gog), `GOG_CLIENT_PATH` (OAuth client; service-account mailboxes are detected by `gog-credentials.ts` under `<GOG_CONFIG_DIR>/data/` first, then the `<GOG_CONFIG_DIR>` root for older gog builds without `data/`)
-- Email: `EMAIL_EVENTS_DIR`, `IMAP_SECRETS_DIR` (`<CREDENTIALS_DIR>/imap`, IMAP password files named by `secretRef`)
-- Slack: `PRIMARY_WORKSPACE`, `SLACK_DOMAIN_DIR`, `SLACK_WORKSPACE_CACHE_PATH`
-- X/Twitter: `X_OAUTH_DIR` (`<CREDENTIALS_DIR>/oauth`), `X_ACCOUNTS` (map of account handle → that account's output directory; empty in the template)
-- Notion: `NOTION_VERSION`, `NOTION_API_KEY_PATH`
-- Meetings: `DEFAULT_MEETINGS_DIR`
-- Gateway: `GATEWAY_HOST`, `GATEWAY_PORT`, `SPAWN_WORKER_PATH`
-- Token metrics: `TOKEN_METRICS_DIR`, `TOKEN_RATES_PATH`, `SESSION_REFRESH_*` thresholds
-- Entity types: `ENTITY_TYPES` array with `subdir`, `rejectionKeys`, `maxAgeDays` per type
+Content written outside the configured content dir and silos is invisible to the watcher and jeeves-server, so every content path goes through `paths()` / `siloPath()` (Decision 28).
 
 ### dates.ts
 
@@ -34,10 +30,10 @@ Thin wrappers around date-fns. No config dependencies.
 - `withDateContext(task, now, timeZone)` — prepends `> **Today is <weekday>, <YYYY-MM-DD> (<zone>).** …` to a worker task (used by `dispatchers/daily-digest.ts`)
 - Re-exports `format` and `parseISO` from date-fns
 
-From a shell, run it with `tsx` from the repo root (the repo is TypeScript source with no compiled `.js`, so plain `node -e` importing `./src/lib/dates.js` fails with `ERR_MODULE_NOT_FOUND`):
+From a shell in an instance repo:
 
 ```bash
-tsx -e "import { dayOfWeek } from './src/lib/dates.ts'; console.log(dayOfWeek('2026-06-01'));"
+node --input-type=module -e "import { dayOfWeek } from '@karmaniverous/jeeves-scripts-core/lib/dates'; console.log(dayOfWeek('2026-06-01'));"
 ```
 
 ### email.ts
@@ -73,56 +69,30 @@ Single source of truth for which gog credentials exist. Depends on `GOG_CLIENT_P
 - `detectGogCredentials(configDir?)` — `{ oauthClient, serviceAccount, any }`: OAuth client file present, any `sa-*.json` present
 - `requireGogCredentials(job, accountCount, creds?)` — `false` when `accountCount` is 0 (caller skips), `true` when any credential exists, otherwise throws so the run fails
 
-### imap-secrets.ts
-
-Resolves IMAP passwords. Depends on `IMAP_SECRETS_DIR` (`<CREDENTIALS_DIR>/imap`). Never logs a password or puts one in an error.
-
-- `isSafeSecretRef(ref)` — `true` for a valid secret name, the same rule jeeves-tools uses for instance `secrets`: 1-64 characters, letters, digits, `_` and `-`, starting with a letter or digit (no dots or path separators; used by the pipeline-config schema)
-- `imapSecretPath(ref, dir?)` — `<dir>/<ref>`, throwing on an unsafe ref
-- `resolveImapPassword(password, dir?)` — a literal string as is; `{ secretRef }` read from its file with trailing newlines removed; throws, naming the ref and path, when the file is missing, unreadable or empty
-
 ### gateway-client.ts
 
 Gateway HTTP client for OpenClaw tool invocation. Depends on `GATEWAY_HOST`, `GATEWAY_PORT`.
 
-- `loadGatewayToken()` — load bearer token from `~/.openclaw/openclaw.json` or `CLAWDBOT_GATEWAY_TOKEN` env var
+- `loadGatewayToken()` — the bearer token from `CLAWDBOT_GATEWAY_TOKEN` or the OpenClaw config (`gatewayToken()`, below)
 - `gatewayInvoke(tool, args, options?)` — invoke an OpenClaw gateway HTTP API tool
 - `unwrapResult(r)` — unwrap result from gateway response
 
 ### gateway-rpc.ts
 
-Gateway RPC caller for methods that are not HTTP tools, or whose tool wrapper limits what the RPC allows. Depends on the global openclaw install (`resolve-openclaw-dist.ts`).
+Gateway RPC caller for methods that are not HTTP tools, or whose tool wrapper limits what the RPC allows. Depends on the global openclaw install (`admin/lib/resolve-openclaw-dist.ts`).
 
 - `gatewayRpc(method, params, cliPath?)`: run `openclaw gateway call <method> --json --params <json>` under the current Node binary (no shell) and resolve the result; gateway errors, CLI failures and non-JSON output reject
 
-### pipeline-config.ts
+### openclaw-config.ts
 
-Zod-validated pipeline configuration loader. Depends on `PIPELINE_CONFIG_PATH`. The `emailConfig` schema lives in `pipeline-config-email.ts` and the shared deprecation warner in `pipeline-config-deprecations.ts`; the email config types are re-exported from `pipeline-config.ts`. Deprecated forms (`emailConfig.receipt.forwardJGS`, a literal `imap.password` string) still load, each with a one-line `pipeline-config:` warning logged once per process.
+Reads credentials from the local OpenClaw config, `~/.openclaw/openclaw.json`, then the legacy `~/.clawdbot/clawdbot.json` (home: `USERPROFILE`, else the OS home dir). Only the fields read here are validated (`openclawConfigSchema`, Zod 4); missing, unreadable or invalid files are skipped. Never logs a token. Exported from the package root.
 
-- `loadPipelineConfig()` — load and cache config with Zod validation
-- `getRef(key)` — get a ref value by dotted key (e.g., `'notion.socialPostsDatabaseId'`); throws if missing
-- `tryGetRef(key)` — same as `getRef` but returns an empty string instead of throwing when the key is missing
-- `getCalendarAccounts()` — accounts with calendar config
-- `getEmailAccounts()` — email addresses with `emailPolling: true`
-- `getBucketNames()` — every configured bucket name (`buckets.priority` order, then domain-only buckets), deduplicated; bucket names are also Gmail labels
-- `getGmailAccounts()` — gog-served addresses, deduplicated: `emailPolling` accounts without an `imap` block plus `emailConfig.backfill.accounts`
-- `getBucketForDomain(domain)` — match email domain to classification bucket
-- `getBucketPriority()` — bucket name to priority index mapping
+- `gatewayToken(files?)` — a non-empty `CLAWDBOT_GATEWAY_TOKEN`, else `gateway.auth.token`; `null` when neither exists
+- `slackBotTokens(files?)` — every Slack bot token by gateway account id (`channels.slack.accounts.<id>.botToken`, else the flat `channels.slack.botToken` as `default`), from the first file that has any; throws when none does
+- `slackBotToken(accountId = 'default', files?)` — one account's token; throws when it has none
+- `findInOpenclawConfig(pick, files?)` / `openclawConfigPaths(home?)` — the search primitives
 
-### silo-router.ts
-
-Multi-tenant data routing by email domain, GitHub org, and Slack workspace. Depends on `SILO_ROUTING_CONFIG_PATH`.
-
-- `getBasePathForEmailDomain(domain)` — resolve email domain to base content path
-- `getBasePathForGitHubOrg(org)` — resolve GitHub org to base path (with optional relative path)
-- `getBasePathForSlackWorkspace(teamId)` — resolve Slack workspace to base path
-- `getBasePathForMeeting(participantEmails)` — resolve meeting to base path via majority-voting on participant email domains
-- `getBasePathForJira()` — resolve Jira base path from silo routing config
-- `getBasePathForLinear()` — resolve Linear base path from silo routing config
-- `getEntityDirs(subdir)` — deduplicated list of entity root directories across all silos
-- `getEmailBaseForAccount(account)` / `getCalendarBaseForAccount(account)` — per-account path helpers
-
-Single-tenant instances route everything to `CONTENT_DIR` by default.
+Used by `gateway-client` (and so `spawn-worker`), `slack/poll` and instance code.
 
 ### worker-output.ts
 
@@ -141,9 +111,9 @@ Job-side Slack I/O for LLM workers. On OpenClaw 2026.9, sub-agent sessions have 
 
 ### spawn-worker.ts
 
-Gateway session spawner — executable script invoked by `runDispatcher()`.
+Gateway session spawner: the executable `runDispatcher()` / `dispatchSession()` run (`constants().SPAWN_WORKER_PATH`, core's built `dist/lib/spawn-worker.js`). It uses `gateway-client`, so it reads the gateway host and port from `integrations.gateway` and the token from the OpenClaw config.
 
-Usage: `echo "task" | tsx spawn-worker.ts --job-id=<id> [--label=<label>] [--thinking=<level>]`
+Usage: `echo "task" | node <core>/dist/lib/spawn-worker.js --job-id=<id> [--label=<label>] [--thinking=<level>]`
 
 - Spawns a session via OpenClaw gateway HTTP API
 - Polls indefinitely for completion (runner job `timeout_seconds` handles process kill)
@@ -175,120 +145,6 @@ Entity file structure:
 
 History entries are reverse-diff patches (JSON Patch format) — apply newest-to-oldest to reconstruct prior states.
 
-## Configuration Files
+## Configuration
 
-Two JSON configuration files control pipeline behavior. Both paths are set via constants in `constants.ts`. On managed instances, these files may be rendered by `jeeves-tools deploy`; for initial setup or standalone instances, the assistant creates them from operator input.
-
-### `pipeline-config.json`
-
-Location: set via `PIPELINE_CONFIG_PATH` in `constants.ts` (`<SCRIPTS_DIR>/pipeline-config.json`, the repo root). The repo ships `pipeline-config.json.template` as a starting point. `pipeline-config.json` itself is gitignored (per-instance, never committed) and holds no secrets: IMAP passwords are `secretRef`s to files in `IMAP_SECRETS_DIR` (see below).
-
-Loaded and validated by `pipeline-config.ts`. Configures accounts, domain-to-bucket routing, external service refs, and email behavior.
-
-**Schema:**
-
-```json
-{
-  "accounts": [
-    {
-      "email": "user@example.com",
-      "type": "gmail",
-      "calendar": { "serviceAccount": "auto" },
-      "emailPolling": true
-    },
-    {
-      "email": "user@imap.example.com",
-      "type": "imap",
-      "emailPolling": true,
-      "imap": {
-        "host": "imap.provider.com",
-        "port": 993,
-        "tls": true,
-        "user": "user@imap.example.com",
-        "password": { "secretRef": "user-imap-example-com" }
-      },
-      "folders": ["INBOX", "Sent"]
-    }
-  ],
-  "buckets": {
-    "domains": [
-      { "pattern": "company.com", "bucket": "internal" },
-      { "pattern": "vendor.com", "bucket": "vendor" }
-    ],
-    "priority": ["internal", "vendor", "external"]
-  },
-  "refs": {
-    "notion.socialPostsDatabaseId": "abc123...",
-    "slack.adminChannelId": "C0123..."
-  },
-  "emailConfig": {
-    "reportOnly": false,
-    "receipt": {
-      "forwardEnabled": true,
-      "sparkReceiptsForwardTo": "receipts@example.com"
-    },
-    "digest": {
-      "slackChannelId": "C0456..."
-    }
-  }
-}
-```
-
-**Fields:**
-
-- `accounts` — List of email accounts. Each has `email`, `type` (`"gmail"` or `"imap"`), optional `calendar` config, and `emailPolling` toggle. `type: "imap"` requires an `imap` connection block; any account with an `imap` block is polled over IMAP (a `gmail` one with Gmail extensions), the rest through gog. `folders` is optional (IMAP only): without it, `gmail` accounts poll `[Gmail]/All Mail`, `[Gmail]/Spam` and `[Gmail]/Trash`, generic IMAP accounts every folder the server lists. `imap.password` is `{ "secretRef": "<name>" }`: the poller reads the password from `<CREDENTIALS_DIR>/imap/<name>` (`IMAP_SECRETS_DIR`) when it connects, and jeeves-tools provisions that file from the instance config's `secrets` map ([jeeves-tools#178](https://github.com/karmaniverous/jeeves-tools/issues/178)). A literal string is still accepted but deprecated (one warning per process). See [email/](./email.md#imap-passwords).
-- `accounts[].calendar` — Either `{ "serviceAccount": "auto" }` (Workspace mailbox via the service-account registration gog keeps for it) or `{ "tokenFile": "<path relative to CREDENTIALS_DIR>" }` (OAuth refresh token; needs the gog OAuth client). See [calendar/](./calendar.md#account-configuration).
-- `buckets.domains` — Maps email domains to classification buckets. `pattern` is matched case-insensitively.
-- `buckets.priority` — Ordered bucket names (lower index = higher priority).
-- `refs` — Named references to external service IDs (and other per-instance values, such as the daily digest's IANA time zone `digest.timezone`) accessed via `getRef('dotted.key')`.
-
-  **Finding the refs an instance needs.** Every ref is read in code with `getRef('…')` (throws when missing) or `tryGetRef('…')` (empty string when missing), either with a literal key or through a `*_REF` constant (e.g. `DIGEST_TIMEZONE_REF = 'digest.timezone'`), so the set of refs is whatever this repo's scripts ask for. List them from the repo root with `grep -rhoE "(try)?[gG]etRef\('[^']+'\)|[A-Z_]+_REF = '[^']+'" src --include='*.ts' --exclude='*.test.ts' | sort -u`, then set a value for each under `refs` (dotted keys become nested objects). Keep the convention when adding a ref: a literal key or a `*_REF` constant, so this list stays complete. Refs are per-instance IDs and settings (Notion database IDs, Slack channel IDs, `digest.timezone`); there are no defaults, and they are not secrets (secrets go in `imap.password` `secretRef` files).
-
-- `emailConfig.reportOnly` — When `true`, email is still ingested but no Gmail mutations happen: poll and backfill-historical enqueue no label actions (classification or curation-signal), meetings-extract enqueues no `meeting` label or archive, and drain-updates applies none. Skipped actions are dropped, not deferred (see [email/](./email.md#prerequisites)), except meetings-extract's, which are caught up once `reportOnly` is off (see [meetings/](./meetings.md#reportonly-catch-up)).
-- `emailConfig.meetings` (optional) — Gmail actions meetings-extract takes on a meeting's source email: `{ "archive": false }` applies only the `meeting` label; `{ "archive": true }` also archives the email out of `INBOX` (never a `watch`ed one). `archive` is required when the block is present. Absent means `archive: true`, the original behaviour. `reportOnly` still overrides both.
-- `emailConfig.backfill` (optional) — Paced historical Gmail backfill (`email-backfill-historical` job): `{ "accounts": ["me@example.com"], "lookbackDays": 90, "windowDays": 7 }`. All three fields are required when the block is present; there are no defaults. Each run searches one `windowDays` window per account, walking back until `lookbackDays`, then no-ops. Values can be overridden with `--accounts`, `--lookback-days`, `--window-days`. Backfill accounts are included in `getGmailAccounts()`, so `email-download` and `email-drain-updates` consume what backfill queues even for accounts that are not polled.
-- `emailConfig.receipt` — Receipt forwarding settings: `forwardEnabled` (boolean, whether detected receipts are forwarded) and `sparkReceiptsForwardTo` (the address they go to). No script in this template reads these yet; they are validated so instance scripts can rely on them.
-- `googleDrive` (optional) — Google Drive sync: a run-wide `budget` and `syncs[]` (`account`, `targetDir`, `pathResolution.domains`, …). This loader passes the block through **unvalidated**; the Drive job validates it (`loadGoogleDriveConfig()` in `src/google-drive/lib/config.ts`), so a mistake in it fails only that job. Fully documented in [google-drive/](./google-drive.md#configuration).
-- `buckets` — bucket names (from `buckets.priority` and `buckets.domains[].bucket`, see `getBucketNames()`) are also the Gmail labels the classification and backfill scripts apply. No bucket name is hard-coded in code.
-
-**Migration: `emailConfig.receipt.forwardJGS` → `forwardEnabled`.** The old key is still accepted as a deprecated alias: at load time it is mapped to `forwardEnabled` and a one-line warning is logged (`pipeline-config: emailConfig.receipt.forwardJGS is deprecated; rename it to forwardEnabled.`). If both keys are present, `forwardEnabled` wins, the old key is ignored, and the warning says so. Rename the key in your `pipeline-config.json` to silence the warning; the alias will be removed in a future release.
-
-- `emailConfig.digest` — Slack channel for email digest delivery.
-
-### `silo-routing.json`
-
-Location: set via `SILO_ROUTING_CONFIG_PATH` in `constants.ts`.
-
-Loaded and validated by `silo-router.ts`. Routes pipeline output to the correct base content path per tenant. Single-tenant instances can omit this file — `silo-router.ts` defaults to `CONTENT_DIR`.
-
-**Schema:**
-
-```json
-{
-  "defaultBasePath": "/opt/jeeves/content",
-  "silos": {
-    "acme": {
-      "emailDomains": ["acme.com", "acme.co.uk"],
-      "githubOrgs": [
-        "acme-corp",
-        { "githubOrg": "acme-oss", "relativePath": "oss" }
-      ],
-      "slackWorkspaces": ["T0ABC123"],
-      "jira": true,
-      "linear": true,
-      "basePath": "/opt/jeeves/content/acme"
-    }
-  }
-}
-```
-
-**Fields:**
-
-- `defaultBasePath` — Fallback path when no silo matches. Defaults to `CONTENT_DIR`.
-- `silos` — Named tenant configurations. Each silo maps:
-  - `emailDomains` — Email domains that belong to this tenant.
-  - `githubOrgs` — GitHub orgs for this tenant. Plain strings use the silo's `basePath` directly; objects with `{ "githubOrg": "...", "relativePath": "..." }` append a relative subdirectory.
-  - `slackWorkspaces` — Slack team IDs (e.g., `T0ABC123`) for this tenant.
-  - `jira` — When `true`, Jira content for this instance routes to this silo.
-  - `linear` — When `true`, Linear content for this instance routes to this silo.
-  - `basePath` — Absolute base path for all content routed to this silo.
+`jeeves-scripts.json` (pipeline accounts, buckets, refs, email and Drive settings, silo routing) is documented in [config.md](./config.md), including [the `pipeline` block](./config.md#the-pipeline-block) and [silos](./config.md#silos).

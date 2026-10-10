@@ -14,7 +14,8 @@
  *   anything.
  *
  * Usage:
- *   tsx src/admin/recalculate-token-metrics.ts [--from ISO] [--to ISO] [--dry-run]
+ *   jeeves-scripts run <job-id> [--from ISO] [--to ISO] [--dry-run]
+ *   (a manifest entry in the instance's jobs/*.json with script src/admin/recalculate-token-metrics.ts)
  *
  * Defaults: full transcript window (all time up to the previous closed
  * UTC hour boundary).

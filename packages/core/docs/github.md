@@ -49,12 +49,12 @@ flowchart LR
 
 ## Prerequisites
 
-- `GH_ACCOUNT` (primary account) and `GH_BOT_USER` (bot) set in `constants.ts` (`src/lib/constants/integrations.ts`); both are empty in the template. The scripts switch between them with `gh auth switch -u <user>`, so `gh` must hold a login for each.
+- `GH_ACCOUNT` (primary account) and `GH_BOT_USER` (bot) from `integrations.gh.account` / `integrations.gh.botUser` in `jeeves-scripts.json`; both default to empty. The scripts switch between them with `gh auth switch -u <user>`, so `gh` must hold a login for each.
 - `GH_CONFIG_DIR` (`/opt/jeeves/config/gh-cli`): every GitHub script sets the `GH_CONFIG_DIR` environment variable to it (`setupGhConfig()`) before calling `gh`, so the logins must live there. The jobs skip (`[skip]`, exit 0) when the directory does not exist; `build-registry` also skips when `GH_ACCOUNT` is empty.
 - `GH_BIN` (`gh`, resolved through `PATH`).
 - The sync jobs only process repos in the registry, so `github-build-registry` must have run.
 
-All entries in `jobs/github.json` carry a non-null `prerequisite` (GitHub CLI auth).
+All entries in the template manifest `jobs/github.json` carry a non-null `prerequisite` (GitHub CLI auth).
 
 | Job                     | Schedule           |
 | ----------------------- | ------------------ |
@@ -70,5 +70,5 @@ All entries in `jobs/github.json` carry a non-null `prerequisite` (GitHub CLI au
 | File | Purpose |
 | --- | --- |
 | `../lib/gh.ts` | GitHub CLI wrappers — `gh()`, `ghJson()`, `ghApi()`, `setupGhConfig()` |
-| `../lib/silo-router.ts` | `getBasePathForGitHubOrg()` for org-based output routing (see [Configuration Files](./lib.md#configuration-files) for `silo-routing.json` schema) |
-| `../lib/constants.ts` | GitHub-specific constants (accounts, paths, registry location) |
+| `../config/silo-router.ts` | `getBasePathForGitHubOrg()` for org-based output routing (see [silos](./config.md#silos) for the `siloRouting` schema) |
+| `../lib/constants.ts` | GitHub values from `constants()` (`GH_*`, `GITHUB_DIR`, `GITHUB_REGISTRY_PATH`) |

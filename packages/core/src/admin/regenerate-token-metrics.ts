@@ -32,7 +32,7 @@
  * node:sqlite is loaded lazily (only when the agent DB is scanned).
  *
  * Usage:
- *   tsx src/admin/regenerate-token-metrics.ts --from ISO [--to ISO] [--out DIR] [--dry-run] [--allow-pre-upgrade]
+ *   jeeves-scripts run <job-id> --from ISO [--to ISO] [--out DIR] [--dry-run] [--allow-pre-upgrade]
  */
 
 import fs from 'node:fs';

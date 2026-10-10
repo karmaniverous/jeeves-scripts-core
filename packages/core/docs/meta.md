@@ -13,7 +13,7 @@ Entity lifecycle maintenance — sweeps duplicate entities and disables stale me
 
 ```mermaid
 flowchart LR
-  types["ENTITY_TYPES\n(constants.ts)"] --> dirs["getEntityDirs()\n(silo-router)"]
+  types["ENTITY_TYPES\n(lib/constants)"] --> dirs["getEntityDirs()\n(silo-router)"]
   dirs --> scan["scan .meta/meta.json\nper entity"]
   scan --> sweep["sweep-duplicates:\nmerge + delete"]
   scan --> disable["disable-old-meta:\nwrite _disabled"]
@@ -38,4 +38,4 @@ No external prerequisites. Operates on local filesystem entity directories.
 | File | Purpose |
 | --- | --- |
 | `../lib/constants.ts` | `ENTITY_TYPES` array defining entity type config |
-| `../lib/silo-router.ts` | `getEntityDirs()` for cross-silo directory discovery |
+| `../config/silo-router.ts` | `getEntityDirs()` for cross-silo directory discovery |

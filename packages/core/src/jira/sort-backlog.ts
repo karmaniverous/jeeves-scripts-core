@@ -8,8 +8,8 @@
  * but the groups are collected: no-priority on top, then Highest → Lowest.
  *
  * Usage:
- *   tsx src/jira/sort-backlog.ts          # dry-run (default)
- *   tsx src/jira/sort-backlog.ts --live   # actually re-rank
+ *   jeeves-scripts run jira-sort-backlog          # dry-run (default)
+ *   jeeves-scripts run jira-sort-backlog --live   # actually re-rank
  *
  * Designed to run ad-hoc and as a daily runner job.
  */

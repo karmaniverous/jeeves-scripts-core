@@ -21,8 +21,9 @@
  * - `slack.socialChannel` — Slack channel ID for posting summaries
  * - `slack.operatorDm` — Slack user or DM channel ID for completion routing
  *
- * Register as a runner job manually (not in jobs/ manifests):
- *   runner_create_job(\{ id: 'generate-social-posts', script: 'src/dispatchers/social-posts.ts', ... \})
+ * Not in the template manifests: add an entry to the instance's jobs/*.json
+ * (`id: 'generate-social-posts'`, `script: 'src/dispatchers/social-posts.ts'`,
+ * a schedule) and run it as `jeeves-scripts run generate-social-posts`.
  */
 
 import path from 'node:path';

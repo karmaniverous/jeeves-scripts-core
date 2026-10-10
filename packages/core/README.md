@@ -12,6 +12,7 @@ Everything below ships in the npm package. From an instance repo, the package ro
 | `docs/<domain>.md` | One reference per domain (table below). |
 | `guides/` | Design records and runbooks referenced from the domain docs. |
 | `schema/jeeves-scripts.schema.json` | JSON Schema for `jeeves-scripts.json`, generated from the Zod config schema. |
+| `config/token-rates.seed.json` | The token rate card seed (`constants().TOKEN_RATES_SEED_PATH`). |
 | `CHANGELOG.md` | Release notes. |
 | `dist/**/*.d.ts` | TSDoc for every module, next to its type declarations. |
 
@@ -21,7 +22,9 @@ To locate the package root from code or a shell without assuming a layout:
 node -p "path.dirname(require.resolve('@karmaniverous/jeeves-scripts-core/package.json'))"
 ```
 
-The docs are also exported, so `@karmaniverous/jeeves-scripts-core/docs/<domain>.md` and `@karmaniverous/jeeves-scripts-core/guides/<file>.md` resolve with `require.resolve` / `import.meta.resolve`.
+The `exports` map publishes `./package.json`, `./docs/*`, `./guides/*`, `./schema/*` and `./config/*`, so `require.resolve('@karmaniverous/jeeves-scripts-core/docs/<domain>.md')` (or `import.meta.resolve`) returns a doc's absolute path from anywhere in the instance repo. `test/package-docs.test.ts` keeps this true: every doc and guide ships, resolves, and is indexed below.
+
+Job ids and schedules named in the docs are the template's manifest entries. Until the job registry ships them in core (Decision 32), each instance carries them in its own `jobs/*.json`; a module without a manifest entry (backfills, migrations, event-gateway drains) needs one before `run` can start it.
 
 ### Domain docs
 
@@ -90,7 +93,7 @@ See [`docs/config.md`](docs/config.md).
 
 | Import | What it is |
 | --- | --- |
-| `@karmaniverous/jeeves-scripts-core` | The config API: schemas, loader, getters (`paths()`, `integrations()`, `pipeline()`), refs, silo resolver and routing, `configCheck`. |
+| `@karmaniverous/jeeves-scripts-core` | The config API (schemas, loader, getters `paths()`, `integrations()`, `pipeline()`, refs, silo resolver and routing, `configCheck`); the task-file dispatcher (`taskFileDispatcher`, `dispatchTaskFile`, `resolveTaskFile`); the OpenClaw config reader (`gatewayToken`, `slackBotToken`, `slackBotTokens`); the worker-slack config schemas and types. |
 | `@karmaniverous/jeeves-scripts-core/cli` | `main`, `buildProgram`: the CLI the launcher runs. |
 | `@karmaniverous/jeeves-scripts-core/<domain>/<module>` | Any built module, e.g. `lib/constants`, `lib/worker-slack/run`, `dispatchers/lib/task-file-dispatcher`. |
 

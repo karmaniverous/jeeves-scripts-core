@@ -40,7 +40,7 @@ export function collectOpenClawDb(
   if (!cursors) {
     console.error(
       '[token-metrics] No OpenClaw DB cursor in runner state; refusing to collect OpenClaw usage from zero (it would double count history). ' +
-        'Bootstrap once with: tsx src/admin/regenerate-token-metrics.ts --from <OpenClaw 2026.9 upgrade hour, ISO>',
+        'Bootstrap once by running src/admin/regenerate-token-metrics.ts (jeeves-scripts run <its job id>) with --from <OpenClaw 2026.9 upgrade hour, ISO>',
     );
     process.exitCode = 1;
     return null;

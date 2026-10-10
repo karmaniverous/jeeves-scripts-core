@@ -23,15 +23,15 @@ Do these in order on a new instance. Each step has a check.
    Check: `gog auth service-account status assistant@example.com`, then `gog --readonly -a assistant@example.com drive ls --all --query "sharedWithMe" --max 5 --json` returns without an auth error.
 2. **Confirm the DWD grant.** In the Admin console (Security → Access and data control → API controls → Manage Domain Wide Delegation), the service account's client ID must be granted the scopes **gog requests**: `https://www.googleapis.com/auth/drive` and `https://www.googleapis.com/auth/spreadsheets`. These are _full_ scopes because gog has no read-only variants (`gog auth services`). Docs and Slides are exported through the Drive API, so they need no `documents`/`presentations` scope. Check: a `gog --readonly -a <account> sheets metadata <some shared sheet id> --json` call succeeds.
 3. **Sharing settings.** For external shares: Apps → Google Workspace → Drive and Docs → Sharing settings → _"Allow users … to receive files from users or shared drives outside of …"_ must be on for the assistant's org unit. For shared drives: each drive whose items should reach the assistant needs _"Allow people who aren't shared drive members to access files"_ switched on (otherwise items can only be shared with members).
-4. **Add the `googleDrive` block** to `pipeline-config.json` ([Configuration](#configuration)). The seeded config carries it as `_googleDriveExample` (ignored at runtime): rename the key and fill in `account` and `pathResolution.domains`.
+4. **Add the `googleDrive` block** as `pipeline.googleDrive` in `jeeves-scripts.json` ([Configuration](#configuration)). The seeded config carries it as `_googleDriveExample` (ignored at runtime): rename the key and fill in `account` and `pathResolution.domains`.
 5. **Do not exclude the mirror from watcher version tracking yet.** The intent is to exclude it (Drive is the system of record, and versioning the mirror duplicates its history), but `watcher_vcs_exclude` works by writing a `.gitignore`, and with `watch.respectGitignore` on, that **also removes the files from the search index**. Wait for [jeeves-watcher#253](https://github.com/karmaniverous/jeeves-watcher/issues/253) (VCS-only exclusion).
 6. **Dry run** and review the plan ([Running](#running)).
-7. **Register the job** with `runner_create_job` using the absolute script path. Deploy skips manifests that carry a `prerequisite`.
+7. **Register the job**: the `google-drive-sync` manifest entry in the instance's `jobs/google-drive.json`, run as `bin/jeeves-scripts.js run google-drive-sync` (see [cli](./cli.md)). Deploy skips manifests that carry a `prerequisite`.
 8. **Ask people to share** files, folders and shared drives with the assistant's address. Sharing is the whole interface; no acceptance step is needed.
 
 ## Configuration
 
-Optional `googleDrive` block in `pipeline-config.json`. The shared config loader (`src/lib/pipeline-config.ts`) passes it through unvalidated; this job validates it (`lib/config.ts`, Zod) when it starts, so a mistake in the block fails only the Drive job, never the other jobs that load the config. No block → the job logs `[skip]` and exits 0. Only `account` and `pathResolution.domains` normally need setting.
+Optional `pipeline.googleDrive` block in `jeeves-scripts.json`. The shared config schema (`config/pipeline-schema.ts`) passes it through unvalidated; this job validates it (`lib/config.ts`, Zod) when it starts, so a mistake in the block fails only the Drive job, never the other jobs that load the config. No block → the job logs `[skip]` and exits 0. Only `account` and `pathResolution.domains` normally need setting.
 
 ```json
 "googleDrive": {
@@ -169,18 +169,18 @@ jeeves-runner state (`JR_DB_PATH`), namespace `google-drive`:
 
 - **Content keys:** `md5:<md5Checksum>` for uploads. For Google-native files, `rev:<latest revision id>`, checked in two stages: unchanged `modifiedTime` → reuse the stored key (no call); changed → one `revisions.list`. A rename bumps `modifiedTime` but not the revision, so it's a move, not a re-export. If revisions are unreadable, `mt:<modifiedTime>` is used instead.
 - The **queue is derived**, never stored: snapshot files whose probe key ≠ `written.contentKey`, minus skipped/parked/backing-off items.
-- **Reset:** `npx tsx src/google-drive/sync.ts --reset-state --live [--account <a>]`. Never a bare `deleteState`: `state_items` has a foreign key with no cascade, so deleting the parent while items exist fails. A reset just causes one full (budgeted) re-download.
+- **Reset:** `node bin/jeeves-scripts.js run google-drive-sync --reset-state --live [--account <a>]`. Never a bare `deleteState`: `state_items` has a foreign key with no cascade, so deleting the parent while items exist fails. A reset just causes one full (budgeted) re-download.
 - Inspect: `runner_query_state` (namespace `google-drive`, key `run:<account>`) and `runner_query_collection`.
 
 ## Running
 
 ```bash
 # Dry run (default): prints MOVE / HOLD / DELETE / NEW / UPDATE / SKIP / META-CANDIDATE lines, writes nothing
-JR_DB_PATH=/opt/jeeves/state/runner/runner.sqlite npx tsx src/google-drive/sync.ts
+JR_DB_PATH=/opt/jeeves/state/runner/runner.sqlite node bin/jeeves-scripts.js run google-drive-sync
 # Before a googleDrive block exists: synthesize an entry for one account
-JR_DB_PATH=… npx tsx src/google-drive/sync.ts --account assistant@example.com --domains example.com
+JR_DB_PATH=… node bin/jeeves-scripts.js run google-drive-sync --account assistant@example.com --domains example.com
 # Live (what the job runs)
-JR_DB_PATH=… npx tsx src/google-drive/sync.ts --live
+JR_DB_PATH=… node bin/jeeves-scripts.js run google-drive-sync --live
 ```
 
 | Flag | Effect |
@@ -212,7 +212,7 @@ JR_DB_PATH=… npx tsx src/google-drive/sync.ts --live
 
 | Job                 | Schedule     | Manifest                 |
 | ------------------- | ------------ | ------------------------ |
-| `google-drive-sync` | Every 13 min | `jobs/google-drive.json` |
+| `google-drive-sync` | Every 13 min | template `jobs/google-drive.json` |
 
 `overlap_policy: skip`, `timeout_seconds: 720`, `args: ["--live"]`. The manifest carries a non-null `prerequisite`, so deploy does not auto-register it.
 
@@ -220,7 +220,7 @@ JR_DB_PATH=… npx tsx src/google-drive/sync.ts --live
 
 | Symptom | Diagnosis |
 | --- | --- |
-| `[skip] no googleDrive syncs configured` | No `googleDrive` block, or `--account` matched nothing. Check `pipeline-config.json` |
+| `[skip] no googleDrive syncs configured` | No `googleDrive` block, or `--account` matched nothing. Check `pipeline.googleDrive` in `jeeves-scripts.json` |
 | gog error about missing credentials for the account | Onboarding step 1: `gog auth service-account status <account>` |
 | `unauthorized_client` / 403 on Drive or Sheets | DWD grant missing a scope gog requests (step 2): `gog auth services` lists them |
 | Files land flat under an email root | Owner outside `pathResolution.domains`, or impersonation off. Check `pathResolved` in frontmatter and `unresolvedShares` in the run state. A denied or failed impersonation shows up as an enumeration error instead (below) |

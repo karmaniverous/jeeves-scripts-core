@@ -138,7 +138,7 @@ Add this block to your jeeves-server Event Gateway configuration:
     "schemas": [
       {
         "pattern": "jira",
-        "cmd": ["tsx", "{SCRIPTS_DIR}/src/jira/drain.ts"],
+        "cmd": ["node", "{SCRIPTS_DIR}/bin/jeeves-scripts.js", "run", "jira-drain"],
         "timeoutMs": 10000,
       },
     ],
@@ -146,7 +146,8 @@ Add this block to your jeeves-server Event Gateway configuration:
 }
 ```
 
-- `{SCRIPTS_DIR}` — absolute path to the scripts repo checkout (from `SCRIPTS_DIR` in `constants.ts`)
+- `{SCRIPTS_DIR}` — absolute path to the instance repo (`paths().scriptsDir`)
+- `jira-drain` — a manifest entry in the instance's `jobs/*.json` with `script: "src/jira/drain.ts"` and no schedule (`run` resolves job ids only from manifests until the job registry, Decision 32)
 - `pattern` — must match the path segment used in the webhook URL (e.g. `/api/events/jira`)
 - `timeoutMs` — 10 seconds is ample; drain scripts are fast I/O-only operations
 
@@ -175,17 +176,17 @@ The map is updated daily by `refresh-fields.ts` (scheduled runner job). After an
 
 ## Backfill
 
-Run the backfill once after setting up the webhook to populate historical data:
+Run the backfill once after setting up the webhook to populate historical data: add a manifest entry with `script: "src/jira/backfill.ts"` and no schedule to the instance's `jobs/*.json` (here `jira-backfill`; `run` resolves job ids only from manifests until the job registry, Decision 32), then:
 
 ```bash
 # Dry run (preview — no writes)
-tsx src/jira/backfill.ts --project WEB
+node bin/jeeves-scripts.js run jira-backfill --project WEB
 
 # Live run (actual writes)
-tsx src/jira/backfill.ts --project WEB --live
+node bin/jeeves-scripts.js run jira-backfill --project WEB --live
 
 # Backfill a different entity type (future)
-tsx src/jira/backfill.ts --project WEB --type issue --live
+node bin/jeeves-scripts.js run jira-backfill --project WEB --type issue --live
 ```
 
 **CLI arguments:**
@@ -205,9 +206,9 @@ tsx src/jira/backfill.ts --project WEB --type issue --live
 | Prerequisite | Where to configure |
 | --- | --- |
 | Jira Cloud account with API token | [id.atlassian.com → API tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
-| `JIRA_SITE_URL` | `src/lib/constants.ts` — e.g. `'https://mysite.atlassian.net'` |
-| `JIRA_EMAIL` | `src/lib/constants.ts` — Atlassian account email |
-| `JIRA_API_TOKEN_PATH` | `src/lib/constants.ts` — path to API token file |
+| `JIRA_SITE_URL` | `integrations.jira.siteUrl` — e.g. `'https://mysite.atlassian.net'` |
+| `JIRA_EMAIL` | `integrations.jira.email` — Atlassian account email |
+| `JIRA_API_TOKEN_PATH` | `integrations.jira.apiTokenPath` — path to API token file |
 | Jira webhook configured to POST to jeeves-server | Jira Cloud → Settings → System → WebHooks |
 | jeeves-server Event Gateway configured with `jira` schema | `jeeves-server` config (see Event Gateway Config above) |
 | `JIRA_BOARD_ID` env var | Environment variable — numeric Jira Agile board ID for sort-backlog |
@@ -222,5 +223,5 @@ tsx src/jira/backfill.ts --project WEB --type issue --live
 | `sort-backlog.ts` | Backlog priority sort — stable re-rank by priority group via Agile API |
 | `../lib/entity-store.ts` | Shared file I/O helpers with reverse-diff history — `upsertEntity`, `backfillEntity`, `deleteEntity`, `writeUnmatched`, `readStdinJson` (see [entity-store docs](./lib.md#entity-storets)) |
 | `lib/jira-client.ts` | Typed Jira REST API v3 client (fetch, paginate) |
-| `../../jobs/jira.json` | Runner job manifest (refresh-fields schedule) |
-| `../../src/lib/constants.ts` | Jira constants (`JIRA_SITE_URL`, `JIRA_EMAIL`, etc.) |
+| template `jobs/jira.json` | Runner job manifest (refresh-fields schedule), carried in the instance repo |
+| `../lib/constants.ts` | Jira values from `constants()` (`JIRA_SITE_URL`, `JIRA_EMAIL`, etc.) |

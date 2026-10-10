@@ -9,7 +9,7 @@
  * each comment into the local archive with reverse-diff history.
  *
  * Scheduled via `jobs/linear.json` (every 29 minutes). Can also be
- * run manually: `tsx src/linear/sync-comments.ts`
+ * run manually: `jeeves-scripts run linear-sync-comments`
  */
 
 import path from 'node:path';

@@ -53,14 +53,14 @@ No config file, or no token in it, fails the run. Each channel is read with the 
 
 ## Prerequisites
 
-- A Slack bot token (above). `pipeline-config.json` is not read.
+- A Slack bot token (above). The `pipeline` block is not read.
 - The bot must be a member of every channel to archive.
-- `PRIMARY_WORKSPACE`, `SLACK_DOMAIN_DIR`, `SLACK_WORKSPACE_CACHE_PATH` set in `constants.ts` (`src/lib/constants/integrations.ts`). The run skips (`[skip]`, exit 0) when `SLACK_DOMAIN_DIR` does not exist; multi-workspace routing comes from `silo-routing.json` (optional).
+- `PRIMARY_WORKSPACE`, `SLACK_DOMAIN_DIR`, `SLACK_WORKSPACE_CACHE_PATH` from `constants()`: `integrations.slack.primaryWorkspace` and `{contentDir}/slack`, `{configDir}/slack-channel-workspaces.json`. The run skips (`[skip]`, exit 0) when `SLACK_DOMAIN_DIR` does not exist; multi-workspace routing comes from `silo-routing.json` (optional).
 - Run under jeeves-runner (or with `JR_DB_PATH` pointing at the runner DB) for read-position state.
 
 | Job          | Schedule     | Manifest          |
 | ------------ | ------------ | ----------------- |
-| `slack-poll` | Every 11 min | `jobs/slack.json` |
+| `slack-poll` | Every 11 min | template `jobs/slack.json` |
 
 The manifest entry carries a non-null `prerequisite` naming the token sources in [Bot Tokens](#bot-tokens).
 
@@ -69,8 +69,8 @@ The manifest entry carries a non-null `prerequisite` naming the token sources in
 | File | Purpose |
 | --- | --- |
 | `lib/slack-api.ts` | Typed Slack Web API wrappers — `fetchHistory()`, `fetchReplies()`, `discoverChannels()`, `slackApi()`, `SlackFileMetadata` type, with pagination |
-| `../lib/constants.ts` | Workspace routing constants |
-| `../lib/silo-router.ts` | `getBasePathForSlackWorkspace()` for output directory routing (see [Configuration Files](./lib.md#configuration-files) for `silo-routing.json` schema) |
+| `../lib/constants.ts` | Workspace routing values from `constants()` |
+| `../config/silo-router.ts` | `getBasePathForSlackWorkspace()` for output directory routing (see [silos](./config.md#silos)) |
 | `lib/map-helpers.cjs` | CommonJS helper for mapping Slack channel/user IDs to names. Used by watcher inference rules for enriching indexed message metadata |
 | `lib/channels.json` | Curated channel config: names, types, `metadata`, `_account`, Slack Connect flags (sanitized stubs in template). Committed. `poll.ts` adds auto-discovered channels; it never writes read positions here and strips any legacy `lastTs` on rewrite. Rewrites keep the committed formatting (2-space JSON, one trailing newline) and key order, so an unchanged map leaves no diff |
 | `lib/cursors.ts` | Read-position state in the runner store (`slack` / `lastTs-<channelId>`): Slack ts schema, load (after discovery, via `preparePollState()`), save, one-time legacy `lastTs` migration, and `saveChannels()`, the single `channels.json` writer (strips `lastTs`, preserves formatting) |

@@ -30,7 +30,7 @@ import { createV23Fixture } from './openclaw-db/test-fixture-v23.js';
 const MODEL = 'anthropic/claude-sonnet-4-6';
 const REFUSAL =
   '[token-metrics] No OpenClaw DB cursor in runner state; refusing to collect OpenClaw usage from zero (it would double count history). ' +
-  'Bootstrap once with: tsx src/admin/regenerate-token-metrics.ts --from <OpenClaw 2026.9 upgrade hour, ISO>';
+  'Bootstrap once by running src/admin/regenerate-token-metrics.ts (jeeves-scripts run <its job id>) with --from <OpenClaw 2026.9 upgrade hour, ISO>';
 const HOUR = '2026-06-15T10';
 const OLD_HOUR = '2026-06-14T09';
 const LEGACY_CURSOR = {

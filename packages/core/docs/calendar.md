@@ -6,13 +6,13 @@ Polls Google Calendar events for configured accounts and writes individual JSON 
 
 | Script | Description |
 | --- | --- |
-| `poll.ts` | Iterates accounts from pipeline-config, fetches events via the Calendar API, writes JSON files to silo-routed directories with change detection |
+| `poll.ts` | Iterates the `pipeline.accounts` that have a `calendar` block, fetches events via the Calendar API, writes JSON files to silo-routed directories with change detection |
 
 ## Data Flow
 
 ```mermaid
 flowchart LR
-  config["pipeline-config\n(accounts)"] --> poll["poll.ts"]
+  config["pipeline.accounts\n(jeeves-scripts.json)"] --> poll["poll.ts"]
   poll --> gcal["Google Calendar REST API\n(gog OAuth client or service account)"]
   gcal --> events["per-event JSON files\n(silo-routed by email domain)"]
 ```
@@ -27,22 +27,22 @@ flowchart LR
 
 ## Account Configuration
 
-Calendar accounts are the entries in the `accounts` array of `pipeline-config.json` that have a `calendar` block (see [Configuration Files](./lib.md#configuration-files) for the full schema):
+Calendar accounts are the entries of `pipeline.accounts` in `jeeves-scripts.json` that have a `calendar` block (see [the `pipeline` block](./config.md#the-pipeline-block)):
 
-- `"calendar": { "serviceAccount": "auto" }`: a Workspace mailbox through domain-wide delegation. The poller uses the service-account registration gog keeps for that mailbox, `sa-<base64(email), "=" padding stripped>.json`, looked up in `<GOG_CONFIG_DIR>/data/` first, then in the `<GOG_CONFIG_DIR>` root (older gog builds without `data/`). Resolved by `findServiceAccountFile()` in `src/lib/gog-credentials.ts`.
+- `"calendar": { "serviceAccount": "auto" }`: a Workspace mailbox through domain-wide delegation. The poller uses the service-account registration gog keeps for that mailbox, `sa-<base64(email), "=" padding stripped>.json`, looked up in `<GOG_CONFIG_DIR>/data/` first, then in the `<GOG_CONFIG_DIR>` root (older gog builds without `data/`). Resolved by `findServiceAccountFile()` in `lib/gog-credentials.ts`.
 - `"calendar": { "tokenFile": "<path>" }`: a personal account with an OAuth refresh token. `tokenFile` is relative to `CREDENTIALS_DIR`, and the account also needs the gog OAuth client at `GOG_CLIENT_PATH` (`<GOG_CONFIG_DIR>/credentials.json`).
 
-`GOG_CONFIG_DIR` is gog's home: `GOG_HOME` when set, else `/opt/jeeves/config/gogcli` (`src/lib/constants/integrations.ts`). The key file jeeves-tools deploy writes (`<GOG_CONFIG_DIR>/service-account.json`) is **not** read by the poller; only the per-mailbox `sa-*.json` that `gog auth service-account set` registers is.
+`GOG_CONFIG_DIR` is gog's home: `GOG_HOME` when set, else `paths.gogHome`, else `{configDir}/gogcli` (`paths().gogHome`). The key file jeeves-tools deploy writes (`<GOG_CONFIG_DIR>/service-account.json`) is **not** read by the poller; only the per-mailbox `sa-*.json` that `gog auth service-account set` registers is.
 
 ## Prerequisites
 
-- Calendar accounts listed in `pipeline-config.json` (above).
+- Calendar accounts listed in `pipeline.accounts` (above).
 - Each account must have its own credential (checked by `lib/calendar-accounts.ts` before polling): a `tokenFile` account needs the OAuth client, and a `serviceAccount: "auto"` account needs that mailbox's own `sa-*.json`; an unrelated credential does not count. An instance with only service-account mailboxes and no OAuth client works for its `serviceAccount` accounts.
 - Accounts missing their credential are logged as `[credentials]` errors, the other accounts are still polled, and then the run fails (non-zero exit). So a run with calendar accounts configured but neither an OAuth client nor any matching service-account registration fails rather than skipping. With no calendar accounts configured the run skips (exit 0).
 
 | Job             | Schedule     | Manifest             |
 | --------------- | ------------ | -------------------- |
-| `calendar-poll` | Every 17 min | `jobs/calendar.json` |
+| `calendar-poll` | Every 17 min | template `jobs/calendar.json` |
 
 The manifest entry carries a non-null `prerequisite`.
 
@@ -53,5 +53,5 @@ The manifest entry carries a non-null `prerequisite`.
 | `lib/calendar-api.ts` | Google Calendar REST API helpers — `listCalendars()` and `getAllEvents()`, each following every page (`nextPageToken`) |
 | `lib/calendar-accounts.ts` | `resolveCalendarAccounts()`: maps each configured account to its auth config and reports accounts missing their own credential |
 | `../lib/gog-credentials.ts` | `detectGogCredentials()` (OAuth client present?) and `findServiceAccountFile()` |
-| `../lib/pipeline-config.ts` | Provides `getCalendarAccounts()` |
-| `../lib/silo-router.ts` | Provides `getBasePathForEmailDomain()` for output routing |
+| `../config/pipeline-accessors.ts` | Provides `getCalendarAccounts()` |
+| `../config/silo-router.ts` | Provides `getBasePathForEmailDomain()` for output routing |

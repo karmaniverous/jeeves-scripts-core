@@ -1,6 +1,8 @@
 # Google Drive Sync: Spec
 
-**Status:** v0.17, implemented in `src/google-drive/` (hoisted by jeeves-scripts-template#97). This is the design record; `src/google-drive/README.md` is the operator reference. `§` references in the code point here.
+> **Historical design record.** Written against `jeeves-scripts-template`: `pipeline-config.json` is now the `pipeline` block of `jeeves-scripts.json` (`pipeline.googleDrive`), `src/lib/pipeline-config.ts` is `config/pipeline-schema.ts`, and jobs are registered through the instance's `jobs/*.json` and `bin/jeeves-scripts.js run <job-id>`, not `runner_create_job` with a script path. The operating doc is [google-drive.md](../docs/google-drive.md).
+
+**Status:** v0.17, implemented in `src/google-drive/` (hoisted by jeeves-scripts-template#97). This is the design record; [docs/google-drive.md](../docs/google-drive.md) is the operator reference. `§` references in the code point here.
 
 **Changelog:**
 

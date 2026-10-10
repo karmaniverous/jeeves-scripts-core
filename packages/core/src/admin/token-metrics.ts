@@ -6,7 +6,7 @@
  * into a `Costs` report for a given time range.
  *
  * Serves as both an importable function and a CLI entry point:
- * `tsx src/admin/token-metrics.ts [--from ISO] [--to ISO]`
+ * `jeeves-scripts run <job-id> [--from ISO] [--to ISO]` (a manifest entry in the instance's jobs/*.json with script src/admin/token-metrics.ts)
  *
  * Config dependencies: TOKEN_METRICS_DIR, TOKEN_RATES_PATH from constants.ts.
  */

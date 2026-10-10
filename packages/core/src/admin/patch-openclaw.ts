@@ -11,7 +11,8 @@
  *
  * Restart the gateway after a live run so it loads the patched dist.
  *
- * Usage: tsx src/admin/patch-openclaw.ts [--dry-run]
+ * Usage: jeeves-scripts run <job-id> [--dry-run]
+ * (a manifest entry in the instance's jobs/*.json with script src/admin/patch-openclaw.ts)
  */
 
 import { execSync } from 'node:child_process';

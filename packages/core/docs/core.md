@@ -23,7 +23,7 @@ flowchart LR
 
 ## Prerequisites
 
-No external prerequisites. Requires `CONTENT_DIR` and `SCRIPTS_DIR` in `constants.ts`.
+No external prerequisites. Reads `paths().contentDir` and `paths().scriptsDir` (`constants().CONTENT_DIR`, `SCRIPTS_DIR`) from `jeeves-scripts.json`.
 
 | Job                   | Schedule     |
 | --------------------- | ------------ |

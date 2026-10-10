@@ -6,8 +6,8 @@ CLI tools for converting DOCX and PDF files to Markdown with YAML frontmatter.
 
 | Script | Description |
 | --- | --- |
-| `docx-to-md.ts` | Converts `.docx` files to Markdown via mammoth HTML extraction. CLI: `tsx src/convert/docx-to-md.ts --paths=dir1,dir2` |
-| `pdf-to-md.ts` | Converts `.pdf` files to Markdown via pdf-parse text extraction. CLI: `tsx src/convert/pdf-to-md.ts --paths=dir1,dir2` |
+| `docx-to-md.ts` | Converts `.docx` files to Markdown via mammoth HTML extraction. CLI module flags: `--paths=dir1,dir2` |
+| `pdf-to-md.ts` | Converts `.pdf` files to Markdown via pdf-parse text extraction. CLI module flags: `--paths=dir1,dir2` |
 
 ## Data Flow
 

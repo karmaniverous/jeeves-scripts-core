@@ -46,7 +46,7 @@ Each meeting lives in a directory under `{silo}/meetings/{meetingId}/`:
 ## Prerequisites
 
 - Gmail OAuth via `gog` (email pipeline must be running for extract/fetch-notes)
-- For Notion ingestion: `NOTION_API_KEY_PATH` and inbox database ID in pipeline-config refs (see [Configuration Files](./lib.md#configuration-files) for `pipeline-config.json` schema and creation instructions)
+- For Notion ingestion: `NOTION_API_KEY_PATH` and inbox database ID in `pipeline.refs` (see [the `pipeline` block](./config.md#the-pipeline-block))
 - Chrome installed (for Fathom share page extraction via puppeteer-core)
 
 | Job                      | Schedule                           |

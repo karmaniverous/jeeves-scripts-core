@@ -33,6 +33,41 @@ const shipped = (dir: string): string[] =>
 
 const docs = [...shipped('docs'), ...shipped('guides')];
 
+/** Markdown without fenced code blocks. */
+const prose = (file: string): string =>
+  fs.readFileSync(file, 'utf8').replace(/^(~~~~|```)[\s\S]*?^\1/gm, '');
+
+/** GitHub-style heading anchors of a Markdown file. */
+const headingAnchors = (file: string): Set<string> => {
+  const seen = new Map<string, number>();
+  const anchors = new Set<string>();
+  for (const [, heading = ''] of prose(file).matchAll(/^#{1,6}\s+(.+)$/gm)) {
+    const base = heading
+      .trim()
+      .toLowerCase()
+      .replace(/[^\p{L}\p{N}\s_-]/gu, '')
+      .replace(/\s/g, '-');
+    const n = seen.get(base) ?? 0;
+    seen.set(base, n + 1);
+    anchors.add(n ? `${base}-${String(n)}` : base);
+  }
+  return anchors;
+};
+
+/** Relative Markdown links of a file, resolved. */
+const relativeLinks = (file: string) =>
+  [...prose(file).matchAll(/\]\(([^)\s]+)\)/g)]
+    .map(([, link = '']) => link)
+    .filter((link) => !/^(https?|mailto):/.test(link))
+    .map((link) => {
+      const [rel = '', anchor] = link.split('#');
+      return {
+        link,
+        target: rel ? path.resolve(path.dirname(file), rel) : file,
+        anchor,
+      };
+    });
+
 describe('package documentation', () => {
   it('ships docs/, guides/, schema/ and config/ in the package', () => {
     expect(pkg.files).toEqual(
@@ -64,4 +99,20 @@ describe('package documentation', () => {
     );
     expect(missing).toEqual([]);
   });
+
+  it.each(['README.md', ...docs])(
+    '%s has no broken relative links or anchors',
+    (doc) => {
+      const file = path.join(pkgRoot, doc);
+      const broken = relativeLinks(file).filter(({ target, anchor }) => {
+        if (!fs.existsSync(target)) return true;
+        return (
+          anchor !== undefined &&
+          target.endsWith('.md') &&
+          !headingAnchors(target).has(anchor)
+        );
+      });
+      expect(broken.map((l) => l.link)).toEqual([]);
+    },
+  );
 });

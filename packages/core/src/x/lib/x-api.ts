@@ -30,7 +30,7 @@ export function requireXHandle(scriptName: string): string {
   const handle = process.argv[2];
   if (!handle) {
     console.log(
-      `[skip] No X account handle provided. Usage: tsx ${scriptName} <handle>`,
+      `[skip] No X account handle provided. Usage: jeeves-scripts run <job-id> <handle> (${scriptName})`,
     );
     process.exit(0);
   }

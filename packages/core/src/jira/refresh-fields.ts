@@ -10,7 +10,7 @@
  * keys in persisted issue snapshots.
  *
  * Scheduled via `jobs/jira.json` (daily at 03:00 UTC). Can also be
- * run manually: `tsx src/jira/refresh-fields.ts`
+ * run manually: `jeeves-scripts run jira-refresh-fields`
  */
 
 import fs from 'node:fs';

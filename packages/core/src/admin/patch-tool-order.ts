@@ -13,7 +13,8 @@
  * - `--dry-run`: print file, line, before/after; write nothing.
  * - Designed to run after every `npm install -g openclaw@latest`.
  *
- * Usage: tsx src/admin/patch-tool-order.ts [--dry-run]
+ * Usage: jeeves-scripts run <job-id> [--dry-run]
+ * (a manifest entry in the instance's jobs/*.json with script src/admin/patch-tool-order.ts)
  */
 
 import { runScript } from '@karmaniverous/jeeves';

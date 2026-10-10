@@ -8,7 +8,7 @@ Token metrics collection, session cost management, and OpenClaw post-install pat
 | --- | --- |
 | `collect-token-metrics.ts` | Reads OpenClaw usage up to the last closed hour (from the agent SQLite DB on OpenClaw 2026.9+, else the legacy session transcripts), then Claude Code session logs, and writes immutable hourly rollup buckets to disk. Refuses to write when a model is missing from the rate card (records the id in `token-rates.pending.json` and triggers refresh-token-rates, which adds it from OpenRouter) |
 | `session-refresh.ts` | Rotates bloated gateway sessions by resetting idle sessions with high cacheRead values |
-| `token-metrics.ts` | Queries pre-rolled hourly buckets and aggregates into a cost report for a given time range (also a CLI: `tsx src/admin/token-metrics.ts [--from ISO] [--to ISO]`) |
+| `token-metrics.ts` | Queries pre-rolled hourly buckets and aggregates into a cost report for a given time range (also a CLI module: `[--from ISO] [--to ISO]`) |
 | `refresh-token-rates.ts` | Seeds the rate card if missing, then refreshes every provider model's $/MTok rates from the public OpenRouter model endpoint (`openrouter.ai/api/v1/model/<id>`, base tier, no LLM). Also adds models the collector recorded as pending (`token-rates.pending.json`). Fetches 4 at a time (15 s per request, 60 s budget), writes changed rates atomically (advancing `updatedAt`), skips internal `openclaw/`/`clawdbot/` entries and entries marked `"manual": true`, and fails if any model can't be resolved (after applying the rest) or the card is missing or invalid. `--dry-run` reports changes without writing |
 | `recalculate-token-metrics.ts` | Safe recalculation of token metrics for a date range with backup and dry-run support |
 | `regenerate-token-metrics.ts` | Rebuilds hourly buckets for `[--from, --to)` from the agent DB plus Claude Code logs, and bootstraps the agent-DB cursor after the 2026.9 upgrade. Modes: `--out DIR` (scratch; refused when DIR is the live store, directly or through a symlink, or already holds buckets in range), live without `--to` (rebuild to the last closed hour, replaces cursors), live with `--to` (counted events only, cursors untouched); `--dry-run`. Live runs need the `OPENCLAW_UPGRADE_CUTOFF` environment variable (see [Regeneration settings](#regeneration-settings)) and refuse a `--from` before it without `--allow-pre-upgrade`; `--out` runs ignore it |
@@ -51,14 +51,14 @@ flowchart LR
 - a live `--from` earlier than it is refused unless `--allow-pre-upgrade` is given (owner-approved only);
 - `--out` scratch runs never touch the live store (an `--out` that resolves to `TOKEN_METRICS_DIR`, directly or through a symlink, is refused), so they ignore it: no variable or flag is needed to scan pre-upgrade hours into a scratch directory.
 
-It is an environment variable (like `TOKEN_METRICS_DIR`) rather than a constant or a `pipeline-config.json` key because it is a one-off operator setting for a manually run CLI: a constant would need a per-instance template edit with a default, and `pipeline-config.json` requires the email configuration, which token metrics does not. `collect-token-metrics`, `token-metrics` and the other jobs never read it.
+It is an environment variable (like `TOKEN_METRICS_DIR`) rather than a `jeeves-scripts.json` key because it is a one-off operator setting for a manually run CLI: a constant would need a per-instance template edit with a default, and `pipeline-config.json` requires the email configuration, which token metrics does not. `collect-token-metrics`, `token-metrics` and the other jobs never read it.
 
 ## Querying Costs
 
 Run from the repo root:
 
 ```bash
-tsx src/admin/token-metrics.ts --from 2026-06-01 --to 2026-06-02
+node --input-type=module -e "import '@karmaniverous/jeeves-scripts-core/admin/token-metrics'" -- --from 2026-06-01 --to 2026-06-02
 ```
 
 `--from` / `--to` take ISO dates or timestamps. Without `--from` the report covers everything collected so far, and without `--to` it runs to now, so pass a range when the question is about a period. It prints a JSON `Costs` report (`types/token-metrics.ts`): total `cost`; `models`, keyed `provider/model`, each with `cost`, `costPct` and `tokens`, which holds per category (`input`, `output`, `cacheRead`, `cacheWrite`) `count` / `cost` / `costPct`; `channels` (Slack channels, DMs, heartbeat, subagent, meta-synthesis), each with its name, cost, share and per-model breakdown; and `ref`, the rate card the costs were computed with: per model, the rate for each category in dollars per million tokens, for every model in the card whether or not it was used in the range. `ref` holds prices, not usage; token counts are `models[model].tokens[category].count`. `getTokenMetrics({ fromTs, toTs })` is the importable form.
@@ -75,7 +75,7 @@ No external prerequisites — all jobs run against local filesystem and gateway 
 | `session-refresh`       | Every 23 min    |
 | `refresh-token-rates`   | Daily 05:37 UTC |
 
-All three entries in `jobs/admin.json` have `"prerequisite": null`. `refresh-token-rates` uses the RRStack schedule `{"freq":"daily","byhour":5,"byminute":37,"timezone":"UTC"}`.
+All three entries in the template manifest `jobs/admin.json` (carried in the instance repo until the job registry, Decision 32) have `"prerequisite": null`. `refresh-token-rates` uses the RRStack schedule `{"freq":"daily","byhour":5,"byminute":37,"timezone":"UTC"}`.
 
 ## Documentation
 
