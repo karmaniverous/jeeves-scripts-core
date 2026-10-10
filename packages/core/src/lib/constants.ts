@@ -24,7 +24,7 @@ import { integrations } from '../config/integrations.js';
 import { getLoadedConfigPath, loadConfig } from '../config/loader.js';
 import { paths } from '../config/paths.js';
 import { siloPath } from '../config/silo-router.js';
-import { gatewayPort } from './openclaw-config.js';
+import { gatewayPort, openclawStateDirs } from './openclaw-config.js';
 
 // ========== Fixed values ==========
 
@@ -131,10 +131,10 @@ const derive = () => {
         siloPath(account.silo, [account.relativePath ?? `x/${handle}`]),
       ]),
     ) as Record<string, string>,
-    SESSIONS_DIR: path.join(os.homedir(), '.openclaw/agents/main/sessions'),
+    SESSIONS_DIR: path.join(openclawStateDirs()[0], 'agents/main/sessions'),
     OPENCLAW_AGENT_DB_PATH: path.join(
-      os.homedir(),
-      '.openclaw/agents/main/agent/openclaw-agent.sqlite',
+      openclawStateDirs()[0],
+      'agents/main/agent/openclaw-agent.sqlite',
     ),
     OPENCLAW_UPGRADE_CUTOFF:
       process.env[OPENCLAW_UPGRADE_CUTOFF_ENV] ?? undefined,

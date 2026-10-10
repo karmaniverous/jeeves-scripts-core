@@ -53,13 +53,22 @@ export const openclawConfigSchema = z.looseObject({
 /** Validated view of `openclaw.json`. */
 export type OpenclawConfig = z.infer<typeof openclawConfigSchema>;
 
-/** Candidate config files, in search order. */
-export const openclawConfigPaths = (
+/** OpenClaw's state directories, current first: `~/.openclaw`, then the legacy `~/.clawdbot`. */
+export const openclawStateDirs = (
   home: string = process.env.USERPROFILE ?? os.homedir(),
-): string[] => [
-  path.join(home, '.openclaw', 'openclaw.json'),
-  path.join(home, '.clawdbot', 'clawdbot.json'),
+): [string, string] => [
+  path.join(home, '.openclaw'),
+  path.join(home, '.clawdbot'),
 ];
+
+/** Candidate config files, in search order. */
+export const openclawConfigPaths = (home?: string): string[] => {
+  const [current, legacy] = openclawStateDirs(home);
+  return [
+    path.join(current, 'openclaw.json'),
+    path.join(legacy, 'clawdbot.json'),
+  ];
+};
 
 /**
  * The first defined value `pick` returns across the config files, in

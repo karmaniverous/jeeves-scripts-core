@@ -91,7 +91,8 @@ Reads the gateway port and credentials from the local OpenClaw config, `~/.openc
 - `gatewayToken(files?)` — a non-empty `CLAWDBOT_GATEWAY_TOKEN`, else `gateway.auth.token`; `null` when neither exists
 - `slackBotTokens(files?)` — every Slack bot token by gateway account id (`channels.slack.accounts.<id>.botToken`, else the flat `channels.slack.botToken` as `default`), from the first file that has any; throws when none does
 - `slackBotToken(accountId = 'default', files?)` — one account's token; throws when it has none
-- `findInOpenclawConfig(pick, files?)` / `openclawConfigPaths(home?)` — the search primitives
+- `findInOpenclawConfig(pick, files?)` / `openclawConfigPaths(home?)` - the search primitives
+- `openclawStateDirs(home?)` - `~/.openclaw`, then the legacy `~/.clawdbot`; also used by `constants()` (`SESSIONS_DIR`, `OPENCLAW_AGENT_DB_PATH`) and `spawn-worker`'s session lookup
 
 Used by `gateway-client` (and so `spawn-worker`), `slack/poll` and instance code.
 

@@ -9,10 +9,10 @@
  */
 
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import { gatewayInvoke } from './gateway-client.js';
+import { openclawStateDirs } from './openclaw-config.js';
 
 /**
  * Log a warning (never a completion) when a running session has not
@@ -196,16 +196,12 @@ export async function invokeGateway(
 // ── Session helpers ───────────────────────────────────────────────────
 
 function getSessionsDir(): string {
-  const home = process.env.USERPROFILE ?? os.homedir();
-  const configDirs = [
-    path.join(home, '.openclaw'),
-    path.join(home, '.clawdbot'),
-  ];
-  for (const dir of configDirs) {
+  const stateDirs = openclawStateDirs();
+  for (const dir of stateDirs) {
     const sessDir = path.join(dir, 'agents', 'main', 'sessions');
     if (fs.existsSync(sessDir)) return sessDir;
   }
-  return path.join(home, '.openclaw', 'agents', 'main', 'sessions');
+  return path.join(stateDirs[0], 'agents', 'main', 'sessions');
 }
 
 /** Resolve a session row's token count (transcript usage preferred). */
