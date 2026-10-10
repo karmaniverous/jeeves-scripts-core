@@ -5,7 +5,7 @@
 local/
 **/coverage/
 **/dist/
-/typedoc/
+/docs/
 esm/
 node_modules/
 context/

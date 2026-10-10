@@ -24,7 +24,7 @@
   "navigationLinks": {
     "GitHub": "https://github.com/karmaniverous/jeeves-scripts-core"
   },
-  "out": "./typedoc/",
+  "out": "./docs/",
   "plugin": ["typedoc-plugin-mdn-links", "typedoc-plugin-replace-text"],
   "projectDocuments": [
     "./packages/core/README.md",
