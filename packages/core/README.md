@@ -11,6 +11,7 @@ Everything below ships in the npm package. From an instance repo, the package ro
 | `README.md` | This file: overview, CLI, config, docs index. |
 | `docs/<domain>.md` | One reference per domain (table below). |
 | `guides/` | Design records and runbooks referenced from the domain docs. |
+| `skills/<name>/SKILL.md` | The assistant skills core ships ([Skills](#skills)). |
 | `schema/jeeves-scripts.schema.json` | JSON Schema for `jeeves-scripts.json`, generated from the Zod config schema. |
 | `config/token-rates.seed.json` | The token rate card seed (`constants().TOKEN_RATES_SEED_PATH`). |
 | `CHANGELOG.md` | Release notes. |
@@ -49,6 +50,10 @@ Job ids and schedules named in the docs are the template's manifest entries. Unt
 | [`docs/x.md`](docs/x.md) | X/Twitter polling, posting, engagement |
 
 Guides: [`guides/google-drive-spec.md`](guides/google-drive-spec.md) (Drive sync design record), [`guides/token-metrics-runbook.md`](guides/token-metrics-runbook.md) (token metrics operations).
+
+## Skills
+
+Core ships its own OpenClaw skills, one per domain whose behaviour lives here, plus `jeeves-scripts` for the package as a whole: `jeeves-scripts`, `jeeves-email`, `jeeves-slack`, `jeeves-calendar`, `jeeves-github`, `jeeves-jira`, `jeeves-linear`, `jeeves-x`, `jeeves-token-metrics`, `jeeves-daily-briefings`. They are thin (when to use, operator rules) and link to the docs above by package-relative paths, so a skill always matches the installed core version. The gateway loads them by listing the installed package's `skills/` directory in OpenClaw's `skills.load.extraDirs`. `test/skills.test.ts` checks every shipped skill: frontmatter, size, no instance paths, links that resolve inside the package.
 
 ## Install
 
