@@ -13,6 +13,9 @@
  * so they read the instance's `jeeves-scripts.json`. Instance scripts are
  * TypeScript and run in a child `node --import tsx` process with the same
  * environment.
+ *
+ * Job files are validated with Zod (Decision 31): a malformed entry fails
+ * the run, naming its file and position, rather than being skipped.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -20,28 +23,38 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+import { z } from 'zod';
+
 import { CONFIG_PATH_ENV } from '../config/loader.js';
 
-/** A runner job definition, as far as `run` needs it. */
-export interface JobDefinition {
+/**
+ * A runner job definition, as far as `run` needs it. Other runner fields
+ * (`schedule`, `enabled`, `env`, ...) are allowed and ignored here.
+ */
+export const jobDefinitionSchema = z.looseObject({
   /** Job id (`jeeves-scripts run <id>`). */
-  id: string;
+  id: z.string().min(1),
   /** Script path relative to the instance root, e.g. `src/email/poll.ts`. */
-  script: string;
-}
+  script: z.string().min(1),
+});
+
+/** A `jobs/*.json` file: an array of job definitions. */
+export const jobFileSchema = z.array(jobDefinitionSchema);
+
+/** A validated runner job definition. */
+export type JobDefinition = z.infer<typeof jobDefinitionSchema>;
 
 /** Where a job's code lives. */
 export type ResolvedJob =
   | { kind: 'instance'; job: JobDefinition; file: string }
   | { kind: 'core'; job: JobDefinition; file: string };
 
-const isJob = (value: unknown): value is JobDefinition =>
-  typeof value === 'object' &&
-  value !== null &&
-  typeof (value as Record<string, unknown>).id === 'string' &&
-  typeof (value as Record<string, unknown>).script === 'string';
-
-/** Every job defined in `{root}/jobs/*.json` (arrays of job objects). */
+/**
+ * Every job defined in `{root}/jobs/*.json`, in file-name order.
+ *
+ * @throws When a file is not valid JSON or not an array of job
+ *   definitions; the message names the file and the failing entry.
+ */
 export const readJobs = (root: string): JobDefinition[] => {
   const dir = path.join(root, 'jobs');
   if (!fs.existsSync(dir)) return [];
@@ -50,10 +63,15 @@ export const readJobs = (root: string): JobDefinition[] => {
     .filter((name) => name.endsWith('.json'))
     .sort()
     .flatMap((name) => {
-      const parsed: unknown = JSON.parse(
-        fs.readFileSync(path.join(dir, name), 'utf8'),
+      const file = path.join(dir, name);
+      const result = jobFileSchema.safeParse(
+        JSON.parse(fs.readFileSync(file, 'utf8')),
       );
-      return Array.isArray(parsed) ? parsed.filter(isJob) : [];
+      if (!result.success)
+        throw new Error(
+          `Invalid job file jobs/${name}: ${z.prettifyError(result.error)}`,
+        );
+      return result.data;
     });
 };
 
