@@ -118,11 +118,11 @@ describe('extractAfterMarker', () => {
       'Get your own free AI Notetaker',
       'Copy Summary',
       'Meeting Purpose',
-      'Introduce Jason and Jonathan',
+      'Introduce Jane and John',
     ].join('\n');
 
     expect(extractAfterMarker(body, 'Copy Summary')).toBe(
-      'Meeting Purpose\nIntroduce Jason and Jonathan',
+      'Meeting Purpose\nIntroduce Jane and John',
     );
   });
 

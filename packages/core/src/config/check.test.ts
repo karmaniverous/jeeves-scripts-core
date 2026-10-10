@@ -49,7 +49,7 @@ describe('configCheck', () => {
       JSON.stringify({
         instance: { name: 'test', baseDir: 'J:/' },
         siloRouting: {
-          silos: { veterancrowd: { basePath: 'J:/veterancrowd' } },
+          silos: { acme: { basePath: '/srv/acme' } },
         },
         jobs: { 'vc-daily-briefing': { silo: 'tcs' } },
       }),
@@ -64,9 +64,9 @@ describe('configCheck', () => {
       JSON.stringify({
         instance: { name: 'test', baseDir: 'J:/' },
         siloRouting: {
-          silos: { veterancrowd: { basePath: 'J:/veterancrowd' } },
+          silos: { acme: { basePath: '/srv/acme' } },
         },
-        jobs: { 'vc-daily-briefing': { silo: 'veterancrowd' } },
+        jobs: { 'acme-daily-briefing': { silo: 'acme' } },
       }),
     );
     const result = configCheck(options);

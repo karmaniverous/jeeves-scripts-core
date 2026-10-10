@@ -63,7 +63,7 @@ import { writeMessage as writeSlackMessage } from '../slack/lib/message-writer.j
 import type * as ConstantsModule from './constants.js';
 import { emailPeopleFields } from './people.js';
 
-const JASON = { id: 'jason-williscroft', name: 'Jason Williscroft' };
+const JANE = { id: 'jane-doe', name: 'Jane Doe' };
 
 let dir: string;
 const savedEnv = process.env[CONFIG_PATH_ENV];
@@ -80,12 +80,12 @@ beforeAll(() => {
     JSON.stringify({
       ...base,
       people: {
-        'jason-williscroft': {
-          name: JASON.name,
-          emails: ['jason@johngalt.id', 'jason.williscroft@veterancrowd.com'],
+        'jane-doe': {
+          name: JANE.name,
+          emails: ['jane@example.com', 'jane.doe@example.org'],
           accounts: [
-            { channel: 'slack', account: 'default', id: 'U0AB7J9RCHF' },
-            { channel: 'slack', account: 'vc', id: 'U0VCJASON' },
+            { channel: 'slack', account: 'default', id: 'U0JANE0001' },
+            { channel: 'slack', account: 'vc', id: 'U0JANE0002' },
           ],
         },
       },
@@ -123,8 +123,8 @@ describe('Slack message authors', () => {
       },
       { ts: '1700000000.000100', user, text: 'hi' },
       {
-        U0AB7J9RCHF: 'jason (slack)',
-        U0VCJASON: 'J.W.',
+        U0JANE0001: 'jane (slack)',
+        U0JANE0002: 'J.W.',
         U0OTHER: 'Other Person',
       },
     );
@@ -132,36 +132,33 @@ describe('Slack message authors', () => {
   };
 
   it('names a listed author by person, per account', () => {
-    expect(write('U0VCJASON', 'vc')).toMatchObject({
-      userName: JASON.name,
-      personId: JASON.id,
+    expect(write('U0JANE0002', 'vc')).toMatchObject({
+      userName: JANE.name,
+      personId: JANE.id,
     });
     // Channels without a recorded account belong to the default account.
-    expect(write('U0AB7J9RCHF')).toMatchObject({ personId: JASON.id });
+    expect(write('U0JANE0001')).toMatchObject({ personId: JANE.id });
   });
 
   it('leaves unlisted authors (and listed ids in another account) as before', () => {
     const other = write('U0OTHER', 'vc');
     expect(other.userName).toBe('Other Person');
     expect(other).not.toHaveProperty('personId');
-    expect(write('U0VCJASON', 'default')).not.toHaveProperty('personId');
+    expect(write('U0JANE0002', 'default')).not.toHaveProperty('personId');
   });
 });
 
 describe('DM names', () => {
   it('prefers the configured name, and leaves others to cache and users', async () => {
-    const people = dmPeopleNames(['U0AB7J9RCHF', 'U0OTHER']);
-    expect(people).toEqual({ U0AB7J9RCHF: JASON.name });
-    const { names, learned } = await resolveDmNames(
-      ['U0AB7J9RCHF', 'U0OTHER'],
-      {
-        people,
-        cache: { U0AB7J9RCHF: 'stale', U0OTHER: 'Cached Other' },
-        userMap: {},
-      },
-    );
+    const people = dmPeopleNames(['U0JANE0001', 'U0OTHER']);
+    expect(people).toEqual({ U0JANE0001: JANE.name });
+    const { names, learned } = await resolveDmNames(['U0JANE0001', 'U0OTHER'], {
+      people,
+      cache: { U0JANE0001: 'stale', U0OTHER: 'Cached Other' },
+      userMap: {},
+    });
     expect(Object.fromEntries(names)).toEqual({
-      U0AB7J9RCHF: JASON.name,
+      U0JANE0001: JANE.name,
       U0OTHER: 'Cached Other',
     });
     expect(learned).toEqual({});
@@ -192,12 +189,12 @@ describe('meeting packages', () => {
 
   it('lists the people among participants, keeping participant emails', () => {
     updateMeetingPackage(
-      meeting('m1', ['Jason@JohnGalt.id', 'x@example.com']),
+      meeting('m1', ['Jane@Example.com', 'x@example.com']),
       client,
     );
     const m = readJson(path.join(mocks.meetingsDir, 'm1', 'meeting.json'));
-    expect(m.participants).toEqual(['Jason@JohnGalt.id', 'x@example.com']);
-    expect(m.people).toEqual([JASON]);
+    expect(m.participants).toEqual(['Jane@Example.com', 'x@example.com']);
+    expect(m.people).toEqual([JANE]);
   });
 
   it('adds nothing when no participant is listed', () => {
@@ -212,13 +209,13 @@ describe('email', () => {
   it('emailPeopleFields names the sender and every listed party', () => {
     expect(
       emailPeopleFields({
-        from: 'Jason <JASON@johngalt.id>',
-        to: 'a@x.com, jason.williscroft@veterancrowd.com',
+        from: 'Jane <JANE@example.com>',
+        to: 'a@x.com, jane.doe@example.org',
       }),
-    ).toEqual({ fromPerson: JASON, people: [JASON] });
+    ).toEqual({ fromPerson: JANE, people: [JANE] });
     expect(
-      emailPeopleFields({ from: 'a@x.com', to: 'Jason <jason@johngalt.id>' }),
-    ).toEqual({ people: [JASON] });
+      emailPeopleFields({ from: 'a@x.com', to: 'Jane <jane@example.com>' }),
+    ).toEqual({ people: [JANE] });
     expect(emailPeopleFields({ from: 'a@x.com', to: 'b@x.com' })).toEqual({});
   });
 
@@ -233,7 +230,7 @@ describe('email', () => {
               labelIds: ['INBOX'],
               payload: {
                 headers: [
-                  { name: 'From', value: 'Jason <jason@johngalt.id>' },
+                  { name: 'From', value: 'Jane <jane@example.com>' },
                   { name: 'To', value: 'me@example.com' },
                 ],
               },
@@ -271,7 +268,7 @@ describe('email', () => {
     const events = mocks.appendJsonl.mock.calls.map(
       (c) => c[1] as Record<string, unknown>,
     );
-    expect(events[0]).toMatchObject({ fromPerson: JASON, people: [JASON] });
+    expect(events[0]).toMatchObject({ fromPerson: JANE, people: [JANE] });
     expect(events[1]).not.toHaveProperty('people');
     expect(events[1]).not.toHaveProperty('fromPerson');
   });
@@ -285,17 +282,11 @@ describe('email', () => {
         body: { text: '' },
         attachments: [],
       }) as unknown as NormalizedMessage;
-    writeImapMessage(
-      'me@x',
-      't1',
-      'm1',
-      msg('jason.williscroft@veterancrowd.com'),
-      [],
-    );
+    writeImapMessage('me@x', 't1', 'm1', msg('jane.doe@example.org'), []);
     writeImapMessage('me@x', 't1', 'm2', msg('a@x.com'), []);
     const file = (id: string) =>
       readJson(path.join(mocks.threadsDir, 'me@x', 't1', `${id}.json`));
-    expect(file('m1')).toMatchObject({ fromPerson: JASON, people: [JASON] });
+    expect(file('m1')).toMatchObject({ fromPerson: JANE, people: [JANE] });
     expect(file('m2')).not.toHaveProperty('people');
   });
 });
@@ -305,10 +296,10 @@ describe('calendar events', () => {
     expect(
       eventPeopleField({
         id: 'e1',
-        organizer: { email: 'Jason@JohnGalt.id' },
+        organizer: { email: 'Jane@Example.com' },
         attendees: [{ email: 'a@x.com' }],
       }),
-    ).toEqual({ _people: [JASON] });
+    ).toEqual({ _people: [JANE] });
     expect(
       eventPeopleField({ id: 'e2', attendees: [{ email: 'a@x.com' }] }),
     ).toEqual({});

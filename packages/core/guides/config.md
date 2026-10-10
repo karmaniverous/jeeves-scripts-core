@@ -73,11 +73,11 @@ Every schema is exported (Zod 4), with its `z.infer` type (`Config`, `PathsConfi
 
 ```json
 "people": {
-  "jason-williscroft": {
-    "name": "Jason Williscroft",
-    "emails": ["jason@johngalt.id", "jason.williscroft@veterancrowd.com"],
+  "jane-doe": {
+    "name": "Jane Doe",
+    "emails": ["jane@example.com", "jane.doe@example.org"],
     "accounts": [
-      { "channel": "slack", "account": "default", "id": "U0AB7J9RCHF" },
+      { "channel": "slack", "account": "default", "id": "U0JANE0001" },
       { "channel": "slack", "account": "vc", "id": "U0123VCID" }
     ]
   }

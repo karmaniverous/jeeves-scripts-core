@@ -13,7 +13,7 @@ describe('cleanTitle', () => {
   });
 
   it('strips @mention suffix', () => {
-    expect(cleanTitle('Weekly Standup @jason')).toBe('Weekly Standup');
+    expect(cleanTitle('Weekly Standup @jane')).toBe('Weekly Standup');
   });
 
   it('normalizes whitespace', () => {

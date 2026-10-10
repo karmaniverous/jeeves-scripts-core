@@ -44,13 +44,13 @@ describe('helpers', () => {
       seedUser('vc', {
         id: 'U1',
         name: 'jw',
-        profile: { real_name: ' Jason W ', email: 'J@X.com' },
+        profile: { real_name: ' Jane D ', email: 'J@X.com' },
       }),
     ).toEqual({
       account: 'vc',
       id: 'U1',
       handle: 'jw',
-      realName: 'Jason W',
+      realName: 'Jane D',
       email: 'j@x.com',
     });
   });
@@ -65,16 +65,16 @@ describe('helpers', () => {
 describe('proposePeople', () => {
   it('groups by email across workspaces, with certainty', () => {
     const p = proposePeople([
-      u('default', 'U0AB7J9RCHF', 'Jason Williscroft', 'jason@johngalt.id'),
-      u('vc', 'U0VC1', 'Jason Williscroft', 'jason@johngalt.id'),
+      u('default', 'U0JANE0001', 'Jane Doe', 'jane@example.com'),
+      u('vc', 'U0VC1', 'Jane Doe', 'jane@example.com'),
       u('vc', 'U0VC2', 'Solo Person', 'solo@x.com'),
     ]);
     expect(p.people).toEqual({
-      'jason-williscroft': {
-        name: 'Jason Williscroft',
-        emails: ['jason@johngalt.id'],
+      'jane-doe': {
+        name: 'Jane Doe',
+        emails: ['jane@example.com'],
         accounts: [
-          { channel: 'slack', account: 'default', id: 'U0AB7J9RCHF' },
+          { channel: 'slack', account: 'default', id: 'U0JANE0001' },
           { channel: 'slack', account: 'vc', id: 'U0VC1' },
         ],
       },
@@ -91,16 +91,16 @@ describe('proposePeople', () => {
 
   it('groups by real name across workspaces, as uncertain', () => {
     const p = proposePeople([
-      u('default', 'U1', 'Jason Williscroft', 'jason@johngalt.id'),
-      u('vc', 'U2', 'jason  williscroft', 'jason.williscroft@veterancrowd.com'),
+      u('default', 'U1', 'Jane Doe', 'jane@example.com'),
+      u('vc', 'U2', 'jane  doe', 'jane.doe@example.org'),
     ]);
-    expect(p.people['jason-williscroft']?.emails).toEqual([
-      'jason@johngalt.id',
-      'jason.williscroft@veterancrowd.com',
+    expect(p.people['jane-doe']?.emails).toEqual([
+      'jane@example.com',
+      'jane.doe@example.org',
     ]);
     expect(p.uncertain).toEqual([
       expect.objectContaining({
-        personId: 'jason-williscroft',
+        personId: 'jane-doe',
         reason: expect.stringContaining('real name only') as unknown,
       }),
     ]);

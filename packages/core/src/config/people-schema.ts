@@ -9,12 +9,12 @@
 
 import { z } from 'zod';
 
-/** A person id: a lowercase slug (`jason-williscroft`). */
+/** A person id: a lowercase slug (`jane-doe`). */
 export const personIdSchema = z
   .string()
   .regex(
     /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-    'expected a lowercase slug like jason-williscroft',
+    'expected a lowercase slug like jane-doe',
   );
 
 /** One account of a person on a channel (`slack` / `vc` / `U0123`). */

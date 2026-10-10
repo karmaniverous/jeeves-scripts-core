@@ -119,13 +119,13 @@ describe('resolveShare: My Drive', () => {
 
 describe('resolveShare: shared drives', () => {
   const views = {
-    'jason@example.com|s': file({
+    'jane@example.com|s': file({
       id: 's',
       parents: ['ns'],
       driveId: 'D1',
       mimeType: FOLDER_MIME,
     }),
-    'jason@example.com|ns': file({
+    'jane@example.com|ns': file({
       id: 'ns',
       name: 'not shared',
       parents: ['D1'],
@@ -133,7 +133,7 @@ describe('resolveShare: shared drives', () => {
       mimeType: FOLDER_MIME,
     }),
     // The drive root folder is named `Drive` for every drive; never used.
-    'jason@example.com|D1': file({
+    'jane@example.com|D1': file({
       id: 'D1',
       name: 'Drive',
       mimeType: FOLDER_MIME,
@@ -144,13 +144,13 @@ describe('resolveShare: shared drives', () => {
     name: 'shared',
     mimeType: FOLDER_MIME,
     driveId: 'D1',
-    sharingUser: { emailAddress: 'jason@example.com' },
+    sharingUser: { emailAddress: 'jane@example.com' },
   });
 
   it('impersonates the sharer and names the drive via drives.list', () => {
     const client = fakeDrive({
       views,
-      driveNames: { 'jason@example.com': { D1: 'Test' } },
+      driveNames: { 'jane@example.com': { D1: 'Test' } },
     });
     const share = createPathResolver(client, opts).resolveShare(shared, []);
     expect(share.root).toEqual({ kind: 'drive', label: 'Test', driveId: 'D1' });
@@ -177,7 +177,7 @@ describe('resolveShare: shared drives', () => {
     const share = createPathResolver(client, opts).resolveShare(shared, errors);
     expect(share.root.label).toBeNull();
     expect(errors).toEqual([
-      'list drive names as jason@example.com: Error: 503',
+      'list drive names as jane@example.com: Error: 503',
     ]);
   });
 

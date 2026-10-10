@@ -15,12 +15,12 @@ import {
 } from './people.js';
 
 const people: People = peopleSchema.parse({
-  'jason-williscroft': {
-    name: 'Jason Williscroft',
-    emails: ['jason@johngalt.id', 'Jason.Williscroft@VeteranCrowd.com'],
+  'jane-doe': {
+    name: 'Jane Doe',
+    emails: ['jane@example.com', 'Jane.Doe@Example.org'],
     accounts: [
-      { channel: 'slack', account: 'default', id: 'U0AB7J9RCHF' },
-      { channel: 'slack', account: 'vc', id: 'U0VCJASON' },
+      { channel: 'slack', account: 'default', id: 'U0JANE0001' },
+      { channel: 'slack', account: 'vc', id: 'U0JANE0002' },
     ],
   },
   'ann-bee': {
@@ -29,7 +29,7 @@ const people: People = peopleSchema.parse({
   },
   shared: {
     name: 'Shared Id',
-    accounts: [{ channel: 'slack', account: 'other', id: 'U0VCJASON' }],
+    accounts: [{ channel: 'slack', account: 'other', id: 'U0JANE0002' }],
   },
 });
 
@@ -39,9 +39,7 @@ describe('peopleSchema', () => {
   });
 
   it('rejects ids that are not slugs and unknown keys', () => {
-    expect(peopleSchema.safeParse({ Jason: { name: 'J' } }).success).toBe(
-      false,
-    );
+    expect(peopleSchema.safeParse({ Jane: { name: 'J' } }).success).toBe(false);
     expect(
       peopleSchema.safeParse({ j: { name: 'J', alias: 'x' } }).success,
     ).toBe(false);
@@ -95,10 +93,12 @@ describe('peopleSchema', () => {
 
 describe('resolver', () => {
   it('resolves an account to its person', () => {
-    expect(personForAccount('slack', 'vc', 'U0VCJASON', people)).toMatchObject({
-      id: 'jason-williscroft',
-      name: 'Jason Williscroft',
-    });
+    expect(personForAccount('slack', 'vc', 'U0JANE0002', people)).toMatchObject(
+      {
+        id: 'jane-doe',
+        name: 'Jane Doe',
+      },
+    );
     expect(
       personForAccount('slack', 'default', 'U0ANN', people),
     ).toBeUndefined();
@@ -107,17 +107,15 @@ describe('resolver', () => {
 
   it('resolves a channel id across accounts only when unambiguous', () => {
     expect(personForChannelId('slack', 'U0ANN', people)?.id).toBe('ann-bee');
-    expect(personForChannelId('slack', 'U0VCJASON', people)).toBeUndefined();
+    expect(personForChannelId('slack', 'U0JANE0002', people)).toBeUndefined();
     expect(personForChannelId('slack', 'U404', people)).toBeUndefined();
   });
 
   it('resolves emails case-insensitively, with or without a display name', () => {
-    expect(personForEmail('JASON@johngalt.id', people)?.id).toBe(
-      'jason-williscroft',
+    expect(personForEmail('JANE@example.com', people)?.id).toBe('jane-doe');
+    expect(personForEmail('"J D" <jane.doe@example.org>', people)?.id).toBe(
+      'jane-doe',
     );
-    expect(
-      personForEmail('"J W" <jason.williscroft@veterancrowd.com>', people)?.id,
-    ).toBe('jason-williscroft');
     expect(personForEmail('someone@else.com', people)).toBeUndefined();
     expect(bareEmail(' A <B@C.d> ')).toBe('b@c.d');
   });
@@ -125,9 +123,9 @@ describe('resolver', () => {
   it('lists the distinct people behind a set of addresses', () => {
     expect(
       peopleForEmails(
-        ['jason@johngalt.id', 'x@y.z', 'jason.williscroft@veterancrowd.com'],
+        ['jane@example.com', 'x@y.z', 'jane.doe@example.org'],
         people,
       ),
-    ).toEqual([{ id: 'jason-williscroft', name: 'Jason Williscroft' }]);
+    ).toEqual([{ id: 'jane-doe', name: 'Jane Doe' }]);
   });
 });
