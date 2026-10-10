@@ -9,6 +9,8 @@
 
 import fs from 'node:fs';
 
+import { z } from 'zod';
+
 import { constants } from '../../lib/constants.js';
 
 // ---------------------------------------------------------------------------
@@ -39,33 +41,34 @@ export function enrichComment(
 // Public types
 // ---------------------------------------------------------------------------
 
-export interface LinearConfig {
-  apiKey: string;
-  apiUrl: string;
-  webhookSecret?: string;
-}
+/** The Linear config file (`constants().LINEAR_CONFIG_PATH`). */
+export const linearConfigSchema = z.object({
+  /** Personal API key, sent as the `Authorization` header. */
+  apiKey: z.string(),
+  /** GraphQL endpoint, e.g. `https://api.linear.app/graphql`. */
+  apiUrl: z.string(),
+  /** Webhook signing secret (used by the drain). */
+  webhookSecret: z.string().optional(),
+});
+
+/** Parsed Linear config. */
+export type LinearConfig = z.infer<typeof linearConfigSchema>;
 
 // ---------------------------------------------------------------------------
 // Config loader
 // ---------------------------------------------------------------------------
 
-/** Read and parse constants().LINEAR_CONFIG_PATH. Throws if missing or malformed. */
+/** Read and validate constants().LINEAR_CONFIG_PATH. Throws if missing or malformed. */
 export function loadConfig(): LinearConfig {
-  const raw = fs.readFileSync(constants().LINEAR_CONFIG_PATH, 'utf8');
-  const parsed: unknown = JSON.parse(raw);
-
-  if (
-    typeof parsed !== 'object' ||
-    parsed === null ||
-    typeof (parsed as Record<string, unknown>).apiKey !== 'string' ||
-    typeof (parsed as Record<string, unknown>).apiUrl !== 'string'
-  ) {
+  const file = constants().LINEAR_CONFIG_PATH;
+  const parsed = linearConfigSchema.safeParse(
+    JSON.parse(fs.readFileSync(file, 'utf8')),
+  );
+  if (!parsed.success)
     throw new Error(
-      `Invalid Linear config at ${constants().LINEAR_CONFIG_PATH}: must contain string apiKey and apiUrl`,
+      `Invalid Linear config at ${file}: must contain string apiKey and apiUrl`,
     );
-  }
-
-  return parsed as LinearConfig;
+  return parsed.data;
 }
 
 // ---------------------------------------------------------------------------
