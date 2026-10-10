@@ -19,19 +19,10 @@ import { Command } from '@commander-js/extra-typings';
 
 import { configCheck } from '../config/check.js';
 import { loadConfig } from '../config/loader.js';
-import {
-  getBasePathForSlackWorkspace,
-  siloRouting,
-} from '../config/silo-router.js';
 import { slackBotTokens } from '../lib/openclaw-config.js';
 import { proposeFromSlack } from '../people/propose.js';
 import { accountTeams } from '../slack/lib/account-teams.js';
 import { readJsonFile, seedChannelCache } from '../slack/lib/cache-seed.js';
-import {
-  applyRelocation,
-  formatPlan,
-  planRelocation,
-} from '../slack/lib/relocate.js';
 import {
   channelCacheFile,
   loadChannelCache,
@@ -140,58 +131,6 @@ const buildSlackCommand = (root: string) => {
       process.stdout.write(
         `${JSON.stringify({ ...result, file: channelCacheFile(), written: !options.dryRun })}\n`,
       );
-    });
-  slack
-    .command('relocate-archives')
-    .description(
-      'Cut-over tool: move archived Slack channel directories that sit in the wrong silo (current routing) to the right one. Prints the plan; moves only with --live; never overwrites (identical files merge, different ones stop the run).',
-    )
-    .option('--live', 'move the files (default: dry run)')
-    .option(
-      '--channels <file>',
-      'plan from the old channels.json (with --workspaces) seeded in memory instead of the Slack cache; nothing is written',
-    )
-    .option('--workspaces <file>', 'the old slack-channel-workspaces.json')
-    .option('--out <file>', 'also write the plan (UTF-8 text) to this file')
-    .action(async (options) => {
-      loadConfig({ root });
-      const teams = await accountTeams(slackBotTokens());
-      let channels = loadChannelCache();
-      if (options.channels || options.workspaces) {
-        if (!options.channels || !options.workspaces)
-          throw new Error('--channels and --workspaces go together.');
-        if (options.live)
-          throw new Error(
-            '--live works from the Slack cache only; run seed-cache first.',
-          );
-        channels = {};
-        seedChannelCache(
-          channels,
-          readJsonFile(options.channels),
-          readJsonFile(options.workspaces),
-          teams,
-        );
-      }
-      const routing = siloRouting();
-      const plan = planRelocation({
-        channels,
-        accountTeams: teams,
-        silos: [
-          { name: '(default)', basePath: routing.defaultBasePath },
-          ...Object.entries(routing.silos).map(([name, s]) => ({
-            name,
-            basePath: s.basePath,
-          })),
-        ],
-        basePathFor: (team) => getBasePathForSlackWorkspace(team),
-      });
-      const text = formatPlan(plan, Boolean(options.live));
-      if (options.out) fs.writeFileSync(options.out, text, 'utf8');
-      process.stdout.write(text);
-      if (options.live) {
-        applyRelocation(plan);
-        process.stdout.write('Relocation done.\n');
-      }
     });
   return slack;
 };
