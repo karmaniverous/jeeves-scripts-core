@@ -197,10 +197,6 @@ Gmail polling via the `gog` CLI (OAuth client or service-account mailboxes). Han
 - When a thread is deep-fetched, every label difference from the cached copy is recorded in the thread cache's `provenance` (`+label` / `-label`, `by: "human"`, per message): added/removed labels, stars, moves to or from spam/trash. Treat these as classification feedback. Label changes on a thread that is not deep-fetched (no new message, not important) are picked up the next time it is.
 - `watch` label (`curationSignalActions()` in `label-actions.ts`): added when a message the pipeline had already seen moves from the archive back to the inbox; removed when a watched message is no longer in the inbox. The only producer of `archive` actions is `meetings/extract.ts`, and it never archives a message that carries `watch` (`meetings/lib/email-actions.ts`). `drain-updates` itself applies queued actions as they are, without re-checking labels, so any new producer of `archive` must make the same check.
 
-### Receipt forwarding settings
-
-`emailConfig.receipt.forwardEnabled` (on/off) and `emailConfig.receipt.sparkReceiptsForwardTo` (destination) are validated by `config/pipeline-email-schema.ts`, but no core script forwards receipts; instance scripts read them. The retired key `forwardJGS` is a config error (see [the `pipeline` block](./config.md#the-pipeline-block)).
-
 ## Output Format
 
 Both transports produce identical on-disk output — `thread.json` (ThreadCache) + `{messageId}.json` per thread directory at `{siloBase}/email/threads/{account}/{threadId}/`.

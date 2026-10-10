@@ -33,7 +33,6 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
     "refs": { "digest.timezone": "America/Chicago" },
     "emailConfig": {
       "reportOnly": true,
-      "receipt": { "forwardEnabled": false, "sparkReceiptsForwardTo": "" },
       "digest": { "slackChannelId": "C0000000000" }
     }
   },
@@ -132,10 +131,6 @@ The schema rejects a literal secret value anywhere in the file, including under 
   "refs": { "digest.timezone": "America/Chicago" },
   "emailConfig": {
     "reportOnly": false,
-    "receipt": {
-      "forwardEnabled": true,
-      "sparkReceiptsForwardTo": "receipts@example.com"
-    },
     "digest": { "slackChannelId": "C0456..." }
   }
 }
@@ -146,7 +141,6 @@ The schema rejects a literal secret value anywhere in the file, including under 
 - `buckets.domains[]` maps email domains (`pattern`, case-insensitive) to buckets; `buckets.priority` orders bucket names (first = highest). Bucket names are also the Gmail labels classification applies (`getBucketNames()`); none is hard-coded.
 - `refs`: dotted key → string, read with `getRef(key)` (throws when missing) or `tryGetRef(key)` (`''` when missing). Refs are per-instance ids and settings (Slack channel ids, Notion database ids, `digest.timezone`); there are no defaults and they are not secrets. Every ref is read with a literal key or a `*_REF` constant, so the refs an instance needs can be listed from an instance or core checkout with `grep -rhoE "(try)?[gG]etRef\('[^']+'\)|[A-Z_]+_REF = '[^']+'" src --include='*.ts' --exclude='*.test.ts' | sort -u`.
 - `emailConfig.reportOnly` (required): when `true`, mail is ingested but no Gmail mutation happens (no label actions from poll and historical backfill, no `meeting` label or archive from meeting extraction, none applied by drain-updates). Skipped actions are dropped, except meeting extraction's, which are caught up once `reportOnly` is off (see [meetings](./meetings.md#reportonly-catch-up)).
-- `emailConfig.receipt` (required, strict): `forwardEnabled`, `sparkReceiptsForwardTo`. No core script reads them yet; they are validated so instance scripts can rely on them. The retired `forwardJGS` key is a config error.
 - `emailConfig.digest` (required): `slackChannelId` for email digest delivery.
 - `emailConfig.backfill` (optional): `{ "accounts": [...], "lookbackDays": 90, "windowDays": 7 }`, all required when present, no defaults. Paced historical Gmail backfill (`email/backfill-historical`); each run searches one window per account, walking back until `lookbackDays`, then no-ops. `--accounts`, `--lookback-days`, `--window-days` override. Backfill accounts are included in `getGmailAccounts()`.
 - `emailConfig.meetings` (optional): `{ "archive": boolean }`, the Gmail action on a meeting's source email (`false`: label only; `true`: label and archive out of `INBOX`, never a watched one). Absent means `archive: true`. `reportOnly` overrides both.

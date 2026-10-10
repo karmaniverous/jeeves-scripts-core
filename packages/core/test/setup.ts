@@ -32,7 +32,6 @@ fs.writeFileSync(
       refs: {},
       emailConfig: {
         reportOnly: true,
-        receipt: { forwardEnabled: false, sparkReceiptsForwardTo: '' },
         digest: { slackChannelId: '' },
       },
     },

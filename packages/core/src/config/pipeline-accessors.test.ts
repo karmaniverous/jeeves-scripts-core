@@ -58,7 +58,6 @@ const VALID_CONFIG = {
     },
     emailConfig: {
       reportOnly: false,
-      receipt: { forwardEnabled: true, sparkReceiptsForwardTo: '' },
       digest: { slackChannelId: 'C1234' },
     },
   },

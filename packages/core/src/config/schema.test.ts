@@ -38,7 +38,6 @@ describe('configSchema', () => {
         refs: {},
         emailConfig: {
           reportOnly: false,
-          receipt: { forwardEnabled: false, sparkReceiptsForwardTo: '' },
           digest: { slackChannelId: 'C1' },
         },
       },
@@ -88,7 +87,6 @@ describe('configSchema', () => {
         refs: {},
         emailConfig: {
           reportOnly: false,
-          receipt: { forwardEnabled: false, sparkReceiptsForwardTo: '' },
           digest: { slackChannelId: 'C1' },
         },
       },
