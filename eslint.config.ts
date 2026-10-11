@@ -67,7 +67,7 @@ export default [
   },
   eslint.configs.recommended,
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['**/*.{js,ts,tsx}'],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {

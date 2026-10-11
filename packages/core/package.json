@@ -13,6 +13,7 @@
     "guides",
     "skills",
     "schema",
+    "presets",
     "CHANGELOG.md"
   ],
   "publishConfig": {
@@ -35,7 +36,8 @@
     "./guides/*": "./guides/*",
     "./schema/*": "./schema/*",
     "./config/*": "./config/*",
-    "./skills/*": "./skills/*"
+    "./skills/*": "./skills/*",
+    "./presets/*": "./presets/*"
   },
   "types": "dist/index.d.ts",
   "bin": {

@@ -1,0 +1,5 @@
+node_modules/
+coverage/
+.tsbuildinfo
+*.local
+_crash.log

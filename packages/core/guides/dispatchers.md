@@ -83,7 +83,7 @@ export default defineJob({
 
 ### Dynamic Task Dispatcher (builds task at runtime)
 
-Pattern from the template's example `src/dispatchers/social-posts.ts` (instance code, not shipped in core): build task text from `pipeline.refs`:
+An instance runnable that builds its task text at runtime from `pipeline.refs` (instance code, registered by the plugin):
 
 ```typescript
 import {

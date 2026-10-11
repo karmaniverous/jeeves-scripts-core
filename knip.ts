@@ -25,12 +25,13 @@ const config: KnipConfig = {
         '!src/**/*.test.ts',
         '!src/**/*.test-helper.ts',
         '!src/**/*.fixtures.ts',
+        'presets/*.js',
       ],
-      project: ['**/*.ts', '!template/**'],
+      project: ['**/*.{js,ts}', '!template/**'],
     },
     'packages/template': {
-      entry: ['src/index.ts'],
-      project: ['**/*.ts'],
+      entry: ['jeeves-scripts.plugin.ts', 'src/**/*.test.ts'],
+      project: ['**/*.{js,ts}'],
     },
   },
 };

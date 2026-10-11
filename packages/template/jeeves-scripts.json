@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/@karmaniverous/jeeves-scripts-core/schema/jeeves-scripts.schema.json",
+  "instance": {
+    "name": "example",
+    "baseDir": "/base"
+  }
+}

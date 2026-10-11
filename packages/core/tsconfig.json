@@ -8,6 +8,7 @@
   },
   "include": [
     "src/**/*",
+    "presets/**/*",
     "scripts/**/*",
     "test/**/*",
     "rollup.config.ts",
