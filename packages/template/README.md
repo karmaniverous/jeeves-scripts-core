@@ -20,7 +20,7 @@ npm run check      # config check: validate jeeves-scripts.json
 npm run doctor     # core version, config, plugin, prerequisites, override drift
 node bin/jeeves-scripts.js list
 node bin/jeeves-scripts.js run example-say-hello Jane
-npm run lint && npm run typecheck && npm test
+npm run lint && npm run typecheck && npm test   # npm test also writes coverage/ (git- and typecheck-ignored)
 ```
 
 ## Docs

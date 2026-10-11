@@ -7,9 +7,11 @@
 
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import ts from 'typescript';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
@@ -58,6 +60,47 @@ describe('instance presets', () => {
     expect(
       require.resolve('@karmaniverous/jeeves-scripts-core/presets/tsconfig.base.json'),
     ).toBe(path.join(pkgRoot, 'presets', 'tsconfig.base.json'));
+  });
+
+  it('the tsconfig preset leaves out coverage/, dist/ and node_modules/ of the extending repo', () => {
+    // A coverage run writes coverage/lcov-report/*.js, which allowJs +
+    // checkJs would otherwise type-check (and fail) in the instance.
+    const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'tsconfig-preset-'));
+    try {
+      const write = (file: string, text: string) => {
+        fs.mkdirSync(path.dirname(path.join(repo, file)), { recursive: true });
+        fs.writeFileSync(path.join(repo, file), text);
+      };
+      write(
+        'tsconfig.json',
+        JSON.stringify({
+          extends: path.join(pkgRoot, 'presets', 'tsconfig.base.json'),
+        }),
+      );
+      write('src/a.ts', 'export const a = 1;\n');
+      for (const dir of ['coverage/lcov-report', 'dist', 'node_modules/x']) {
+        write(`${dir}/b.js`, 'document.body;\n');
+      }
+      const parsed = ts.getParsedCommandLineOfConfigFile(
+        path.join(repo, 'tsconfig.json'),
+        {},
+        { ...ts.sys, onUnRecoverableConfigFileDiagnostic: () => undefined },
+      );
+      expect(parsed?.errors).toEqual([]);
+      expect(
+        parsed?.fileNames.map((f) =>
+          path.relative(repo, f).replace(/\\/g, '/'),
+        ),
+      ).toEqual(['src/a.ts']);
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it('the eslint preset ignores the same folders as the tsconfig preset', () => {
+    expect(eslintPreset('/repo')).toContainEqual({
+      ignores: ['**/coverage/**', '**/dist/**', '**/node_modules/**'],
+    });
   });
 
   it('eslint preset: strict type-aware config rooted at the instance', () => {

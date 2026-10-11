@@ -156,11 +156,14 @@ describe('initRepo', () => {
   });
 
   it('writes fewer than 15 files from the real template, dotfiles restored', () => {
-    // The workspace may hold a local node_modules cache; core's build never bundles it.
+    // The workspace may hold a local node_modules cache and the coverage
+    // report its own `npm test` writes; core's build bundles neither.
     const created = initRepo(root, {
       core: '0.1.0',
       templateDir,
-    }).created.filter((f) => !f.startsWith('node_modules/'));
+    }).created.filter(
+      (f) => !f.startsWith('node_modules/') && !f.startsWith('coverage/'),
+    );
     expect(created.length).toBeLessThan(15);
     for (const dotfile of Object.values(RENAMED_DOTFILES))
       expect(created).toContain(dotfile);

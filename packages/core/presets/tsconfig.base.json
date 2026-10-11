@@ -16,5 +16,10 @@
     "strict": true,
     "target": "ES2023",
     "types": ["node", "vitest/globals"]
-  }
+  },
+  "exclude": [
+    "${configDir}/coverage",
+    "${configDir}/dist",
+    "${configDir}/node_modules"
+  ]
 }

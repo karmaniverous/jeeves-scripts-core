@@ -102,3 +102,12 @@ jobs:
           npm run lint
           npm run typecheck
           npm test
+
+      # npm test runs with coverage and writes coverage/ (with .js report
+      # files); the tsconfig preset must keep it out of the instance's
+      # typecheck (Decision 58).
+      - name: Typecheck after the coverage run
+        working-directory: ../ci-instance
+        run: |
+          test -f coverage/lcov-report/index.html
+          npm run typecheck

@@ -14,7 +14,7 @@ Everything below ships in the npm package. From an instance repo, the package ro
 | `schema/jeeves-scripts.schema.json` | JSON Schema for `jeeves-scripts.json`, generated from the Zod config schema. |
 | `config/token-rates.seed.json` | The token rate card seed (`constants().TOKEN_RATES_SEED_PATH`). |
 | `jobs/<domain>.json` | Core's job manifests, keyed by job id ([`guides/jobs.md`](guides/jobs.md)). |
-| `presets/`, `dist/presets/` | The presets an instance repo's one-line tool configs extend: TypeScript (`presets/tsconfig.base.json`, JSON because TypeScript reads only JSON tsconfigs) and the ESLint and Vitest presets, authored in TypeScript and shipped compiled with their types (`dist/presets/eslint.js`, `dist/presets/vitest.js`). All three are imported as `@karmaniverous/jeeves-scripts-core/presets/<file>` (`eslint.js`, `vitest.js`, `tsconfig.base.json`). |
+| `presets/`, `dist/presets/` | The presets an instance repo's one-line tool configs extend: TypeScript (`presets/tsconfig.base.json`, JSON because TypeScript reads only JSON tsconfigs) and the ESLint and Vitest presets, authored in TypeScript and shipped compiled with their types (`dist/presets/eslint.js`, `dist/presets/vitest.js`). All three are imported as `@karmaniverous/jeeves-scripts-core/presets/<file>` (`eslint.js`, `vitest.js`, `tsconfig.base.json`). The TypeScript and ESLint presets both leave out the instance's `coverage/`, `dist/` and `node_modules/`. |
 | `template/` | The instance repo `jeeves-scripts init` writes ([`guides/cli.md`](guides/cli.md#init)). |
 | `CHANGELOG.md` | Release notes. |
 | `dist/**/*.d.ts` | TSDoc for every module, next to its type declarations. |
