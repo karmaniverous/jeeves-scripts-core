@@ -164,6 +164,22 @@ describe('effectiveManifests', () => {
     ).toEqual([base]);
   });
 
+  it('fails on runner fields in a delta for a runnable without a manifest', () => {
+    expect(() =>
+      effectiveManifests({
+        manifests: [base],
+        deltas: {
+          'acme-drain': { schedule: '0 * * * *' },
+          'acme-pull': { enabled: false, silo: 'acme' },
+          'acme-ok': { taskFile: 'a/TASK.md' },
+        },
+        knownIds: new Set(['acme-poll', 'acme-drain', 'acme-pull', 'acme-ok']),
+      }),
+    ).toThrow(
+      /enabled\/schedule\/timeout_seconds\/env\/args on runnable id\(s\) with no manifest, where they have no effect: acme-drain, acme-pull\./,
+    );
+  });
+
   it('fails on deltas for unknown runnable ids, listing them', () => {
     expect(() =>
       effectiveManifests({

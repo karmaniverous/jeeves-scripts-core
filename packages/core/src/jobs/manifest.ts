@@ -105,6 +105,15 @@ export const readCoreManifests = (
     });
 };
 
+/** The delta fields that only shape a runner job (a manifest). */
+const RUNNER_FIELDS = [
+  'enabled',
+  'schedule',
+  'timeout_seconds',
+  'env',
+  'args',
+] as const;
+
 /** Apply one instance delta to a manifest entry (rules in the module doc). */
 export const applyDelta = (
   manifest: JobManifest,
@@ -142,7 +151,10 @@ export interface EffectiveManifestsInput {
 /**
  * Core manifests with the instance's deltas applied.
  *
- * @throws When a delta names an unknown runnable id (listing every such id).
+ * @throws When a delta names an unknown runnable id, or sets a runner field
+ *   (`enabled`, `schedule`, `timeout_seconds`, `env`, `args`) on a runnable
+ *   with no manifest, where it would have no effect (listing every such id;
+ *   Decision 58).
  */
 export const effectiveManifests = ({
   manifests,
@@ -153,6 +165,18 @@ export const effectiveManifests = ({
   if (unknown.length > 0)
     throw new Error(
       `jobs in jeeves-scripts.json names unknown runnable id(s): ${unknown.join(', ')}.`,
+    );
+  const withManifest = new Set(manifests.map((m) => m.id));
+  const inert = Object.entries(deltas)
+    .filter(
+      ([id, delta]) =>
+        !withManifest.has(id) &&
+        RUNNER_FIELDS.some((field) => delta[field] !== undefined),
+    )
+    .map(([id]) => id);
+  if (inert.length > 0)
+    throw new Error(
+      `jobs in jeeves-scripts.json sets ${RUNNER_FIELDS.join('/')} on runnable id(s) with no manifest, where they have no effect: ${inert.join(', ')}. Give the runnable a manifest, or remove those fields.`,
     );
   return manifests.map((m) => applyDelta(m, deltas[m.id]));
 };

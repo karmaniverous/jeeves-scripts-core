@@ -20,6 +20,7 @@ import {
   getGmailAccounts,
   type LoadConfigOptions,
   pipeline,
+  resetConfig,
 } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
 import {
@@ -111,6 +112,9 @@ export function emailApplyLabels(
     fail(options);
     return;
   }
+  // The config may already be cached (an instance plugin with a local
+  // schema loads it at registration), so an explicit --config replaces it.
+  if (options.config) resetConfig();
   const opts: LoadConfigOptions = { configPath: options.config };
   const { reportOnly } = pipeline(opts).emailConfig;
   if (reportOnly && !options.dryRun) {

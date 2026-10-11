@@ -11,6 +11,7 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { getGmailAccounts } from '../config/index.js';
 import { resetConfig } from '../config/loader.js';
 import emailApplyLabelsJob, {
   emailApplyLabels,
@@ -115,6 +116,18 @@ describe('email-apply-labels', () => {
     expect(log).toHaveBeenCalledWith(
       `${A}: 1 of 1 threads need labels (receipt 1, clients 1)`,
     );
+  });
+
+  it('honours --config even when another config is already cached', () => {
+    writeConfig(false);
+    // An instance plugin with a local schema caches the instance config
+    // at registration; the shared test config (no Gmail accounts) stands in.
+    expect(getGmailAccounts()).toEqual([]);
+    const { client, enqueue } = fakeClient();
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    run(['--account', A], client);
+    expect(process.exitCode).toBeUndefined();
+    expect(enqueue).toHaveBeenCalled();
   });
 
   it('rejects an account that is not a configured Gmail account', () => {
