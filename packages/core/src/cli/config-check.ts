@@ -10,6 +10,7 @@
  */
 
 import { configCheck, type ConfigCheckResult } from '../config/check.js';
+import { CONFIG_PATH_ENV } from '../config/loader.js';
 import { loadPlugin } from './load-plugin.js';
 
 /** Seams for tests. */
@@ -21,7 +22,9 @@ export interface InstanceConfigCheckDeps {
 /**
  * Check an instance's `jeeves-scripts.json`, including its `local` block.
  * The plugin is loaded only when the core checks pass (it parses `local`
- * from the config they loaded).
+ * from the config they loaded), after `JEEVES_SCRIPTS_CONFIG` is set to
+ * the checked file, as `run` and `list` pin it: modules the plugin
+ * imports resolve the same file.
  *
  * @param root - Instance repo root.
  * @param configPath - Explicit config file (`--config`), else resolved
@@ -34,6 +37,7 @@ export const instanceConfigCheck = async (
 ): Promise<ConfigCheckResult> => {
   const result = configCheck({ root, configPath });
   if (!result.ok) return result;
+  if (result.configPath) process.env[CONFIG_PATH_ENV] = result.configPath;
   try {
     await deps.loadPlugin(root);
   } catch (e) {

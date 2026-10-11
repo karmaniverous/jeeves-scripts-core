@@ -90,6 +90,18 @@ describe('instanceConfigCheck', () => {
     expect(load).not.toHaveBeenCalled();
   });
 
+  it('pins JEEVES_SCRIPTS_CONFIG to the checked file before loading the plugin', async () => {
+    writeConfig({});
+    let seen: string | undefined;
+    await instanceConfigCheck(root, undefined, {
+      loadPlugin: () => {
+        seen = process.env[CONFIG_PATH_ENV];
+        return Promise.resolve(undefined);
+      },
+    });
+    expect(seen).toBe(path.join(root, 'jeeves-scripts.json'));
+  });
+
   it('checks an explicit --config file', async () => {
     const other = path.join(root, 'other.json');
     fs.writeFileSync(
