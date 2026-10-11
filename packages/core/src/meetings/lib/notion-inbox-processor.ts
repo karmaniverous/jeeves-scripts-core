@@ -21,10 +21,9 @@ import {
 
 // ── Constants ──────────────────────────────────────────────────────────
 
-const MEETINGS_INDEX_PATH = path.join(
-  constants().DEFAULT_MEETINGS_DIR,
-  'index.json',
-);
+/** The meetings index file (read from config when used, never at import). */
+const meetingsIndexPath = (): string =>
+  path.join(constants().DEFAULT_MEETINGS_DIR, 'index.json');
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -142,14 +141,14 @@ function upsertMeetingsIndex(
   };
   try {
     idx = JSON.parse(
-      fs.readFileSync(MEETINGS_INDEX_PATH, 'utf8'),
+      fs.readFileSync(meetingsIndexPath(), 'utf8'),
     ) as MeetingsIndex;
   } catch {
     // ignore
   }
   idx.meetings[meetingId] = { ...idx.meetings[meetingId], ...entry };
   idx.updatedAt = new Date().toISOString();
-  fs.writeFileSync(MEETINGS_INDEX_PATH, JSON.stringify(idx, null, 2));
+  fs.writeFileSync(meetingsIndexPath(), JSON.stringify(idx, null, 2));
 }
 
 // ── Main processor ─────────────────────────────────────────────────────

@@ -15,10 +15,15 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
+import {
+  getRunnerClient,
+  type RunnerClient,
+} from '@karmaniverous/jeeves-runner';
 
-import { getEmailAccounts } from '../../config/index.js';
-import { getEmailBaseForAccount } from '../../config/index.js';
+import {
+  getEmailAccounts,
+  getEmailBaseForAccount,
+} from '../../config/index.js';
 import { defineJob } from '../../jobs/define-job.js';
 import { seenKey } from '../email-state.js';
 
@@ -44,9 +49,27 @@ function countDirsAndFiles(dir: string): { dirs: number; files: number } {
   return { dirs, files };
 }
 
-function main(): void {
-  const accounts = getEmailAccounts();
-  const client = getRunnerClient();
+/** What {@link emailInventory} reads. */
+export interface InventoryDeps {
+  /** The configured email accounts. */
+  accounts: () => string[];
+  /** An account's `{silo}/email` directory. */
+  emailBase: (account: string) => string;
+  /** Runner items (thread state). */
+  runner: () => Pick<RunnerClient, 'listItemKeys' | 'close'>;
+}
+
+/** The live collaborators, from config. */
+export const inventoryDeps = (): InventoryDeps => ({
+  accounts: getEmailAccounts,
+  emailBase: getEmailBaseForAccount,
+  runner: () => getRunnerClient(),
+});
+
+/** Print the per-account counts table. */
+export function emailInventory(deps: InventoryDeps): void {
+  const accounts = deps.accounts();
+  const client = deps.runner();
 
   try {
     const rows: {
@@ -58,11 +81,12 @@ function main(): void {
     }[] = [];
 
     for (const account of accounts) {
-      const emailBase = getEmailBaseForAccount(account);
-      const silo = emailBase
-        .replace(/[\\/]email$/, '')
-        .split(/[\\/]/)
-        .pop()!;
+      const emailBase = deps.emailBase(account);
+      const silo =
+        emailBase
+          .replace(/[\\/]email$/, '')
+          .split(/[\\/]/)
+          .at(-1) ?? '';
       const threadsDir = path.join(emailBase, 'threads', account);
 
       const { dirs: threadDirs, files: threadMessages } =
@@ -128,6 +152,6 @@ export default defineJob({
     'Print thread directory, message file and thread-state counts per email account and silo (diagnostics).',
   name: 'email/inventory',
   run: () => {
-    main();
+    emailInventory(inventoryDeps());
   },
 });

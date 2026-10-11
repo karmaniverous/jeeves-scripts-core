@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { flag, parseRunnableArgs, value } from './args.js';
+import { flag, optional, parseRunnableArgs, value } from './args.js';
 
 describe('parseRunnableArgs', () => {
   const spec = {
@@ -21,6 +21,12 @@ describe('parseRunnableArgs', () => {
       project: '',
       type: 'issue',
     });
+  });
+
+  it('leaves an absent optional option undefined', () => {
+    const opt = { days: optional('--days') };
+    expect(parseRunnableArgs([], opt)).toEqual({ days: undefined });
+    expect(parseRunnableArgs(['--days', '7'], opt)).toEqual({ days: '7' });
   });
 
   it('ignores unknown arguments', () => {

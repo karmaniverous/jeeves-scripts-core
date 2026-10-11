@@ -36,9 +36,8 @@
 
 import fs from 'node:fs';
 
-import { getArg } from '@karmaniverous/jeeves';
-
 import { defineJob } from '../jobs/define-job.js';
+import { flag, parseRunnableArgs, value } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
 import { userCacheFile } from '../slack/lib/slack-cache.js';
 import {
@@ -59,7 +58,8 @@ import { openTokenMetricsState } from './lib/token-metrics-state.js';
 
 const TAG = '[regen]';
 
-const deps: RegenDeps = {
+/** The live collaborators, from config when the job runs (never at import). */
+export const regenDeps = (): RegenDeps => ({
   agentDbPath: constants().OPENCLAW_AGENT_DB_PATH,
   agentDbExists: fs.existsSync(constants().OPENCLAW_AGENT_DB_PATH),
   cutoffMs: currentHourBoundaryMs(),
@@ -93,18 +93,21 @@ const deps: RegenDeps = {
     });
   },
   openState: openTokenMetricsState,
-};
+});
 
-async function regenerate(): Promise<void> {
-  const argv = process.argv;
+/** Parse the arguments and run the regeneration; sets the exit code. */
+export async function regenerate(
+  args: readonly string[],
+  deps: RegenDeps,
+): Promise<void> {
   process.exitCode = await runRegen(
-    {
-      from: getArg(argv, '--from', ''),
-      to: getArg(argv, '--to', ''),
-      out: getArg(argv, '--out', ''),
-      dryRun: argv.includes('--dry-run'),
-      allowPreUpgrade: argv.includes('--allow-pre-upgrade'),
-    },
+    parseRunnableArgs(args, {
+      from: value('--from'),
+      to: value('--to'),
+      out: value('--out'),
+      dryRun: flag('--dry-run'),
+      allowPreUpgrade: flag('--allow-pre-upgrade'),
+    }),
     deps,
   );
 }
@@ -115,5 +118,5 @@ export default defineJob({
   description:
     'Rebuild hourly token-metrics buckets for [--from, --to) (scratch with --out, or live), and bootstrap the agent-DB cursor after the OpenClaw 2026.9 upgrade.',
   name: 'regenerate-token-metrics',
-  run: () => regenerate(),
+  run: ({ args }) => regenerate(args, regenDeps()),
 });

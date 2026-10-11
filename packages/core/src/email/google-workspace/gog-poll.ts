@@ -13,7 +13,7 @@ import path from 'node:path';
 import { appendJsonl, nowIso } from '@karmaniverous/jeeves';
 
 import { constants } from '../../lib/constants.js';
-import { gogWithRetry } from '../../lib/gog.js';
+import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
 import {
   type EmailStoreClient,
   getThreadState,
@@ -46,6 +46,8 @@ export interface GogPollContext {
   query: string;
   /** Threads per search. */
   max: number;
+  /** gog (default: the live runner with retry). */
+  gog?: GogRunner;
 }
 
 /** What polling one thread did. */
@@ -205,6 +207,7 @@ export function pollThread(
       query,
       client,
       reportOnly,
+      gog: ctx.gog,
     });
     deepFetched = true;
     newMessages = r.newMessages;
@@ -225,7 +228,7 @@ export function pollGogAccount(ctx: GogPollContext): void {
   const state = loadScalarState(account, client);
 
   const { threads } = parseSearchPage(
-    gogWithRetry(searchArgs(account, query, max), {
+    (ctx.gog ?? gogWithRetry)(searchArgs(account, query, max), {
       retries: 2,
       backoffMs: 5000,
     }),

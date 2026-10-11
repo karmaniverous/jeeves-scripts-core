@@ -15,6 +15,7 @@
 import { z } from 'zod';
 
 import type { BackfillConfig } from '../../config/index.js';
+import { optional, parseRunnableArgs } from '../../lib/args.js';
 
 /** Resolved backfill settings. */
 export interface BackfillSettings {
@@ -24,12 +25,6 @@ export interface BackfillSettings {
 }
 
 const positiveInt = z.coerce.number().int().positive();
-
-function argValue(argv: string[], flag: string): string | undefined {
-  const idx = argv.indexOf(flag);
-  if (idx === -1 || idx + 1 >= argv.length) return undefined;
-  return argv[idx + 1];
-}
 
 function parseDays(raw: string, flag: string): number {
   const parsed = positiveInt.safeParse(raw);
@@ -56,9 +51,15 @@ export function resolveBackfillSettings(
   config: BackfillConfig | undefined,
   argv: string[],
 ): BackfillSettings {
-  const accountsArg = argValue(argv, '--accounts');
-  const lookbackArg = argValue(argv, '--lookback-days');
-  const windowArg = argValue(argv, '--window-days');
+  const {
+    accounts: accountsArg,
+    lookback: lookbackArg,
+    window: windowArg,
+  } = parseRunnableArgs(argv, {
+    accounts: optional('--accounts'),
+    lookback: optional('--lookback-days'),
+    window: optional('--window-days'),
+  });
 
   const accounts =
     accountsArg !== undefined ? parseAccounts(accountsArg) : config?.accounts;

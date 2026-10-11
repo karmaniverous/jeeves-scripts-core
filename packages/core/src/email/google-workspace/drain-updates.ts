@@ -4,13 +4,13 @@
  * Dequeue label-change actions from `email-updates` and apply them to
  * Gmail threads via `gog gmail thread modify`.
  *
- * Called on a schedule as an entry-point script. Pre-creates any missing
+ * Scheduled runner job. Pre-creates any missing
  * Gmail labels, then processes addLabel/removeLabel/archive/trash/markRead
  * actions with rate limiting (MAX_CALLS_PER_MINUTE). Updates the thread
  * cache provenance on each successful action. Logs run stats to
- * constants().EMAIL_EVENTS_DIR.
+ * `EMAIL_EVENTS_DIR`.
  *
- * Depends on constants().EMAIL_EVENTS_DIR for run logging. Rate limit is hardcoded
+ * Rate limit is hardcoded
  * via MAX_CALLS_PER_MINUTE constant. Skips when no gog accounts are
  * configured (getGmailAccounts(): polled Gmail accounts plus
  * emailConfig.backfill.accounts). Fails when there are some but gog has
@@ -22,12 +22,15 @@
 import path from 'node:path';
 
 import { appendJsonl, nowIso, sleepMs } from '@karmaniverous/jeeves';
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
+import {
+  getRunnerClient,
+  type RunnerClient,
+} from '@karmaniverous/jeeves-runner';
 
 import { getGmailAccounts, pipeline } from '../../config/index.js';
 import { defineJob } from '../../jobs/define-job.js';
 import { constants } from '../../lib/constants.js';
-import { gogWithRetry } from '../../lib/gog.js';
+import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
 import { loadCache, saveCache } from '../email-cache.js';
 import {
   EMAIL_UPDATES_QUEUE,
@@ -37,7 +40,37 @@ import {
   threadModifyArgs,
 } from './label-actions.js';
 
-const MAX_CALLS_PER_MINUTE = 60;
+/** Gmail modify calls per minute. */
+export const MAX_CALLS_PER_MINUTE = 60;
+
+/** What {@link drainUpdates} reads and calls. */
+export interface DrainUpdatesDeps {
+  /** `emailConfig.reportOnly`. */
+  reportOnly: boolean;
+  /** Configured Gmail accounts (polled plus backfill). */
+  gmailAccounts: number;
+  /** gog. */
+  gog: GogRunner;
+  /** Runner queue. */
+  runner: () => Pick<RunnerClient, 'dequeue' | 'done' | 'fail' | 'close'>;
+  /** `EMAIL_EVENTS_DIR`. */
+  eventsDir: string;
+  /** ISO timestamp. */
+  now: () => string;
+  /** Rate-limit pause (synchronous). */
+  sleep: (ms: number) => void;
+}
+
+/** The live collaborators, from config. */
+export const drainUpdatesDeps = (): DrainUpdatesDeps => ({
+  reportOnly: pipeline().emailConfig.reportOnly,
+  gmailAccounts: getGmailAccounts().length,
+  gog: gogWithRetry,
+  runner: () => getRunnerClient(),
+  eventsDir: constants().EMAIL_EVENTS_DIR,
+  now: nowIso,
+  sleep: sleepMs,
+});
 
 interface UpdateEntry {
   account: string;
@@ -48,21 +81,24 @@ interface UpdateEntry {
   source: string;
 }
 
-function applyLabelUpdate(entry: UpdateEntry): LabelChanges {
+function applyLabelUpdate(entry: UpdateEntry, gog: GogRunner): LabelChanges {
   const changes = labelChangesFor(entry.action, entry.label);
-  gogWithRetry(threadModifyArgs(entry.account, entry.threadId, changes), {
+  gog(threadModifyArgs(entry.account, entry.threadId, changes), {
     retries: 1,
     backoffMs: 3000,
   });
   return changes;
 }
 
-function processEntry(entry: UpdateEntry): {
+function processEntry(
+  entry: UpdateEntry,
+  deps: Pick<DrainUpdatesDeps, 'gog' | 'now'>,
+): {
   success: boolean;
   error?: string;
 } {
   try {
-    const changes = applyLabelUpdate(entry);
+    const changes = applyLabelUpdate(entry, deps.gog);
     const cache = loadCache(entry.account, entry.threadId);
     if (cache) {
       const val =
@@ -75,7 +111,7 @@ function processEntry(entry: UpdateEntry): {
         value: val,
         by: 'jeeves',
         source: entry.source,
-        at: nowIso(),
+        at: deps.now(),
       });
       const msg = cache.messages?.[entry.messageId];
       if (msg) {
@@ -95,11 +131,9 @@ function processEntry(entry: UpdateEntry): {
   }
 }
 
-function main(): void {
-  const plan = planDrain(
-    pipeline().emailConfig.reportOnly,
-    getGmailAccounts().length,
-  );
+/** Apply the queued label changes (unless report-only), rate-limited, and log the run. */
+export function drainUpdates(deps: DrainUpdatesDeps): void {
+  const plan = planDrain(deps.reportOnly, deps.gmailAccounts);
   if (plan === 'report-only') {
     console.log(
       '[report-only] emailConfig.reportOnly is true: no Gmail changes applied; queue left untouched',
@@ -111,7 +145,7 @@ function main(): void {
     return;
   }
 
-  const client = getRunnerClient();
+  const client = deps.runner();
   try {
     const items = client.dequeue(EMAIL_UPDATES_QUEUE, 100);
     if (items.length === 0) {
@@ -134,7 +168,7 @@ function main(): void {
     }
     for (const { account, label } of unique.values()) {
       try {
-        const raw = gogWithRetry(
+        const raw = deps.gog(
           ['gmail', 'labels', 'list', '--json', '--account', account],
           { retries: 1, backoffMs: 3000 },
         );
@@ -144,10 +178,10 @@ function main(): void {
         const existing = (parsed.labels ?? []).map((l) => l.name);
         if (!existing.includes(label)) {
           console.log(`Creating label "${label}" for ${account}`);
-          gogWithRetry(
-            ['gmail', 'labels', 'create', label, '--account', account],
-            { retries: 1, backoffMs: 3000 },
-          );
+          deps.gog(['gmail', 'labels', 'create', label, '--account', account], {
+            retries: 1,
+            backoffMs: 3000,
+          });
         }
       } catch (e) {
         console.error(
@@ -168,7 +202,7 @@ function main(): void {
       console.log(
         `Processing ${String(processed)}: ${entry.action} ${entry.label ?? ''} on ${entry.messageId}`,
       );
-      const result = processEntry(entry);
+      const result = processEntry(entry, deps);
       if (result.success) {
         client.done(id);
         succeeded++;
@@ -176,17 +210,17 @@ function main(): void {
         client.fail(id, result.error);
         failed++;
       }
-      if (processed < items.length) sleepMs(delay);
+      if (processed < items.length) deps.sleep(delay);
     }
 
     const stats = {
-      at: nowIso(),
+      at: deps.now(),
       kind: 'drain_updates',
       processed,
       succeeded,
       failed,
     };
-    appendJsonl(path.join(constants().EMAIL_EVENTS_DIR, '_runs.jsonl'), stats);
+    appendJsonl(path.join(deps.eventsDir, '_runs.jsonl'), stats);
     console.log(JSON.stringify(stats, null, 2));
   } finally {
     client.close();
@@ -199,6 +233,6 @@ export default defineJob({
   name: 'email/drain-updates',
   crashDir: () => constants().EMAIL_EVENTS_DIR,
   run: () => {
-    main();
+    drainUpdates(drainUpdatesDeps());
   },
 });

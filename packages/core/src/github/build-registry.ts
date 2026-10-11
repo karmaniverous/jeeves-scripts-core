@@ -3,21 +3,22 @@
  *
  * Build a JSON registry of all accessible GitHub repos.
  *
- * Called by the jeeves-runner scheduler. Authenticates via constants().GH_BIN,
+ * Called by the jeeves-runner scheduler. Authenticates via the gh binary,
  * paginates the /user/repos endpoint to collect repos with push
- * access, and writes the registry to constants().GITHUB_REGISTRY_PATH under
- * constants().GITHUB_DIR.
+ * access, and writes the registry file under the GitHub
+ * archive directory.
  */
 
 import fs from 'node:fs';
 
-import { ensureDir, nowIso, run } from '@karmaniverous/jeeves';
+import { ensureDir } from '@karmaniverous/jeeves';
 
 import { defineJob } from '../jobs/define-job.js';
-import { constants } from '../lib/constants.js';
-import { ghApi, setupGhConfig } from '../lib/gh.js';
-
-setupGhConfig();
+import {
+  ghApiVia,
+  type GitHubJobDeps,
+  githubJobDeps,
+} from './lib/github-deps.js';
 
 interface GhRepo {
   full_name: string;
@@ -60,12 +61,12 @@ function computeSocialPolicy(
   };
 }
 
-function getWriteRepos(): GhRepo[] {
+function getWriteRepos(deps: Pick<GitHubJobDeps, 'gh'>): GhRepo[] {
   const out: GhRepo[] = [];
   let page = 1;
   for (;;) {
     const endpoint = `/user/repos?per_page=100&page=${String(page)}&affiliation=owner,collaborator,organization_member`;
-    const rawRepos = ghApi(endpoint);
+    const rawRepos = ghApiVia(deps, endpoint);
     const repos = rawRepos as GhRepo[];
     if (!Array.isArray(rawRepos) || repos.length === 0) break;
     for (const r of repos) {
@@ -81,12 +82,12 @@ function getWriteRepos(): GhRepo[] {
  * Fetch all visible repos for an org (including read-only).
  * Used for external scopes where we observe but don't contribute.
  */
-function getOrgRepos(org: string): GhRepo[] {
+function getOrgRepos(org: string, deps: Pick<GitHubJobDeps, 'gh'>): GhRepo[] {
   const out: GhRepo[] = [];
   let page = 1;
   for (;;) {
     const endpoint = `/orgs/${org}/repos?per_page=100&page=${String(page)}&type=all`;
-    const rawRepos = ghApi(endpoint);
+    const rawRepos = ghApiVia(deps, endpoint);
     const repos = rawRepos as GhRepo[];
     if (!Array.isArray(rawRepos) || repos.length === 0) break;
     out.push(...repos);
@@ -96,16 +97,17 @@ function getOrgRepos(org: string): GhRepo[] {
   return out;
 }
 
-function main(): void {
-  if (!fs.existsSync(constants().GH_CONFIG_DIR)) {
+/** Run the job. */
+export function buildRegistry(deps: GitHubJobDeps): void {
+  if (!fs.existsSync(deps.configDir)) {
     console.log('[skip] GitHub CLI config not configured');
     return;
   }
 
-  ensureDir(constants().GITHUB_DIR);
-  console.log(`[repo-registry] start ${nowIso()}`);
+  ensureDir(deps.githubDir);
+  console.log(`[repo-registry] start ${deps.now()}`);
 
-  const account = constants().GH_ACCOUNT;
+  const account = deps.account;
   if (!account) {
     console.log(
       '[skip] integrations.gh.account is not set in jeeves-scripts.json',
@@ -113,8 +115,8 @@ function main(): void {
     return;
   }
 
-  run(constants().GH_BIN, ['auth', 'switch', '-u', account]);
-  const repos = getWriteRepos()
+  deps.run(deps.bin, ['auth', 'switch', '-u', account]);
+  const repos = getWriteRepos(deps)
     .filter((r) => !r.archived && !r.disabled && !r.fork)
     .sort(
       (a, b) =>
@@ -123,9 +125,7 @@ function main(): void {
 
   let scopes: Record<string, { external: boolean }> = {};
   try {
-    const existing = JSON.parse(
-      fs.readFileSync(constants().GITHUB_REGISTRY_PATH, 'utf8'),
-    ) as {
+    const existing = JSON.parse(fs.readFileSync(deps.registryPath, 'utf8')) as {
       scopes?: Record<string, { external: boolean }>;
     };
     if (existing.scopes && typeof existing.scopes === 'object')
@@ -142,7 +142,7 @@ function main(): void {
   const externalRepos: GhRepo[] = [];
   for (const org of externalScopes) {
     try {
-      const orgRepos = getOrgRepos(org).filter(
+      const orgRepos = getOrgRepos(org, deps).filter(
         (r) => !r.archived && !r.disabled && !r.fork,
       );
       externalRepos.push(...orgRepos);
@@ -190,19 +190,19 @@ function main(): void {
 
   const newRegistry = {
     scopes,
-    generatedAt: nowIso(),
+    generatedAt: deps.now(),
     repos: reposObj,
   };
 
   fs.writeFileSync(
-    constants().GITHUB_REGISTRY_PATH,
+    deps.registryPath,
     JSON.stringify(newRegistry, null, 2) + '\n',
     'utf8',
   );
-  console.log(`[repo-registry] wrote ${constants().GITHUB_REGISTRY_PATH}`);
+  console.log(`[repo-registry] wrote ${deps.registryPath}`);
 
   console.log(
-    `[repo-registry] end   ${nowIso()} (count=${String(allRepos.length)}, external=${String(externalRepos.length)})`,
+    `[repo-registry] end   ${deps.now()} (count=${String(allRepos.length)}, external=${String(externalRepos.length)})`,
   );
 }
 
@@ -211,6 +211,6 @@ export default defineJob({
   domain: 'github',
   name: 'github/build-registry',
   run: () => {
-    main();
+    buildRegistry(githubJobDeps());
   },
 });

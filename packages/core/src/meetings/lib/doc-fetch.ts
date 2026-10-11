@@ -20,7 +20,7 @@ import {
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
 
-import { GOG } from '../../lib/gog.js';
+import { gogBin } from '../../lib/gog.js';
 import type { IndexStore } from './doc-fetch-scan.js';
 import type { MeetingManifest } from './doc-fetch-scan.js';
 import {
@@ -53,7 +53,7 @@ interface FetchState {
 function fetchDocContent(docId: string, account: string): DocFetchResult {
   try {
     const r = cp.spawnSync(
-      GOG,
+      gogBin(),
       ['docs', 'export', docId, '--account', account, '--format', 'txt'],
       { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 },
     );

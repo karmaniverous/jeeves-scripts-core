@@ -6,7 +6,8 @@
  * an unhandled rejection after `run` has returned. Its source must not
  * contain `.catch(` or `void`, the two ways to silence the lint rule
  * against floating promises. A `run` that fires and forgets an async body
- * fails this test or the lint gate.
+ * fails this test or the lint gate. Each module is imported under the
+ * broken config, so one that reads config at import fails too.
  */
 
 import fs from 'node:fs';
@@ -58,28 +59,6 @@ afterAll(() => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-/**
- * Jobs that still read config when their module is imported (the
- * testability refactor removes them; this list only shrinks).
- */
-const IMPORT_TIME_CONFIG = new Set([
-  'calendar-poll',
-  'email-backfill-historical',
-  'email-download',
-  'email-drain-updates',
-  'email-poll',
-  'google-drive-sync',
-  'meetings-fetch-notes',
-  'meetings-ingest-notion',
-  'github-build-registry',
-  'github-drain-collabs',
-  'github-poll-collabs',
-  'github-sync-issues',
-  'github-sync-repos',
-  'github-watch',
-  'admin-regenerate-token-metrics',
-]);
-
 /** Let any fire-and-forget continuation run and reject. */
 const drain = () => new Promise((resolve) => setTimeout(resolve, 50));
 
@@ -99,13 +78,12 @@ const settle = async (
   }
 };
 
-const runnable = coreJobs.filter((e) => !IMPORT_TIME_CONFIG.has(e.id));
-const importTime = coreJobs.filter((e) => IMPORT_TIME_CONFIG.has(e.id));
-
 describe('every core runnable', () => {
-  it.each(runnable.map((e) => [e.id, e] as const))(
+  it.each(coreJobs.map((e) => [e.id, e] as const))(
     '%s settles its work through what run returns',
     async (_id, entry) => {
+      // Importing with no loadable config also proves the module reads
+      // config at run time, never at import.
       const job = await loadJob(entry);
       // No fire-and-forget: a dangling promise in a block body is a lint
       // error (no-floating-promises), so only .catch( and void could hide one.
@@ -116,13 +94,6 @@ describe('every core runnable', () => {
       expect(unhandled).toEqual([]);
       expect(['resolved', 'rejected', 'threw']).toContain(settled);
       process.exitCode = undefined;
-    },
-  );
-
-  it.each(importTime.map((e) => [e.id, e] as const))(
-    '%s still reads config at import (pending the refactor)',
-    async (_id, entry) => {
-      await expect(loadJob(entry)).rejects.toThrow('jeeves-scripts.json');
     },
   );
 });

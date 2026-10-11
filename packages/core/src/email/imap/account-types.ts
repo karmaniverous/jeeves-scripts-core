@@ -10,8 +10,7 @@
  * Input: account type name string. Output: AccountTypeDefinition.
  */
 
-import type { ImapFlow } from 'imapflow';
-
+import type { ImapConnection } from './connection.js';
 import type { NormalizedMessage } from './normalize.js';
 
 // ── Interface ─────────────────────────────────────────────────────────
@@ -29,7 +28,7 @@ export interface AccountTypeDefinition {
   /** Extract and normalize labels from a fetched NormalizedMessage. */
   labels: (msg: NormalizedMessage) => string[];
   /** Return the ordered list of folders to poll for this account. */
-  folders: (conn: ImapFlow) => Promise<string[]>;
+  folders: (conn: ImapConnection) => Promise<string[]>;
 }
 
 // ── Gmail label normalization ─────────────────────────────────────────

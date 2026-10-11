@@ -162,6 +162,7 @@ function processNewThread(
     query,
     client,
     reportOnly,
+    gog: deps.gog,
   });
 
   const r = enqueueLabelActions(client, {
