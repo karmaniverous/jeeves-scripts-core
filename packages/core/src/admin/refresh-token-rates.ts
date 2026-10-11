@@ -42,7 +42,9 @@ export default defineJob({
 });
 
 /** The live collaborators, from config when the job runs. */
-export function refreshRatesDeps(): RefreshRatesDeps {
+export function refreshRatesDeps(
+  httpGet: typeof httpGetJson = httpGetJson,
+): RefreshRatesDeps {
   return {
     ensure: () => {
       ensureRateCard(
@@ -52,7 +54,7 @@ export function refreshRatesDeps(): RefreshRatesDeps {
     },
     read: () => readRateCardFile(constants().TOKEN_RATES_PATH),
     fetchRates: async (id) =>
-      (await fetchOpenRouterRates(id, httpGetJson))?.rates ?? null,
+      (await fetchOpenRouterRates(id, httpGet))?.rates ?? null,
     write: (card) => {
       atomicWrite(
         constants().TOKEN_RATES_PATH,

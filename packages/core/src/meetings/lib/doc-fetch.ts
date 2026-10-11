@@ -32,9 +32,10 @@ import { writeMeetingMeta } from './meeting-schema.js';
 import { getMeetingsDirs } from './meetings-dirs.js';
 
 /** Rate limiting — Google Docs API has a 60 req/min limit for reads. */
-const RATE_LIMIT_MS = 2000;
+export const RATE_LIMIT_MS = 2000;
 
-interface DocFetchResult {
+/** One export: the text, or why it failed. */
+export interface DocFetchResult {
   ok: boolean;
   content?: string;
   error?: string;
@@ -50,9 +51,21 @@ interface FetchState {
 
 // ── Doc fetching ──────────────────────────────────────────────────────
 
-function fetchDocContent(docId: string, account: string): DocFetchResult {
+/** Runs a command synchronously (`child_process.spawnSync`'s shape). */
+export type SpawnSync = (
+  cmd: string,
+  args: string[],
+  options: { encoding: 'utf8'; maxBuffer: number },
+) => { error?: Error; status: number | null; stdout: string; stderr: string };
+
+/** Export a Google Doc as text through `gog docs export` and read the file it wrote. */
+export function fetchDocContent(
+  docId: string,
+  account: string,
+  spawn: SpawnSync = cp.spawnSync,
+): DocFetchResult {
   try {
-    const r = cp.spawnSync(
+    const r = spawn(
       gogBin(),
       ['docs', 'export', docId, '--account', account, '--format', 'txt'],
       { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 },
@@ -86,12 +99,39 @@ function fetchDocContent(docId: string, account: string): DocFetchResult {
 
 // ── Main entry point ──────────────────────────────────────────────────
 
-export async function runDocFetch(argv: string[] = []): Promise<void> {
+/** What {@link runDocFetch} reads and calls. */
+export interface DocFetchDeps {
+  /** The meetings directories (through the silos). */
+  meetingsDirs: () => string[];
+  /** Export one Doc's text. */
+  exportDoc: (docId: string, account: string) => DocFetchResult;
+  /** Runner state (fetch-state). */
+  runner: () => Pick<RunnerClient, 'getState' | 'setState' | 'close'>;
+  /** ISO timestamp. */
+  now: () => string;
+  /** Rate-limit delay. */
+  sleep: (ms: number) => Promise<void>;
+}
+
+/** The live collaborators. */
+export const docFetchDeps = (): DocFetchDeps => ({
+  meetingsDirs: getMeetingsDirs,
+  exportDoc: (docId, account) => fetchDocContent(docId, account),
+  runner: () => getRunnerClient(),
+  now: nowIso,
+  sleep,
+});
+
+/** Fetch the transcript of every meeting with an unfetched Gemini Doc. */
+export async function runDocFetch(
+  argv: string[] = [],
+  deps: DocFetchDeps = docFetchDeps(),
+): Promise<void> {
   const args = parseDocFetchArgs(argv);
-  const client: RunnerClient = getRunnerClient();
+  const client = deps.runner();
 
   try {
-    const meetingsDirs = getMeetingsDirs();
+    const meetingsDirs = deps.meetingsDirs();
 
     const stateJson = client.getState('meetings', 'fetch-state');
     const state: FetchState = stateJson
@@ -169,7 +209,7 @@ export async function runDocFetch(argv: string[] = []): Promise<void> {
         `[doc-fetch] Fetching ${meeting.docId} for ${meeting.meetingId}...`,
       );
 
-      const result = fetchDocContent(meeting.docId, meeting.account);
+      const result = deps.exportDoc(meeting.docId, meeting.account);
 
       if (result.ok && result.content) {
         const transcriptPath = path.join(meeting.path, 'transcript.txt');
@@ -187,7 +227,7 @@ export async function runDocFetch(argv: string[] = []): Promise<void> {
         }
         writeMeetingMeta(meeting.path, {
           artifacts,
-          transcriptFetchedAt: nowIso(),
+          transcriptFetchedAt: deps.now(),
           hasTranscript: true,
         });
 
@@ -197,7 +237,7 @@ export async function runDocFetch(argv: string[] = []): Promise<void> {
         if (store && entry) {
           entry.hasTranscript = true;
           entry.artifactCount = artifacts.length;
-          entry.updatedAt = nowIso();
+          entry.updatedAt = deps.now();
           store.dirty = true;
         }
       } else {
@@ -212,11 +252,11 @@ export async function runDocFetch(argv: string[] = []): Promise<void> {
         failed++;
       }
 
-      await sleep(RATE_LIMIT_MS);
+      await deps.sleep(RATE_LIMIT_MS);
     }
 
     // Update state
-    state.lastRunAt = nowIso();
+    state.lastRunAt = deps.now();
     state.fetched = fetched;
     state.failed = failed;
     state.skipped = skipped;
@@ -226,7 +266,7 @@ export async function runDocFetch(argv: string[] = []): Promise<void> {
     // Persist any index.json that existed + changed
     for (const store of indexStores.values()) {
       if (!store.dirty) continue;
-      store.index.updatedAt = nowIso();
+      store.index.updatedAt = deps.now();
       writeJsonAtomic(store.indexPath, store.index);
     }
 

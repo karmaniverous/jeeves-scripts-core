@@ -207,6 +207,24 @@ describe('jeeves-scripts CLI', () => {
     ]);
   });
 
+  it('has no help subcommand at any level (Decision 57)', () => {
+    const walk = (command: ReturnType<typeof buildProgram>): string[] => [
+      ...command
+        .helpInformation()
+        .split('Commands:')
+        .slice(1)
+        .flatMap((block) =>
+          [...block.matchAll(/^ {2}(\S+)/gm)].map((m) => m[1] ?? ''),
+        ),
+      ...command.commands.flatMap((sub) =>
+        walk(sub as ReturnType<typeof buildProgram>),
+      ),
+    ];
+    const program = buildProgram({ root });
+    expect(program.commands.map((c) => c.name())).toContain('skills');
+    expect(walk(program)).not.toContain('help');
+  });
+
   it('resolveRoot passes paths through and converts file URLs', () => {
     expect(resolveRoot(root)).toBe(root);
     expect(resolveRoot(pathToFileURL(root))).toBe(root);

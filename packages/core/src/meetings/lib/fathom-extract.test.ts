@@ -1,6 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-import { isFathomShareManifest, parseFathomArgs } from './fathom-extract.js';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { isFathomShareManifest, runFathomExtract } from './fathom-extract.js';
 import {
   decodeHtmlEntities,
   extractHiddenDivInnerHtml,
@@ -141,21 +145,80 @@ describe('htmlToText', () => {
   });
 });
 
-describe('parseFathomArgs', () => {
-  it('parses --dry-run flag', () => {
-    const result = parseFathomArgs(['--dry-run']);
-    expect(result.dryRun).toBe(true);
-    expect(result.max).toBeNull();
+describe('runFathomExtract', () => {
+  const manifest = (id: string, extra: Record<string, unknown> = {}) => ({
+    meetingId: id,
+    source: 'fathom',
+    date: '2026-03-02',
+    sortTimestampMs: 1,
+    sortSource: 'email',
+    ...extra,
+  });
+  let dir: string;
+  const pkg = (
+    id: string,
+    files: Record<string, string>,
+    meta: Record<string, unknown> = {},
+  ) => {
+    const mp = path.join(dir, id);
+    fs.mkdirSync(mp, { recursive: true });
+    fs.writeFileSync(
+      path.join(mp, 'meeting.json'),
+      JSON.stringify(manifest(id, meta)),
+    );
+    for (const [f, body] of Object.entries(files))
+      fs.writeFileSync(path.join(mp, f), body);
+    return mp;
+  };
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'fathom-extract-'));
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    process.exitCode = undefined;
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+    process.exitCode = undefined;
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 
-  it('parses --max=N', () => {
-    const result = parseFathomArgs(['--max=3']);
-    expect(result.max).toBe(3);
+  it('extracts the hidden transcript and records it in the manifest', () => {
+    const mp = pkg('m1', {
+      'fathom-a.html':
+        '<div style="display:none;">Meeting Purpose<p>Hi</p></div>',
+    });
+    runFathomExtract([], [dir, path.join(dir, 'absent')], () => 'NOW');
+    expect(fs.readFileSync(path.join(mp, 'transcript.txt'), 'utf8')).toBe(
+      'Meeting PurposeHi\n',
+    );
+    expect(
+      JSON.parse(fs.readFileSync(path.join(mp, 'meeting.json'), 'utf8')),
+    ).toMatchObject({
+      hasTranscript: true,
+      transcriptExtractedAt: 'NOW',
+      artifacts: ['transcript.txt'],
+    });
   });
 
-  it('returns defaults for no args', () => {
-    const result = parseFathomArgs([]);
-    expect(result.dryRun).toBe(false);
-    expect(result.max).toBeNull();
+  it('skips share meetings and transcribed ones, honours --max and --dry-run', () => {
+    pkg('share', { 'fathom-a.html': 'x' }, { fathomKind: 'share' });
+    pkg('done', { 'fathom-a.html': 'x', 'transcript.txt': 't' });
+    pkg('m2', { 'fathom-a.html': 'x' });
+    pkg('m3', { 'fathom-b.html': 'x' });
+    runFathomExtract(['--dry-run', '--max=1'], [dir]);
+    expect(console.log).toHaveBeenCalledWith(
+      '[fathom-extract] Found 1 meetings needing extraction',
+    );
+    expect(fs.existsSync(path.join(dir, 'm2', 'transcript.txt'))).toBe(false);
+  });
+
+  it('fails a meeting without a hidden div and sets exit code 1', () => {
+    pkg('bad', { 'fathom-a.html': '<p>nothing hidden</p>' });
+    runFathomExtract([], [dir]);
+    expect(console.error).toHaveBeenCalledWith(
+      '[fathom-extract] FAIL bad: Could not locate hidden transcript div',
+    );
+    expect(process.exitCode).toBe(1);
   });
 });

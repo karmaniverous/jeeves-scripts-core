@@ -4,8 +4,14 @@ import {
   detectFathomFromBodies,
   detectFathomUrl,
   detectMeetingSource,
+  extractParticipants,
+  findGeminiLink,
+  generateMeetingId,
   isMeetingish,
   normalizeFathomUrl,
+  normalizeMeetingTitle,
+  parseDateToYmd,
+  parseEmailAddress,
 } from './detect.js';
 
 describe('detectFathomUrl', () => {
@@ -204,5 +210,73 @@ describe('detectMeetingSource with URL detection', () => {
     expect(detectMeetingSource('noreply@fathom.video', 'Your recap')).toBe(
       'not-meeting',
     );
+  });
+});
+
+describe('detectMeetingSource by sender and subject', () => {
+  it.each([
+    ['Apollo <support@apollo.io>', 'Meeting recap: Sync', 'apollo'],
+    ['notes@e.read.ai', 'Recap', 'read-ai'],
+    ['team@fathom.video', 'Your week', 'not-meeting'],
+    ['jane@example.com', 'Fwd: notes', 'forwarded'],
+    ['jane@example.com', 'Hello', 'unknown'],
+  ])('%s / %s -> %s', (from, subject, source) => {
+    expect(detectMeetingSource(from, subject)).toBe(source);
+  });
+});
+
+describe('meeting metadata helpers', () => {
+  it('normalises titles, strips dates and reads addresses', () => {
+    expect(
+      normalizeMeetingTitle(
+        'Fwd: Meeting recap for Weekly Sync - 3/2/2026 10am',
+      ),
+    ).toBe('weekly sync');
+    expect(normalizeMeetingTitle('Planning on 3/2/26')).toBe('planning');
+    expect(parseEmailAddress('Jane <Jane@Example.com>')).toBe(
+      'jane@example.com',
+    );
+    expect(parseEmailAddress(' Bob@Example.com ')).toBe('bob@example.com');
+  });
+
+  it('dates by header, then internal date, then today', () => {
+    expect(parseDateToYmd('Mon, 2 Mar 2026 10:00:00 +0000', null)).toBe(
+      '2026-03-02',
+    );
+    expect(parseDateToYmd('garbage', Date.parse('2026-03-05T00:00:00Z'))).toBe(
+      '2026-03-05',
+    );
+    expect(parseDateToYmd(null, null)).toBe(
+      new Date().toISOString().slice(0, 10),
+    );
+  });
+
+  it('collects participants without automated senders', () => {
+    expect(
+      extractParticipants(
+        'cc ann@example.com, noreply@x.com, alerts-notifications@y.com, ANN@example.com',
+        'Bob <bob@example.com>',
+      ),
+    ).toEqual(['bob@example.com', 'ann@example.com']);
+  });
+
+  it('finds a Gemini Doc link and ids meetings stably', () => {
+    expect(
+      findGeminiLink(
+        'see https://docs.google.com/document/d/abc_1/edit?x=1 now',
+      ),
+    ).toBe('https://docs.google.com/document/d/abc_1/edit?x=1');
+    expect(findGeminiLink('')).toBeNull();
+    const id = generateMeetingId('Weekly Sync', '2026-03-02', [
+      'c@x.com',
+      'a@x.com',
+    ]);
+    expect(id).toHaveLength(12);
+    expect(
+      generateMeetingId('RE: weekly sync', '2026-03-02', [
+        'a@x.com',
+        'c@x.com',
+      ]),
+    ).toBe(id);
   });
 });

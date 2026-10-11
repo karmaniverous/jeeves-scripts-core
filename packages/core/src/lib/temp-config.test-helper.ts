@@ -19,10 +19,13 @@ import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
  * Register suite hooks that write and pin the temp config; returns a
  * getter for the temp base directory (valid inside tests).
  *
- * @param blocks - Top-level blocks merged over the shared test config.
+ * @param blocks - Top-level blocks merged over the shared test config, or
+ *   a function of that config returning them.
  */
 export const useTempConfig = (
-  blocks: Record<string, unknown> = {},
+  blocks:
+    | Record<string, unknown>
+    | ((base: Record<string, unknown>) => Record<string, unknown>) = {},
 ): (() => string) => {
   let dir = '';
   const savedEnv = process.env[CONFIG_PATH_ENV];
@@ -37,7 +40,11 @@ export const useTempConfig = (
     const configPath = path.join(dir, 'jeeves-scripts.json');
     fs.writeFileSync(
       configPath,
-      JSON.stringify({ ...base, instance, ...blocks }),
+      JSON.stringify({
+        ...base,
+        instance,
+        ...(typeof blocks === 'function' ? blocks(base) : blocks),
+      }),
     );
     process.env[CONFIG_PATH_ENV] = configPath;
     resetConfig();

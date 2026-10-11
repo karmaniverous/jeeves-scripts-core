@@ -100,7 +100,7 @@
     "build": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts && tsx scripts/write-schema.ts && tsx scripts/copy-template.ts",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "changelog": "git-cliff -o CHANGELOG.md",
     "release": "dotenvx run -f .env.local -- release-it",

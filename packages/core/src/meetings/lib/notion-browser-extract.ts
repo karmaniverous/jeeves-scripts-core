@@ -5,7 +5,9 @@
  * page using the Gateway browser tool.
  */
 
-import { gatewayInvoke, sleep, unwrapResult } from './gateway-client.js';
+import { sleepAsync } from '@karmaniverous/jeeves';
+
+import { gatewayInvoke, unwrapResult } from '../../lib/gateway-client.js';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -26,12 +28,31 @@ const MAX_ATTEMPTS = 5;
 
 // ── Browser helpers ────────────────────────────────────────────────────
 
+/** The gateway browser tool and a pause, injectable for tests. */
+export interface BrowserDeps {
+  /** Gateway tool call (the browser tool). */
+  invoke: (tool: string, args: Record<string, unknown>) => Promise<unknown>;
+  /** Pause between page actions. */
+  sleep: (ms: number) => Promise<void>;
+}
+
+/** The live gateway, as the main session (the browser profile lives there). */
+const liveBrowser: BrowserDeps = {
+  invoke: (tool, args) =>
+    gatewayInvoke(tool, args, { sessionKey: 'agent:main:main' }),
+  sleep: sleepAsync,
+};
+
 function asString(v: unknown): string {
   return typeof v === 'string' ? v : '';
 }
 
-async function clickTab(targetId: string, name: string): Promise<void> {
-  const raw = await gatewayInvoke('browser', {
+async function clickTab(
+  targetId: string,
+  name: string,
+  deps: BrowserDeps,
+): Promise<void> {
+  const raw = await deps.invoke('browser', {
     action: 'act',
     profile: BROWSER_PROFILE,
     targetId,
@@ -52,11 +73,14 @@ async function clickTab(targetId: string, name: string): Promise<void> {
     throw new Error(result.reason ?? 'tab click failed');
   }
 
-  await sleep(800);
+  await deps.sleep(800);
 }
 
-async function extractActiveTabText(targetId: string): Promise<string> {
-  const raw = await gatewayInvoke('browser', {
+async function extractActiveTabText(
+  targetId: string,
+  deps: BrowserDeps,
+): Promise<string> {
+  const raw = await deps.invoke('browser', {
     action: 'act',
     profile: BROWSER_PROFILE,
     targetId,
@@ -82,10 +106,12 @@ async function extractActiveTabText(targetId: string): Promise<string> {
 
 // ── Main extraction ────────────────────────────────────────────────────
 
+/** Read a published Notion page's title, tabs and full text through the browser. */
 export async function extractFromPublicPage(
   publicUrl: string,
+  deps: BrowserDeps = liveBrowser,
 ): Promise<ExtractedContent> {
-  await gatewayInvoke('browser', {
+  await deps.invoke('browser', {
     action: 'start',
     profile: BROWSER_PROFILE,
   });
@@ -99,7 +125,7 @@ export async function extractFromPublicPage(
       console.log(
         `[notion-inbox] browser open (attempt ${String(attempt)}/${String(MAX_ATTEMPTS)})`,
       );
-      const openedRaw = await gatewayInvoke('browser', {
+      const openedRaw = await deps.invoke('browser', {
         action: 'open',
         profile: BROWSER_PROFILE,
         targetUrl: publicUrl,
@@ -112,10 +138,10 @@ export async function extractFromPublicPage(
       console.log(
         `[notion-inbox] initial load wait (attempt ${String(attempt)}/${String(MAX_ATTEMPTS)}) targetId=${targetId}`,
       );
-      await sleep(4000);
+      await deps.sleep(4000);
 
       // Title hint
-      const h2Raw = await gatewayInvoke('browser', {
+      const h2Raw = await deps.invoke('browser', {
         action: 'act',
         profile: BROWSER_PROFILE,
         targetId,
@@ -135,8 +161,8 @@ export async function extractFromPublicPage(
       for (const tabName of ['Summary', 'Notes', 'Transcript'] as const) {
         const key = tabName.toLowerCase() as keyof ExtractedContent['tabs'];
         try {
-          await clickTab(targetId, tabName);
-          tabs[key] = await extractActiveTabText(targetId);
+          await clickTab(targetId, tabName, deps);
+          tabs[key] = await extractActiveTabText(targetId, deps);
         } catch (err: unknown) {
           const msg = err instanceof Error ? err.message : String(err);
           if (!/tab not found/i.test(msg)) throw err;
@@ -145,7 +171,7 @@ export async function extractFromPublicPage(
       }
 
       // Fallback: full text
-      const fullTextRaw = await gatewayInvoke('browser', {
+      const fullTextRaw = await deps.invoke('browser', {
         action: 'act',
         profile: BROWSER_PROFILE,
         targetId,
@@ -169,7 +195,7 @@ export async function extractFromPublicPage(
     } finally {
       if (targetId) {
         try {
-          await gatewayInvoke('browser', {
+          await deps.invoke('browser', {
             action: 'close',
             profile: BROWSER_PROFILE,
             targetId,

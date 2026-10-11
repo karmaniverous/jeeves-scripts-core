@@ -19,13 +19,45 @@ import { constants } from '../lib/constants.js';
 import { notionRequest } from './lib/notion-api.js';
 import { processNotionInboxMeeting } from './lib/notion-inbox-processor.js';
 
-async function pickOldestInboxPageId(minAgeHours = 4): Promise<string | null> {
+/** What {@link ingestNotion} reads and calls. */
+export interface IngestNotionDeps {
+  /** `NOTION_API_KEY_PATH`; the job skips when it does not exist. */
+  apiKeyPath: string;
+  /** The override file naming a page to process next. */
+  overridePath: string;
+  /** The Inbox data source id (`notion.inboxDataSourceId` ref). */
+  inboxDataSourceId: () => string;
+  /** Notion REST call. */
+  request: (method: string, path: string, body: unknown) => Promise<unknown>;
+  /** Process one Inbox page. */
+  process: (pageId: string) => Promise<void>;
+  /** Clock (ms). */
+  now: () => number;
+}
+
+/** The live collaborators, from config. */
+export const ingestNotionDeps = (): IngestNotionDeps => ({
+  apiKeyPath: constants().NOTION_API_KEY_PATH,
+  overridePath: path.join(
+    constants().CONTENT_DIR,
+    '../state/temp/notion-inbox-override.txt',
+  ),
+  inboxDataSourceId: () => getRef('notion.inboxDataSourceId'),
+  request: notionRequest,
+  process: (pageId) => processNotionInboxMeeting(pageId),
+  now: Date.now,
+});
+
+async function pickOldestInboxPageId(
+  minAgeHours: number,
+  deps: IngestNotionDeps,
+): Promise<string | null> {
   const cutoff = new Date(
-    Date.now() - minAgeHours * 60 * 60 * 1000,
+    deps.now() - minAgeHours * 60 * 60 * 1000,
   ).toISOString();
-  const q = (await notionRequest(
+  const q = (await deps.request(
     'POST',
-    `/v1/data_sources/${getRef('notion.inboxDataSourceId')}/query`,
+    `/v1/data_sources/${deps.inboxDataSourceId()}/query`,
     {
       page_size: 1,
       filter: { timestamp: 'created_time', created_time: { before: cutoff } },
@@ -35,22 +67,27 @@ async function pickOldestInboxPageId(minAgeHours = 4): Promise<string | null> {
   return q.results?.[0]?.id ?? null;
 }
 
-async function main(): Promise<void> {
-  if (!fs.existsSync(constants().NOTION_API_KEY_PATH)) {
+/**
+ * Process the requested Inbox page (`--page-id=`/`--meeting-id=`), the
+ * override file's page, or the oldest page older than `--min-age=` hours
+ * (default 4); `--dry-run` prints the task instead.
+ */
+export async function ingestNotion(
+  args: readonly string[],
+  deps: IngestNotionDeps,
+): Promise<void> {
+  if (!fs.existsSync(deps.apiKeyPath)) {
     console.log('[skip] Notion API key not configured');
     return;
   }
 
-  const args = parseArgs();
-  const requestedPageId = args['page-id'] ?? args['meeting-id'];
-  const minAgeHours = 'min-age' in args ? parseFloat(args['min-age']) : 4;
-  const isDryRun = process.argv.includes('--dry-run');
+  const kv = parseArgs([...args]);
+  const requestedPageId = kv['page-id'] ?? kv['meeting-id'];
+  const minAgeHours = 'min-age' in kv ? parseFloat(kv['min-age']) : 4;
+  const isDryRun = args.includes('--dry-run');
 
   // Check file override
-  const OVERRIDE_PATH = path.join(
-    constants().CONTENT_DIR,
-    '../state/temp/notion-inbox-override.txt',
-  );
+  const OVERRIDE_PATH = deps.overridePath;
   let fileOverride: string | null = null;
   if (!requestedPageId && fs.existsSync(OVERRIDE_PATH)) {
     fileOverride = fs.readFileSync(OVERRIDE_PATH, 'utf8').trim();
@@ -59,7 +96,7 @@ async function main(): Promise<void> {
   const pageId =
     requestedPageId ??
     fileOverride ??
-    (await pickOldestInboxPageId(minAgeHours));
+    (await pickOldestInboxPageId(minAgeHours, deps));
   if (!pageId) {
     if (isDryRun)
       console.log(
@@ -87,7 +124,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  await processNotionInboxMeeting(pageId);
+  await deps.process(pageId);
 
   if (!requestedPageId && fileOverride) {
     try {
@@ -102,5 +139,5 @@ export default defineJob({
   id: 'meetings-ingest-notion',
   domain: 'meetings',
   name: 'meetings/ingest-notion',
-  run: () => main(),
+  run: ({ args }) => ingestNotion(args, ingestNotionDeps()),
 });

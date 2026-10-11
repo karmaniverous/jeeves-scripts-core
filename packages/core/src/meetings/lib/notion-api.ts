@@ -11,7 +11,6 @@
  */
 
 import fs from 'node:fs';
-import https from 'node:https';
 
 import { constants } from '../../lib/constants.js';
 
@@ -20,58 +19,41 @@ export function readTextFile(p: string): string {
   return fs.readFileSync(p, 'utf8').trim();
 }
 
-/** Make an authenticated Notion API request. */
-export function notionRequest(
+/**
+ * Make an authenticated Notion API request; resolves to the parsed JSON
+ * body (`{ raw }` when not JSON, `null` when empty).
+ *
+ * @throws On a non-2xx status, with Notion's message.
+ */
+export async function notionRequest(
   method: string,
   endpoint: string,
   body?: unknown,
 ): Promise<unknown> {
   const key = readTextFile(constants().NOTION_API_KEY_PATH);
-  return new Promise((resolve, reject) => {
-    const data = body ? JSON.stringify(body) : null;
-    const headers: Record<string, string> = {
+  const data = body ? JSON.stringify(body) : null;
+  const res = await fetch(`https://api.notion.com${endpoint}`, {
+    method,
+    headers: {
       Authorization: `Bearer ${key}`,
       'Notion-Version': constants().NOTION_VERSION,
       'Content-Type': 'application/json',
-    };
-    if (data) headers['Content-Length'] = String(Buffer.byteLength(data));
-
-    const req = https.request(
-      {
-        hostname: 'api.notion.com',
-        port: 443,
-        path: endpoint,
-        method,
-        headers,
-      },
-      (res) => {
-        let resp = '';
-        res.on('data', (c: Buffer) => (resp += c.toString()));
-        res.on('end', () => {
-          let parsed: unknown;
-          try {
-            parsed = resp ? (JSON.parse(resp) as unknown) : null;
-          } catch {
-            parsed = { raw: resp };
-          }
-          if (res.statusCode && res.statusCode >= 200 && res.statusCode < 300) {
-            resolve(parsed);
-          } else {
-            const msg =
-              parsed && typeof parsed === 'object' && 'message' in parsed
-                ? (parsed as { message: string }).message
-                : resp;
-            reject(
-              new Error(
-                `Notion ${method} ${endpoint} failed (${String(res.statusCode ?? 'unknown')}): ${msg}`,
-              ),
-            );
-          }
-        });
-      },
-    );
-    req.on('error', reject);
-    if (data) req.write(data);
-    req.end();
+    },
+    ...(data ? { body: data } : {}),
   });
+  const resp = await res.text();
+  let parsed: unknown;
+  try {
+    parsed = resp ? (JSON.parse(resp) as unknown) : null;
+  } catch {
+    parsed = { raw: resp };
+  }
+  if (res.ok) return parsed;
+  const msg =
+    parsed && typeof parsed === 'object' && 'message' in parsed
+      ? (parsed as { message: string }).message
+      : resp;
+  throw new Error(
+    `Notion ${method} ${endpoint} failed (${String(res.status)}): ${msg}`,
+  );
 }

@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 
 import { sleepAsync as sleep } from '@karmaniverous/jeeves';
-import type { Browser, Page } from 'puppeteer-core';
+import type { Page } from 'puppeteer-core';
 import puppeteer from 'puppeteer-core';
 
 import type { FathomShareContent } from './fathom-share-dom.js';
@@ -117,7 +117,40 @@ export function extractAfterMarker(bodyText: string, marker: string): string {
   return after;
 }
 
-async function readBodyText(page: Page): Promise<string> {
+/** The page calls the fetch makes (a puppeteer `Page` slice). */
+export type SharePage = Pick<Page, 'goto' | 'evaluate'>;
+
+/** A launched browser as the fetch uses it. */
+export interface ShareBrowser {
+  newPage: () => Promise<SharePage>;
+  close: () => Promise<void>;
+}
+
+/** What {@link fetchFathomSharePage} launches and waits with. */
+export interface ShareFetchBrowserDeps {
+  /** Resolve the Chrome binary. */
+  chromePath: () => string;
+  /** Launch headless Chrome. */
+  launch: (executablePath: string) => Promise<ShareBrowser>;
+  /** Pause between polls. */
+  sleep: (ms: number) => Promise<void>;
+  /** Clock (ms), for the poll deadlines. */
+  now: () => number;
+}
+
+const liveBrowser: ShareFetchBrowserDeps = {
+  chromePath: resolveChromePath,
+  launch: (executablePath) =>
+    puppeteer.launch({
+      executablePath,
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    }),
+  sleep,
+  now: Date.now,
+};
+
+async function readBodyText(page: SharePage): Promise<string> {
   return page.evaluate(() => {
     const d = globalThis as unknown as {
       document?: { body?: { innerText?: unknown } };
@@ -128,16 +161,17 @@ async function readBodyText(page: Page): Promise<string> {
 }
 
 async function extractWithMarker(
-  page: Page,
+  page: SharePage,
   marker: string,
-  timeoutMs: number = POLL_TIMEOUT_MS,
+  timeoutMs: number,
+  deps: ShareFetchBrowserDeps,
 ): Promise<string> {
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
+  const deadline = deps.now() + timeoutMs;
+  while (deps.now() < deadline) {
     const bodyText = await readBodyText(page);
     const extracted = extractAfterMarker(bodyText, marker);
     if (extracted) return extracted;
-    await sleep(POLL_INTERVAL_MS);
+    await deps.sleep(POLL_INTERVAL_MS);
   }
   return '';
 }
@@ -149,18 +183,19 @@ async function extractWithMarker(
  * allow for lazy-loaded transcript content.
  */
 async function extractWithDomSnapshot(
-  page: Page,
+  page: SharePage,
   timeoutMs: number,
+  deps: ShareFetchBrowserDeps,
 ): Promise<FathomShareContent> {
-  const deadline = Date.now() + timeoutMs;
+  const deadline = deps.now() + timeoutMs;
   let result: FathomShareContent = { summary: '', transcript: '' };
-  while (Date.now() < deadline) {
+  while (deps.now() < deadline) {
     const snapshot = normalizeDomSnapshot(
       await page.evaluate(`(${COLLECT_DOM_SNAPSHOT_JS})()`),
     );
     result = extractSectionsFromSnapshot(snapshot);
     if (result.transcript) return result;
-    await sleep(POLL_INTERVAL_MS);
+    await deps.sleep(POLL_INTERVAL_MS);
   }
   return result;
 }
@@ -199,24 +234,21 @@ export function stripLeadingTranscriptChrome(text: string): string {
  */
 export async function fetchFathomSharePage(
   shareUrl: string,
+  deps: ShareFetchBrowserDeps = liveBrowser,
 ): Promise<FathomShareContent> {
-  const executablePath = resolveChromePath();
+  const executablePath = deps.chromePath();
 
   let lastErr: Error | null = null;
 
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    let browser: Browser | null = null;
+    let browser: ShareBrowser | null = null;
 
     try {
       console.log(
         `[fathom-share] Opening ${shareUrl} (attempt ${String(attempt)}/${String(MAX_ATTEMPTS)})`,
       );
 
-      browser = await puppeteer.launch({
-        executablePath,
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox'],
-      });
+      browser = await deps.launch(executablePath);
 
       const page = await browser.newPage();
 
@@ -226,9 +258,18 @@ export async function fetchFathomSharePage(
         timeout: NAV_TIMEOUT_MS,
       });
 
-      let summary = await extractWithMarker(page, 'Copy Summary');
+      let summary = await extractWithMarker(
+        page,
+        'Copy Summary',
+        POLL_TIMEOUT_MS,
+        deps,
+      );
       if (!summary) {
-        const domResult = await extractWithDomSnapshot(page, POLL_TIMEOUT_MS);
+        const domResult = await extractWithDomSnapshot(
+          page,
+          POLL_TIMEOUT_MS,
+          deps,
+        );
         summary = domResult.summary;
       }
 
@@ -243,12 +284,14 @@ export async function fetchFathomSharePage(
           page,
           'Copy Transcript',
           POLL_TIMEOUT_MS_TRANSCRIPT,
+          deps,
         ),
       );
       if (!transcript) {
         const domResult = await extractWithDomSnapshot(
           page,
           POLL_TIMEOUT_MS_TRANSCRIPT,
+          deps,
         );
         transcript = stripLeadingTranscriptChrome(domResult.transcript);
       }

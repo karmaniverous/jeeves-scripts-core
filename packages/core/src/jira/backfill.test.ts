@@ -114,3 +114,16 @@ describe('jiraJobDeps', () => {
     expect(live.boardId).toBeUndefined();
   });
 });
+
+describe('jiraJobDeps fetch', () => {
+  it('delegates to the global fetch', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', (input: string) => {
+      calls.push(input);
+      return Promise.resolve(new Response('{}'));
+    });
+    await jiraJobDeps().fetch('https://acme.atlassian.net/x');
+    vi.unstubAllGlobals();
+    expect(calls).toEqual(['https://acme.atlassian.net/x']);
+  });
+});

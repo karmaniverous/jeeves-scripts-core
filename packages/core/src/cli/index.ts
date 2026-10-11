@@ -50,9 +50,10 @@ const fail = (verb: string, e: unknown): void => {
 };
 
 const buildConfigCommand = (root: string) => {
-  const config = new Command('config').description(
-    'Validate jeeves-scripts.json.',
-  );
+  const config = new Command('config')
+    .description('Validate jeeves-scripts.json.')
+    // No `help [command]` subcommand anywhere (Decision 57).
+    .helpCommand(false);
 
   config
     .command('check')
@@ -159,9 +160,10 @@ const SKILLS_ACTIONS = {
 } as const;
 
 const buildSkillsCommand = (root: string) => {
-  const command = new Command('skills').description(
-    'Wire core skills into OpenClaw through openclaw config set.',
-  );
+  const command = new Command('skills')
+    .description('Wire core skills into OpenClaw through openclaw config set.')
+    // No `help [command]` subcommand anywhere (Decision 57).
+    .helpCommand(false);
   for (const [action, description] of Object.entries(SKILLS_ACTIONS) as [
     keyof typeof SKILLS_ACTIONS,
     string,

@@ -58,3 +58,23 @@ describe('isSamePath', () => {
     expect(isSamePath(path.join(live, '2026'), live)).toBe(false);
   });
 });
+
+describe('isSamePath edge cases', () => {
+  it('compares paths under a missing root as they are', () => {
+    const root = path.parse(process.cwd()).root;
+    const missing = path.join(root, 'no-such-root-dir-xyz', 'a');
+    expect(isSamePath(missing, path.join(missing, '.'))).toBe(true);
+  });
+
+  it('is case-sensitive off Windows', () => {
+    const saved = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'linux' });
+    try {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'same-path-'));
+      expect(isSamePath(dir, dir)).toBe(true);
+      fs.rmSync(dir, { recursive: true, force: true });
+    } finally {
+      Object.defineProperty(process, 'platform', { value: saved });
+    }
+  });
+});

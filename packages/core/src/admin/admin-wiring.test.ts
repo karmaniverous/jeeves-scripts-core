@@ -8,19 +8,21 @@
  */
 
 import fs from 'node:fs';
+import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resetConfig } from '../config/loader.js';
 import { constants } from '../lib/constants.js';
 import { fakeRunnerClient } from '../lib/fake-runner-client.test-helper.js';
 import { useTempConfig } from '../lib/temp-config.test-helper.js';
-import { collectDeps } from './collect-token-metrics.js';
+import { collect, collectDeps } from './collect-token-metrics.js';
 import { openTokenMetricsState } from './lib/token-metrics-state.js';
 import { refreshRatesDeps } from './refresh-token-rates.js';
 import { regenDeps, regenerate } from './regenerate-token-metrics.js';
 import { sessionRefreshDeps } from './session-refresh.js';
 
-useTempConfig();
+const baseDir = useTempConfig();
 
 beforeEach(() => {
   process.exitCode = undefined;
@@ -98,5 +100,76 @@ describe('session-refresh wiring', () => {
     expect(deps.settings.idleMinutes).toBe(5);
     expect(deps.sessionsDir).toBe(constants().SESSIONS_DIR);
     expect(deps.uuid()).toMatch(/^[0-9a-f-]{36}$/);
+  });
+});
+
+describe('collect', () => {
+  it('sets the exit code only when the run fails', async () => {
+    await collect(collectDeps(), () => Promise.resolve(0));
+    expect(process.exitCode).toBeUndefined();
+    await collect(collectDeps(), () => Promise.resolve(2));
+    expect(process.exitCode).toBe(2);
+  });
+
+  it('logs when the pending models cannot be recorded', () => {
+    vi.stubGlobal('fetch', () => Promise.reject(new Error('down')));
+    fs.rmSync(constants().TOKEN_RATES_PENDING_PATH, { force: true });
+    fs.mkdirSync(constants().TOKEN_RATES_PENDING_PATH, { recursive: true });
+    collectDeps().triggerRateCardRefresh(['x/y']);
+    expect(console.error).toHaveBeenCalledWith(
+      '[collect-token-metrics] Could not record pending models:',
+      expect.any(String),
+    );
+    fs.rmSync(constants().TOKEN_RATES_PENDING_PATH, { recursive: true });
+  });
+});
+
+describe('refresh-token-rates fetchRates', () => {
+  it('maps a 404 to no rates and returns the rates of a known model', async () => {
+    const missing = refreshRatesDeps(() =>
+      Promise.resolve({ status: 404, body: null }),
+    );
+    await expect(missing.fetchRates('vendor/none')).resolves.toBeNull();
+    const known = refreshRatesDeps(() =>
+      Promise.resolve({
+        status: 200,
+        body: {
+          data: { pricing: { prompt: '0.000001', completion: '0.000002' } },
+        },
+      }),
+    );
+    await expect(known.fetchRates('vendor/model')).resolves.toMatchObject({
+      input: 1,
+      output: 2,
+    });
+  });
+});
+
+describe('regenerate wiring collaborators', () => {
+  it('checks buckets and the live store, and backs up, removes and names nothing in a dry run', async () => {
+    const deps = regenDeps();
+    expect(deps.bucketExists('2026-01-01T00', baseDir())).toBe(false);
+    expect(deps.isLiveStore(constants().TOKEN_METRICS_DIR)).toBe(true);
+    expect(deps.isLiveStore(baseDir())).toBe(false);
+    deps.backup([], true);
+    deps.remove([], true);
+    expect(Object.keys(deps.knownModels()).length).toBeGreaterThanOrEqual(0);
+    await expect(deps.nameDms(new Map(), true)).resolves.toBeUndefined();
+  });
+});
+
+describe('regenerate scanOpenClaw wiring', () => {
+  it('scans the agent DB under the OpenClaw home, failing on a missing DB', async () => {
+    const home = fs.mkdtempSync(path.join(baseDir(), 'home-'));
+    vi.stubEnv('USERPROFILE', home);
+    resetConfig();
+    const deps = regenDeps();
+    expect(deps.agentDbPath.startsWith(home)).toBe(true);
+    expect(deps.agentDbExists).toBe(false);
+    await expect(
+      deps.scanOpenClaw({}, {} as never, new Map(), new Set()),
+    ).rejects.toThrow();
+    vi.unstubAllEnvs();
+    resetConfig();
   });
 });

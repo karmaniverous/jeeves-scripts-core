@@ -7,7 +7,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { fetchFathomSharePage } from './fathom-share-fetch.js';
+import {
+  type FathomShareContent,
+  fetchFathomSharePage,
+} from './fathom-share-fetch.js';
 import { checkHasTranscript, writeMeetingMeta } from './meeting-schema.js';
 import { getMeetingsDirs } from './meetings-dirs.js';
 
@@ -17,7 +20,8 @@ const COOLDOWN_MS = 15 * 60 * 1000; // 15 minutes
 
 // ── Types ───────────────────────────────────────────────────────────
 
-interface ShareCandidate {
+/** A meeting with a Fathom share link and no transcript yet. */
+export interface ShareCandidate {
   meetingId: string;
   meetingDir: string;
   fathomUrl: string;
@@ -57,10 +61,10 @@ function readFathomUrl(meetingDir: string): string | null {
   return null;
 }
 
-function isInCooldown(meta: Record<string, unknown>): boolean {
+function isInCooldown(meta: Record<string, unknown>, now: number): boolean {
   if (typeof meta.fathomFetchedAt !== 'string') return false;
   const fetchedAt = new Date(meta.fathomFetchedAt).getTime();
-  return Date.now() - fetchedAt < COOLDOWN_MS;
+  return now - fetchedAt < COOLDOWN_MS;
 }
 
 // ── Core ────────────────────────────────────────────────────────────
@@ -74,9 +78,11 @@ function isInCooldown(meta: Record<string, unknown>): boolean {
  * - fathom_link.txt or meeting.json.fathomUrl present
  * - Not in cooldown (fathomFetchedAt older than 15 min or absent)
  */
-export function findShareMeetingsNeedingFetch(): ShareCandidate[] {
+export function findShareMeetingsNeedingFetch(
+  meetingsDirs: string[] = getMeetingsDirs(),
+  now: number = Date.now(),
+): ShareCandidate[] {
   const candidates: ShareCandidate[] = [];
-  const meetingsDirs = getMeetingsDirs();
 
   for (const meetingsDir of meetingsDirs) {
     if (!fs.existsSync(meetingsDir)) continue;
@@ -111,7 +117,7 @@ export function findShareMeetingsNeedingFetch(): ShareCandidate[] {
       const fathomUrl = readFathomUrl(meetingDir);
       if (!fathomUrl) continue;
 
-      if (isInCooldown(meta)) continue;
+      if (isInCooldown(meta, now)) continue;
 
       candidates.push({
         meetingId: entry.name,
@@ -129,10 +135,31 @@ export function findShareMeetingsNeedingFetch(): ShareCandidate[] {
  *
  * Bounded by `max` to avoid spawning too many headless Chrome instances.
  */
+/** What {@link runFathomShareFetch} reads and calls. */
+export interface ShareFetchDeps {
+  /** The meetings directories (through the silos). */
+  meetingsDirs: () => string[];
+  /** Read a share page's summary and transcript. */
+  fetchPage: (shareUrl: string) => Promise<FathomShareContent>;
+  /** Clock (ms). */
+  now: () => number;
+}
+
+/** The live collaborators. */
+const liveShareFetch = (): ShareFetchDeps => ({
+  meetingsDirs: getMeetingsDirs,
+  fetchPage: (url) => fetchFathomSharePage(url),
+  now: Date.now,
+});
+
 export async function runFathomShareFetch(
   max: number,
+  deps: ShareFetchDeps = liveShareFetch(),
 ): Promise<ShareFetchStats> {
-  const candidates = findShareMeetingsNeedingFetch();
+  const candidates = findShareMeetingsNeedingFetch(
+    deps.meetingsDirs(),
+    deps.now(),
+  );
   const batch = candidates.slice(0, max);
   const stats: ShareFetchStats = {
     scanned: candidates.length,
@@ -147,7 +174,7 @@ export async function runFathomShareFetch(
         `[fathom-share-ingest] Fetching share page for ${meetingId}: ${fathomUrl}`,
       );
 
-      const content = await fetchFathomSharePage(fathomUrl);
+      const content = await deps.fetchPage(fathomUrl);
 
       if (!content.transcript) {
         console.error(
@@ -174,7 +201,7 @@ export async function runFathomShareFetch(
       writeMeetingMeta(meetingDir, {
         hasTranscript: true,
         fathomTranscriptSource: 'share-page',
-        fathomFetchedAt: new Date().toISOString(),
+        fathomFetchedAt: new Date(deps.now()).toISOString(),
       });
 
       stats.fetched++;

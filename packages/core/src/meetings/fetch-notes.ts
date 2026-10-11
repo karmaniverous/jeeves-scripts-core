@@ -3,37 +3,63 @@
  *
  * Fetches Gemini docs and Fathom transcripts for meetings that need them.
  *
- * Called by the runner after extraction. Walks meeting directories discovered
- * via {@link siloRouting}, identifies packages missing notes or transcripts, and
+ * Scheduled runner job after extraction. Walks the meetings directories of
+ * every silo, identifies packages missing notes or transcripts, and
  * delegates to doc-fetch, fathom-extract, or fathom-share-ingest as appropriate.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { siloRouting } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
+import { flag, parseRunnableArgs } from '../lib/args.js';
 import { runDocFetch } from './lib/doc-fetch.js';
 import { runFathomExtract } from './lib/fathom-extract.js';
 import {
   findShareMeetingsNeedingFetch,
   runFathomShareFetch,
+  type ShareCandidate,
 } from './lib/fathom-share-ingest.js';
+import { getMeetingsDirs } from './lib/meetings-dirs.js';
 
-const MAX_FATHOM_PER_RUN = 10;
-const MAX_FATHOM_SHARE_PER_RUN = 5;
+/** Fathom HTML extractions per run. */
+export const MAX_FATHOM_PER_RUN = 10;
+/** Fathom share-page fetches per run. */
+export const MAX_FATHOM_SHARE_PER_RUN = 5;
 
-function findMeetingsNeedingFetch(): {
+/** What {@link fetchNotes} reads and calls. */
+export interface FetchNotesDeps {
+  /** The meetings directories (through the silos). */
+  meetingsDirs: () => string[];
+  /** Meetings with a Fathom share link and no transcript. */
+  shareCandidates: () => ShareCandidate[];
+  /** Fetch Gemini Docs. */
+  docFetch: () => Promise<void>;
+  /** Extract transcripts from Fathom HTML. */
+  fathomExtract: (argv: string[]) => void;
+  /** Fetch Fathom share pages. */
+  shareFetch: (max: number) => Promise<{ fetched: number; errors: number }>;
+  /** ISO timestamp. */
+  now: () => string;
+}
+
+/** The live collaborators. */
+export const fetchNotesDeps = (): FetchNotesDeps => ({
+  meetingsDirs: getMeetingsDirs,
+  shareCandidates: findShareMeetingsNeedingFetch,
+  docFetch: () => runDocFetch(),
+  fathomExtract: runFathomExtract,
+  shareFetch: runFathomShareFetch,
+  now: () => new Date().toISOString(),
+});
+
+/** Meeting ids whose package lacks a transcript, by how it gets one. */
+export function findMeetingsNeedingFetch(meetingsDirs: string[]): {
   geminiNeeded: string[];
   fathomNeeded: string[];
 } {
   const geminiNeeded: string[] = [];
   const fathomNeeded: string[] = [];
-  const routingConfig = siloRouting();
-  const meetingsDirs = [path.join(routingConfig.defaultBasePath, 'meetings')];
-  for (const silo of Object.values(routingConfig.silos)) {
-    meetingsDirs.push(path.join(silo.basePath, 'meetings'));
-  }
 
   for (const meetingsDir of meetingsDirs) {
     if (!fs.existsSync(meetingsDir)) continue;
@@ -70,32 +96,36 @@ function findMeetingsNeedingFetch(): {
   return { geminiNeeded, fathomNeeded };
 }
 
-async function main(): Promise<void> {
-  const { geminiNeeded, fathomNeeded } = findMeetingsNeedingFetch();
-  const fathomShareNeeded = findShareMeetingsNeedingFetch();
+/** Fetch what the meetings need, or report it (`--dry-run`). */
+export async function fetchNotes(
+  args: readonly string[],
+  deps: FetchNotesDeps,
+): Promise<void> {
+  const { dryRun } = parseRunnableArgs(args, { dryRun: flag('--dry-run') });
+  const { geminiNeeded, fathomNeeded } = findMeetingsNeedingFetch(
+    deps.meetingsDirs(),
+  );
+  const fathomShareNeeded = deps.shareCandidates();
   const totalNeeded =
     geminiNeeded.length + fathomNeeded.length + fathomShareNeeded.length;
 
   if (totalNeeded === 0) {
-    if (process.argv.includes('--dry-run'))
+    if (dryRun)
       console.log(
         JSON.stringify({
           skip: true,
           reason: 'No meetings need transcript fetching',
         }),
       );
-    else
-      console.log(
-        `[${new Date().toISOString()}] No meetings need transcript fetching`,
-      );
+    else console.log(`[${deps.now()}] No meetings need transcript fetching`);
     return;
   }
 
   console.log(
-    `[${new Date().toISOString()}] Found ${String(geminiNeeded.length)} Gemini + ${String(fathomNeeded.length)} Fathom HTML + ${String(fathomShareNeeded.length)} Fathom share meetings needing transcripts`,
+    `[${deps.now()}] Found ${String(geminiNeeded.length)} Gemini + ${String(fathomNeeded.length)} Fathom HTML + ${String(fathomShareNeeded.length)} Fathom share meetings needing transcripts`,
   );
 
-  if (process.argv.includes('--dry-run')) {
+  if (dryRun) {
     console.log(
       JSON.stringify({
         skip: false,
@@ -109,16 +139,16 @@ async function main(): Promise<void> {
     return;
   }
 
-  await runDocFetch();
-  runFathomExtract([`--max=${String(MAX_FATHOM_PER_RUN)}`]);
+  await deps.docFetch();
+  deps.fathomExtract([`--max=${String(MAX_FATHOM_PER_RUN)}`]);
 
   if (fathomShareNeeded.length > 0) {
     console.log(
-      `[${new Date().toISOString()}] Fetching Fathom share transcripts (max ${String(MAX_FATHOM_SHARE_PER_RUN)})`,
+      `[${deps.now()}] Fetching Fathom share transcripts (max ${String(MAX_FATHOM_SHARE_PER_RUN)})`,
     );
-    const stats = await runFathomShareFetch(MAX_FATHOM_SHARE_PER_RUN);
+    const stats = await deps.shareFetch(MAX_FATHOM_SHARE_PER_RUN);
     console.log(
-      `[${new Date().toISOString()}] Fathom share fetch: ${String(stats.fetched)} fetched, ${String(stats.errors)} errors`,
+      `[${deps.now()}] Fathom share fetch: ${String(stats.fetched)} fetched, ${String(stats.errors)} errors`,
     );
   }
 }
@@ -127,5 +157,5 @@ export default defineJob({
   id: 'meetings-fetch-notes',
   domain: 'meetings',
   name: 'meetings/fetch-notes',
-  run: () => main(),
+  run: ({ args }) => fetchNotes(args, fetchNotesDeps()),
 });

@@ -111,8 +111,11 @@ export const collectDeps = (): CollectDeps => ({
 });
 
 /** Collect the closed hours; a non-zero result sets the exit code. */
-export async function collect(deps: CollectDeps): Promise<void> {
-  const code = await runCollect(deps);
+export async function collect(
+  deps: CollectDeps,
+  run: typeof runCollect = runCollect,
+): Promise<void> {
+  const code = await run(deps);
   if (code !== 0) process.exitCode = code;
 }
 

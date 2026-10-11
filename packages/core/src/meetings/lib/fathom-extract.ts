@@ -13,16 +13,12 @@ import path from 'node:path';
 
 import { nowIso, readJson } from '@karmaniverous/jeeves';
 
+import { parseDocFetchArgs } from './doc-fetch-scan.js';
 import { extractHiddenDivInnerHtml, htmlToText } from './fathom-html.js';
 import { writeMeetingMeta } from './meeting-schema.js';
 import { getMeetingsDirs } from './meetings-dirs.js';
 
 // ── Types ──────────────────────────────────────────────────────────────
-
-interface FathomArgs {
-  dryRun: boolean;
-  max: number | null;
-}
 
 interface FathomMeeting {
   meetingId: string;
@@ -42,20 +38,6 @@ interface MeetingManifest {
 }
 
 // ── Pure helpers ───────────────────────────────────────────────────────
-
-export function parseFathomArgs(argv: string[]): FathomArgs {
-  const out: FathomArgs = {
-    dryRun: argv.includes('--dry-run'),
-    max: null,
-  };
-
-  for (const arg of argv) {
-    const m = /^--max=(\d+)$/.exec(arg);
-    if (m) out.max = Number(m[1]);
-  }
-
-  return out;
-}
 
 export function isFathomShareManifest(manifest: MeetingManifest): boolean {
   return (
@@ -148,9 +130,12 @@ function findMeetingsNeedingFathom(meetingsDirs: string[]): FathomMeeting[] {
 
 // ── Main entry point ──────────────────────────────────────────────────
 
-export function runFathomExtract(argv: string[] = []): void {
-  const args = parseFathomArgs(argv);
-  const meetingsDirs = getMeetingsDirs();
+export function runFathomExtract(
+  argv: string[] = [],
+  meetingsDirs: string[] = getMeetingsDirs(),
+  now: () => string = nowIso,
+): void {
+  const args = parseDocFetchArgs(argv);
   let meetings = findMeetingsNeedingFathom(meetingsDirs);
 
   if (
@@ -201,7 +186,7 @@ export function runFathomExtract(argv: string[] = []): void {
       }
       writeMeetingMeta(m.meetingPath, {
         artifacts,
-        transcriptExtractedAt: nowIso(),
+        transcriptExtractedAt: now(),
         hasTranscript: true,
       });
 

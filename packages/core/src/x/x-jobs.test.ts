@@ -177,6 +177,11 @@ describe('runXQueueAction', () => {
     expect(w.runner.closed()).toBe(true);
   });
 
+  it('drains an empty handle queue without a handle', async () => {
+    await runXQueueAction([], options(), w.deps);
+    expect(logs).toContain('like: @ liked=0, failed=0');
+  });
+
   it('drains the --queue override', async () => {
     w.runner.client.enqueue('custom', { tweetId: 't1' });
     await runXQueueAction(['karma', '--queue', 'custom'], options(), w.deps);
