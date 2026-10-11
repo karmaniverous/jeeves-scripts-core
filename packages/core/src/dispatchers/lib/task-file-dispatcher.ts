@@ -3,8 +3,8 @@
  *
  * Generic task-file dispatcher (Decisions 23, 28): reads a standing-order
  * Markdown task from a data silo and dispatches a gateway worker session
- * to execute it. Used by core's `daily-digest` and by instance dispatchers
- * (e.g. per-organisation briefings in their own silo).
+ * to execute it. Used by instance dispatchers (e.g. a daily digest, or
+ * per-organisation briefings in their own silo); core ships none.
  *
  * - The task file path is relative to a silo (`siloPath(silo, [taskFile])`);
  *   the instance config's `jobs.<jobId>.silo` / `.taskFile` override the
@@ -37,9 +37,9 @@ export type Lazy<T> = T | (() => T);
 
 /** Options for {@link taskFileDispatcher} and {@link dispatchTaskFile}. */
 export interface TaskFileDispatcherOptions extends DispatchOptions {
-  /** Script name for the `runScript` crash handler, e.g. `dispatchers/daily-digest`. */
+  /** Script name for the `runScript` crash handler, e.g. `acme/daily-briefing`. */
   scriptName: string;
-  /** Task file path relative to the silo, e.g. `digest/TASK.md`. */
+  /** Task file path relative to the silo, e.g. `briefing/TASK.md`. */
   taskFile: string;
   /** Data silo holding the task file. Default: the default silo. */
   silo?: string;

@@ -244,7 +244,7 @@ async function sessionRefresh(): Promise<void> {
 }
 
 export default defineJob({
-  id: 'session-refresh',
+  id: 'admin-refresh-sessions',
   domain: 'admin',
   name: 'session-refresh',
   run: () => sessionRefresh(),

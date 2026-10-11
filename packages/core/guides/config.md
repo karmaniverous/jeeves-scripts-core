@@ -44,7 +44,7 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
       }
     }
   },
-  "jobs": { "generate-daily-digest": { "silo": "client", "taskFile": "digest/TASK.md" } }
+  "jobs": { "acme-generate-digest": { "silo": "client", "taskFile": "digest/TASK.md" } }
 }
 ```
 

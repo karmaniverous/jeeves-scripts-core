@@ -83,8 +83,8 @@ function main() {
 }
 
 export default defineJob({
-  id: 'sweep-orphaned-tmp',
-  domain: 'core',
+  id: 'admin-sweep-orphaned-tmp',
+  domain: 'admin',
   name: 'core/sweep-orphaned-tmp',
   run: () => {
     main();

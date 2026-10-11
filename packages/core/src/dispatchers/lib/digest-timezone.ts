@@ -1,8 +1,8 @@
 /**
  * @module dispatchers/lib/digest-timezone
  *
- * The time zone the daily digest dates itself in: the `pipeline.refs` entry
- * `digest.timezone` (an IANA zone such as `America/Chicago`, or `UTC`).
+ * The time zone a daily digest dates itself in (instance code; core ships
+ * no digest): the `pipeline.refs` entry `digest.timezone` (an IANA zone such as `America/Chicago`, or `UTC`).
  * Required, no default: a missing or invalid value fails the run.
  */
 

@@ -53,7 +53,7 @@ node bin/jeeves-scripts.js config check
 node bin/jeeves-scripts.js config check --config ./test/fixture.json
 node bin/jeeves-scripts.js run meetings-fetch-notes --dry-run
 node bin/jeeves-scripts.js email apply-labels --dry-run --since 2026-10-01
-JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run refresh-token-rates
+JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run admin-refresh-token-rates
 ```
 
 ## Key files

@@ -8,11 +8,9 @@ A job id is the public contract: runner jobs run `node {scriptsDir}/bin/jeeves-s
 
 | Domain | Scheduled (manifest in core) | Manual or event-driven (no manifest) |
 | --- | --- | --- |
-| `admin` | `collect-token-metrics`, `refresh-token-rates`, `session-refresh` | `regenerate-token-metrics` |
+| `admin` | `admin-check-qdrant-health`, `admin-collect-token-metrics`, `admin-refresh-sessions`, `admin-refresh-token-rates`, `admin-sweep-orphaned-tmp` | `admin-regenerate-token-metrics` |
 | `calendar` | `calendar-poll` |  |
 | `convert` |  | `convert-docx-to-md`, `convert-pdf-to-md` |
-| `core` | `qdrant-health-check`, `sweep-orphaned-tmp` |  |
-| `dispatchers` |  | `generate-daily-digest` |
 | `email` | `email-poll`, `email-download`, `email-drain-updates`, `email-backfill-historical` | `email-inventory` |
 | `github` | `github-sync-repos`, `github-sync-issues`, `github-watch`, `github-build-registry`, `github-poll-collabs`, `github-drain-collabs` |  |
 | `google-drive` | `google-drive-sync` |  |

@@ -65,7 +65,7 @@ describe('findJob / findJobByScript', () => {
     ['src/email/poll.ts', 'email-poll'],
     ['./src/email/poll.ts', 'email-poll'],
     ['src\\email\\google-workspace\\download.ts', 'email-download'],
-    ['src/dispatchers/daily-digest.ts', 'generate-daily-digest'],
+    ['src/jira/drain.ts', 'jira-drain'],
     ['src/acme/report.ts', undefined],
   ])('maps the script %s to %s', (script, id) => {
     expect(findJobByScript(script)?.id).toBe(id);

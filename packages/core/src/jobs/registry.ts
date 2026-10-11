@@ -30,28 +30,40 @@ export interface RegistryEntry {
 export const coreJobs: readonly RegistryEntry[] = [
   // admin
   {
-    id: 'collect-token-metrics',
+    id: 'admin-collect-token-metrics',
     domain: 'admin',
     module: 'admin/collect-token-metrics',
     load: () => import('../admin/collect-token-metrics.js'),
   },
   {
-    id: 'refresh-token-rates',
+    id: 'admin-refresh-token-rates',
     domain: 'admin',
     module: 'admin/refresh-token-rates',
     load: () => import('../admin/refresh-token-rates.js'),
   },
   {
-    id: 'regenerate-token-metrics',
+    id: 'admin-regenerate-token-metrics',
     domain: 'admin',
     module: 'admin/regenerate-token-metrics',
     load: () => import('../admin/regenerate-token-metrics.js'),
   },
   {
-    id: 'session-refresh',
+    id: 'admin-refresh-sessions',
     domain: 'admin',
     module: 'admin/session-refresh',
     load: () => import('../admin/session-refresh.js'),
+  },
+  {
+    id: 'admin-check-qdrant-health',
+    domain: 'admin',
+    module: 'admin/qdrant-health-check',
+    load: () => import('../admin/qdrant-health-check.js'),
+  },
+  {
+    id: 'admin-sweep-orphaned-tmp',
+    domain: 'admin',
+    module: 'admin/sweep-orphaned-tmp',
+    load: () => import('../admin/sweep-orphaned-tmp.js'),
   },
   // calendar
   {
@@ -72,26 +84,6 @@ export const coreJobs: readonly RegistryEntry[] = [
     domain: 'convert',
     module: 'convert/pdf-to-md',
     load: () => import('../convert/pdf-to-md.js'),
-  },
-  // core
-  {
-    id: 'qdrant-health-check',
-    domain: 'core',
-    module: 'core/qdrant-health-check',
-    load: () => import('../core/qdrant-health-check.js'),
-  },
-  {
-    id: 'sweep-orphaned-tmp',
-    domain: 'core',
-    module: 'core/sweep-orphaned-tmp',
-    load: () => import('../core/sweep-orphaned-tmp.js'),
-  },
-  // dispatchers
-  {
-    id: 'generate-daily-digest',
-    domain: 'dispatchers',
-    module: 'dispatchers/daily-digest',
-    load: () => import('../dispatchers/daily-digest.js'),
   },
   // email
   {

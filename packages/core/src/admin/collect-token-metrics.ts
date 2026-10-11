@@ -66,11 +66,11 @@ function triggerRateCardRefresh(unknownModels: string[]): void {
     );
   }
   try {
-    triggerRunnerJob('refresh-token-rates')
+    triggerRunnerJob('admin-refresh-token-rates')
       .then(({ status, body }) => {
         if (status >= 300)
           console.error(
-            `[collect-token-metrics] Runner refused refresh-token-rates (${String(status)}): ${body.slice(0, 200)}`,
+            `[collect-token-metrics] Runner refused admin-refresh-token-rates (${String(status)}): ${body.slice(0, 200)}`,
           );
       })
       .catch(() => {
@@ -114,7 +114,7 @@ async function collect(): Promise<void> {
 }
 
 export default defineJob({
-  id: 'collect-token-metrics',
+  id: 'admin-collect-token-metrics',
   domain: 'admin',
   name: 'collect-token-metrics',
   run: () => collect(),

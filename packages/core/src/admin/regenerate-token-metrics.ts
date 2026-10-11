@@ -110,7 +110,7 @@ async function regenerate(): Promise<void> {
 }
 
 export default defineJob({
-  id: 'regenerate-token-metrics',
+  id: 'admin-regenerate-token-metrics',
   domain: 'admin',
   name: 'regenerate-token-metrics',
   run: () => regenerate(),

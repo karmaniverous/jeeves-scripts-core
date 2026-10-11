@@ -1,5 +1,5 @@
 {
-  "collect-token-metrics": {
+  "admin-collect-token-metrics": {
     "name": "Collect Token Metrics",
     "description": "Incrementally scan OpenClaw session transcripts and write immutable hourly token-usage buckets.",
     "schedule": {
@@ -12,7 +12,7 @@
     "enabled": true,
     "prerequisite": null
   },
-  "session-refresh": {
+  "admin-refresh-sessions": {
     "name": "Session Refresh",
     "description": "Refresh idle or oversized OpenClaw sessions to manage context window costs.",
     "schedule": {
@@ -25,7 +25,7 @@
     "enabled": true,
     "prerequisite": null
   },
-  "refresh-token-rates": {
+  "admin-refresh-token-rates": {
     "name": "Refresh Token Rates",
     "description": "Seed the token rate card if missing, then refresh per-model $/MTok rates from the OpenRouter model API (no LLM). Fails if the rate card is missing or invalid, or any provider model can't be resolved.",
     "schedule": {
@@ -36,6 +36,31 @@
     },
     "overlap_policy": "skip",
     "timeout_seconds": 120,
+    "enabled": true,
+    "prerequisite": null
+  },
+  "admin-sweep-orphaned-tmp": {
+    "name": "Sweep Orphaned Tmp Files",
+    "description": "Remove orphaned .tmp files left by crashed atomic write operations in workspace directories.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 59,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 120,
+    "enabled": true,
+    "prerequisite": null
+  },
+  "admin-check-qdrant-health": {
+    "name": "Qdrant Health Check",
+    "description": "Monitor Qdrant liveness (/healthz), collection status and optimizer health. Attempt a non-interactive service restart when Qdrant is down, a collection is red or the optimizer is stuck; exit non-zero (restart requires operator) when the restart is denied or fails.",
+    "schedule": {
+      "freq": "hourly",
+      "interval": 4
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 60,
     "enabled": true,
     "prerequisite": null
   }

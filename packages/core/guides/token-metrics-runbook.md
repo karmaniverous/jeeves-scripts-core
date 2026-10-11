@@ -95,16 +95,16 @@ When `~/.openclaw/agents/main/agent/openclaw-agent.sqlite` exists, the collector
 # PowerShell: $env:OPENCLAW_UPGRADE_CUTOFF = '<YYYY-MM-DDTHH:00:00Z>'
 export OPENCLAW_UPGRADE_CUTOFF=<YYYY-MM-DDTHH:00:00Z>
 # scratch (never touches runner state or the live store; point TOKEN_METRICS_DIR at a dir holding a copied token-rates.json)
-node bin/jeeves-scripts.js run regenerate-token-metrics --from <ISO hour> --out /tmp/regen
+node bin/jeeves-scripts.js run admin-regenerate-token-metrics --from <ISO hour> --out /tmp/regen
 # live: rebuild [from, last closed hour), back up + replace buckets, REPLACE the DB cursor (bootstrap / full rebuild)
-node bin/jeeves-scripts.js run regenerate-token-metrics --from "$OPENCLAW_UPGRADE_CUTOFF" --dry-run
-node bin/jeeves-scripts.js run regenerate-token-metrics --from "$OPENCLAW_UPGRADE_CUTOFF"
+node bin/jeeves-scripts.js run admin-regenerate-token-metrics --from "$OPENCLAW_UPGRADE_CUTOFF" --dry-run
+node bin/jeeves-scripts.js run admin-regenerate-token-metrics --from "$OPENCLAW_UPGRADE_CUTOFF"
 # live: rebuild a closed range from already-counted events (OpenClaw seq <= DB cursor,
 # Claude Code bytes before the CC cursor); DB and CC cursors untouched
-node bin/jeeves-scripts.js run regenerate-token-metrics --from <ISO hour> --to <ISO hour>
+node bin/jeeves-scripts.js run admin-regenerate-token-metrics --from <ISO hour> --to <ISO hour>
 ```
 
-Pause the `collect-token-metrics` job while a live regeneration runs.
+Pause the `admin-collect-token-metrics` job while a live regeneration runs.
 
 `OPENCLAW_UPGRADE_CUTOFF` is a per-instance environment variable with **no default**: the first UTC hour this instance ran OpenClaw 2026.9+ (ISO 8601). An instance that never ran an earlier OpenClaw uses its first hour of usage. It is read only by live regenerations (including `--dry-run`):
 
@@ -161,17 +161,17 @@ The rate card lives at `/opt/jeeves/state/jeeves-runner/token-metrics/token-rate
 
 ### Seed on fresh instances
 
-The template ships a seed card at `config/token-rates.seed.json` (default instance models plus delivery-mirror at 0, `source` starts with `SEED <date>`). `refresh-token-rates` and `collect-token-metrics` copy it into place (creating the directory) **only when no rate card exists**. An existing card is never overwritten, even if it is invalid. Seeding is atomic: the validated seed is written to a temp file in the same directory and hard-linked into place, so readers never see a partial card and a concurrently created card is never clobbered.
+The template ships a seed card at `config/token-rates.seed.json` (default instance models plus delivery-mirror at 0, `source` starts with `SEED <date>`). `admin-refresh-token-rates` and `admin-collect-token-metrics` copy it into place (creating the directory) **only when no rate card exists**. An existing card is never overwritten, even if it is invalid. Seeding is atomic: the validated seed is written to a temp file in the same directory and hard-linked into place, so readers never see a partial card and a concurrently created card is never clobbered.
 
 ### Failure reporting
 
-`refresh-token-rates` validates the card before fetching and again after writing. It exits non-zero (the runner records an error) if:
+`admin-refresh-token-rates` validates the card before fetching and again after writing. It exits non-zero (the runner records an error) if:
 
 - the card is missing and can't be seeded, or is unreadable or invalid (bad JSON, missing rate category, no models);
 - any provider model on the card (other than `manual` entries, below), or any pending model, can't be priced: OpenRouter returns 404, the request fails, or the fetch time budget runs out. Everything that _could_ be priced is still written first, so one bad model never blocks the rest;
 - the card is invalid after writing.
 
-`refresh-token-rates --dry-run` fetches and prints the changes without seeding, writing the card, or touching the pending file.
+`admin-refresh-token-rates --dry-run` fetches and prints the changes without seeding, writing the card, or touching the pending file.
 
 ### Automatic (recommended)
 
@@ -190,7 +190,7 @@ If the collector encounters an unknown model, it:
 2. Records the unknown model ids in the pending file, `token-rates.pending.json` next to the card (a JSON array of ids).
 3. Triggers the rate card refresh job and exits with code 1.
 
-`refresh-token-rates` fetches each pending id from OpenRouter and adds it to the card once valid prices come back. After writing the card, the refresh re-reads the pending file and drops only the ids now on the card, so ids the collector adds while a refresh is fetching prices are kept. The file isn't locked, so an id added in the brief moment between that re-read and the write can be dropped; the collector records it again on its next run. Ids OpenRouter doesn't know stay in it and fail the run until someone adds them by hand, usually as a `manual` entry (below). The next collector run (97 minutes later) picks up the updated card and processes the held data.
+`admin-refresh-token-rates` fetches each pending id from OpenRouter and adds it to the card once valid prices come back. After writing the card, the refresh re-reads the pending file and drops only the ids now on the card, so ids the collector adds while a refresh is fetching prices are kept. The file isn't locked, so an id added in the brief moment between that re-read and the write can be dropped; the collector records it again on its next run. Ids OpenRouter doesn't know stay in it and fail the run until someone adds them by hand, usually as a `manual` entry (below). The next collector run (97 minutes later) picks up the updated card and processes the held data.
 
 ### Manual
 
@@ -214,7 +214,7 @@ Edit `token-rates.json` directly. The schema:
 
 Rates are in **dollars per million tokens** ($/MTok). All four categories (`input`, `output`, `cacheRead`, `cacheWrite`) are required for each model. The model key format is `{provider}/{model}` matching what appears in transcript data.
 
-Add `"manual": true` to an entry to maintain its prices by hand. `refresh-token-rates` then skips it: it never looks the model up on OpenRouter, never overwrites its rates and never fails because OpenRouter doesn't list it. Use this for a model OpenRouter doesn't carry (it otherwise fails every refresh), or to pin a negotiated price. Without the flag, a hand-added entry is refreshed from OpenRouter like any other.
+Add `"manual": true` to an entry to maintain its prices by hand. `admin-refresh-token-rates` then skips it: it never looks the model up on OpenRouter, never overwrites its rates and never fails because OpenRouter doesn't list it. Use this for a model OpenRouter doesn't carry (it otherwise fails every refresh), or to pin a negotiated price. Without the flag, a hand-added entry is refreshed from OpenRouter like any other.
 
 ```json
 "vendor/private-model": {

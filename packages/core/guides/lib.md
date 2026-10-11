@@ -27,7 +27,7 @@ Thin wrappers around date-fns. No config dependencies.
 - `formatDate(dateStr, fmt)` — format a date using date-fns pattern
 - `relativeDays(dateStr, referenceStr?)` — human-friendly relative description ("3 days ago", "today")
 - `requireTimeZone(value, source)` — validates a time zone read from instance config; throws (naming `source`) when it is empty or not a valid IANA zone. No default zone
-- `withDateContext(task, now, timeZone)` — prepends `> **Today is <weekday>, <YYYY-MM-DD> (<zone>).** …` to a worker task (used by `dispatchers/daily-digest.ts`)
+- `withDateContext(task, now, timeZone)` — prepends `> **Today is <weekday>, <YYYY-MM-DD> (<zone>).** …` to a worker task (used by `taskFileDispatcher` when given `dateTimeZone`)
 - Re-exports `format` and `parseISO` from date-fns
 
 From a shell in an instance repo:
@@ -113,7 +113,7 @@ The jeeves-runner's HTTP API address, from the runner's own config (validated wi
 - `runnerUrl(file?)` — `http://127.0.0.1:<port>`
 - `triggerRunnerJob(jobId, file?)` — `POST /jobs/<id>/run`; resolves `{ status, body }`, rejects when the runner is unreachable
 
-Used by `admin/collect-token-metrics` (to start `refresh-token-rates`) and instance code that chains jobs.
+Used by `admin/collect-token-metrics` (to start `admin-refresh-token-rates`) and instance code that chains jobs.
 
 ### meta-config.ts
 

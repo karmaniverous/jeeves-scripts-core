@@ -30,7 +30,7 @@ import { ensureRateCard } from './lib/rate-card-seed.js';
 import { refreshTokenRatesMain } from './lib/refresh-rates-run.js';
 
 export default defineJob({
-  id: 'refresh-token-rates',
+  id: 'admin-refresh-token-rates',
   domain: 'admin',
   name: 'admin/refresh-token-rates',
   run: async () => {

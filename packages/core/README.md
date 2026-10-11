@@ -35,10 +35,9 @@ Job ids named in the docs are core's registered ids ([`guides/jobs.md`](guides/j
 | [`guides/config.md`](guides/config.md) | `jeeves-scripts.json`: schema, resolution, getters, silos |
 | [`guides/jobs.md`](guides/jobs.md) | The job registry: ids, `defineJob`, manifests, instance deltas |
 | [`guides/lib.md`](guides/lib.md) | Shared infrastructure: constants, gateway, workers, gh, gog, entity store |
-| [`guides/admin.md`](guides/admin.md) | Token metrics, rate card, session refresh |
+| [`guides/admin.md`](guides/admin.md) | Token metrics, rate card, session refresh, housekeeping (`.tmp` sweep, Qdrant health) |
 | [`guides/calendar.md`](guides/calendar.md) | Google Calendar polling |
 | [`guides/convert.md`](guides/convert.md) | DOCX and PDF to Markdown |
-| [`guides/core.md`](guides/core.md) | Housekeeping: `.tmp` sweep, Qdrant health |
 | [`guides/dispatchers.md`](guides/dispatchers.md) | Task-file dispatchers and job-side Slack I/O |
 | [`guides/email.md`](guides/email.md) | Gmail (gog) and IMAP polling, download, backfills |
 | [`guides/github.md`](guides/github.md) | Repo and issue sync, notifications, collaborators |
