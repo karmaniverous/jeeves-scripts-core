@@ -91,7 +91,12 @@ describe('package exports map', () => {
   it('publishes only the root API, the CLI and package files (no wildcard)', () => {
     const pkg = JSON.parse(
       fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
-    ) as { exports: Record<string, unknown> };
+    ) as {
+      exports: Record<string, unknown>;
+      dependencies: Record<string, string>;
+    };
+    // The CLI imports the instance plugin with tsx at run time.
+    expect(pkg.dependencies).toHaveProperty('tsx');
     expect(Object.keys(pkg.exports).sort()).toEqual([
       '.',
       './cli',
