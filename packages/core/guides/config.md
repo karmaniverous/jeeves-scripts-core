@@ -174,7 +174,7 @@ Every content path core resolves goes through a silo. The default silo's base pa
 Each silo: `basePath` (required, absolute); `emailDomains` (mail domains), `githubOrgs` (org names, or `{ "githubOrg", "relativePath" }` to route an org to a subdirectory), `slackWorkspaces` (team ids), `jira` / `linear` (`true`: that integration's content routes here), all optional.
 
 - `siloPath(silo, segments)` joins `segments` onto the silo's base path (`undefined` = the default silo). Throws `UnknownSiloError` for an unconfigured name.
-- `isKnownSilo(silo)` checks a name.
+- `isKnownSilo(silo)` checks a name; `siloRouting()` returns the resolved `siloRouting` block (the default silo's base path filled in).
 - Routing: `getBasePathForEmailDomain`, `getBasePathForGitHubOrg`, `getBasePathForSlackWorkspace`, `getBasePathForMeeting` (majority vote over attendee domains), `getBasePathForJira`, `getBasePathForLinear`, `getEmailBaseForAccount`, `getCalendarBaseForAccount`, `getEntityDirs`. Each falls back to the default silo.
 
 Instance and plugin code never joins absolute content roots itself; it calls `siloPath`.
@@ -191,7 +191,7 @@ Instance and plugin code never joins absolute content roots itself; it calls `si
 | `src/config/loader.ts` | `loadConfig`, `resolveConfigPath`, `resetConfig`, `CONFIG_PATH_ENV` |
 | `src/config/paths.ts`, `integrations.ts` | `paths()`, `integrations()` and their pure `derive*` forms |
 | `src/config/pipeline-accessors.ts` | `pipeline()`, refs, account and bucket accessors |
-| `src/config/silo-router.ts` | `siloPath`, routing functions, `UnknownSiloError` |
+| `src/config/silo-router.ts` | `siloPath`, `siloRouting()`, routing functions, `UnknownSiloError` |
 | `src/config/secret-guard.ts`, `imap-secrets.ts` | Secret-literal scan; IMAP `secretRef` resolution |
 | `src/config/json-schema.ts` | `generateJsonSchema()` |
 | `src/config/check.ts` | `configCheck()` |

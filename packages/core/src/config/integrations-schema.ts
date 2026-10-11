@@ -86,7 +86,7 @@ export const xIntegrationSchema = z.object({
 });
 
 /** Default `integrations.x` value. */
-export const defaultXIntegration: {
+const defaultXIntegration: {
   /** No accounts. */
   accounts: Record<string, XAccountConfig>;
 } = {

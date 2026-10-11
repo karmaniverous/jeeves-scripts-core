@@ -16,10 +16,7 @@
 
 import { z } from 'zod';
 
-import {
-  defaultXIntegration,
-  integrationsSchema,
-} from './integrations-schema.js';
+import { integrationsSchema } from './integrations-schema.js';
 import { jobsSchema } from './jobs-schema.js';
 import { pathsSchema } from './paths-schema.js';
 import { peopleSchema } from './people-schema.js';
@@ -57,7 +54,7 @@ export const configObjectSchema = z.object({
     notion: {},
     jira: {},
     linear: {},
-    x: defaultXIntegration,
+    x: { accounts: {} },
   }),
   /** Mail, calendar and refs (the template's `pipeline-config.json`). */
   pipeline: pipelineSchema.optional(),
