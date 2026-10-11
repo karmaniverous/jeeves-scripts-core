@@ -1,15 +1,16 @@
 ---
 name: jeeves-github
 description: GitHub integration - repo sync, issue sync, notifications, and collaborator management. Use when working with the GitHub pipeline, debugging GitHub sync, or using the gh CLI as the instance's bot.
+metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
 ---
 
 # GitHub
 
-Read [github.md](../../guides/github.md) for how the GitHub pipeline works: jobs, the repo registry, state and queues, data flow.
+Read [github.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/github.md) for how the GitHub pipeline works: jobs, the repo registry, state and queues, data flow.
 
 ## Prerequisites
 
-The `gh` CLI must be logged in as the instance's bot identity (`gh auth status`). Which `gh` binary, config dir, account and bot user the jobs use is `integrations.gh` in `jeeves-scripts.json` ([config.md](../../guides/config.md)).
+The `gh` CLI must be logged in as the instance's bot identity (`gh auth status`). Which `gh` binary, config dir, account and bot user the jobs use is `integrations.gh` in `jeeves-scripts.json` ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md)).
 
 ## Operator rules
 

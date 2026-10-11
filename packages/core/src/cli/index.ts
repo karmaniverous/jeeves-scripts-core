@@ -8,7 +8,7 @@
  * The instance launcher (Decision 16) calls {@link main} with the instance
  * repo root, so config resolution never depends on the working directory
  * (Architecture → Config Resolution). The verbs are the framework's own
- * (R46): `run`, `list`, `config check`, `doctor`, `init`. Domain work is never a verb
+ * (R46): `run`, `list`, `config check`, `doctor`, `init`, `skills`. Domain work is never a verb
  * (Decision 49): it is a runnable, run with `run <id>`.
  */
 
@@ -20,7 +20,9 @@ import { configCheck } from '../config/check.js';
 import { doctorReport } from './doctor.js';
 import { describeError, formatInit, initRepo } from './init.js';
 import { formatList, listRunnables } from './list.js';
+import { openclawPresent } from './openclaw.js';
 import { runJob } from './run.js';
+import { runSkills } from './skills.js';
 
 /** Options for {@link buildProgram} and {@link main}. */
 export interface CliOptions {
@@ -107,15 +109,50 @@ const buildInitCommand = (root: string) =>
       '--core <version>',
       'exact core version to pin (default: the running core version)',
     )
-    .action((options) => {
+    .action(async (options) => {
       try {
         for (const line of formatInit(root, initRepo(root, options)))
           console.log(line);
       } catch (e) {
         console.error(`init: FAILED: ${describeError(e)}`);
         process.exitCode = 1;
+        return;
       }
+      if (await openclawPresent()) {
+        if ((await runSkills('install', { root })) !== 0) process.exitCode = 1;
+      } else
+        console.log(
+          'OpenClaw is not on this host. To wire core skills into it later: node bin/jeeves-scripts.js skills install',
+        );
     });
+
+const SKILLS_ACTIONS = {
+  install:
+    'Add core skills to OpenClaw (skills.load.extraDirs, and JEEVES_SCRIPTS_DIR for each skill).',
+  uninstall: "Remove exactly this repo's core skills entries from OpenClaw.",
+  status: 'Report wired, missing, stale and shadowed core skills entries.',
+} as const;
+
+const buildSkillsCommand = (root: string) => {
+  const command = new Command('skills').description(
+    'Wire core skills into OpenClaw through openclaw config set.',
+  );
+  for (const [action, description] of Object.entries(SKILLS_ACTIONS) as [
+    keyof typeof SKILLS_ACTIONS,
+    string,
+  ][]) {
+    const sub = new Command(action).description(description);
+    if (action !== 'status')
+      sub.option('-y, --yes', 'apply without showing the change and asking');
+    command.addCommand(
+      sub.action(async (options: { yes?: boolean }) => {
+        const code = await runSkills(action, { root, yes: options.yes });
+        if (code !== 0) process.exitCode = code;
+      }),
+    );
+  }
+  return command;
+};
 
 /** Build the `jeeves-scripts` program for an instance repo root. */
 export const buildProgram = (options: CliOptions) => {
@@ -127,7 +164,8 @@ export const buildProgram = (options: CliOptions) => {
     .addCommand(buildRunCommand(root))
     .addCommand(buildListCommand(root))
     .addCommand(buildDoctorCommand(root))
-    .addCommand(buildInitCommand(root));
+    .addCommand(buildInitCommand(root))
+    .addCommand(buildSkillsCommand(root));
 };
 
 /**

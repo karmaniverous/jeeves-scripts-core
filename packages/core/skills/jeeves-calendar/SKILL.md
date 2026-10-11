@@ -1,15 +1,16 @@
 ---
 name: jeeves-calendar
 description: Google Calendar event polling and meeting coordination. Use when working with the calendar pipeline, setting up gog for Google Calendar, or scheduling meetings.
+metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
 ---
 
 # Calendar
 
-Read [calendar.md](../../guides/calendar.md) for how the calendar pipeline works: jobs, account configuration, data flow and output layout.
+Read [calendar.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/calendar.md) for how the calendar pipeline works: jobs, account configuration, data flow and output layout.
 
 ## Operator rules
 
-- **Accounts are config:** which calendars are polled is the `pipeline` accounts list in `jeeves-scripts.json` ([config.md](../../guides/config.md#the-pipeline-block)). Ask the operator before adding one.
+- **Accounts are config:** which calendars are polled is the `pipeline` accounts list in `jeeves-scripts.json` ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md#the-pipeline-block)). Ask the operator before adding one.
 - **Answer from the archive** the pipeline writes (or watcher search over it); use gog directly only for live, interactive lookups.
 - **Scheduling acts for people:** propose times, but send or accept an invite only on an explicit request.
 

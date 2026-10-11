@@ -28,10 +28,11 @@ The package `bin` (`npx jeeves-scripts ...`, from the instance repo) does the sa
 | `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
 | `doctor` | Report on the instance ([below](#doctor)). Informational: always exits 0. |
 | `init [--name <pkg>] [--core <version>]` | Write an instance repo into the root from the template bundled in core ([below](#init)). Exit 1 on an invalid name or version. |
+| `skills install \| uninstall \| status [--yes]` | Wire core's shipped skills into OpenClaw through `openclaw config set` ([below](#skills)). Exit 1 when `openclaw` fails. |
 | `run people-propose [--all] [--out <file>]` | Runnable `people-propose` (no manifest). Read-only: reads `users.list` for every gateway Slack bot account (`slackBotTokens`), skips bots, deactivated users and Slackbot, groups users across workspaces by email (case-insensitive) and real name, and prints `{ summary, people, uncertain }`: a proposed `people` block ([config.md](./config.md#people)) of people with more than one account (`--all`: everyone) and the matches to check by hand (grouped by name only; a name shared inside one workspace; one email on two users of a workspace). Never writes config; `--out` writes the same JSON (UTF-8) to a file and refuses `jeeves-scripts.json`. |
 | `run email-apply-labels [--since <date>] [--account <id>] [--max <n>] [--dry-run] [--config <file>]` | Runnable `email-apply-labels` (no manifest). Enqueue the classification labels stored thread state calls for but that were never applied (e.g. while `emailConfig.reportOnly` was on); `drain-updates` applies them. Idempotent. Refuses while `reportOnly` is on unless `--dry-run`. See [email.md](./email.md#label-catch-up). |
 
-Domain work is never a CLI verb (Decision 49): it is a runnable, run with `run <id>`, like the last two rows. The CLI's own verbs are `run`, `list`, `config check`, `doctor` and `init`.
+Domain work is never a CLI verb (Decision 49): it is a runnable, run with `run <id>`, like the last two rows. The CLI's own verbs are `run`, `list`, `config check`, `doctor`, `init` and `skills`.
 
 `main()` resolves to the exit code and never calls `process.exit` itself.
 
@@ -80,6 +81,19 @@ node bin/jeeves-scripts.js doctor
 - It **never overwrites** a file: every file that exists is reported as skipped, so running it again in a repo changes nothing.
 - `gitignore`, `npmrc` and `nvmrc` are stored renamed in the package (npm would drop or rename them) and written as `.gitignore`, `.npmrc` and `.nvmrc`.
 - `package.json` gets the package name (`--name`, default `jeeves-scripts`) and core pinned at an exact version (`--core`, default the running core's version); a range such as `^0.1.0` is refused.
+- At the end, when `openclaw` is on the host, it runs `skills install` (which shows the change and asks); otherwise it prints the command to run later.
+
+## Skills
+
+Core ships its skills in the package (`skills/<name>/SKILL.md`); they are wired into OpenClaw, never copied. Each declares `JEEVES_SCRIPTS_DIR` (`metadata.openclaw.requires.env`) and names every file as a `$JEEVES_SCRIPTS_DIR/...` path, such as `$JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/email.md`.
+
+| Command | What it changes in OpenClaw's config |
+| --- | --- |
+| `skills install` | Adds `<repo>/node_modules/@karmaniverous/jeeves-scripts-core/skills` to `skills.load.extraDirs` (exact match, so running it again changes nothing) and sets `skills.entries.<skill>.env.JEEVES_SCRIPTS_DIR` to the repo root for each shipped skill. |
+| `skills uninstall` | Removes exactly those entries: this repo's folder from `extraDirs`, and each `JEEVES_SCRIPTS_DIR` that names this repo. |
+| `skills status` | Changes nothing. Reports the folder and each skill as `wired`, `missing` or `stale` (another core skills folder in `extraDirs`, or `JEEVES_SCRIPTS_DIR` naming another repo), and a core skill shadowed by a same-named skill from another source (such as the workspace). |
+
+`install` and `uninstall` print the change and ask `Apply? [y/N]`; `--yes` applies without asking. Without a terminal to ask on (a script, a runner job), they apply nothing and print the command to re-run with `--yes`. Changes go through `openclaw config get`, `openclaw config set --batch-file` (one atomic batch) and `openclaw config unset`, so OpenClaw validates its own config.
 
 ## Doctor
 
@@ -116,6 +130,8 @@ JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run admin-refresh
 | `src/cli/list.ts` | `listRunnables`, `formatList` |
 | `src/cli/doctor.ts` | `doctorReport` |
 | `src/cli/init.ts` | `initRepo`, `formatInit` |
+| `src/cli/skills.ts` | `skills install \| uninstall \| status`: the changes, the status report, the confirmation |
+| `src/cli/openclaw.ts` | The `openclaw` CLI calls (config get, batch set, unset, skills list) |
 | `src/cli/package-info.ts` | The running core's package directory and version |
 | `src/cli/load-plugin.ts` | `loadPlugin`: imports `jeeves-scripts.plugin.ts` with tsx |
 | `src/cli/run.ts` | `registerInstance`, `resolveRunnable`, `runJob` |

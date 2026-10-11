@@ -1,8 +1,10 @@
 /**
- * Shipped skills guard (Decision 33): every `skills/<name>/SKILL.md` that
- * core ships has valid frontmatter, stays thin (behaviour lives in the
- * docs), names no instance path, and links only to files inside the
- * package, with valid anchors.
+ * Shipped skills guard (Decisions 33, 39; design §8): every
+ * `skills/<name>/SKILL.md` that core ships has valid frontmatter declaring
+ * `JEEVES_SCRIPTS_DIR`, stays thin (behaviour lives in the docs), names no
+ * instance path, and points only at files inside the package through
+ * `$JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/...`
+ * paths that exist, with valid anchors.
  */
 
 import fs from 'node:fs';
@@ -47,10 +49,43 @@ const skills = fs
 const read = (name: string) =>
   fs.readFileSync(path.join(skillsDir, name, 'SKILL.md'), 'utf8');
 
+/** How a skill names a file in the installed core package. */
+const PKG_PREFIX =
+  '$JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/';
+
+/** Every package path a skill names, in links or prose. */
+const PKG_PATHS =
+  /\$JEEVES_SCRIPTS_DIR\/node_modules\/@karmaniverous\/jeeves-scripts-core\/([^\s)`'"]*)/g;
+
+const metadataSchema = z.object({
+  openclaw: z.object({
+    requires: z.object({ env: z.array(z.string()) }),
+  }),
+});
+
 const frontmatterSchema = z.object({
   name: z.string().regex(/^[a-z0-9-]+$/),
   description: z.string().min(20).max(MAX_DESCRIPTION),
+  metadata: z.string().transform((s, ctx) => {
+    const parsed = metadataSchema.safeParse(JSON.parse(s));
+    if (parsed.success) return parsed.data;
+    ctx.addIssue({ code: 'custom', message: z.prettifyError(parsed.error) });
+    return z.NEVER;
+  }),
 });
+
+/** Whether a package-relative path (with an optional anchor) exists. */
+const brokenPackagePath = (rest: string): boolean => {
+  const [rel = '', anchor] = rest.split('#');
+  const target = path.join(pkgRoot, rel);
+  if (path.relative(pkgRoot, target).startsWith('..')) return true;
+  if (!fs.existsSync(target)) return true;
+  return (
+    anchor !== undefined &&
+    target.endsWith('.md') &&
+    !headingAnchors(target).has(anchor)
+  );
+};
 
 /** Parse the `---` block of simple `key: value` lines (folded `>` values joined). */
 export function parseFrontmatter(text: string): Record<string, string> {
@@ -128,9 +163,10 @@ describe('shipped skills', () => {
   describe.each(skills)('%s', (name) => {
     const text = read(name);
 
-    it('has frontmatter whose name matches its directory', () => {
+    it('has frontmatter whose name matches its directory and declares JEEVES_SCRIPTS_DIR', () => {
       const fm = frontmatterSchema.parse(parseFrontmatter(text));
       expect(fm.name).toBe(name);
+      expect(fm.metadata.openclaw.requires.env).toContain('JEEVES_SCRIPTS_DIR');
     });
 
     it(`stays thin (at most ${String(MAX_LINES)} lines, no behaviour sections)`, () => {
@@ -139,7 +175,7 @@ describe('shipped skills', () => {
     });
 
     it('points at core documentation', () => {
-      expect(text).toMatch(/\]\(\.\.\/\.\.\/guides\/[\w-]+\.md/);
+      expect(text).toContain(`](${PKG_PREFIX}guides/`);
     });
 
     it('names no instance path', () => {
@@ -147,23 +183,19 @@ describe('shipped skills', () => {
       expect(hits).toEqual([]);
     });
 
-    it('links only to files inside the package, with valid anchors', () => {
-      const file = path.join(skillsDir, name, 'SKILL.md');
-      const broken = [...prose(text).matchAll(/\]\(([^)\s]+)\)/g)]
+    it('links only through $JEEVES_SCRIPTS_DIR package paths (no relative links)', () => {
+      const other = [...prose(text).matchAll(/\]\(([^)\s]+)\)/g)]
         .map(([, link = '']) => link)
         .filter((link) => !/^(https?|mailto):/.test(link))
-        .filter((link) => {
-          const [rel = '', anchor] = link.split('#');
-          const target = rel ? path.resolve(path.dirname(file), rel) : file;
-          if (path.relative(pkgRoot, target).startsWith('..')) return true;
-          if (!fs.existsSync(target)) return true;
-          return (
-            anchor !== undefined &&
-            target.endsWith('.md') &&
-            !headingAnchors(target).has(anchor)
-          );
-        });
-      expect(broken).toEqual([]);
+        .filter((link) => !link.startsWith(PKG_PREFIX));
+      expect(other).toEqual([]);
+      expect(text).not.toContain('{scriptsDir}');
+    });
+
+    it('names only package paths that exist, with valid anchors', () => {
+      const paths = [...text.matchAll(PKG_PATHS)].map(([, rest = '']) => rest);
+      expect(paths.length).toBeGreaterThan(0);
+      expect(paths.filter(brokenPackagePath)).toEqual([]);
     });
   });
 });
