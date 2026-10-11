@@ -26,7 +26,8 @@
  * calendar/poll.ts (per-account checks in calendar/lib/
  * calendar-accounts.ts).
  *
- * Config dependencies: constants().GOG_CLIENT_PATH, constants().GOG_CONFIG_DIR from constants.ts.
+ * Config dependencies: `paths.gogHome` in jeeves-scripts.json (`GOG_HOME` wins),
+ * through constants().GOG_CONFIG_DIR and GOG_CLIENT_PATH.
  */
 
 import fs from 'node:fs';

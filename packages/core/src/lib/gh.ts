@@ -8,7 +8,8 @@
  * and admin scripts. Sets constants().GH_CONFIG_DIR from constants so gh finds
  * the correct auth tokens regardless of working directory.
  *
- * Config dependencies: constants().GH_BIN, constants().GH_CONFIG_DIR from constants.ts.
+ * Config dependencies: `integrations.gh.bin` and `integrations.gh.configDir`
+ * (`GH_CONFIG_DIR` wins) in jeeves-scripts.json, through constants().
  */
 
 import cp from 'node:child_process';

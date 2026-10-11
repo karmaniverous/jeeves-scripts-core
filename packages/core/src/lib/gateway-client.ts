@@ -8,7 +8,8 @@
  * (meeting extraction via gateway tools). Loads the bearer token from
  * the OpenClaw config or the CLAWDBOT_GATEWAY_TOKEN env var (lib/openclaw-config).
  *
- * Config dependencies: constants().GATEWAY_HOST, constants().GATEWAY_PORT from constants.ts.
+ * Config dependencies: the gateway port from OpenClaw's `openclaw.json`
+ * (constants().GATEWAY_PORT); the host is always 127.0.0.1.
  */
 
 import http from 'node:http';

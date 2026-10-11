@@ -71,4 +71,4 @@ All entries in core's manifest `jobs/github.json` carry a non-null `prerequisite
 | --- | --- |
 | `../lib/gh.ts` | GitHub CLI wrappers — `gh()`, `ghJson()`, `ghApi()`, `setupGhConfig()` |
 | `../config/silo-router.ts` | `getBasePathForGitHubOrg()` for org-based output routing (see [silos](./config.md#silos) for the `siloRouting` schema) |
-| `../lib/constants.ts` | GitHub values from `constants()` (`GH_*`, `GITHUB_DIR`, `GITHUB_REGISTRY_PATH`) |
+| `../lib/constants.ts` | `constants()`: `GH_*` from `integrations.gh` in `jeeves-scripts.json`; `GITHUB_DIR`, `GITHUB_REGISTRY_PATH` under `paths.contentDir` |

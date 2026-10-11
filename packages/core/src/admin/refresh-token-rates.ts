@@ -11,9 +11,9 @@
  *
  * `--dry-run` fetches and prints the changes without writing.
  *
- * Config dependencies: constants().TOKEN_RATES_PATH, constants().TOKEN_RATES_PENDING_PATH,
- * constants().TOKEN_RATES_SEED_PATH from
- * constants.ts.
+ * Config dependencies: constants().TOKEN_RATES_PATH and TOKEN_RATES_PENDING_PATH
+ * (under `paths.tokenMetricsDir` in jeeves-scripts.json (or `TOKEN_METRICS_DIR`)), and
+ * constants().TOKEN_RATES_SEED_PATH (core's `config/token-rates.seed.json`).
  */
 
 import { atomicWrite } from '@karmaniverous/jeeves';

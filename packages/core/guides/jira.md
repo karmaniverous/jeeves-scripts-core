@@ -224,4 +224,4 @@ node bin/jeeves-scripts.js run jira-backfill --project WEB --type issue --live
 | `../lib/entity-store.ts` | Shared file I/O helpers with reverse-diff history — `upsertEntity`, `backfillEntity`, `deleteEntity`, `writeUnmatched`, `readStdinJson` (see [entity-store docs](./lib.md#entity-storets)) |
 | `lib/jira-client.ts` | Typed Jira REST API v3 client (fetch, paginate) |
 | core `jobs/jira.json` | Runner job manifests (refresh-fields and sort-backlog schedules) |
-| `../lib/constants.ts` | Jira values from `constants()` (`JIRA_SITE_URL`, `JIRA_EMAIL`, etc.) |
+| `../lib/constants.ts` | `constants()`: `JIRA_SITE_URL`, `JIRA_EMAIL`, ... from `integrations.jira` in `jeeves-scripts.json` |

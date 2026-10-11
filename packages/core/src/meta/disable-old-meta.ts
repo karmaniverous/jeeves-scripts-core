@@ -3,7 +3,7 @@
  *
  * Disable stale meta entries for time-bounded entity types.
  *
- * Loops over ENTITY_TYPES from constants.ts, resolves root directories
+ * Loops over ENTITY_TYPES (fixed in lib/constants), resolves root directories
  * via silo-router, and scans each entity's .meta/meta.json. If the
  * entity date exceeds the type's maxAgeDays threshold and _content
  * already exists (synthesis complete), writes _disabled: true to

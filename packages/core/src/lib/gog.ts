@@ -10,7 +10,8 @@
  * jeeves-tools provisions. An explicit GOG_HOME (set by the gateway unit
  * and the runner drop-in on managed instances) is left untouched.
  *
- * Config dependencies: constants().GOG_BIN, constants().GOG_CONFIG_DIR from constants.ts.
+ * Config dependencies: `integrations.gog.bin` and `paths.gogHome` (`GOG_HOME`
+ * wins) in jeeves-scripts.json, through constants().
  */
 
 import { runWithRetry } from '@karmaniverous/jeeves';

@@ -284,4 +284,4 @@ Tracked as [jeeves-tools #99](https://github.com/karmaniverous/jeeves-tools/issu
 | `lib/linear-client.ts` | Typed Linear GraphQL client (fetch, paginate) |
 | `../lib/entity-store.ts` | File I/O helpers with reverse-diff history (shared with Jira) |
 | core `jobs/linear.json` | Runner job manifests (sync-issues, sync-comments schedules) |
-| `../lib/constants.ts` | Linear values from `constants()` (`LINEAR_CONFIG_PATH`, `LINEAR_MAX_HISTORY`) |
+| `../lib/constants.ts` | `constants()`: `LINEAR_CONFIG_PATH`, `LINEAR_MAX_HISTORY` from `integrations.linear` in `jeeves-scripts.json` |

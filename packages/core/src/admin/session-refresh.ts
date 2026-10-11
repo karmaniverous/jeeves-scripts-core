@@ -9,7 +9,8 @@
  * sessions_reset) to inspect and rotate sessions.
  *
  * Config dependencies: SESSION_REFRESH_CACHE_READ_THRESHOLD,
- * SESSION_REFRESH_IDLE_MINUTES, GATEWAY_HOST, GATEWAY_PORT from constants.ts.
+ * SESSION_REFRESH_IDLE_MINUTES (fixed in lib/constants), and the gateway port
+ * from OpenClaw's `openclaw.json` (constants().GATEWAY_PORT).
  */
 
 import crypto from 'node:crypto';

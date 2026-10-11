@@ -7,7 +7,8 @@
  * Called by collect-token-metrics (write) and token-metrics (read).
  * Each bucket file is an immutable JSON snapshot of one UTC hour.
  *
- * Config dependencies: constants().TOKEN_METRICS_DIR from constants.ts.
+ * Config dependencies: constants().TOKEN_METRICS_DIR, from
+ * `paths.tokenMetricsDir` in jeeves-scripts.json (or `TOKEN_METRICS_DIR`).
  */
 
 import path from 'node:path';

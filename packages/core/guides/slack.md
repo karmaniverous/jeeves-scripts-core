@@ -113,7 +113,7 @@ The manifest entry carries a non-null `prerequisite` naming the token sources in
 | File | Purpose |
 | --- | --- |
 | `lib/slack-api.ts` | Typed Slack Web API wrappers — `fetchHistory()`, `fetchReplies()`, `discoverChannels()`, `fetchMembers()`, `fetchUsers()`, `slackApi()`, `SlackFileMetadata` type, with pagination |
-| `../lib/constants.ts` | Workspace routing values from `constants()` |
+| `../lib/constants.ts` | `constants()`: `SLACK_DOMAIN_DIR` under `paths.contentDir` in `jeeves-scripts.json` |
 | `../config/silo-router.ts` | `getBasePathForSlackWorkspace()` for output directory routing (see [silos](./config.md#silos)) |
 | `lib/channel-config.ts` | `getChannelConfig()` / `channelConfigs()`: the `slack.channels` config |
 | `lib/slack-cache.ts` | The Slack cache files in `{stateDir}/slack` (load, save, user display names) |

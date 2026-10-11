@@ -54,7 +54,7 @@ describe('resolvePollHandles', () => {
   it('skips a handle argument that is not in X_ACCOUNTS (never drained)', () => {
     expect(resolvePollHandles('carol', accounts, all)).toEqual({
       handles: [],
-      skipped: [{ handle: 'carol', reason: 'not configured in X_ACCOUNTS' }],
+      skipped: [{ handle: 'carol', reason: 'not in integrations.x.accounts' }],
     });
   });
 

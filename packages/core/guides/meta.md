@@ -37,5 +37,5 @@ No external prerequisites. Operates on local filesystem entity directories.
 
 | File | Purpose |
 | --- | --- |
-| `../lib/constants.ts` | `ENTITY_TYPES` array defining entity type config |
+| `../lib/constants.ts` | `ENTITY_TYPES`: the entity types and their rules (fixed, not configurable) |
 | `../config/silo-router.ts` | `getEntityDirs()` for cross-silo directory discovery |

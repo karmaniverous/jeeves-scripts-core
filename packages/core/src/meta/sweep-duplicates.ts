@@ -3,7 +3,7 @@
  *
  * Generalized duplicate and rejection sweep for all entity types.
  *
- * Loops over ENTITY_TYPES from constants.ts, resolves root directories
+ * Loops over ENTITY_TYPES (fixed in lib/constants), resolves root directories
  * via silo-router, then scans each entity directory's .meta/meta.json
  * for two cases:
  *   1. Rejection — a type-specific rejection key is true (e.g. nonMeeting

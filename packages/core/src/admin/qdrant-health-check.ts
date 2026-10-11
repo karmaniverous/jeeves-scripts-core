@@ -22,7 +22,9 @@
  * Exits 0 on healthy or successful restart. Exits non-zero when the
  * restart fails or is denied.
  *
- * Config dependencies: constants().QDRANT_API_URL, constants().QDRANT_SERVICE_NAME from constants.ts.
+ * Config dependencies: `integrations.qdrant.apiUrl` (default: the watcher's
+ * `vectorStore.url`; `QDRANT_API_URL` wins) and `integrations.qdrant.serviceName`
+ * in jeeves-scripts.json, through constants().
  */
 
 import { execSync } from 'node:child_process';

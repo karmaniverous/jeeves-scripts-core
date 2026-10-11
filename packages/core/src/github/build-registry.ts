@@ -107,7 +107,9 @@ function main(): void {
 
   const account = constants().GH_ACCOUNT;
   if (!account) {
-    console.log('[skip] constants().GH_ACCOUNT not configured in constants.ts');
+    console.log(
+      '[skip] integrations.gh.account is not set in jeeves-scripts.json',
+    );
     return;
   }
 

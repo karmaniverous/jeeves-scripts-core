@@ -42,7 +42,7 @@ export function requireAccountDir(handle: string): string {
   const dir = constants().X_ACCOUNTS[handle];
   if (!dir) {
     console.log(
-      `[skip] X account '${handle}' not configured in constants().X_ACCOUNTS (constants.ts)`,
+      `[skip] X account '${handle}' is not in integrations.x.accounts in jeeves-scripts.json`,
     );
     process.exit(0);
   }

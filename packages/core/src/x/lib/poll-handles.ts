@@ -67,7 +67,7 @@ export function resolvePollHandles(
   const skipped: SkippedHandle[] = [];
   for (const handle of candidates) {
     if (!Object.prototype.hasOwnProperty.call(accounts, handle))
-      skipped.push({ handle, reason: 'not configured in X_ACCOUNTS' });
+      skipped.push({ handle, reason: 'not in integrations.x.accounts' });
     else if (!hasOAuth(handle))
       skipped.push({ handle, reason: 'X OAuth2 credentials not configured' });
     else handles.push(handle);

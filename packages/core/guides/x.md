@@ -59,7 +59,7 @@ All entries in core's manifest `jobs/x.json` carry a non-null `prerequisite` (`X
 
 **Handles come from `X_ACCOUNTS`, the one list of the instance's X accounts.** The manifest entries pass no arguments, so as registered:
 
-- each poll script (`poll-posts`, `poll-mentions`, `poll-feed`, `poll-likes`, `poll-bookmarks`) polls every handle in `X_ACCOUNTS`, one after another (`lib/poll-handles.ts`). A handle argument (`node bin/jeeves-scripts.js run <poll job id> <handle>`) narrows a run to that handle. Only a first argument that is not an option is a handle: options (`--count N`, `--queue NAME`) follow the handle or stand alone, so `tsx src/x/poll-posts.ts --count 10` polls every handle. `--queue` replaces the queue name for every handle polled, so give it with a handle.
+- each poll script (`poll-posts`, `poll-mentions`, `poll-feed`, `poll-likes`, `poll-bookmarks`) polls every handle in `integrations.x.accounts`, one after another (`lib/poll-handles.ts`). A handle argument (`node bin/jeeves-scripts.js run <poll job id> <handle>`) narrows a run to that handle. Only a first argument that is not an option is a handle: options (`--count N`, `--queue NAME`) follow the handle or stand alone, so `run x-poll-posts --count 10` polls every handle. `--queue` replaces the queue name for every handle polled, so give it with a handle.
 - a handle is polled only if it is in `X_ACCOUNTS` (otherwise `drain-queues` would never drain its items) and its OAuth file exists; any other handle is logged as `[skip] @<handle>: <reason>`. With `X_ACCOUNTS` empty (the template default) the job logs `[skip]` and exits 0.
 - an API error for one handle is logged and the next handle is still polled. `poll-feed` then fails the run; the queue pollers log the error and exit 0.
 - `drain-queues` iterates over every handle in `X_ACCOUNTS`.
@@ -68,7 +68,7 @@ All entries in core's manifest `jobs/x.json` carry a non-null `prerequisite` (`X
 
 ## Key Dependencies
 
-- `src/x/lib/poll-handles.ts` — which handles a poll run covers (`X_ACCOUNTS`, or the handle argument)
+- `src/x/lib/poll-handles.ts` — which handles a poll run covers (`integrations.x.accounts`, or the handle argument)
 - `src/x/lib/` — X API client wrappers, OAuth token management, polling helpers
-- `lib/constants.ts` — `X_ACCOUNTS`, `X_OAUTH_DIR` from `constants()`
+- `lib/constants.ts` — `constants()`: `X_ACCOUNTS` from `integrations.x.accounts` and `X_OAUTH_DIR` (`{paths.credentialsDir}/oauth`) in `jeeves-scripts.json`
 - `config/integrations.ts` — `integrations.x.accounts`
