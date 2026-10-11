@@ -10,7 +10,7 @@ description: Date formatting utilities and day-of-week computation. Use when for
 Core's date utilities (`lib/dates`: day of week, formatting, relative days, time-zone validation) and how to call them from a shell are in [lib.md](../../guides/lib.md#datests). Run them from the scripts repo, so they use the installed core:
 
 ```bash
-node --input-type=module -e "import { dayOfWeek } from '@karmaniverous/jeeves-scripts-core/lib/dates'; console.log(dayOfWeek('2026-06-01'));"
+node --input-type=module -e "import { dayOfWeek } from '@karmaniverous/jeeves-scripts-core'; console.log(dayOfWeek('2026-06-01'));"
 ```
 
 ## Operator rules

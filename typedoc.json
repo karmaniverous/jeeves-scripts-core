@@ -20,6 +20,7 @@
     "yaml",
     "yml"
   ],
+  "intentionallyNotExported": ["src/lib/constants.ts:derive"],
   "hostedBaseUrl": "https://docs.karmanivero.us/jeeves-scripts-core",
   "navigationLinks": {
     "GitHub": "https://github.com/karmaniverous/jeeves-scripts-core"

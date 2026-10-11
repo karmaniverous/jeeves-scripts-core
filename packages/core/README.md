@@ -98,9 +98,10 @@ See [`guides/config.md`](guides/config.md).
 
 | Import | What it is |
 | --- | --- |
-| `@karmaniverous/jeeves-scripts-core` | The config API (schemas, loader, getters `paths()`, `integrations()`, `pipeline()`, refs, silo resolver and routing, `configCheck`); the task-file dispatcher (`taskFileDispatcher`, `dispatchTaskFile`, `resolveTaskFile`); the OpenClaw config reader (`gatewayToken`, `slackBotToken`, `slackBotTokens`); the worker-slack config schemas and types. |
+| `@karmaniverous/jeeves-scripts-core` | The config API (schemas, loader, getters `paths()`, `integrations()`, `pipeline()`, refs, silo resolver and routing, `configCheck`); `constants()`; `defineJob`; the utilities: the task-file dispatcher (`taskFileDispatcher`, `dispatchTaskFile`, `resolveTaskFile`) with `digestTimeZone` and the date helpers (`withDateContext`, `requireTimeZone`, `dayOfWeek`, `formatDate`, `relativeDays`), `dispatchWithSlack` and the worker-slack config schemas, the readers for other components' config (OpenClaw, jeeves-runner, jeeves-meta, any `jeeves-<name>`), the `gh` helpers, `getTokenMetrics`, and `convertDocxToMd` / `convertPdfToMd`. |
 | `@karmaniverous/jeeves-scripts-core/cli` | `main`, `buildProgram`: the CLI the launcher runs. |
-| `@karmaniverous/jeeves-scripts-core/<domain>/<module>` | Any built module, e.g. `lib/constants`, `lib/worker-slack/run`, `dispatchers/lib/task-file-dispatcher`. |
+
+No other module is exported: instance code imports only these (Decision 7). A core function instance code needs is added to the root export, with docs and tests.
 
 API reference (TypeDoc): <https://docs.karmanivero.us/jeeves-scripts-core>.
 

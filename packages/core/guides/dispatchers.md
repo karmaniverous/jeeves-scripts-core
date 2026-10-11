@@ -86,26 +86,28 @@ export default defineJob({
 Pattern from the template's example `src/dispatchers/social-posts.ts` (instance code, not shipped in core): build task text from `pipeline.refs`:
 
 ```typescript
-import { runScript } from '@karmaniverous/jeeves';
-import { tryGetRef } from '@karmaniverous/jeeves-scripts-core';
-import { dispatchWithSlack } from '@karmaniverous/jeeves-scripts-core/lib/worker-slack/run';
+import {
+  defineJob,
+  dispatchWithSlack,
+  tryGetRef,
+} from '@karmaniverous/jeeves-scripts-core';
 
-runScript('dispatchers/my-dispatcher', async () => {
-  const channel = tryGetRef('slack.myChannel');
-  if (!channel) {
-    console.log(
-      '[skip] Not configured: set pipeline.refs["slack.myChannel"] in jeeves-scripts.json',
+export default defineJob({
+  id: 'acme-generate-summary',
+  domain: 'acme',
+  description: 'Dispatch a worker to write the results summary.',
+  prerequisite: () =>
+    tryGetRef('slack.myChannel') !== undefined ||
+    'set pipeline.refs["slack.myChannel"] in jeeves-scripts.json',
+  run: async () => {
+    const channel = tryGetRef('slack.myChannel') ?? '';
+    const task = 'Do the work, then return a results summary as a Slack post.';
+    await dispatchWithSlack(
+      task,
+      { jobId: 'acme-generate-summary', thinking: 'low' },
+      { posts: [{ target: channel, purpose: 'the results summary' }] },
     );
-    return;
-  }
-
-  const task = 'Do the work, then return a results summary as a Slack post.';
-
-  await dispatchWithSlack(
-    task,
-    { jobId: 'my-job', thinking: 'low' },
-    { posts: [{ target: channel, purpose: 'the results summary' }] },
-  );
+  },
 });
 ```
 
@@ -124,8 +126,11 @@ To read manual overrides or feedback from the same channel, add it to `reads`.
 When a dispatcher needs an authoritative date reference (e.g. daily digests), inject it as a quoted block at the top of the task, so the worker never guesses the date. Use the stakeholder's time zone from instance config, never a hard-coded default: `digestTimeZone()` reads the `digest.timezone` ref (`lib/digest-timezone.ts`). With `taskFileDispatcher`, pass `dateTimeZone`; otherwise `requireTimeZone` (`lib/dates`) throws when the value is missing or not a valid zone, and `withDateContext` prepends the date line:
 
 ```typescript
-import { tryGetRef } from '@karmaniverous/jeeves-scripts-core';
-import { requireTimeZone, withDateContext } from '@karmaniverous/jeeves-scripts-core/lib/dates';
+import {
+  requireTimeZone,
+  tryGetRef,
+  withDateContext,
+} from '@karmaniverous/jeeves-scripts-core';
 
 const tz = requireTimeZone(
   tryGetRef('myDomain.timezone'),

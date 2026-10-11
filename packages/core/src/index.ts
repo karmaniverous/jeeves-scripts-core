@@ -2,18 +2,37 @@
  * `@karmaniverous/jeeves-scripts-core`: shared Jeeves scripts domains, job
  * registry and CLI for `jeeves-scripts` instance repos.
  *
- * The root export is the API instance code builds on (Decision 7): the
- * config API, `defineJob` (Decisions 4, 40), the task-file dispatcher, and
- * the readers for other components' own config (OpenClaw, the runner, any
- * `jeeves-<name>`). Every other built module is reachable as
- * `@karmaniverous/jeeves-scripts-core/<domain>/<module>` until the exports
- * are narrowed (Dev Plan 33 phase 2). The CLI entry point is the separate
- * `@karmaniverous/jeeves-scripts-core/cli` export.
+ * The root export is the only API instance code builds on (Decision 7,
+ * design §3): the config API, `constants()`, `defineJob` (Decisions 4, 40,
+ * 49) and the utilities (the task-file dispatcher and its date helpers,
+ * worker dispatch with job-side Slack I/O, the readers for other
+ * components' own config, the `gh` helpers, token-metrics queries and the
+ * document converters). No other built module is exported; the CLI entry
+ * point is the separate `@karmaniverous/jeeves-scripts-core/cli` export.
  *
  * @packageDocumentation
  */
 
+export { getTokenMetrics } from './admin/token-metrics.js';
+export type {
+  ChannelBucket,
+  Channels,
+  Costs,
+  ModelBucket,
+  Models,
+  Ref,
+  TokenBucket,
+  TokenCategory,
+  Tokens,
+} from './admin/types/token-metrics.js';
 export * from './config/index.js';
+export { convertDocxToMd } from './convert/docx-to-md.js';
+export type { ConvertResult } from './convert/lib/convert-files.js';
+export { convertPdfToMd } from './convert/pdf-to-md.js';
+export {
+  DIGEST_TIMEZONE_REF,
+  digestTimeZone,
+} from './dispatchers/lib/digest-timezone.js';
 export * from './dispatchers/lib/task-file-dispatcher.js';
 export {
   defineJob,
@@ -27,8 +46,18 @@ export {
   type JobRun,
 } from './jobs/define-job.js';
 export * from './lib/component-config.js';
+export { type Constants, constants } from './lib/constants.js';
+export {
+  dayOfWeek,
+  formatDate,
+  relativeDays,
+  requireTimeZone,
+  withDateContext,
+} from './lib/dates.js';
+export { gh, ghApi, ghJson, type GhResult, setupGhConfig } from './lib/gh.js';
 export * from './lib/meta-config.js';
 export * from './lib/openclaw-config.js';
 export * from './lib/runner-config.js';
+export { dispatchWithSlack } from './lib/worker-slack/run.js';
 export * from './lib/worker-slack/worker-slack-config.js';
 export type { WorkerSlackResult } from './lib/worker-slack/worker-slack-job.js';

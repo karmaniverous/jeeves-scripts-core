@@ -26,11 +26,17 @@ export function setupGhConfig(): void {
   process.env.GH_CONFIG_DIR = constants().GH_CONFIG_DIR;
 }
 
+/** The outcome of one `gh` invocation. */
 export interface GhResult {
+  /** Whether `gh` exited 0. */
   ok: boolean;
+  /** Exit status (`null` when the process was killed or failed to start). */
   status: number | null;
+  /** Trimmed stdout. */
   out: string;
+  /** Trimmed stderr. */
   err: string;
+  /** Spawn error message, when `gh` could not be started. */
   error?: string;
 }
 

@@ -1,6 +1,6 @@
 # lib/
 
-Shared infrastructure consumed by every domain: config-derived constants, CLI wrappers (`gh`, `gog`), the gateway client, worker dispatch and job-side Slack I/O, and the entity store. Configuration itself (schema, loader, getters, refs, silos, IMAP secrets) is in [config.md](./config.md). Every module is importable as `@karmaniverous/jeeves-scripts-core/lib/<module>`.
+Shared infrastructure consumed by every domain: config-derived constants, CLI wrappers (`gh`, `gog`), the gateway client, worker dispatch and job-side Slack I/O, and the entity store. Configuration itself (schema, loader, getters, refs, silos, IMAP secrets) is in [config.md](./config.md). These modules are internal; the ones instance code may use are on the root export (`constants`, the date helpers, `dispatchWithSlack`, the component config readers, the `gh` helpers; see the package README).
 
 ## Modules
 
@@ -33,7 +33,7 @@ Thin wrappers around date-fns. No config dependencies.
 From a shell in an instance repo:
 
 ```bash
-node --input-type=module -e "import { dayOfWeek } from '@karmaniverous/jeeves-scripts-core/lib/dates'; console.log(dayOfWeek('2026-06-01'));"
+node --input-type=module -e "import { dayOfWeek } from '@karmaniverous/jeeves-scripts-core'; console.log(dayOfWeek('2026-06-01'));"
 ```
 
 ### email.ts

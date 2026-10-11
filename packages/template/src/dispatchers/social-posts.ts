@@ -28,10 +28,12 @@
 import path from 'node:path';
 
 import { runScript } from '@karmaniverous/jeeves';
-import { tryGetRef } from '@karmaniverous/jeeves-scripts-core';
-import { constants } from '@karmaniverous/jeeves-scripts-core/lib/constants';
-import { dispatchWithSlack } from '@karmaniverous/jeeves-scripts-core/lib/worker-slack/run';
-import type { WorkerSlackConfig } from '@karmaniverous/jeeves-scripts-core/lib/worker-slack/worker-slack-config';
+import {
+  constants,
+  dispatchWithSlack,
+  tryGetRef,
+  type WorkerSlackConfig,
+} from '@karmaniverous/jeeves-scripts-core';
 
 const JOB_ID = 'generate-social-posts';
 

@@ -1,25 +1,14 @@
 /**
  * @module convert/docx-to-md
  *
- * Converts DOCX files to Markdown with YAML frontmatter.
- *
- * CLI entry point invoked with --paths. Scans the given directories for
- * .docx files, extracts HTML via mammoth, converts to Markdown, and
- * writes .docx.md alongside each source file. Skips files whose output
- * is already up to date. No dependency on project constants.
+ * `convertDocxToMd(dirs)`, a public utility (Decision 49): converts every
+ * `.docx` file under the given directories to `<file>.docx.md` with YAML
+ * frontmatter (HTML extracted with mammoth, then reduced to Markdown),
+ * skipping files whose output is up to date. Reads and writes the
+ * filesystem; logs one line per file. No dependency on instance config.
  */
 
-import { readFileSync } from 'node:fs';
-
-import { getArg } from '@karmaniverous/jeeves';
-import mammoth from 'mammoth';
-
-import { defineJob } from '../jobs/define-job.js';
-import {
-  findFiles,
-  needsConversion,
-  writeMdFile,
-} from './lib/convert-utils.js';
+import { convertFiles, type ConvertResult } from './lib/convert-files.js';
 
 /** Convert simple HTML (from mammoth) to Markdown. */
 function htmlToMarkdown(html: string): string {
@@ -70,57 +59,26 @@ function htmlToMarkdown(html: string): string {
   return md.trim();
 }
 
-async function main(): Promise<void> {
-  const argv = process.argv.slice(2);
-  const pathsRaw = getArg(argv, '--paths', '');
-  if (!pathsRaw) throw new Error('--paths argument is required');
-
-  const dirs = pathsRaw.split(',').map((p) => p.trim());
-  const files = findFiles(dirs, '.docx');
-
-  let converted = 0;
-  let skipped = 0;
-  let failed = 0;
-
-  for (const filePath of files) {
-    const mdPath = `${filePath}.md`;
-
-    if (!needsConversion(filePath, mdPath)) {
-      console.log(`SKIP ${filePath} (up to date)`);
-      skipped++;
-      continue;
-    }
-
-    try {
-      console.log(`CONVERT ${filePath}`);
-      const buffer = readFileSync(filePath);
-      const result = await mammoth.convertToHtml({ buffer });
-      const markdown = htmlToMarkdown(result.value);
-
-      writeMdFile(
-        mdPath,
-        {
-          source: filePath,
-          converted: new Date().toISOString(),
-        },
-        markdown,
-      );
-      converted++;
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      console.log(`FAIL ${filePath}: ${msg}`);
-      failed++;
-    }
-  }
-
-  console.log(
-    `Converted: ${String(converted)}, Skipped: ${String(skipped)}, Failed: ${String(failed)}`,
-  );
+/**
+ * Convert every `.docx` file under `dirs` to `<file>.docx.md`.
+ *
+ * @param dirs - Directories to scan recursively (missing ones are skipped).
+ * @returns How many files were converted, skipped (up to date) and failed.
+ *
+ * @example
+ * ```ts
+ * import { convertDocxToMd } from '@karmaniverous/jeeves-scripts-core';
+ *
+ * const { converted, failed } = await convertDocxToMd(['/base/content/docs']);
+ * ```
+ */
+export function convertDocxToMd(
+  dirs: readonly string[],
+): Promise<ConvertResult> {
+  return convertFiles(dirs, '.docx', async (buffer) => {
+    // Loaded on first use, so importing the root export stays cheap.
+    const { default: mammoth } = await import('mammoth');
+    const { value } = await mammoth.convertToHtml({ buffer });
+    return { content: htmlToMarkdown(value) };
+  });
 }
-
-export default defineJob({
-  id: 'convert-docx-to-md',
-  domain: 'convert',
-  name: 'convert/docx-to-md',
-  run: () => main(),
-});

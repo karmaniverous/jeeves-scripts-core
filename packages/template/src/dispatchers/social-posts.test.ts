@@ -19,11 +19,7 @@ vi.mock('@karmaniverous/jeeves', () => ({
 }));
 vi.mock('@karmaniverous/jeeves-scripts-core', () => ({
   tryGetRef: (key: string) => mocks.refs[key],
-}));
-vi.mock('@karmaniverous/jeeves-scripts-core/lib/constants', () => ({
   constants: () => ({ CONTENT_DIR: '/content' }),
-}));
-vi.mock('@karmaniverous/jeeves-scripts-core/lib/worker-slack/run', () => ({
   dispatchWithSlack: mocks.dispatchWithSlack,
 }));
 

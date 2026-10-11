@@ -35,13 +35,7 @@
     "./guides/*": "./guides/*",
     "./schema/*": "./schema/*",
     "./config/*": "./config/*",
-    "./skills/*": "./skills/*",
-    "./*": {
-      "import": {
-        "types": "./dist/*.d.ts",
-        "default": "./dist/*.js"
-      }
-    }
+    "./skills/*": "./skills/*"
   },
   "types": "dist/index.d.ts",
   "bin": {
