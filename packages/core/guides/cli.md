@@ -49,7 +49,7 @@ jeeves-scripts --dir ./new-instance init        # no repo yet
 
 Domain work is never a CLI verb (Decision 49): it is a runnable, run with `run <id>`, like the last two rows. The CLI's own verbs are `run`, `list`, `config check`, `doctor`, `init` and `skills`.
 
-`main()` resolves to the exit code and never calls `process.exit` itself.
+`main()` resolves to the exit code and never calls `process.exit` itself. A verb that fails (an unknown id, a plugin that fails to load, an invalid manifest or delta) prints one line, `<verb>: FAILED: <reason>`, to stderr, with no stack trace, and resolves to 1. Commander's own parse errors (an unknown verb or option, a missing argument) print Commander's message and exit 1 through Commander.
 
 ## How `run` resolves a runnable
 

@@ -35,6 +35,20 @@ export interface CliOptions {
 export const resolveRoot = (root: string | URL): string =>
   typeof root === 'string' ? root : fileURLToPath(root);
 
+/** An error as one line: its message (a Zod error's issues joined), no stack. */
+export const errorLine = (e: unknown): string =>
+  describeError(e)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' ');
+
+/** Print `<verb>: FAILED: <error>` to stderr and set the exit code to 1. */
+const fail = (verb: string, e: unknown): void => {
+  console.error(`${verb}: FAILED: ${errorLine(e)}`);
+  process.exitCode = 1;
+};
+
 const buildConfigCommand = (root: string) => {
   const config = new Command('config').description(
     'Validate and manage jeeves-scripts.json.',
@@ -74,8 +88,12 @@ const buildRunCommand = (root: string) =>
     .allowUnknownOption()
     .passThroughOptions()
     .action(async (jobId, args) => {
-      const code = await runJob(root, jobId, args);
-      if (code !== 0) process.exitCode = code;
+      try {
+        const code = await runJob(root, jobId, args);
+        if (code !== 0) process.exitCode = code;
+      } catch (e) {
+        fail('run', e);
+      }
     });
 
 const buildListCommand = (root: string) =>
@@ -86,7 +104,13 @@ const buildListCommand = (root: string) =>
     .argument('[glob]', 'shell-style glob matched against the id', '*')
     .option('--json', 'print JSON, adding domain and the effective manifest')
     .action(async (glob, options) => {
-      const entries = await listRunnables(root, glob);
+      let entries;
+      try {
+        entries = await listRunnables(root, glob);
+      } catch (e) {
+        fail('list', e);
+        return;
+      }
       if (options.json) console.log(JSON.stringify(entries, null, 2));
       else for (const line of formatList(entries)) console.log(line);
     });
@@ -115,8 +139,7 @@ const buildInitCommand = (root: string) =>
         for (const line of formatInit(root, initRepo(root, options)))
           console.log(line);
       } catch (e) {
-        console.error(`init: FAILED: ${describeError(e)}`);
-        process.exitCode = 1;
+        fail('init', e);
         return;
       }
       if (await openclawPresent()) {
@@ -176,12 +199,21 @@ export const buildProgram = (options: CliOptions) => {
 
 /**
  * CLI entry point. Parses `argv` (default `process.argv`) and resolves to
- * the exit code; it never calls `process.exit` itself.
+ * the exit code: a verb's failure (an unknown id, a registration, manifest
+ * or delta error) is one `<verb>: FAILED: ...` line on stderr and exit code
+ * 1, never a rejection or a stack trace. It never calls `process.exit`
+ * itself; Commander's own parse errors (an unknown verb or option, a
+ * missing argument) print Commander's message and exit 1 through
+ * Commander.
  */
 export const main = async (
   options: CliOptions & { argv?: readonly string[] },
 ): Promise<number> => {
   const program = buildProgram(options);
-  await program.parseAsync(options.argv ?? process.argv);
+  try {
+    await program.parseAsync(options.argv ?? process.argv);
+  } catch (e) {
+    fail('jeeves-scripts', e);
+  }
   return typeof process.exitCode === 'number' ? process.exitCode : 0;
 };

@@ -1,11 +1,12 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
-import { buildProgram, main, resolveRoot } from './index.js';
+import { buildProgram, errorLine, main, resolveRoot } from './index.js';
 import type * as PackageInfo from './package-info.js';
 
 // These tests stub fs.readFileSync, which the --version option would read.
@@ -88,6 +89,88 @@ describe('jeeves-scripts CLI', () => {
     });
 
     expect(code).toBe(0);
+  });
+
+  describe('handled failures resolve to 1 with one stderr line', () => {
+    let dir: string;
+
+    const write = (file: string, value: unknown) => {
+      fs.mkdirSync(path.dirname(path.join(dir, file)), { recursive: true });
+      fs.writeFileSync(path.join(dir, file), JSON.stringify(value), 'utf8');
+    };
+
+    const runMain = async (...args: string[]) => {
+      const errors: string[] = [];
+      vi.spyOn(console, 'error').mockImplementation((line: unknown) => {
+        errors.push(String(line));
+      });
+      vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      const code = await main({
+        root: dir,
+        argv: ['node', 'jeeves-scripts', ...args],
+      });
+      return { code, errors };
+    };
+
+    beforeEach(() => {
+      dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jsc-main-'));
+      write('jeeves-scripts.json', {
+        instance: { name: 'test', baseDir: '/base' },
+      });
+    });
+
+    afterEach(() => {
+      fs.rmSync(dir, { recursive: true, force: true });
+    });
+
+    const expectOneLine = (errors: string[], prefix: string) => {
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatch(new RegExp(`^${prefix}: FAILED: `));
+      expect(errors[0]).not.toContain('\n');
+      expect(errors[0]).not.toMatch(/\bat .*[\\/]src[\\/]/);
+    };
+
+    it('run with an unknown id', async () => {
+      const { code, errors } = await runMain('run', 'nope-nothing');
+      expect(code).toBe(1);
+      expectOneLine(errors, 'run');
+      expect(errors[0]).toContain('Unknown runnable "nope-nothing"');
+    });
+
+    it('run with an invalid plugin', async () => {
+      fs.writeFileSync(
+        path.join(dir, 'jeeves-scripts.plugin.ts'),
+        'export default 42;\n',
+        'utf8',
+      );
+      const { code, errors } = await runMain('run', 'email-poll');
+      expect(code).toBe(1);
+      expectOneLine(errors, 'run');
+      expect(errors[0]).toContain('must default-export definePlugin');
+    });
+
+    it('list with an invalid instance manifest', async () => {
+      write('jobs/local.json', { 'local-thing': { name: 'x' } });
+      const { code, errors } = await runMain('list');
+      expect(code).toBe(1);
+      expectOneLine(errors, 'list');
+    });
+
+    it('list with a delta naming an unknown id', async () => {
+      write('jeeves-scripts.json', {
+        instance: { name: 'test', baseDir: '/base' },
+        jobs: { 'nope-nothing': { enabled: false } },
+      });
+      const { code, errors } = await runMain('list');
+      expect(code).toBe(1);
+      expectOneLine(errors, 'list');
+      expect(errors[0]).toContain('nope-nothing');
+    });
+  });
+
+  it('errorLine joins a multi-line message and drops the stack', () => {
+    expect(errorLine(new Error('first\n  second'))).toBe('first second');
+    expect(errorLine('plain')).toBe('plain');
   });
 
   it('has no domain command groups (Decision 49)', () => {
