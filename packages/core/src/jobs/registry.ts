@@ -29,8 +29,8 @@ export interface RegistryEntry {
 
 /**
  * Core's domains: its top-level domain source folders (R45). An instance
- * domain never reuses one. `cli`, `config`, `jobs` and `lib` are
- * framework folders, not domains.
+ * domain never reuses one. `cli`, `config`, `jobs`, `lib` and `presets`
+ * are framework folders, not domains.
  */
 export const coreDomains: readonly string[] = [
   'admin',

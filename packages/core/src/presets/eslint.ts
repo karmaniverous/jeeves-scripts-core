@@ -11,9 +11,11 @@
  * export default jeevesScripts(import.meta.dirname);
  * ```
  *
- * The tools it loads (`eslint`, `@eslint/js`, `typescript-eslint`,
- * `prettier`, `eslint-plugin-prettier`, `eslint-config-prettier`,
- * `eslint-plugin-simple-import-sort`) are the instance's devDependencies.
+ * Authored in TypeScript and shipped compiled, with generated types, as
+ * `dist/presets/eslint.js` (Decision 52). The tools it loads (`eslint`,
+ * `@eslint/js`, `typescript-eslint`, `prettier`, `eslint-plugin-prettier`,
+ * `eslint-config-prettier`, `eslint-plugin-simple-import-sort`) are the
+ * instance's devDependencies (Decision 53).
  *
  * @packageDocumentation
  */
@@ -21,6 +23,7 @@
 import process from 'node:process';
 
 import eslint from '@eslint/js';
+import type { Linter } from 'eslint';
 import { defineConfig } from 'eslint/config';
 import prettierConfig from 'eslint-config-prettier';
 import prettierPlugin from 'eslint-plugin-prettier';
@@ -43,8 +46,11 @@ const prettierOptions = {
  * @param rootDir - The instance repo root (`import.meta.dirname`
  *   in its `eslint.config.ts`), where its `tsconfig.json` is. Default:
  *   the working directory.
+ * @returns The flat config array for the instance's `eslint.config.ts`.
  */
-export default function jeevesScriptsEslint(rootDir = process.cwd()) {
+export default function jeevesScriptsEslint(
+  rootDir: string = process.cwd(),
+): Linter.Config[] {
   return defineConfig([
     { ignores: ['**/coverage/**', '**/dist/**', '**/node_modules/**'] },
     eslint.configs.recommended,

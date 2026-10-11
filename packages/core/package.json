@@ -37,6 +37,10 @@
     "./schema/*": "./schema/*",
     "./config/*": "./config/*",
     "./skills/*": "./skills/*",
+    "./presets/*.js": {
+      "types": "./dist/presets/*.d.ts",
+      "default": "./dist/presets/*.js"
+    },
     "./presets/*": "./presets/*"
   },
   "types": "dist/index.d.ts",

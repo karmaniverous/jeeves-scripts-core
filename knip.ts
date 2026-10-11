@@ -25,7 +25,6 @@ const config: KnipConfig = {
         '!src/**/*.test.ts',
         '!src/**/*.test-helper.ts',
         '!src/**/*.fixtures.ts',
-        'presets/*.js',
       ],
       project: ['**/*.{js,ts}', '!template/**'],
     },

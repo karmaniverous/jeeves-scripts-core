@@ -2,8 +2,9 @@
  * @module rollup.config
  * Rollup configuration for `@karmaniverous/jeeves-scripts-core`.
  * Entry points: `index` (library), `cli` (the `./cli` export the instance
- * launcher imports) and `bin` (the package `bin`, given a shebang banner);
- * ESM output with declarations.
+ * launcher imports), `bin` (the package `bin`, given a shebang banner) and
+ * the instance presets `presets/eslint` and `presets/vitest` (the
+ * `./presets/*.js` export, Decision 52); ESM output with declarations.
  *
  * Builds against `tsconfig.build.json`, a build-only project scoped to
  * `src/**` with `rootDir` set, instead of the repo-wide `tsconfig.json`
@@ -50,9 +51,25 @@ const cacheDir = fileURLToPath(
   ),
 );
 
+/**
+ * The tools the instance presets (`src/presets/`) import. They are the
+ * instance's devDependencies, not core's (Decision 53), so the build leaves
+ * them external instead of bundling them.
+ */
+const presetToolExternals = [
+  '@eslint/js',
+  'eslint',
+  'eslint-config-prettier',
+  'eslint-plugin-prettier',
+  'eslint-plugin-simple-import-sort',
+  'typescript-eslint',
+  'vitest',
+];
+
 const dependencyExternals = [
   ...Object.keys(pkg.dependencies ?? {}),
   ...Object.keys(pkg.peerDependencies ?? {}),
+  ...presetToolExternals,
 ];
 
 /**

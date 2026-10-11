@@ -37,7 +37,7 @@ describe('core job registry', () => {
   });
 
   it('names every top-level domain folder as a core domain, and only those', () => {
-    const framework = new Set(['cli', 'config', 'jobs', 'lib']);
+    const framework = new Set(['cli', 'config', 'jobs', 'lib', 'presets']);
     const folders = fs
       .readdirSync(srcDir, { withFileTypes: true })
       .filter((d) => d.isDirectory() && !framework.has(d.name))

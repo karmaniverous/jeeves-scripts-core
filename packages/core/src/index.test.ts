@@ -104,6 +104,7 @@ describe('package exports map', () => {
       './guides/*',
       './package.json',
       './presets/*',
+      './presets/*.js',
       './schema/*',
       './skills/*',
     ]);

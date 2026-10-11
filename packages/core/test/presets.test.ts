@@ -1,7 +1,8 @@
 /**
- * Instance presets guard (design §2, §7): the eslint, tsconfig and vitest
- * presets ship in the package, resolve through the `./presets/*` export
- * from outside the package, and the template extends them in one line.
+ * Instance presets guard (design §2, §7, Decision 52): the eslint and vitest
+ * presets are TypeScript source compiled into `dist/presets/`, the tsconfig
+ * preset ships as JSON, all three resolve through the `./presets/*` exports,
+ * and the template extends them in one line.
  */
 
 import fs from 'node:fs';
@@ -12,8 +13,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import eslintPreset from '../presets/eslint.js';
-import vitestPreset from '../presets/vitest.js';
+import eslintPreset from '../src/presets/eslint.js';
+import vitestPreset from '../src/presets/vitest.js';
 
 const pkgRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -22,20 +23,41 @@ const pkgRoot = path.resolve(
 const templateDir = path.resolve(pkgRoot, '..', 'template');
 const require = createRequire(import.meta.url);
 
-const PRESETS = ['eslint.js', 'tsconfig.base.json', 'vitest.js'];
+const pkg = z
+  .object({
+    files: z.array(z.string()),
+    exports: z.record(z.string(), z.unknown()),
+  })
+  .parse(
+    JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8')),
+  );
 
 describe('instance presets', () => {
-  it('ship in the package and resolve through ./presets/*', () => {
-    const files = z
-      .object({ files: z.array(z.string()) })
-      .parse(
-        JSON.parse(fs.readFileSync(path.join(pkgRoot, 'package.json'), 'utf8')),
-      ).files;
-    expect(files).toContain('presets');
-    for (const preset of PRESETS)
+  it('compiled presets: ./presets/*.js maps to dist with generated types', () => {
+    expect(pkg.files).toContain('dist');
+    expect(pkg.exports['./presets/*.js']).toEqual({
+      types: './dist/presets/*.d.ts',
+      default: './dist/presets/*.js',
+    });
+    for (const preset of ['eslint', 'vitest']) {
       expect(
-        require.resolve(`@karmaniverous/jeeves-scripts-core/presets/${preset}`),
-      ).toBe(path.join(pkgRoot, 'presets', preset));
+        fs.existsSync(path.join(pkgRoot, 'src/presets', `${preset}.ts`)),
+      ).toBe(true);
+      expect(fs.existsSync(path.join(pkgRoot, 'presets', `${preset}.js`))).toBe(
+        false,
+      );
+      expect(
+        fs.existsSync(path.join(pkgRoot, 'presets', `${preset}.d.ts`)),
+      ).toBe(false);
+    }
+  });
+
+  it('the tsconfig preset ships as JSON and resolves through ./presets/*', () => {
+    expect(pkg.files).toContain('presets');
+    expect(pkg.exports['./presets/*']).toBe('./presets/*');
+    expect(
+      require.resolve('@karmaniverous/jeeves-scripts-core/presets/tsconfig.base.json'),
+    ).toBe(path.join(pkgRoot, 'presets', 'tsconfig.base.json'));
   });
 
   it('eslint preset: strict type-aware config rooted at the instance', () => {
