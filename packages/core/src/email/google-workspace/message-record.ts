@@ -9,6 +9,7 @@
  * Called by email/google-workspace/download.ts.
  */
 
+import type { People } from '../../config/people-schema.js';
 import {
   extractAttachments,
   extractTextFromPayload,
@@ -16,6 +17,7 @@ import {
   type GmailPayloadPart,
   headerValue,
 } from '../../lib/email.js';
+import { emailPeopleFields } from '../../lib/people.js';
 
 type MessagePayload = GmailPayloadPart & { headers?: GmailHeader[] };
 
@@ -50,25 +52,36 @@ export interface MessageRecord {
   attachmentCount: number;
 }
 
-/** Build the on-disk record for one downloaded message. */
+/**
+ * Build the on-disk record for one downloaded message. Listed senders and
+ * recipients are named through the people registry (`fromPerson`,
+ * `people`), as in IMAP message files and Gmail event-log entries.
+ *
+ * @param people - People registry; defaults to the instance's.
+ */
 export function messageRecord(
   ids: { account: string; threadId: string; messageId: string },
   message: Record<string, unknown>,
   downloadedAt: string,
+  people?: People,
 ): MessageRecord {
   const payload = payloadOf(message);
   const hdrs = payload?.headers ?? [];
   const body = extractTextFromPayload(payload);
   const atts = extractAttachments(payload);
+  const parties = {
+    from: headerValue(hdrs, 'From'),
+    to: headerValue(hdrs, 'To'),
+    cc: headerValue(hdrs, 'Cc'),
+  };
   return {
     record: {
       messageId: ids.messageId,
       threadId: ids.threadId,
       account: ids.account,
       subject: headerValue(hdrs, 'Subject'),
-      from: headerValue(hdrs, 'From'),
-      to: headerValue(hdrs, 'To'),
-      cc: headerValue(hdrs, 'Cc'),
+      ...parties,
+      ...emailPeopleFields(parties, people),
       date: headerValue(hdrs, 'Date'),
       internalDateMs: message.internalDate
         ? Number(message.internalDate)

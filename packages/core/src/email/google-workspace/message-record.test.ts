@@ -56,6 +56,30 @@ describe('messageRecord', () => {
     });
   });
 
+  it('names listed senders and recipients through the people registry', () => {
+    const people = {
+      'a-person': { name: 'A Person', emails: ['a@example.com'] },
+      'cee-person': { name: 'Cee Person', emails: ['C@Example.com'] },
+    };
+    const { record } = messageRecord(IDS, message, AT, people);
+    expect(record).toMatchObject({
+      from: 'a@example.com',
+      fromPerson: { id: 'a-person', name: 'A Person' },
+      people: [
+        { id: 'a-person', name: 'A Person' },
+        { id: 'cee-person', name: 'Cee Person' },
+      ],
+    });
+  });
+
+  it('adds no person fields when nobody is listed', () => {
+    const { record } = messageRecord(IDS, message, AT, {
+      other: { name: 'Other', emails: ['other@example.com'] },
+    });
+    expect(record).not.toHaveProperty('fromPerson');
+    expect(record).not.toHaveProperty('people');
+  });
+
   it('tolerates a message without payload, date or labels', () => {
     const r = messageRecord(IDS, { id: 'm1' }, AT);
     expect(r.attachmentCount).toBe(0);
