@@ -135,8 +135,8 @@ export default defineJob({
     "Publish the queued posts, replies and quotes in an X account's queue folder.",
   name: 'x/post',
   run: () => {
-    // Checked in this order before the job registry too: handle argument,
-    // configured account (both exit 0 with [skip]), then OAuth file.
+    // Checked in this order: handle argument, configured account (both
+    // exit 0 with [skip]), then OAuth file.
     const handle = requireXHandle('post.ts');
     const dirs = postDirs(handle);
     if (!fs.existsSync(getOAuthPath(handle))) {

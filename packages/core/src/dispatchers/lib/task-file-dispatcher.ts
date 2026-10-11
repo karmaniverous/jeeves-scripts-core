@@ -21,7 +21,6 @@
 
 import fs from 'node:fs';
 
-import { runScript } from '@karmaniverous/jeeves';
 import type { DispatchOptions } from '@karmaniverous/jeeves-runner';
 import { runDispatcher } from '@karmaniverous/jeeves-runner';
 
@@ -37,7 +36,7 @@ export type Lazy<T> = T | (() => T);
 
 /** Options for {@link taskFileDispatcher} and {@link dispatchTaskFile}. */
 export interface TaskFileDispatcherOptions extends DispatchOptions {
-  /** Script name for the `runScript` crash handler, e.g. `acme/daily-briefing`. */
+  /** Name for the `[skip]` line, e.g. `acme/daily-briefing`. */
   scriptName: string;
   /** Task file path relative to the silo, e.g. `briefing/TASK.md`. */
   taskFile: string;
@@ -127,11 +126,25 @@ export const dispatchTaskFile = async (
 };
 
 /**
- * Run {@link dispatchTaskFile} as a script: `runScript` logs, handles
- * crashes and sets the exit code.
+ * A runnable's `run` that dispatches the task file: {@link dispatchTaskFile}
+ * with these options. Pass it to `defineJob`, which runs it under the
+ * crash handler (Decision 57); nothing runs until the job does.
+ *
+ * @example
+ * ```ts
+ * export default defineJob({
+ *   id: 'acme-daily-briefing',
+ *   domain: 'acme',
+ *   run: taskFileDispatcher({
+ *     scriptName: 'acme/daily-briefing',
+ *     jobId: 'acme-daily-briefing',
+ *     taskFile: 'tasks/daily-briefing.md',
+ *   }),
+ * });
+ * ```
  */
-export function taskFileDispatcher(options: TaskFileDispatcherOptions): void {
-  runScript(options.scriptName, async () => {
+export const taskFileDispatcher =
+  (options: TaskFileDispatcherOptions): (() => Promise<void>) =>
+  async () => {
     await dispatchTaskFile(options);
-  });
-}
+  };

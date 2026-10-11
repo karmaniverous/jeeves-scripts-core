@@ -37,7 +37,7 @@ describe('admin-sweep-orphaned-tmp', () => {
   it('is the admin runnable with its crash-log label', () => {
     expect(job.id).toBe('admin-sweep-orphaned-tmp');
     expect(job.domain).toBe('admin');
-    expect(job.name).toBe('core/sweep-orphaned-tmp');
+    expect(job.name).toBe('admin/sweep-orphaned-tmp');
   });
 
   it('sweeps the content and scripts directories by default', () => {

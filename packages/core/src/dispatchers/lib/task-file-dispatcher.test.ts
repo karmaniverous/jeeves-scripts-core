@@ -13,7 +13,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONFIG_PATH_ENV, resetConfig } from '../../config/loader.js';
 import { UnknownSiloError } from '../../config/silo-router.js';
 import type { TaskFileDispatcherDeps } from './task-file-dispatcher.js';
-import { dispatchTaskFile, resolveTaskFile } from './task-file-dispatcher.js';
+import {
+  dispatchTaskFile,
+  resolveTaskFile,
+  taskFileDispatcher,
+} from './task-file-dispatcher.js';
 
 let dir: string;
 let savedEnv: string | undefined;
@@ -214,5 +218,21 @@ describe('dispatchTaskFile', () => {
         deps,
       ),
     ).rejects.toThrow('bad posts');
+  });
+});
+
+describe('taskFileDispatcher', () => {
+  it('returns a run function and runs nothing until it is called', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const run = taskFileDispatcher({
+      scriptName: 'acme/digest',
+      jobId: 'acme-digest',
+      taskFile: 'digest/TASK.md',
+    });
+    expect(log).not.toHaveBeenCalled();
+    await expect(run()).resolves.toBeUndefined();
+    expect(log).toHaveBeenCalledWith(
+      expect.stringMatching(/^\[skip\] acme\/digest: no task file at /),
+    );
   });
 });

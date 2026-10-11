@@ -136,6 +136,13 @@ describe('deriveIntegrations', () => {
     expect(result.jira.boardId).toBe(7);
   });
 
+  it('rejects a JIRA_BOARD_ID that is not a whole number, naming it', () => {
+    vi.stubEnv('JIRA_BOARD_ID', 'six');
+    expect(() => deriveIntegrations(baseConfig())).toThrow(
+      'JIRA_BOARD_ID must be a Jira board id (a whole number), got "six"',
+    );
+  });
+
   it('derives jira.apiTokenPath and linear.configPath from credentialsDir', () => {
     const result = deriveIntegrations(baseConfig());
     expect(result.jira.apiTokenPath).toBe(

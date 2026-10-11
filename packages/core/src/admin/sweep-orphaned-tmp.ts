@@ -29,7 +29,7 @@ export function sweepTargets(): string[] {
 export default defineJob({
   id: JOB_ID,
   domain: 'admin',
-  name: 'core/sweep-orphaned-tmp',
+  name: 'admin/sweep-orphaned-tmp',
   run: () => {
     sweepDirs(sweepTargets(), Date.now());
   },

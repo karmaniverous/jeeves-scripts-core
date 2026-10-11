@@ -52,7 +52,6 @@ export const coreDomains: readonly string[] = [
   'x',
 ];
 
-/** Every core runnable. */
 /** Every core runnable: the scheduled ones, then the on-demand ones. */
 export const coreJobs: readonly RegistryEntry[] = [
   ...scheduledJobs,

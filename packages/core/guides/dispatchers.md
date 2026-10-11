@@ -50,7 +50,7 @@ await dispatchWithSlack(
 
 ### Task-file dispatcher (reads a TASK.md file)
 
-Use `dispatchTaskFile` inside a runnable (or `taskFileDispatcher`, the same wrapped in its own `runScript`), both exported from `@karmaniverous/jeeves-scripts-core`. It reads `<silo>/<taskFile>` (`siloPath`, Decision 28; `silo` omitted = the default silo), `[skip]`s with exit 0 when the file is missing, optionally prefixes the date, and dispatches through `dispatchWithSlack` (with `slack`) or jeeves-runner's `runDispatcher` and core's `spawn-worker` (without). `jobs.<jobId>.silo` / `.taskFile` in `jeeves-scripts.json` override the values in code, so an instance can move a TASK without code.
+Use `dispatchTaskFile` inside a runnable, or pass `taskFileDispatcher(options)` (a `run` function that calls it) to `defineJob`, both exported from `@karmaniverous/jeeves-scripts-core`. It reads `<silo>/<taskFile>` (`siloPath`, Decision 28; `silo` omitted = the default silo), `[skip]`s with exit 0 when the file is missing, optionally prefixes the date, and dispatches through `dispatchWithSlack` (with `slack`) or jeeves-runner's `runDispatcher` and core's `spawn-worker` (without). `jobs.<jobId>.silo` / `.taskFile` in `jeeves-scripts.json` override the values in code, so an instance can move a TASK without code.
 
 ```typescript
 import {

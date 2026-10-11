@@ -42,6 +42,19 @@ export type ResolvedIntegrations = {
     Pick<IntegrationsConfig['jira'], 'boardId'>;
 };
 
+/**
+ * `JIRA_BOARD_ID` as a board id.
+ *
+ * @throws When it is not a whole number, naming the variable and the value.
+ */
+const envBoardId = (value: string): number => {
+  if (!/^\d+$/.test(value.trim()))
+    throw new Error(
+      `JIRA_BOARD_ID must be a Jira board id (a whole number), got "${value}"`,
+    );
+  return Number(value);
+};
+
 /** The parts of the watcher's config read here. */
 const watcherConfigSchema = z.looseObject({
   vectorStore: z.looseObject({ url: z.string().min(1).optional() }).optional(),
@@ -97,7 +110,7 @@ export const deriveIntegrations = (config: Config): ResolvedIntegrations => {
         i.jira.apiTokenPath ??
         path.join(resolvedPaths.credentialsDir, 'atlassian/acli-token.txt'),
       boardId: process.env.JIRA_BOARD_ID
-        ? Number(process.env.JIRA_BOARD_ID)
+        ? envBoardId(process.env.JIRA_BOARD_ID)
         : i.jira.boardId,
       fieldsFilename: i.jira.fieldsFilename ?? '_fields.json',
       maxHistory: i.jira.maxHistory ?? 50,
