@@ -13,6 +13,7 @@ import {
 } from './fathom-share-fetch.js';
 import { checkHasTranscript, writeMeetingMeta } from './meeting-schema.js';
 import { getMeetingsDirs } from './meetings-dirs.js';
+import { meetingPackages } from './meetings-dirs.js';
 
 // ── Constants ───────────────────────────────────────────────────────
 
@@ -84,47 +85,35 @@ export function findShareMeetingsNeedingFetch(
 ): ShareCandidate[] {
   const candidates: ShareCandidate[] = [];
 
-  for (const meetingsDir of meetingsDirs) {
-    if (!fs.existsSync(meetingsDir)) continue;
+  for (const { meetingId, meetingPath: meetingDir } of meetingPackages(
+    meetingsDirs,
+  )) {
+    if (meetingId.startsWith('.')) continue;
+    const metaPath = path.join(meetingDir, 'meeting.json');
 
-    let entries: fs.Dirent[];
+    let meta: Record<string, unknown>;
     try {
-      entries = fs.readdirSync(meetingsDir, { withFileTypes: true });
+      meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')) as Record<
+        string,
+        unknown
+      >;
     } catch {
       continue;
     }
 
-    for (const entry of entries) {
-      if (!entry.isDirectory() || entry.name.startsWith('.')) continue;
+    if (meta.fathomKind !== 'share') continue;
+    if (checkHasTranscript(meetingDir) && meta.hasTranscript === true) continue;
 
-      const meetingDir = path.join(meetingsDir, entry.name);
-      const metaPath = path.join(meetingDir, 'meeting.json');
+    const fathomUrl = readFathomUrl(meetingDir);
+    if (!fathomUrl) continue;
 
-      let meta: Record<string, unknown>;
-      try {
-        meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')) as Record<
-          string,
-          unknown
-        >;
-      } catch {
-        continue;
-      }
+    if (isInCooldown(meta, now)) continue;
 
-      if (meta.fathomKind !== 'share') continue;
-      if (checkHasTranscript(meetingDir) && meta.hasTranscript === true)
-        continue;
-
-      const fathomUrl = readFathomUrl(meetingDir);
-      if (!fathomUrl) continue;
-
-      if (isInCooldown(meta, now)) continue;
-
-      candidates.push({
-        meetingId: entry.name,
-        meetingDir,
-        fathomUrl,
-      });
-    }
+    candidates.push({
+      meetingId: meetingId,
+      meetingDir,
+      fathomUrl,
+    });
   }
 
   return candidates;

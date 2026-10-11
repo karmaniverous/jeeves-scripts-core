@@ -20,7 +20,7 @@ import {
   runFathomShareFetch,
   type ShareCandidate,
 } from './lib/fathom-share-ingest.js';
-import { getMeetingsDirs } from './lib/meetings-dirs.js';
+import { getMeetingsDirs, meetingPackages } from './lib/meetings-dirs.js';
 
 /** Fathom HTML extractions per run. */
 export const MAX_FATHOM_PER_RUN = 10;
@@ -61,35 +61,29 @@ export function findMeetingsNeedingFetch(meetingsDirs: string[]): {
   const geminiNeeded: string[] = [];
   const fathomNeeded: string[] = [];
 
-  for (const meetingsDir of meetingsDirs) {
-    if (!fs.existsSync(meetingsDir)) continue;
+  const onError = (meetingsDir: string, err: unknown) => {
+    console.error(
+      `Error scanning ${meetingsDir}: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  };
+  for (const { meetingId, meetingPath: mp } of meetingPackages(
+    meetingsDirs,
+    onError,
+  )) {
+    if (fs.existsSync(path.join(mp, 'transcript.txt'))) continue;
+
+    if (fs.existsSync(path.join(mp, 'gemini_link.txt'))) {
+      geminiNeeded.push(meetingId);
+      continue;
+    }
+
     try {
-      const entries = fs.readdirSync(meetingsDir, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue;
-        const mp = path.join(meetingsDir, entry.name);
-        if (fs.existsSync(path.join(mp, 'transcript.txt'))) continue;
-
-        if (fs.existsSync(path.join(mp, 'gemini_link.txt'))) {
-          geminiNeeded.push(entry.name);
-          continue;
-        }
-
-        try {
-          const files = fs.readdirSync(mp);
-          if (
-            files.some((f) => f.startsWith('fathom-') && f.endsWith('.html'))
-          ) {
-            fathomNeeded.push(entry.name);
-          }
-        } catch {
-          // Skip
-        }
+      const files = fs.readdirSync(mp);
+      if (files.some((f) => f.startsWith('fathom-') && f.endsWith('.html'))) {
+        fathomNeeded.push(meetingId);
       }
-    } catch (err) {
-      console.error(
-        `Error scanning ${meetingsDir}: ${err instanceof Error ? err.message : String(err)}`,
-      );
+    } catch {
+      // Skip
     }
   }
 

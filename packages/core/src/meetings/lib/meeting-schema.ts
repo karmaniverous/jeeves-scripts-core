@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { writeJsonAtomic } from '@karmaniverous/jeeves';
 import { z } from 'zod';
 
 // ── Sort-source values ──────────────────────────────────────────────
@@ -74,21 +75,6 @@ export const meetingMetaSchema = meetingMetaRequiredSchema.extend({
 export type MeetingMeta = z.infer<typeof meetingMetaSchema>;
 
 // ── Helpers ─────────────────────────────────────────────────────────
-
-/** Parse and validate an existing meeting.json, returning null on failure. */
-export function parseMeetingMeta(raw: unknown): MeetingMeta | null {
-  const result = meetingMetaSchema.safeParse(raw);
-  return result.success ? result.data : null;
-}
-
-/** Validate that an object satisfies the required minimum fields. */
-export function validateRequiredFields(meta: Record<string, unknown>): {
-  success: boolean;
-  data?: z.infer<typeof meetingMetaRequiredSchema>;
-  error?: z.ZodError;
-} {
-  return meetingMetaRequiredSchema.safeParse(meta);
-}
 
 /**
  * Compute sortTimestampMs using the precedence rule (spec section 3.3).
@@ -187,10 +173,7 @@ export function writeMeetingMeta(
     );
   }
 
-  // Write atomically (write to temp, rename)
-  const tmpPath = metaPath + '.tmp';
-  fs.writeFileSync(tmpPath, JSON.stringify(merged, null, 2) + '\n', 'utf8');
-  fs.renameSync(tmpPath, metaPath);
+  writeJsonAtomic(metaPath, merged);
 
   return validation.data;
 }

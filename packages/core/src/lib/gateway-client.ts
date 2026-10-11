@@ -33,14 +33,6 @@ export type GatewayInvoker = (
 
 // ── Token loading ───────────────────────────────────────────────────
 
-/**
- * The gateway bearer token: `CLAWDBOT_GATEWAY_TOKEN`, else `gateway.auth.token`
- * in the OpenClaw config (see `lib/openclaw-config`); `null` when neither exists.
- */
-export function loadGatewayToken(): string | null {
-  return gatewayToken();
-}
-
 // ── Tool invocation ─────────────────────────────────────────────────
 
 export function gatewayInvoke(
@@ -48,7 +40,8 @@ export function gatewayInvoke(
   args: Record<string, unknown>,
   options?: { sessionKey?: string },
 ): Promise<unknown> {
-  const token = loadGatewayToken();
+  // `CLAWDBOT_GATEWAY_TOKEN`, else `gateway.auth.token` (lib/openclaw-config).
+  const token = gatewayToken();
   if (!token) throw new Error('No gateway token found');
 
   return new Promise((resolve, reject) => {

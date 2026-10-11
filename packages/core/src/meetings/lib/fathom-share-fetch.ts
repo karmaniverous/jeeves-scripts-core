@@ -18,6 +18,7 @@ import { sleepAsync as sleep } from '@karmaniverous/jeeves';
 import type { Page } from 'puppeteer-core';
 import puppeteer from 'puppeteer-core';
 
+import { retryAsync } from '../../lib/retry.js';
 import type { FathomShareContent } from './fathom-share-dom.js';
 import {
   COLLECT_DOM_SNAPSHOT_JS,
@@ -238,92 +239,91 @@ export async function fetchFathomSharePage(
 ): Promise<FathomShareContent> {
   const executablePath = deps.chromePath();
 
-  let lastErr: Error | null = null;
+  return retryAsync(
+    async (attempt) => {
+      let browser: ShareBrowser | null = null;
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    let browser: ShareBrowser | null = null;
+      try {
+        console.log(
+          `[fathom-share] Opening ${shareUrl} (attempt ${String(attempt)}/${String(MAX_ATTEMPTS)})`,
+        );
 
-    try {
-      console.log(
-        `[fathom-share] Opening ${shareUrl} (attempt ${String(attempt)}/${String(MAX_ATTEMPTS)})`,
-      );
+        browser = await deps.launch(executablePath);
 
-      browser = await deps.launch(executablePath);
+        const page = await browser.newPage();
 
-      const page = await browser.newPage();
+        const summaryUrl = setFathomShareTab(shareUrl, 'summary');
+        await page.goto(summaryUrl, {
+          waitUntil: 'networkidle2',
+          timeout: NAV_TIMEOUT_MS,
+        });
 
-      const summaryUrl = setFathomShareTab(shareUrl, 'summary');
-      await page.goto(summaryUrl, {
-        waitUntil: 'networkidle2',
-        timeout: NAV_TIMEOUT_MS,
-      });
-
-      let summary = await extractWithMarker(
-        page,
-        'Copy Summary',
-        POLL_TIMEOUT_MS,
-        deps,
-      );
-      if (!summary) {
-        const domResult = await extractWithDomSnapshot(
+        let summary = await extractWithMarker(
           page,
+          'Copy Summary',
           POLL_TIMEOUT_MS,
           deps,
         );
-        summary = domResult.summary;
-      }
+        if (!summary) {
+          const domResult = await extractWithDomSnapshot(
+            page,
+            POLL_TIMEOUT_MS,
+            deps,
+          );
+          summary = domResult.summary;
+        }
 
-      const transcriptUrl = setFathomShareTab(shareUrl, 'transcript');
-      await page.goto(transcriptUrl, {
-        waitUntil: 'networkidle2',
-        timeout: NAV_TIMEOUT_MS,
-      });
+        const transcriptUrl = setFathomShareTab(shareUrl, 'transcript');
+        await page.goto(transcriptUrl, {
+          waitUntil: 'networkidle2',
+          timeout: NAV_TIMEOUT_MS,
+        });
 
-      let transcript = stripLeadingTranscriptChrome(
-        await extractWithMarker(
-          page,
-          'Copy Transcript',
-          POLL_TIMEOUT_MS_TRANSCRIPT,
-          deps,
-        ),
-      );
-      if (!transcript) {
-        const domResult = await extractWithDomSnapshot(
-          page,
-          POLL_TIMEOUT_MS_TRANSCRIPT,
-          deps,
+        let transcript = stripLeadingTranscriptChrome(
+          await extractWithMarker(
+            page,
+            'Copy Transcript',
+            POLL_TIMEOUT_MS_TRANSCRIPT,
+            deps,
+          ),
         );
-        transcript = stripLeadingTranscriptChrome(domResult.transcript);
-      }
+        if (!transcript) {
+          const domResult = await extractWithDomSnapshot(
+            page,
+            POLL_TIMEOUT_MS_TRANSCRIPT,
+            deps,
+          );
+          transcript = stripLeadingTranscriptChrome(domResult.transcript);
+        }
 
-      if (!transcript) {
-        throw new Error(
-          'Transcript content empty after polling transcript tab URL',
-        );
-      }
+        if (!transcript) {
+          throw new Error(
+            'Transcript content empty after polling transcript tab URL',
+          );
+        }
 
-      return { summary, transcript };
-    } catch (err: unknown) {
-      lastErr = err instanceof Error ? err : new Error(String(err));
-      const msg = lastErr.message;
-
-      const retryable =
-        /Target closed|Session closed|No content extracted|transcript content empty/i.test(
-          msg,
-        );
-      if (!retryable || attempt === MAX_ATTEMPTS) throw lastErr;
-
-      console.log(`[fathom-share] Retrying: ${msg}`);
-    } finally {
-      if (browser) {
-        try {
-          await browser.close();
-        } catch {
-          // best-effort
+        return { summary, transcript };
+      } finally {
+        if (browser) {
+          try {
+            await browser.close();
+          } catch {
+            // best-effort
+          }
         }
       }
-    }
-  }
-
-  throw lastErr ?? new Error('fetchFathomSharePage failed');
+    },
+    {
+      attempts: MAX_ATTEMPTS,
+      isRetryable: (err) =>
+        /Target closed|Session closed|No content extracted|transcript content empty/i.test(
+          err instanceof Error ? err.message : String(err),
+        ),
+      onRetry: (err) => {
+        console.log(
+          `[fathom-share] Retrying: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      },
+    },
+  );
 }

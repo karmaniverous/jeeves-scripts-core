@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  computeSortTimestamp,
-  meetingMetaSchema,
-  parseMeetingMeta,
-  validateRequiredFields,
-} from './meeting-schema.js';
+import { computeSortTimestamp, meetingMetaSchema } from './meeting-schema.js';
 
 describe('meetingMetaSchema', () => {
   it('validates a complete meeting metadata object', () => {
@@ -78,49 +73,6 @@ describe('meetingMetaSchema', () => {
       fathomKind: 'invalid',
     };
     expect(meetingMetaSchema.safeParse(meta).success).toBe(false);
-  });
-});
-
-describe('parseMeetingMeta', () => {
-  it('returns parsed meta for valid input', () => {
-    const meta = {
-      meetingId: 'test',
-      source: 'gemini',
-      date: '2026-01-01',
-      sortTimestampMs: null,
-      sortSource: 'fallback',
-      hasTranscript: false,
-    };
-    expect(parseMeetingMeta(meta)).toEqual(meta);
-  });
-
-  it('returns null for invalid input', () => {
-    expect(parseMeetingMeta({ foo: 'bar' })).toBeNull();
-  });
-});
-
-describe('validateRequiredFields', () => {
-  it('passes for complete required fields', () => {
-    const meta = {
-      meetingId: 'abc',
-      source: 'fathom',
-      date: '2026-04-09',
-      sortTimestampMs: 1000,
-      sortSource: 'email-internalDateMs',
-      hasTranscript: true,
-    };
-    expect(validateRequiredFields(meta).success).toBe(true);
-  });
-
-  it('fails for missing source', () => {
-    const meta = {
-      meetingId: 'abc',
-      date: '2026-04-09',
-      sortTimestampMs: null,
-      sortSource: 'fallback',
-      hasTranscript: false,
-    };
-    expect(validateRequiredFields(meta).success).toBe(false);
   });
 });
 

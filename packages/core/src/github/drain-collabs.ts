@@ -8,11 +8,14 @@
  * and the bot user (to accept invitations) as needed.
  */
 
-import fs from 'node:fs';
-
 import { defineJob } from '../jobs/define-job.js';
 import { parseRunnableArgs, value } from '../lib/args.js';
-import { type GitHubJobDeps, githubJobDeps } from './lib/github-deps.js';
+import {
+  collabArgs,
+  ghReady,
+  type GitHubJobDeps,
+  githubJobDeps,
+} from './lib/github-deps.js';
 
 interface CollabItem {
   kind: 'repo' | 'invite';
@@ -26,21 +29,12 @@ export function drainCollabs(
   args: readonly string[],
   deps: GitHubJobDeps,
 ): void {
-  if (!fs.existsSync(deps.configDir)) {
-    console.log('[skip] GitHub CLI config not configured');
-    return;
-  }
+  if (!ghReady(deps)) return;
 
-  const {
-    owner,
-    botUser,
-    maxItems: max,
-  } = parseRunnableArgs(args, {
-    owner: value('--owner', deps.account),
-    botUser: value('--botUser', deps.botUser),
-    maxItems: value('--maxItems', '50'),
-  });
-  const maxItems = Number(max);
+  const { owner, botUser } = collabArgs(args, deps);
+  const maxItems = Number(
+    parseRunnableArgs(args, { maxItems: value('--maxItems', '50') }).maxItems,
+  );
   const client = deps.runner();
 
   try {

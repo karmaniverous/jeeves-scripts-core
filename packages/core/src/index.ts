@@ -74,8 +74,19 @@ export {
   withDateContext,
 } from './lib/dates.js';
 export { gh, ghApi, ghJson, type GhResult, setupGhConfig } from './lib/gh.js';
+export {
+  readJsonFile,
+  readJsonFileIfExists,
+  writeJsonFile,
+} from './lib/json-file.js';
 export * from './lib/meta-config.js';
 export * from './lib/openclaw-config.js';
+export {
+  exponentialBackoff,
+  retryAsync,
+  type RetryPolicy,
+  retrySync,
+} from './lib/retry.js';
 export * from './lib/runner-config.js';
 export { dispatchWithSlack } from './lib/worker-slack/run.js';
 export * from './lib/worker-slack/worker-slack-config.js';

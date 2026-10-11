@@ -5,46 +5,17 @@
  * exactly as before.
  */
 
+import fs from 'node:fs';
 import path from 'node:path';
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mocks = vi.hoisted(() => ({
-  appendJsonl: vi.fn(),
-  gogWithRetry: vi.fn(),
-  threadsDir: '',
-  meetingsDir: '',
-}));
-
-vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  appendJsonl: mocks.appendJsonl,
-}));
-vi.mock('./gog.js', () => ({ gogWithRetry: mocks.gogWithRetry }));
-vi.mock('../email/email-cache.js', () => ({
-  createOrUpdateCache: vi.fn(),
-  detectLabelChanges: vi.fn(() => []),
-  loadCache: vi.fn(),
-  getThreadsPath: (account: string, threadId: string) =>
-    path.join(mocks.threadsDir, account, threadId),
-}));
-vi.mock('./constants.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof ConstantsModule>();
-  return {
-    ...actual,
-    constants: () => ({
-      ...actual.constants(),
-      DEFAULT_MEETINGS_DIR: mocks.meetingsDir,
-      EMAIL_EVENTS_DIR: mocks.threadsDir,
-    }),
-  };
-});
+import { describe, expect, it, vi } from 'vitest';
 
 import { eventPeopleField } from '../calendar/lib/calendar-api.js';
+import { getThreadsPath } from '../email/email-cache.js';
 import { fetchThreadMetadata } from '../email/google-workspace/email-fetch.js';
 import { writeMessage as writeImapMessage } from '../email/imap/message-store.js';
 import type { NormalizedMessage } from '../email/imap/normalize.js';
-import type * as ConstantsModule from './constants.js';
+import { constants } from './constants.js';
 import { emailPeopleFields } from './people.js';
 import {
   JANE,
@@ -52,15 +23,8 @@ import {
   usePeopleConfig,
 } from './people-callers.test-helper.js';
 
-const tmp = usePeopleConfig();
-let dir: string;
-
-beforeEach(() => {
-  dir = tmp();
-  mocks.threadsDir = path.join(dir, 'threads');
-  mocks.meetingsDir = path.join(dir, 'meetings');
-  vi.clearAllMocks();
-});
+// Archive paths route to the temp config's base directory.
+usePeopleConfig();
 
 describe('email', () => {
   it('emailPeopleFields names the sender and every listed party', () => {
@@ -77,31 +41,29 @@ describe('email', () => {
   });
 
   it('records people on Gmail message events', () => {
-    mocks.gogWithRetry.mockReturnValue(
-      JSON.stringify({
-        thread: {
-          messages: [
-            {
-              id: 'm1',
-              internalDate: '1000',
-              labelIds: ['INBOX'],
-              payload: {
-                headers: [
-                  { name: 'From', value: 'Jane <jane@example.com>' },
-                  { name: 'To', value: 'me@example.com' },
-                ],
-              },
+    const reply = JSON.stringify({
+      thread: {
+        messages: [
+          {
+            id: 'm1',
+            internalDate: '1000',
+            labelIds: ['INBOX'],
+            payload: {
+              headers: [
+                { name: 'From', value: 'Jane <jane@example.com>' },
+                { name: 'To', value: 'me@example.com' },
+              ],
             },
-            {
-              id: 'm2',
-              internalDate: '2000',
-              labelIds: ['INBOX'],
-              payload: { headers: [{ name: 'From', value: 'a@x.com' }] },
-            },
-          ],
-        },
-      }),
-    );
+          },
+          {
+            id: 'm2',
+            internalDate: '2000',
+            labelIds: ['INBOX'],
+            payload: { headers: [{ name: 'From', value: 'a@x.com' }] },
+          },
+        ],
+      },
+    });
     fetchThreadMetadata({
       account: 'me@example.com',
       threadId: 't1',
@@ -121,10 +83,19 @@ describe('email', () => {
         enqueue: vi.fn(() => 1),
       },
       reportOnly: true,
+      gog: () => reply,
     });
-    const events = mocks.appendJsonl.mock.calls.map(
-      (c) => c[1] as Record<string, unknown>,
-    );
+    const eventsFile = fs
+      .readdirSync(constants().EMAIL_EVENTS_DIR)
+      .find((n) => n.endsWith('.jsonl') && !n.startsWith('_'));
+    const events = fs
+      .readFileSync(
+        path.join(constants().EMAIL_EVENTS_DIR, eventsFile ?? ''),
+        'utf8',
+      )
+      .trim()
+      .split('\n')
+      .map((l) => JSON.parse(l) as Record<string, unknown>);
     expect(events[0]).toMatchObject({ fromPerson: JANE, people: [JANE] });
     expect(events[1]).not.toHaveProperty('people');
     expect(events[1]).not.toHaveProperty('fromPerson');
@@ -142,7 +113,7 @@ describe('email', () => {
     writeImapMessage('me@x', 't1', 'm1', msg('jane.doe@example.org'), []);
     writeImapMessage('me@x', 't1', 'm2', msg('a@x.com'), []);
     const file = (id: string) =>
-      readJson(path.join(mocks.threadsDir, 'me@x', 't1', `${id}.json`));
+      readJson(path.join(getThreadsPath('me@x', 't1'), `${id}.json`));
     expect(file('m1')).toMatchObject({ fromPerson: JANE, people: [JANE] });
     expect(file('m2')).not.toHaveProperty('people');
   });

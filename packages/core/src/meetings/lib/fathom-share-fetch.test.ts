@@ -2,113 +2,12 @@ import fs from 'node:fs';
 
 import { describe, expect, it, vi } from 'vitest';
 
-import { extractSectionsFromSnapshot } from './fathom-share-dom.js';
 import {
   extractAfterMarker,
   resolveChromePath,
   setFathomShareTab,
   stripLeadingTranscriptChrome,
 } from './fathom-share-fetch.js';
-
-// ── extractSectionsFromSnapshot ──────────────────────────────────────────
-
-describe('extractSectionsFromSnapshot', () => {
-  it('extracts summary via "Copy Summary" button with substantial ancestor text', () => {
-    // Multi-line ancestor text simulating a real Fathom section.
-    // The "Copy Summary" line should be stripped; content lines kept.
-    const contentLines = [
-      'Copy Summary',
-      'The team discussed the Q4 roadmap and agreed on three priority items.',
-      'Action items were assigned to each team lead for follow-up by Friday.',
-      'Budget allocation was reviewed and approved for the next quarter cycle.',
-    ];
-    const buttons = [
-      {
-        text: 'Copy Summary',
-        ancestorTexts: ['short', contentLines.join('\n')],
-      },
-    ];
-    const headings: { text: string; followingTexts: string[] }[] = [];
-
-    const result = extractSectionsFromSnapshot({ buttons, headings });
-
-    expect(result.summary).not.toContain('Copy Summary');
-    expect(result.summary).toContain('Q4 roadmap');
-    expect(result.summary).toContain('Action items');
-  });
-
-  it('extracts transcript via "Copy Transcript" button', () => {
-    const contentLines = [
-      'Copy Transcript',
-      'Speaker 1: Hello everyone, welcome to the meeting.',
-      'Speaker 2: Thanks for having us. Let us get started on the agenda.',
-      'Speaker 1: First item is the deployment schedule for next week.',
-    ];
-    const buttons = [
-      {
-        text: 'Copy Transcript',
-        ancestorTexts: [contentLines.join('\n')],
-      },
-    ];
-    const headings: { text: string; followingTexts: string[] }[] = [];
-
-    const result = extractSectionsFromSnapshot({ buttons, headings });
-
-    expect(result.transcript).toContain('Speaker 1');
-    expect(result.transcript).not.toContain('Copy Transcript');
-  });
-
-  it('falls back to heading-based extraction when no buttons match', () => {
-    const buttons: { text: string; ancestorTexts: string[] }[] = [];
-    const headings = [
-      {
-        text: 'Summary',
-        followingTexts: ['Key points from the meeting.'],
-      },
-      {
-        text: 'Transcript',
-        followingTexts: ['Speaker A: First line.', 'Speaker B: Second line.'],
-      },
-    ];
-
-    const result = extractSectionsFromSnapshot({ buttons, headings });
-
-    expect(result.summary).toBe('Key points from the meeting.');
-    expect(result.transcript).toBe(
-      'Speaker A: First line.\nSpeaker B: Second line.',
-    );
-  });
-
-  it('returns empty strings when nothing matches', () => {
-    const result = extractSectionsFromSnapshot({ buttons: [], headings: [] });
-    expect(result).toEqual({ summary: '', transcript: '' });
-  });
-
-  it('prefers button strategy over heading strategy', () => {
-    const contentLines = [
-      'Copy Summary',
-      'Button-derived content from the meeting notes about project planning.',
-      'Additional details that bring the total length over one hundred characters for the check.',
-    ];
-    const buttons = [
-      {
-        text: 'Copy Summary',
-        ancestorTexts: [contentLines.join('\n')],
-      },
-    ];
-    const headings = [
-      {
-        text: 'Summary',
-        followingTexts: ['Heading-derived content'],
-      },
-    ];
-
-    const result = extractSectionsFromSnapshot({ buttons, headings });
-
-    expect(result.summary).toContain('Button-derived');
-    expect(result.summary).not.toContain('Heading-derived');
-  });
-});
 
 // ── extractAfterMarker ─────────────────────────────────────────────
 

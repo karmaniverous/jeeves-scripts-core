@@ -11,6 +11,8 @@ import path from 'node:path';
 
 import { readJson } from '@karmaniverous/jeeves';
 
+import { meetingPackages } from './meetings-dirs.js';
+
 // ── Types ──────────────────────────────────────────────────────────────
 
 interface DocFetchArgs {
@@ -88,45 +90,31 @@ export function findUnfetchedMeetings(
 ): UnfetchedMeeting[] {
   const meetings: UnfetchedMeeting[] = [];
 
-  for (const meetingsDir of meetingsDirs) {
-    if (!fs.existsSync(meetingsDir)) continue;
+  for (const { meetingsDir, meetingId, meetingPath } of meetingPackages(
+    meetingsDirs,
+  )) {
+    const linkPath = path.join(meetingPath, 'gemini_link.txt');
+    const transcriptPath = path.join(meetingPath, 'transcript.txt');
+    const manifestPath = path.join(meetingPath, 'meeting.json');
 
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(meetingsDir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
+    if (!fs.existsSync(linkPath)) continue;
+    if (fs.existsSync(transcriptPath)) continue;
 
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
+    const link = fs.readFileSync(linkPath, 'utf8').trim();
+    const manifest = readJson<MeetingManifest>(manifestPath, {});
 
-      const meetingId = entry.name;
-      const meetingPath = path.join(meetingsDir, meetingId);
+    const firstSource = (manifest.sources ?? [])[0] ?? {};
+    const account = firstSource.account ?? null;
 
-      const linkPath = path.join(meetingPath, 'gemini_link.txt');
-      const transcriptPath = path.join(meetingPath, 'transcript.txt');
-      const manifestPath = path.join(meetingPath, 'meeting.json');
-
-      if (!fs.existsSync(linkPath)) continue;
-      if (fs.existsSync(transcriptPath)) continue;
-
-      const link = fs.readFileSync(linkPath, 'utf8').trim();
-      const manifest = readJson<MeetingManifest>(manifestPath, {});
-
-      const firstSource = (manifest.sources ?? [])[0] ?? {};
-      const account = firstSource.account ?? null;
-
-      meetings.push({
-        meetingId,
-        path: meetingPath,
-        link,
-        docId: extractDocId(link),
-        account,
-        manifestPath,
-        meetingsDir,
-      });
-    }
+    meetings.push({
+      meetingId,
+      path: meetingPath,
+      link,
+      docId: extractDocId(link),
+      account,
+      manifestPath,
+      meetingsDir,
+    });
   }
 
   return meetings;

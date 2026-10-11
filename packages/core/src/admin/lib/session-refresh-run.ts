@@ -12,6 +12,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { writeJsonAtomic } from '@karmaniverous/jeeves';
+
 import {
   SESSION_REFRESH_CACHE_READ_THRESHOLD,
   SESSION_REFRESH_IDLE_MINUTES,
@@ -237,10 +239,8 @@ export async function sessionRefresh(
   }
 
   if (rotations.length > 0) {
-    const tempPath = sessionsPath + '.tmp';
     try {
-      fs.writeFileSync(tempPath, JSON.stringify(sessions, null, 2), 'utf8');
-      fs.renameSync(tempPath, sessionsPath);
+      writeJsonAtomic(sessionsPath, sessions);
     } catch (err) {
       console.error(
         `[session-refresh] Failed to write sessions.json: ${message(err)}`,

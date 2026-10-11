@@ -49,85 +49,61 @@ export interface PollOptions {
   sinceId?: string;
 }
 
-/** Fetch recent tweets authored by a handle. */
-export async function pollUserTweets(
+/** A user-timeline read: the user id and request options in, a page out. */
+type TimelineRead = (
   client: Client,
-  handle: string,
-  options?: PollOptions,
-): Promise<XTweet[]> {
-  const userId = await lookupUser(client, handle);
-  if (!userId) return [];
+  userId: string,
+  request: { maxResults: number; sinceId?: string; tweetFields: string[] },
+) => Promise<{ data?: TweetLike[] }>;
 
-  const res = await client.users.getPosts(userId, {
-    maxResults: options?.maxResults ?? 50,
-    sinceId: options?.sinceId,
-    tweetFields: TWEET_FIELDS,
-  });
-  return normaliseTweets(res.data);
-}
+/**
+ * Build a poller over one user-timeline read: resolve the handle, read up
+ * to `maxResults` (default 50) items, normalise them. `withSinceId` passes
+ * `options.sinceId` through (the likes and bookmarks reads take none).
+ */
+const pollUserTimeline =
+  (read: TimelineRead, withSinceId: boolean) =>
+  async (
+    client: Client,
+    handle: string,
+    options?: PollOptions,
+  ): Promise<XTweet[]> => {
+    const userId = await lookupUser(client, handle);
+    if (!userId) return [];
+    const res = await read(client, userId, {
+      maxResults: options?.maxResults ?? 50,
+      ...(withSinceId ? { sinceId: options?.sinceId } : {}),
+      tweetFields: TWEET_FIELDS,
+    });
+    return normaliseTweets(res.data);
+  };
+
+/** Fetch recent tweets authored by a handle. */
+export const pollUserTweets = pollUserTimeline(
+  (c, id, r) => c.users.getPosts(id, r),
+  true,
+);
 
 /** Fetch recent mentions of a handle. */
-export async function pollUserMentions(
-  client: Client,
-  handle: string,
-  options?: PollOptions,
-): Promise<XTweet[]> {
-  const userId = await lookupUser(client, handle);
-  if (!userId) return [];
-
-  const res = await client.users.getMentions(userId, {
-    maxResults: options?.maxResults ?? 50,
-    sinceId: options?.sinceId,
-    tweetFields: TWEET_FIELDS,
-  });
-  return normaliseTweets(res.data);
-}
+export const pollUserMentions = pollUserTimeline(
+  (c, id, r) => c.users.getMentions(id, r),
+  true,
+);
 
 /** Fetch the home timeline for a handle. */
-export async function pollHomeTimeline(
-  client: Client,
-  handle: string,
-  options?: PollOptions,
-): Promise<XTweet[]> {
-  const userId = await lookupUser(client, handle);
-  if (!userId) return [];
-
-  const res = await client.users.getTimeline(userId, {
-    maxResults: options?.maxResults ?? 50,
-    sinceId: options?.sinceId,
-    tweetFields: TWEET_FIELDS,
-  });
-  return normaliseTweets(res.data);
-}
+export const pollHomeTimeline = pollUserTimeline(
+  (c, id, r) => c.users.getTimeline(id, r),
+  true,
+);
 
 /** Fetch tweets liked by a handle. */
-export async function pollLikedTweets(
-  client: Client,
-  handle: string,
-  options?: PollOptions,
-): Promise<XTweet[]> {
-  const userId = await lookupUser(client, handle);
-  if (!userId) return [];
-
-  const res = await client.users.getLikedPosts(userId, {
-    maxResults: options?.maxResults ?? 50,
-    tweetFields: TWEET_FIELDS,
-  });
-  return normaliseTweets(res.data);
-}
+export const pollLikedTweets = pollUserTimeline(
+  (c, id, r) => c.users.getLikedPosts(id, r),
+  false,
+);
 
 /** Fetch bookmarked tweets for a handle. */
-export async function pollBookmarks(
-  client: Client,
-  handle: string,
-  options?: PollOptions,
-): Promise<XTweet[]> {
-  const userId = await lookupUser(client, handle);
-  if (!userId) return [];
-
-  const res = await client.users.getBookmarks(userId, {
-    maxResults: options?.maxResults ?? 50,
-    tweetFields: TWEET_FIELDS,
-  });
-  return normaliseTweets(res.data);
-}
+export const pollBookmarks = pollUserTimeline(
+  (c, id, r) => c.users.getBookmarks(id, r),
+  false,
+);

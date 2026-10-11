@@ -13,7 +13,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { defineJob } from '../jobs/define-job.js';
-import { type GitHubJobDeps, githubJobDeps } from './lib/github-deps.js';
+import {
+  ghReady,
+  type GitHubJobDeps,
+  githubJobDeps,
+} from './lib/github-deps.js';
 
 const STATE_NS = 'github';
 const STATE_KEY_PREFIX = 'watch-';
@@ -79,10 +83,7 @@ function formatLine(n: Notification, extra = ''): string {
 
 /** Run the job. */
 export function watchNotifications(deps: GitHubJobDeps): void {
-  if (!fs.existsSync(deps.configDir)) {
-    console.log('[skip] GitHub CLI config not configured');
-    return;
-  }
+  if (!ghReady(deps)) return;
   const LOG_PATH = path.join(deps.githubDir, 'watch', 'log.md');
   const USERS = [deps.botUser, deps.account];
 

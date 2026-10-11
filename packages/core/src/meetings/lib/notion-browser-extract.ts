@@ -8,6 +8,7 @@
 import { sleepAsync } from '@karmaniverous/jeeves';
 
 import { gatewayInvoke, unwrapResult } from '../../lib/gateway-client.js';
+import { retryAsync } from '../../lib/retry.js';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -116,96 +117,92 @@ export async function extractFromPublicPage(
     profile: BROWSER_PROFILE,
   });
 
-  let lastErr: Error | null = null;
+  return retryAsync(
+    async (attempt) => {
+      let targetId: string | null = null;
 
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    let targetId: string | null = null;
-
-    try {
-      console.log(
-        `[notion-inbox] browser open (attempt ${String(attempt)}/${String(MAX_ATTEMPTS)})`,
-      );
-      const openedRaw = await deps.invoke('browser', {
-        action: 'open',
-        profile: BROWSER_PROFILE,
-        targetUrl: publicUrl,
-      });
-
-      const opened = unwrapResult(openedRaw);
-      targetId = typeof opened.targetId === 'string' ? opened.targetId : null;
-      if (!targetId) throw new Error('Browser open did not return targetId');
-
-      console.log(
-        `[notion-inbox] initial load wait (attempt ${String(attempt)}/${String(MAX_ATTEMPTS)}) targetId=${targetId}`,
-      );
-      await deps.sleep(4000);
-
-      // Title hint
-      const h2Raw = await deps.invoke('browser', {
-        action: 'act',
-        profile: BROWSER_PROFILE,
-        targetId,
-        request: {
-          kind: 'evaluate',
-          fn: `() => (Array.from(document.querySelectorAll('h2')).map(e=>e.innerText.trim()).find(Boolean) || '')`,
-        },
-      });
-      const h2 = asString(unwrapResult(h2Raw).result);
-
-      const tabs: ExtractedContent['tabs'] = {
-        summary: '',
-        notes: '',
-        transcript: '',
-      };
-
-      for (const tabName of ['Summary', 'Notes', 'Transcript'] as const) {
-        const key = tabName.toLowerCase() as keyof ExtractedContent['tabs'];
-        try {
-          await clickTab(targetId, tabName, deps);
-          tabs[key] = await extractActiveTabText(targetId, deps);
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (!/tab not found/i.test(msg)) throw err;
-          tabs[key] = '';
-        }
-      }
-
-      // Fallback: full text
-      const fullTextRaw = await deps.invoke('browser', {
-        action: 'act',
-        profile: BROWSER_PROFILE,
-        targetId,
-        request: {
-          kind: 'evaluate',
-          fn: `() => ((document.body && document.body.innerText) ? document.body.innerText.trim() : '')`,
-        },
-      });
-      const fullText = asString(unwrapResult(fullTextRaw).result);
-
-      return { h2, fullText, tabs };
-    } catch (err: unknown) {
-      lastErr = err instanceof Error ? err : new Error(String(err));
-      const msg = lastErr.message;
-
-      const retryable =
-        /tab not found|Target closed|Session closed|not return targetId/i.test(
-          msg,
+      try {
+        console.log(
+          `[notion-inbox] browser open (attempt ${String(attempt)}/${String(MAX_ATTEMPTS)})`,
         );
-      if (!retryable || attempt === MAX_ATTEMPTS) throw lastErr;
-    } finally {
-      if (targetId) {
-        try {
-          await deps.invoke('browser', {
-            action: 'close',
-            profile: BROWSER_PROFILE,
-            targetId,
-          });
-        } catch {
-          // best-effort
+        const openedRaw = await deps.invoke('browser', {
+          action: 'open',
+          profile: BROWSER_PROFILE,
+          targetUrl: publicUrl,
+        });
+
+        const opened = unwrapResult(openedRaw);
+        targetId = typeof opened.targetId === 'string' ? opened.targetId : null;
+        if (!targetId) throw new Error('Browser open did not return targetId');
+
+        console.log(
+          `[notion-inbox] initial load wait (attempt ${String(attempt)}/${String(MAX_ATTEMPTS)}) targetId=${targetId}`,
+        );
+        await deps.sleep(4000);
+
+        // Title hint
+        const h2Raw = await deps.invoke('browser', {
+          action: 'act',
+          profile: BROWSER_PROFILE,
+          targetId,
+          request: {
+            kind: 'evaluate',
+            fn: `() => (Array.from(document.querySelectorAll('h2')).map(e=>e.innerText.trim()).find(Boolean) || '')`,
+          },
+        });
+        const h2 = asString(unwrapResult(h2Raw).result);
+
+        const tabs: ExtractedContent['tabs'] = {
+          summary: '',
+          notes: '',
+          transcript: '',
+        };
+
+        for (const tabName of ['Summary', 'Notes', 'Transcript'] as const) {
+          const key = tabName.toLowerCase() as keyof ExtractedContent['tabs'];
+          try {
+            await clickTab(targetId, tabName, deps);
+            tabs[key] = await extractActiveTabText(targetId, deps);
+          } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : String(err);
+            if (!/tab not found/i.test(msg)) throw err;
+            tabs[key] = '';
+          }
+        }
+
+        // Fallback: full text
+        const fullTextRaw = await deps.invoke('browser', {
+          action: 'act',
+          profile: BROWSER_PROFILE,
+          targetId,
+          request: {
+            kind: 'evaluate',
+            fn: `() => ((document.body && document.body.innerText) ? document.body.innerText.trim() : '')`,
+          },
+        });
+        const fullText = asString(unwrapResult(fullTextRaw).result);
+
+        return { h2, fullText, tabs };
+      } finally {
+        if (targetId) {
+          try {
+            await deps.invoke('browser', {
+              action: 'close',
+              profile: BROWSER_PROFILE,
+              targetId,
+            });
+          } catch {
+            // best-effort
+          }
         }
       }
-    }
-  }
-
-  throw lastErr ?? new Error('extractFromPublicPage failed');
+    },
+    {
+      attempts: MAX_ATTEMPTS,
+      isRetryable: (err) =>
+        /tab not found|Target closed|Session closed|not return targetId/i.test(
+          err instanceof Error ? err.message : String(err),
+        ),
+    },
+  );
 }

@@ -9,26 +9,22 @@
  * to process.
  */
 
-import fs from 'node:fs';
-
 import { defineJob } from '../jobs/define-job.js';
-import { parseRunnableArgs, value } from '../lib/args.js';
-import { type GitHubJobDeps, githubJobDeps } from './lib/github-deps.js';
+import {
+  collabArgs,
+  ghReady,
+  type GitHubJobDeps,
+  githubJobDeps,
+} from './lib/github-deps.js';
 
 /** Run the job. */
 export function pollCollabs(
   args: readonly string[],
   deps: GitHubJobDeps,
 ): void {
-  if (!fs.existsSync(deps.configDir)) {
-    console.log('[skip] GitHub CLI config not configured');
-    return;
-  }
+  if (!ghReady(deps)) return;
 
-  const { owner, botUser } = parseRunnableArgs(args, {
-    owner: value('--owner', deps.account),
-    botUser: value('--botUser', deps.botUser),
-  });
+  const { owner, botUser } = collabArgs(args, deps);
   const client = deps.runner();
   const stateJson = client.getState('gh-collabs', 'poll-state');
   const state = stateJson

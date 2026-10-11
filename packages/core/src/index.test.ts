@@ -79,6 +79,12 @@ describe('package entry point', () => {
       'getTokenMetrics',
       'convertDocxToMd',
       'convertPdfToMd',
+      'retryAsync',
+      'retrySync',
+      'exponentialBackoff',
+      'readJsonFile',
+      'readJsonFileIfExists',
+      'writeJsonFile',
     ];
     expect(
       utilities.filter((name) => typeof core[name] !== 'function'),

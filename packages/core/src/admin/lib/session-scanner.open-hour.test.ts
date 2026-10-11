@@ -6,29 +6,22 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { CursorState } from '../types/token-metrics.js';
 import {
-  createScannerFixture,
   ocLine,
-  type ScannerFixture,
   userLine,
+  useScannerFixture,
 } from './session-scanner.fixtures.js';
 
-let fx: ScannerFixture;
-beforeEach(() => {
-  fx = createScannerFixture();
-});
-afterEach(() => {
-  fx.cleanup();
-});
+const fixture = useScannerFixture();
 
 describe('open-hour records across runs (#61)', () => {
   const hour = (h: string) => new Date(`2026-06-15T${h}:00:00Z`).getTime();
 
   it('OpenClaw: a record in the open hour is counted by the next run', async () => {
-    const file = path.join(fx.sessionsDir, 'open-hour.jsonl');
+    const file = path.join(fixture().sessionsDir, 'open-hour.jsonl');
     fs.writeFileSync(
       file,
       [
@@ -37,7 +30,7 @@ describe('open-hour records across runs (#61)', () => {
         ocLine({ tsIso: '2026-06-15T10:30:00Z' }),
       ].join('\n') + '\n',
     );
-    const scan = await fx.loadScanner();
+    const scan = await fixture().loadScanner();
     const cursors: CursorState = {};
     const ccCursors: CursorState = {};
 
@@ -55,13 +48,13 @@ describe('open-hour records across runs (#61)', () => {
   });
 
   it('OpenClaw: a half-written tail line is re-read, not skipped', async () => {
-    const file = path.join(fx.sessionsDir, 'partial.jsonl');
+    const file = path.join(fixture().sessionsDir, 'partial.jsonl');
     const full = ocLine({ tsIso: '2026-06-15T09:40:00Z' });
     fs.writeFileSync(
       file,
       ocLine({ tsIso: '2026-06-15T09:20:00Z' }) + '\n' + full.slice(0, 20),
     );
-    const scan = await fx.loadScanner();
+    const scan = await fixture().loadScanner();
     const cursors: CursorState = {};
     const ccCursors: CursorState = {};
 
@@ -75,8 +68,8 @@ describe('open-hour records across runs (#61)', () => {
   });
 
   it('Claude Code: a record in the open hour is counted by the next run', async () => {
-    fx.writeCCFixture('2026-06-15T10:30:00Z');
-    const scan = await fx.loadScanner();
+    fixture().writeCCFixture('2026-06-15T10:30:00Z');
+    const scan = await fixture().loadScanner();
     const cursors: CursorState = {};
     const ccCursors: CursorState = {};
 

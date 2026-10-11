@@ -8,63 +8,29 @@
 import path from 'node:path';
 
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-
-const mocks = vi.hoisted(() => ({
-  appendJsonl: vi.fn(),
-  gogWithRetry: vi.fn(),
-  threadsDir: '',
-  meetingsDir: '',
-}));
-
-vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
-  ...(await importOriginal<Record<string, unknown>>()),
-  appendJsonl: mocks.appendJsonl,
-}));
-vi.mock('./gog.js', () => ({ gogWithRetry: mocks.gogWithRetry }));
-vi.mock('../email/email-cache.js', () => ({
-  createOrUpdateCache: vi.fn(),
-  detectLabelChanges: vi.fn(() => []),
-  loadCache: vi.fn(),
-  getThreadsPath: (account: string, threadId: string) =>
-    path.join(mocks.threadsDir, account, threadId),
-}));
-vi.mock('./constants.js', async (importOriginal) => {
-  const actual = await importOriginal<typeof ConstantsModule>();
-  return {
-    ...actual,
-    constants: () => ({
-      ...actual.constants(),
-      DEFAULT_MEETINGS_DIR: mocks.meetingsDir,
-      EMAIL_EVENTS_DIR: mocks.threadsDir,
-    }),
-  };
-});
+import { describe, expect, it, vi } from 'vitest';
 
 import { dmPeopleNames } from '../admin/lib/dm-name-sources.js';
 import { resolveDmNames } from '../admin/lib/dm-names.js';
 import { updateMeetingPackage } from '../meetings/lib/package.js';
 import { writeMessage as writeSlackMessage } from '../slack/lib/message-writer.js';
-import type * as ConstantsModule from './constants.js';
+import { constants } from './constants.js';
 import {
   JANE,
   readJson,
   usePeopleConfig,
 } from './people-callers.test-helper.js';
 
+// Archive paths route to the temp config's base directory.
 const tmp = usePeopleConfig();
-let dir: string;
-
-beforeEach(() => {
-  dir = tmp();
-  mocks.threadsDir = path.join(dir, 'threads');
-  mocks.meetingsDir = path.join(dir, 'meetings');
-  vi.clearAllMocks();
-});
 
 describe('Slack message authors', () => {
   const write = (user: string, account?: string) => {
-    const channelDir = path.join(dir, 'slack', `${user}-${account ?? 'none'}`);
+    const channelDir = path.join(
+      tmp(),
+      'slack',
+      `${user}-${account ?? 'none'}`,
+    );
     writeSlackMessage(
       channelDir,
       'C1',
@@ -144,7 +110,9 @@ describe('meeting packages', () => {
       meeting('m1', ['Jane@Example.com', 'x@example.com']),
       client,
     );
-    const m = readJson(path.join(mocks.meetingsDir, 'm1', 'meeting.json'));
+    const m = readJson(
+      path.join(constants().DEFAULT_MEETINGS_DIR, 'm1', 'meeting.json'),
+    );
     expect(m.participants).toEqual(['Jane@Example.com', 'x@example.com']);
     expect(m.people).toEqual([JANE]);
   });
@@ -152,7 +120,9 @@ describe('meeting packages', () => {
   it('adds nothing when no participant is listed', () => {
     updateMeetingPackage(meeting('m2', ['x@example.com']), client);
     expect(
-      readJson(path.join(mocks.meetingsDir, 'm2', 'meeting.json')),
+      readJson(
+        path.join(constants().DEFAULT_MEETINGS_DIR, 'm2', 'meeting.json'),
+      ),
     ).not.toHaveProperty('people');
   });
 });

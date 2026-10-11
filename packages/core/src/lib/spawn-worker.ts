@@ -18,6 +18,9 @@
  *   WORKER_RESULT:\{"sessionKey":"...","tokens":12345,"durationMs":123000\}
  */
 
+import { sleepAsync } from '@karmaniverous/jeeves';
+
+import { exponentialBackoff, retryAsync } from './retry.js';
 import {
   type GatewayDetails,
   type GatewayResponse,
@@ -64,7 +67,7 @@ export interface SpawnDeps {
 
 const defaultSpawnDeps: SpawnDeps = {
   invoke: invokeGateway,
-  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  sleep: sleepAsync,
 };
 
 /**
@@ -77,58 +80,42 @@ export async function spawnWithRetry(
   spawnArgs: SpawnArgs,
   deps: SpawnDeps = defaultSpawnDeps,
 ): Promise<{ result: GatewayResponse; sessionKey: string }> {
-  let lastError: Error | undefined;
-
-  for (let attempt = 0; attempt < SPAWN_MAX_RETRIES; attempt++) {
-    try {
+  const BODY_TIMEOUT = 'gateway timeout in response body';
+  return retryAsync(
+    async () => {
       const result = await deps.invoke(
         'sessions_spawn',
         spawnArgs as unknown as Record<string, unknown>,
       );
-
-      // Check for gateway timeout in the response body text
-      const resultText = JSON.stringify(result);
-      if (/gateway timeout/i.test(resultText)) {
-        lastError = new Error('gateway timeout in response body');
-        if (attempt === SPAWN_MAX_RETRIES - 1) break;
-        const waitMs = SPAWN_BACKOFF_BASE_MS * 2 ** attempt;
-        console.log(
-          `[${new Date().toISOString()}] Spawn attempt ${String(attempt + 1)}/${String(SPAWN_MAX_RETRIES)} failed: gateway timeout in response. Retrying in ${String(waitMs / 1000)}s...`,
-        );
-        await deps.sleep(waitMs);
-        continue;
-      }
+      // A gateway timeout can arrive in the response body text.
+      if (/gateway timeout/i.test(JSON.stringify(result)))
+        throw new Error(BODY_TIMEOUT);
 
       const spawnResult = result.result?.details ?? result.details ?? result;
       const sessionKey =
         (spawnResult as GatewayDetails).childSessionKey ??
         (spawnResult as GatewayDetails).sessionKey;
-
       if (!sessionKey) {
         throw new Error(
           `No sessionKey in spawn result: ${JSON.stringify(result).slice(0, 500)}`,
         );
       }
-
       return { result, sessionKey };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      lastError = err instanceof Error ? err : new Error(msg);
-
-      if (/timeout/i.test(msg) && attempt < SPAWN_MAX_RETRIES - 1) {
-        const waitMs = SPAWN_BACKOFF_BASE_MS * 2 ** attempt;
+    },
+    {
+      attempts: SPAWN_MAX_RETRIES,
+      delayMs: exponentialBackoff(SPAWN_BACKOFF_BASE_MS),
+      isRetryable: (err) =>
+        /timeout/i.test(err instanceof Error ? err.message : String(err)),
+      onRetry: (err, attempt, waitMs) => {
+        const msg = err instanceof Error ? err.message : String(err);
         console.log(
-          `[${new Date().toISOString()}] Spawn attempt ${String(attempt + 1)}/${String(SPAWN_MAX_RETRIES)} failed: ${msg}. Retrying in ${String(waitMs / 1000)}s...`,
+          `[${new Date().toISOString()}] Spawn attempt ${String(attempt)}/${String(SPAWN_MAX_RETRIES)} failed: ${msg === BODY_TIMEOUT ? 'gateway timeout in response' : msg}. Retrying in ${String(waitMs / 1000)}s...`,
         );
-        await deps.sleep(waitMs);
-        continue;
-      }
-
-      throw lastError;
-    }
-  }
-
-  throw lastError ?? new Error('Spawn failed after all retries');
+      },
+      sleep: deps.sleep,
+    },
+  );
 }
 
 // CLI entry point

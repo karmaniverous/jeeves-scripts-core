@@ -10,6 +10,8 @@
  * the repo and issue syncs.
  */
 
+import fs from 'node:fs';
+
 import { nowIso, run, sleepAsync } from '@karmaniverous/jeeves';
 import {
   getRunnerClient,
@@ -17,6 +19,7 @@ import {
 } from '@karmaniverous/jeeves-runner';
 
 import { getBasePathForGitHubOrg } from '../../config/index.js';
+import { parseRunnableArgs, value } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
 import { gh, type GhResult, setupGhConfig } from '../../lib/gh.js';
 
@@ -83,6 +86,26 @@ export const githubJobDeps = (): GitHubJobDeps => {
     sleep: sleepAsync,
   };
 };
+
+/**
+ * Whether the gh config directory exists; logs the skip line every GitHub
+ * job prints when it does not.
+ */
+export function ghReady(deps: Pick<GitHubJobDeps, 'configDir'>): boolean {
+  if (fs.existsSync(deps.configDir)) return true;
+  console.log('[skip] GitHub CLI config not configured');
+  return false;
+}
+
+/** The collaborator jobs' `--owner` and `--botUser` (default: the gh account and bot user). */
+export const collabArgs = (
+  args: readonly string[],
+  deps: Pick<GitHubJobDeps, 'account' | 'botUser'>,
+): { owner: string; botUser: string } =>
+  parseRunnableArgs(args, {
+    owner: value('--owner', deps.account),
+    botUser: value('--botUser', deps.botUser),
+  });
 
 /** GET a REST endpoint through `gh api`; `null` for an empty body. */
 export const ghApiVia = (

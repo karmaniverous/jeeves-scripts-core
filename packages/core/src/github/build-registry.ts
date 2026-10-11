@@ -16,6 +16,7 @@ import { ensureDir } from '@karmaniverous/jeeves';
 import { defineJob } from '../jobs/define-job.js';
 import {
   ghApiVia,
+  ghReady,
   type GitHubJobDeps,
   githubJobDeps,
 } from './lib/github-deps.js';
@@ -99,10 +100,7 @@ function getOrgRepos(org: string, deps: Pick<GitHubJobDeps, 'gh'>): GhRepo[] {
 
 /** Run the job. */
 export function buildRegistry(deps: GitHubJobDeps): void {
-  if (!fs.existsSync(deps.configDir)) {
-    console.log('[skip] GitHub CLI config not configured');
-    return;
-  }
+  if (!ghReady(deps)) return;
 
   ensureDir(deps.githubDir);
   console.log(`[repo-registry] start ${deps.now()}`);

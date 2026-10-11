@@ -16,6 +16,7 @@ import jsonpatch from 'fast-json-patch';
 
 import { defineJob } from '../jobs/define-job.js';
 import {
+  ghReady,
   type GitHubJobDeps,
   githubJobDeps,
   NEVER,
@@ -131,10 +132,7 @@ function processIssue(issuesDir: string, issue: Issue, now: string): void {
 
 /** Sync the issues of the next batch of repos. */
 export async function syncIssues(deps: GitHubJobDeps): Promise<void> {
-  if (!fs.existsSync(deps.configDir)) {
-    console.log('[skip] GitHub CLI config not configured');
-    return;
-  }
+  if (!ghReady(deps)) return;
   const client = deps.runner();
   try {
     console.log(

@@ -15,6 +15,7 @@ import { ensureDir, readJson } from '@karmaniverous/jeeves';
 
 import { defineJob } from '../jobs/define-job.js';
 import {
+  ghReady,
   type GitHubJobDeps,
   githubJobDeps,
   oldestBatch,
@@ -84,10 +85,7 @@ function syncOne(
 
 /** Sync the next batch of repos. */
 export function syncRepos(deps: GitHubJobDeps): void {
-  if (!fs.existsSync(deps.configDir)) {
-    console.log('[skip] GitHub CLI config not configured');
-    return;
-  }
+  if (!ghReady(deps)) return;
   const client = deps.runner();
   try {
     console.log(
