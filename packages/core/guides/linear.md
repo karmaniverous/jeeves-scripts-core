@@ -266,7 +266,7 @@ Tracked as [jeeves-tools #99](https://github.com/karmaniverous/jeeves-tools/issu
 | Prerequisite | Where to configure |
 | --- | --- |
 | Linear API key | [Linear Settings → API → Personal API keys](https://linear.app/settings/api) |
-| `LINEAR_CONFIG_PATH` | `LINEAR_CONFIG_PATH` env, else `integrations.linear.configPath`, else `{configDir}/linear/config.json` |
+| `LINEAR_CONFIG_PATH` | `LINEAR_CONFIG_PATH` env, else `integrations.linear.configPath`, else `{credentialsDir}/linear.json` |
 | Config file format | `{ "apiKey": "lin_api_...", "apiUrl": "https://api.linear.app/graphql" }` |
 | Linear webhook configured to POST to jeeves-server | Linear Settings → API → Webhooks |
 | jeeves-server Event Gateway configured with `linear` schema | `jeeves-server` config (see Event Gateway Config above) |
