@@ -33,7 +33,6 @@ describe('trimJsonlFiles', () => {
       line(10),
       line(6),
       'not json',
-      JSON.stringify({ kind: 'no-at' }),
       '',
       line(0),
     ]);
@@ -41,6 +40,20 @@ describe('trimJsonlFiles', () => {
     expect(fs.readFileSync(p, 'utf8')).toBe(
       [line(6), 'not json', line(0)].join('\n') + '\n',
     );
+  });
+
+  it('keeps lines whose age cannot be established', () => {
+    const undatable = [
+      JSON.stringify({ kind: 'no-at' }),
+      JSON.stringify({ at: 'not a date' }),
+      JSON.stringify({ at: '' }),
+      JSON.stringify({ at: 12345 }),
+      'null',
+      '[1,2]',
+    ];
+    const p = write('account.jsonl', [line(30), ...undatable]);
+    trimJsonlFiles(dir, 7, NOW);
+    expect(fs.readFileSync(p, 'utf8')).toBe(undatable.join('\n') + '\n');
   });
 
   it('empties a file whose lines are all old', () => {
