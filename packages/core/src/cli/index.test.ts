@@ -6,6 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
 import { buildProgram, main, resolveRoot } from './index.js';
+import type * as PackageInfo from './package-info.js';
+
+// These tests stub fs.readFileSync, which the --version option would read.
+vi.mock('./package-info.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof PackageInfo>()),
+  coreVersion: () => '9.9.9',
+}));
 
 const root = path.resolve('/instance');
 

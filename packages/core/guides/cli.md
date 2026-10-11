@@ -17,7 +17,21 @@ process.exitCode = await main({ root: new URL('..', import.meta.url) });
 
 Node resolves core from the launcher's own `node_modules`, so a job always runs the core version pinned in that repo. Runner jobs are registered as script `{scriptsDir}/bin/jeeves-scripts.js` with args `["run", "<id>", ...]`; jeeves-runner runs `.js` scripts with `node` on Windows and Linux.
 
-The package `bin` (`npx jeeves-scripts ...`, from the instance repo) does the same with the working directory as the root.
+## The global hand-off
+
+The package `bin` (`jeeves-scripts ...` after `npm install -g @karmaniverous/jeeves-scripts-core`, or `npx jeeves-scripts ...`) is a hand-off only. It finds the scripts repo by, in order:
+
+1. a leading `--dir <path>` (or `--dir=<path>`), before the verb, so a runnable's own arguments are never taken;
+2. `JEEVES_SCRIPTS_DIR`;
+3. the nearest `jeeves-scripts.json` at or above the working directory;
+
+and runs that repo's `bin/jeeves-scripts.js` with the rest of the command line, so the repo's pinned core runs, whatever version is installed globally. With no repo found (or one without its launcher yet), it runs only `init`, `--help` and `--version` itself, in the named directory or the working directory; anything else exits 1 saying how to point it at a repo. Runner jobs never use it.
+
+```bash
+jeeves-scripts --dir /srv/jeeves-scripts list   # any directory
+jeeves-scripts doctor                           # inside the repo
+jeeves-scripts --dir ./new-instance init        # no repo yet
+```
 
 ## Commands
 
@@ -27,6 +41,7 @@ The package `bin` (`npx jeeves-scripts ...`, from the instance repo) does the sa
 | `list [glob] [--json]` | Every registered runnable whose id matches the glob ([below](#listing-runnables)). Exit 1 on an invalid manifest, delta or registration. |
 | `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
 | `doctor` | Report on the instance ([below](#doctor)). Informational: always exits 0. |
+| `--version`, `--help` | The core version; usage. |
 | `init [--name <pkg>] [--core <version>]` | Write an instance repo into the root from the template bundled in core ([below](#init)). Exit 1 on an invalid name or version. |
 | `skills install \| uninstall \| status [--yes]` | Wire core's shipped skills into OpenClaw through `openclaw config set` ([below](#skills)). Exit 1 when `openclaw` fails. |
 | `run people-propose [--all] [--out <file>]` | Runnable `people-propose` (no manifest). Read-only: reads `users.list` for every gateway Slack bot account (`slackBotTokens`), skips bots, deactivated users and Slackbot, groups users across workspaces by email (case-insensitive) and real name, and prints `{ summary, people, uncertain }`: a proposed `people` block ([config.md](./config.md#people)) of people with more than one account (`--all`: everyone) and the matches to check by hand (grouped by name only; a name shared inside one workspace; one email on two users of a workspace). Never writes config; `--out` writes the same JSON (UTF-8) to a file and refuses `jeeves-scripts.json`. |
@@ -131,9 +146,10 @@ JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run admin-refresh
 | `src/cli/doctor.ts` | `doctorReport` |
 | `src/cli/init.ts` | `initRepo`, `formatInit` |
 | `src/cli/skills.ts` | `skills install \| uninstall \| status`: the changes, the status report, the confirmation |
+| `src/cli/hand-off.ts` | The global hand-off: `--dir`, `JEEVES_SCRIPTS_DIR`, walk-up, delegation to the repo's launcher |
 | `src/cli/openclaw.ts` | The `openclaw` CLI calls (config get, batch set, unset, skills list) |
 | `src/cli/package-info.ts` | The running core's package directory and version |
 | `src/cli/load-plugin.ts` | `loadPlugin`: imports `jeeves-scripts.plugin.ts` with tsx |
 | `src/cli/run.ts` | `registerInstance`, `resolveRunnable`, `runJob` |
 | `src/jobs/` | `defineJob`, the job registry and manifests ([jobs](./jobs.md)) |
-| `src/cli/bin.ts` | Package `bin`: runs `main` with the working directory as root |
+| `src/cli/bin.ts` | Package `bin`: the global hand-off |

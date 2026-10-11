@@ -1,12 +1,12 @@
 /**
  * @module cli/bin
  *
- * The package `bin` (`npx jeeves-scripts …`): runs the CLI with the
- * working directory as the instance repo root, which is where `npx` is run
- * from. Runner jobs use the instance's launcher (Decision 16) instead,
- * which passes its own root explicitly.
+ * The package `bin` (`jeeves-scripts …` installed globally, or
+ * `npx jeeves-scripts …`): the hand-off (`cli/hand-off`), which finds the
+ * scripts repo and runs its launcher. Runner jobs use the instance's
+ * launcher (Decision 16) directly, which passes its own root.
  */
 
-import { main } from './index.js';
+import { handOff } from './hand-off.js';
 
-process.exitCode = await main({ root: process.cwd() });
+process.exitCode = await handOff(process.argv.slice(2));

@@ -21,6 +21,7 @@ import { doctorReport } from './doctor.js';
 import { describeError, formatInit, initRepo } from './init.js';
 import { formatList, listRunnables } from './list.js';
 import { openclawPresent } from './openclaw.js';
+import { coreVersion } from './package-info.js';
 import { runJob } from './run.js';
 import { runSkills } from './skills.js';
 
@@ -159,6 +160,11 @@ export const buildProgram = (options: CliOptions) => {
   const root = resolveRoot(options.root);
   return new Command('jeeves-scripts')
     .description('Run and list jeeves-scripts runnables for this instance.')
+    .version(coreVersion(), '-V, --version', 'print the core version')
+    .addHelpText(
+      'after',
+      '\nInstalled globally, jeeves-scripts finds the scripts repo by a leading --dir <path>, then JEEVES_SCRIPTS_DIR, then the nearest jeeves-scripts.json above the working directory, and runs its bin/jeeves-scripts.js.',
+    )
     .enablePositionalOptions()
     .addCommand(buildConfigCommand(root))
     .addCommand(buildRunCommand(root))
