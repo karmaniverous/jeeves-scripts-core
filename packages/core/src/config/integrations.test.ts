@@ -62,16 +62,16 @@ describe('deriveIntegrations', () => {
     expect(result.linear.maxHistory).toBe(50);
   });
 
-  it('honours configured values (JGS-shaped)', () => {
+  it('honours configured values', () => {
     const result = deriveIntegrations(
       baseConfig({
-        gh: { account: 'karmaniverous', botUser: 'jgs-jeeves' },
+        gh: { account: 'acme', botUser: 'acme-bot' },
         qdrant: { serviceName: 'Qdrant' },
         jira: { siteUrl: 'https://x.atlassian.net', boardId: 6 },
       }),
     );
-    expect(result.gh.account).toBe('karmaniverous');
-    expect(result.gh.botUser).toBe('jgs-jeeves');
+    expect(result.gh.account).toBe('acme');
+    expect(result.gh.botUser).toBe('acme-bot');
     expect(result.qdrant.serviceName).toBe('Qdrant');
     expect(result.jira.boardId).toBe(6);
   });

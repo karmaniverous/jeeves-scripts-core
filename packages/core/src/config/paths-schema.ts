@@ -23,7 +23,7 @@ export const pathsSchema = z.object({
   /**
    * gog home (service-account keys, OAuth client credentials, file
    * keyring). Its own key because it does not sit under `configDir` on
-   * every instance (J8: JGS keeps it under its credentials dir).
+   * every instance (some keep it under their credentials dir).
    * Default: `{configDir}/gogcli`; `GOG_HOME` wins.
    */
   gogHome: z.string().optional(),

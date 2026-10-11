@@ -7,7 +7,7 @@
  * Transitional job registry (Decision 32): the job is looked up by id in the
  * instance's `jobs/*.json`, whose `script` is a template-style path
  * (`src/<domain>/<name>.ts`). An instance-local script at that path wins
- * (JGS-only code, overrides); otherwise the same path is resolved to core's
+ * (instance-only code); otherwise the same path is resolved to core's
  * built module (`dist/<domain>/<name>.js`). Core modules are imported in
  * this process, after the config location is pinned to the instance root,
  * so they read the instance's `jeeves-scripts.json`. Instance scripts are

@@ -87,11 +87,8 @@ describe('silo-router', () => {
   describe('siloPath', () => {
     it('joins the default silo when silo is omitted', () => {
       expect(
-        siloPath(undefined, ['x', 'karmaniverous'], options).replace(
-          /\\/g,
-          '/',
-        ),
-      ).toBe('C:/content/default/x/karmaniverous');
+        siloPath(undefined, ['x', 'acme'], options).replace(/\\/g, '/'),
+      ).toBe('C:/content/default/x/acme');
     });
 
     it('joins a named silo base path', () => {

@@ -4,7 +4,7 @@
  * Generic task-file dispatcher (Decisions 23, 28): reads a standing-order
  * Markdown task from a data silo and dispatches a gateway worker session
  * to execute it. Used by core's `daily-digest` and by instance dispatchers
- * (e.g. JGS's `vc/*`).
+ * (e.g. per-organisation briefings in their own silo).
  *
  * - The task file path is relative to a silo (`siloPath(silo, [taskFile])`);
  *   the instance config's `jobs.<jobId>.silo` / `.taskFile` override the

@@ -30,7 +30,7 @@ import { slackConfigSchema } from './slack-schema.js';
 
 /** The `instance` block: who this instance is and where it lives. */
 export const instanceSchema = z.object({
-  /** Instance name (e.g. `jgs`). */
+  /** Instance name (e.g. `acme`). */
   name: z.string().min(1),
   /** Base directory every default path derives from. */
   baseDir: z.string().min(1),

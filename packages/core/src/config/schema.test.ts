@@ -25,7 +25,7 @@ describe('configSchema', () => {
     const result = configSchema.parse({
       instance: { name: 'acme', baseDir: '/base' },
       paths: { contentDir: '/base/domains' },
-      integrations: { gh: { account: 'karmaniverous' } },
+      integrations: { gh: { account: 'acme' } },
       pipeline: {
         accounts: [
           {
