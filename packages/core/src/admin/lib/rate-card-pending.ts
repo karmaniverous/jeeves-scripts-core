@@ -6,7 +6,14 @@
  * runner trigger, so it records the ids it found missing from the rate
  * card here; the refresh job adds each one once OpenRouter returns valid
  * prices. After writing the card it re-reads this file and drops only the
- * ids now on the card, so ids the collector adds mid-refresh are kept.
+ * ids now on the card, so ids the collector adds while OpenRouter is being
+ * fetched are kept.
+ *
+ * Neither the add nor the prune is locked: each is a read-modify-write.
+ * If the collector adds an id in the short window between the refresh
+ * job's re-read and its write, that add can be dropped. Nothing is lost
+ * for good: the collector re-records every model still missing from the
+ * card on its next run.
  *
  * Format: a JSON array of model-id strings. A missing, unreadable or
  * malformed file reads as empty (the collector re-records unknown models

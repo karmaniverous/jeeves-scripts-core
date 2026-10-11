@@ -153,8 +153,9 @@ function commitCard(
 /**
  * Drop pending ids that are now on the card. Re-reads the file (the
  * collector may have added ids while we were fetching) and runs after the
- * card write, so an added model is never dropped from both and a
- * concurrently added id is never lost.
+ * card write, so an added model is never dropped from both. An id added
+ * between this re-read and the write can still be dropped; the collector
+ * re-records it on its next run (see rate-card-pending).
  */
 function prunePending(
   deps: RefreshRatesDeps,
