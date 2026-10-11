@@ -52,13 +52,11 @@ describe('relativeDays', () => {
   });
 
   it('returns relative description for further dates', () => {
-    const result = relativeDays('2026-05-20', '2026-05-11');
-    expect(result).toMatch(/in \d+ days/);
+    expect(relativeDays('2026-05-20', '2026-05-11')).toBe('in 9 days');
   });
 
   it('returns relative description for past dates', () => {
-    const result = relativeDays('2026-05-01', '2026-05-11');
-    expect(result).toMatch(/\d+ days ago/);
+    expect(relativeDays('2026-05-01', '2026-05-11')).toBe('10 days ago');
   });
 });
 

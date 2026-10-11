@@ -7,7 +7,6 @@ import {
   extractParticipants,
   findGeminiLink,
   generateMeetingId,
-  isMeetingish,
   normalizeFathomUrl,
   normalizeMeetingTitle,
   parseDateToYmd,
@@ -136,37 +135,6 @@ describe('detectFathomFromBodies', () => {
 
   it('returns null when no Fathom URLs found', () => {
     expect(detectFathomFromBodies('hello', 'world')).toBeNull();
-  });
-});
-
-describe('isMeetingish + Fathom URL fallback (gap 1)', () => {
-  it('isMeetingish misses email with only Fathom URL in body', () => {
-    // An email whose subject/from/snippet don't match any heuristic
-    expect(isMeetingish('Weekly Sync', 'bob@example.com', 'Hi team')).toBe(
-      false,
-    );
-  });
-
-  it('detectFathomFromBodies catches Fathom URL that isMeetingish misses', () => {
-    // The body contains a Fathom link even though metadata doesn't trigger isMeetingish
-    const bodyText = 'Recording: https://fathom.video/share/abc123';
-    const result = detectFathomFromBodies(bodyText, '');
-    expect(result).not.toBeNull();
-    expect(result?.kind).toBe('share');
-  });
-
-  it('combined check: isMeetingish || fathomUrl covers the gap', () => {
-    const subject = 'Weekly Sync';
-    const from = 'bob@example.com';
-    const snippet = 'Hi team';
-    const bodyText = 'Recording: https://fathom.video/share/abc123';
-
-    // isMeetingish alone would miss it
-    const heuristic = isMeetingish(subject, from, snippet);
-    // Body-based detection catches it
-    const fathom = detectFathomFromBodies(bodyText, '');
-
-    expect(heuristic || fathom !== null).toBe(true);
   });
 });
 

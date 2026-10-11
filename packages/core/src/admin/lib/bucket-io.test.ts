@@ -39,8 +39,10 @@ describe('currentHourBoundaryMs', () => {
     expect(d.getUTCMilliseconds()).toBe(0);
   });
 
-  it('is <= now', () => {
-    expect(currentHourBoundaryMs()).toBeLessThanOrEqual(Date.now());
+  it('is the start of the UTC hour containing now', () => {
+    expect(currentHourBoundaryMs(Date.parse('2026-05-11T13:47:09.123Z'))).toBe(
+      Date.parse('2026-05-11T13:00:00.000Z'),
+    );
   });
 });
 

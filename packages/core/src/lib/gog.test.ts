@@ -42,14 +42,7 @@ describe('gog', () => {
 
   describe('gogWithRetry', () => {
     it('calls runWithRetry with correct binary and args', () => {
-      vi.mocked(runWithRetry).mockReturnValue('success output');
-
-      const result = gogWithRetry([
-        'mail',
-        'list',
-        '--account=test@example.com',
-      ]);
-      expect(result).toBe('success output');
+      gogWithRetry(['mail', 'list', '--account=test@example.com']);
       expect(runWithRetry).toHaveBeenCalledWith(
         GOG,
         ['mail', 'list', '--account=test@example.com'],

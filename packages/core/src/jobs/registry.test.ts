@@ -15,7 +15,6 @@ import { readCoreManifests } from './manifest.js';
 import {
   coreDomains,
   coreJobs,
-  findJob,
   loadJob,
   type RegistryEntry,
 } from './registry.js';
@@ -54,7 +53,7 @@ describe('core runnable registry', () => {
     expect(manifests).toHaveLength(33);
     expect(
       manifests
-        .filter((m) => findJob(m.id)?.domain !== m.domain)
+        .filter((m) => coreJobs.find((e) => e.id === m.id)?.domain !== m.domain)
         .map((m) => m.id),
     ).toEqual([]);
   });
@@ -82,13 +81,6 @@ describe('core runnable registry', () => {
     expect(undescribed).toEqual([]);
     expect(runScript).not.toHaveBeenCalled();
   }, 120_000);
-});
-
-describe('findJob', () => {
-  it('finds a job by id, or nothing', () => {
-    expect(findJob('email-poll')?.module).toBe('email/poll');
-    expect(findJob('nope')).toBeUndefined();
-  });
 });
 
 describe('loadJob', () => {

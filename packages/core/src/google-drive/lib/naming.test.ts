@@ -4,7 +4,6 @@ import {
   buildSegmentName,
   hashId,
   identityRootSegment,
-  parseTag,
   resolveSiblingTags,
   sanitizeSegment,
   splitStemExt,
@@ -61,23 +60,6 @@ describe('naming: sibling collision lengthening', () => {
   it('dedupes repeated ids', () => {
     const tags = resolveSiblingTags(['x', 'x', 'y']);
     expect(tags.size).toBe(2);
-  });
-});
-
-describe('naming: tag parsing', () => {
-  it('recovers the tag after the last " - "', () => {
-    expect(parseTag('report - k3v7q2xm.docx.md')).toBe('k3v7q2xm');
-    expect(parseTag('Engineering - p5zr2a7d')).toBe('p5zr2a7d');
-    expect(parseTag('notes - k3v7q2xm.md')).toBe('k3v7q2xm');
-  });
-
-  it('is not confused by " - " inside the stem', () => {
-    expect(parseTag('Q3 Plan - Draft - k3v7q2xm.md')).toBe('k3v7q2xm');
-  });
-
-  it('returns null when there is no tag-shaped suffix', () => {
-    expect(parseTag('mike.blaney@example.com')).toBeNull();
-    expect(parseTag('plain-file.txt')).toBeNull();
   });
 });
 

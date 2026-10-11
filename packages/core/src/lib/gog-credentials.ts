@@ -58,17 +58,6 @@ export function serviceAccountFileName(email: string): string {
   return `sa-${encoded}.json`;
 }
 
-/** Full path where current gog registers `email` as a service-account mailbox. */
-export function serviceAccountKeyPath(
-  email: string,
-  configDir = constants().GOG_CONFIG_DIR,
-): string {
-  return path.join(
-    gogServiceAccountDir(configDir),
-    serviceAccountFileName(email),
-  );
-}
-
 /**
  * Path of the service-account registration for `email`, or `null` when
  * gog has none. Searches {@link gogServiceAccountDirs} in order.

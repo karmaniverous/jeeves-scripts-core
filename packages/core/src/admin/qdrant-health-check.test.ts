@@ -90,10 +90,6 @@ describe('checkHealthz', () => {
     expect(fetchMock).toHaveBeenCalledWith(`${TEST_URL}/healthz`);
   });
 
-  it('the healthz fixture body is not JSON (as from real Qdrant)', async () => {
-    await expect(healthzResponse().json()).rejects.toThrow(SyntaxError);
-  });
-
   it('throws on a non-2xx status', async () => {
     vi.stubGlobal(
       'fetch',

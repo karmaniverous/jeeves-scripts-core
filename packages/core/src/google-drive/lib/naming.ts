@@ -111,16 +111,6 @@ export function resolveSiblingTags(
   return result;
 }
 
-/**
- * Parse the Drive-ID tag out of a local segment name (spec §3.1):
- * the token after the last ` - `, `[a-z2-7]{8,}`, ending at the first
- * `.` that follows it. Returns null if the name has no parseable tag.
- */
-export function parseTag(segmentName: string): string | null {
-  const match = /(?: - )([a-z2-7]{8,})(?:\.[^/]*)?$/.exec(segmentName);
-  return match?.[1] ?? null;
-}
-
 /** Conversion class, used to pick the stem/extension split rule (§3.2). */
 export type NamingClass =
   'google-native' | 'native-text' | 'converted-binary' | 'folder';

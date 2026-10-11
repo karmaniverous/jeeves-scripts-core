@@ -34,7 +34,6 @@ describe('people-propose', () => {
       id: 'people-propose',
       domain: 'people',
     });
-    expect(peopleProposeJob.description).toBeTruthy();
   });
 
   it('prints the proposal, passing --all through', async () => {

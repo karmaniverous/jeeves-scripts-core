@@ -58,12 +58,6 @@ export const coreJobs: readonly RegistryEntry[] = [
   ...onDemandJobs,
 ];
 
-/** The registry entry for `id`, if core has that runnable. */
-export const findJob = (
-  id: string,
-  registry: readonly RegistryEntry[] = coreJobs,
-): RegistryEntry | undefined => registry.find((e) => e.id === id);
-
 /**
  * Import a registered runnable and check it is a `defineJob` module with the
  * registered id and domain.
