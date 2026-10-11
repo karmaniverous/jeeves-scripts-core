@@ -11,8 +11,8 @@ The scripts repo (`{scriptsDir}`) is a thin instance repo. The shared behaviour 
 
 - **Core (the package):** domain code, the `jeeves-scripts` CLI, the config schema, and the docs: [README](../../README.md), [guides/](../../guides/cli.md) (one per domain, plus runbooks such as [token metrics](../../guides/token-metrics-runbook.md)).
 - **`jeeves-scripts.json`:** every setting of this instance, and nothing else (see [config.md](../../guides/config.md)). State goes to the runner store or the state folder, secrets to the credentials folder; another component's settings are read from that component's own config, never copied here.
-- **`jobs/*.json`:** this instance's own jobs (ids, schedules, the instance script each runs). Core's jobs are registered in core with their manifests; the instance adjusts them with `jobs.<id>` deltas in `jeeves-scripts.json` and never redeclares them.
-- **`src/` + `jeeves-scripts.plugin.ts`:** instance-only code. Shared behaviour belongs in core, not here.
+- **`jobs/*.json`:** this instance's own manifests (schedules for its own runnables, or for a core runnable that ships without one), in core's format. Core's runnables are registered in core with their manifests; the instance adjusts them with `jobs.<id>` deltas in `jeeves-scripts.json` and never redeclares them.
+- **`src/` + `jeeves-scripts.plugin.ts`:** instance-only code: the plugin registers the instance's runnables, its declared overrides of core runnables and the schema of its `local` config block ([jobs.md](../../guides/jobs.md#instance-runnables-and-overrides)). Shared behaviour belongs in core, not here. `jeeves-scripts list` shows what is registered.
 - **Who someone is** comes from `people` in `jeeves-scripts.json` ([config.md](../../guides/config.md#people)); draft it with `run people-propose`.
 
 ## Running jobs

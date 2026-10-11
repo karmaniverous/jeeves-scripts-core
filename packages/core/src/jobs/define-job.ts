@@ -38,10 +38,20 @@ export type JobPrerequisite = (
   ctx: JobContext,
 ) => true | string | Promise<true | string>;
 
-const fn = <T>(what: string) =>
+/** A Zod schema for a function-valued declaration field (internal). */
+export const fn = <T>(what: string) =>
   z.custom<T>((v) => typeof v === 'function', {
     message: `${what} must be a function`,
   });
+
+/** The id and domain rule: lowercase words separated by dashes (internal). */
+export const slugSchema = (what: string) =>
+  z
+    .string()
+    .regex(
+      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+      `${what}: lowercase words separated by dashes`,
+    );
 
 /**
  * A job declaration (Zod-validated by {@link defineJob}).
@@ -53,19 +63,9 @@ export const jobDeclarationSchema = z
      * `domain-verb[-modifier][-object][-specifier]`, lowercase words
      * separated by dashes, starting with the domain and a dash (R44, R45).
      */
-    id: z
-      .string()
-      .regex(
-        /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-        'job id: lowercase words separated by dashes',
-      ),
+    id: slugSchema('job id'),
     /** Domain the runnable belongs to: its top-level source folder (`email`, `google-drive`, ...). */
-    domain: z
-      .string()
-      .regex(
-        /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-        'domain: lowercase words separated by dashes',
-      ),
+    domain: slugSchema('domain'),
     /** One line for `list`; required when the runnable has no manifest. */
     description: z.string().min(1).optional(),
     /** Label used in crash logs (default: the id). Core jobs keep their pre-registry labels. */

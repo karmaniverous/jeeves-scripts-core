@@ -9,8 +9,7 @@
  * mode is the default; pass `--live` for actual writes.
  *
  * Usage:
- *   jeeves-scripts run <job-id> --project WEB [--type issue] [--live]
- *   (a manifest entry in the instance's jobs/*.json with script src/jira/backfill.ts)
+ *   jeeves-scripts run jira-backfill --project WEB [--type issue] [--live]
  *
  * CLI arguments:
  *   --project <key>  Jira project key, e.g. WEB (required)

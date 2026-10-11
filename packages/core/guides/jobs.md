@@ -1,6 +1,6 @@
 # jobs/
 
-The job registry (Decisions 4, 5, 40): core's jobs, their ids, their manifests, and how an instance adjusts them.
+The runnable registry (Decisions 4, 5, 40, 49, 50): core's runnables, their ids, their manifests, and how an instance adds to and adjusts them through its plugin, its manifests and its deltas.
 
 ## Job ids
 
@@ -71,9 +71,11 @@ Scheduled core jobs have a manifest in core, `jobs/<domain>.json`: an object key
 
 `schedule` is any jeeves-runner schedule object (a recurrence with `freq`, `interval`, `byhour`, `byminute`, `timezone`, or a `rules` set). A non-null `prerequisite` says what must be set up first; deploy registers only jobs without one. Every manifest is validated with Zod; an invalid entry or an id in two files fails with the file name.
 
+An instance's own manifests are `{root}/jobs/*.json` in the same format. Each id must be a registered runnable that has no core manifest: an instance runnable, or a core runnable that ships without one (for example `x-post`, Decision 50). A core manifest is changed only by a delta (below). `list` fails, naming the file, on an instance manifest that breaks these rules.
+
 ## Instance deltas
 
-An instance never copies a core manifest. It adjusts a core job with a delta under `jobs.<id>` in `jeeves-scripts.json` (see [config](./config.md)):
+An instance never copies a core manifest. It adjusts a runnable's manifest (core's or its own) with a delta under `jobs.<id>` in `jeeves-scripts.json` (see [config](./config.md)):
 
 ```json
 {
@@ -94,22 +96,68 @@ An instance never copies a core manifest. It adjusts a core job with a delta und
 | `args` | Appended to the manifest's. |
 | `silo`, `taskFile` | Read by the job itself (task-file dispatchers); no runner effect. |
 
-A delta for an id that is neither a core job nor an instance job is an error. `src/jobs/manifest.ts` (`readCoreManifests`, `applyDelta`, `effectiveManifests`) implements this; the `jobs` command that prints the effective set comes with Dev Plan 33 phase 3.
+A delta for an id that is neither a core nor an instance runnable is an error. `src/jobs/manifest.ts` (`readCoreManifests`, `applyDelta`, `effectiveManifests`) and `src/jobs/runnables.ts` (`registeredManifests`) implement this; `jeeves-scripts list --json` prints the effective set ([cli](./cli.md#listing-runnables)). Deltas shape what registration uses; they do not change a runner job that already exists.
 
-## Instance jobs and overrides
+## Instance runnables and overrides
 
-Until plugins land (Dev Plan 33 phase 2), an instance declares its own jobs in `{root}/jobs/*.json` as runner job objects with a `script` path (`src/<domain>/<name>.ts`). Rules (enforced by `run`; see "How run resolves a job" in [cli](./cli.md)):
+An instance adds to core through its plugin, `{root}/jeeves-scripts.plugin.ts`. The CLI imports it in its own process with tsx (no build step) before `run` and `list`; a repo without the file has no plugin.
 
-- An instance file never replaces a core job. An instance entry that reuses a core id with a script present in the instance repo fails. To change what a core job does, use a delta, or (phase 2) a declared override.
-- An instance-only id runs the instance file at its `script` path.
-- An instance-only id whose `script` names a core module, with no instance file there, runs that core job (a transitional alias for runner job ids that differ from core's).
+```ts
+import { definePlugin, override } from '@karmaniverous/jeeves-scripts-core';
+import { z } from 'zod';
+
+import acmeReport from './src/acme/report.js';
+import { pollMyWay } from './src/acme/poll.js';
+
+export default definePlugin({
+  // Instance runnables: defineJob modules, exactly like core's.
+  jobs: [acmeReport],
+  // Declared replacements of core runnables (R20).
+  overrides: [
+    override({
+      job: 'email-poll', // the core id it replaces
+      issue: 'karmaniverous/jeeves-scripts-core#123', // why
+      writtenFor: '0.1.0', // the exact core version it was written against
+      run: async ({ args }) => {
+        await pollMyWay(args);
+      },
+    }),
+  ],
+  // Validates the instance's own `local` block in jeeves-scripts.json.
+  configSchema: z.object({ reportChannel: z.string() }),
+});
+```
+
+Registration (plugin load) fails, listing every problem with its id and domain, when:
+
+- a plugin runnable reuses a core id (declare an override instead), or uses a core domain (`admin`, `email`, `x`, ...; instance domains never reuse one), or two plugin runnables share an id;
+- an override names no core runnable, or two overrides name the same one.
+
+`defineJob` itself already rejects an id that doesn't start with its domain and a dash. `definePlugin` and `override` validate their declarations with Zod and return them frozen; an unknown field (there is no `extensions` field, Decision 50) is an error.
+
+An override runs instead of core's runnable, under core's id and domain; `list` shows its source as `override`. It needs unit tests in the instance repo. `writtenFor` records the core version it was written for, so a core upgrade can review every override whose core has moved on (`doctor`, to build); it never fails a run.
+
+**Instance config.** Core never reads `local` in `jeeves-scripts.json`. When the plugin declares a `configSchema`, the CLI parses `local` with it at plugin load (an invalid block fails, naming the config file) and runnables read the result with `localConfig`:
+
+```ts
+import { localConfig } from '@karmaniverous/jeeves-scripts-core';
+
+import type { configSchema } from '../../local-config.js';
+
+const { reportChannel } = localConfig<typeof configSchema>();
+```
+
+`localConfig` throws when no `configSchema` was loaded.
 
 ## Key files
 
 | File | Purpose |
 | --- | --- |
 | `src/jobs/define-job.ts` | `defineJob`, `isJobModule`, `runJobModule` |
-| `src/jobs/registry.ts` | `coreJobs`, `findJob`, `findJobByScript`, `loadJob` |
+| `src/jobs/registry.ts` | `coreJobs`, `coreDomains`, `findJob`, `loadJob` |
+| `src/jobs/plugin.ts` | `definePlugin`, `override`, `localConfig` |
+| `src/jobs/runnables.ts` | Registration: `buildRunnables`, `readInstanceManifests`, `registeredManifests` |
+| `src/cli/load-plugin.ts` | Loads `jeeves-scripts.plugin.ts` with tsx |
 | `src/jobs/manifest.ts` | Manifest schema, `readCoreManifests`, `applyDelta`, `effectiveManifests` |
 | `src/config/jobs-schema.ts` | The `jobs` delta and runner schedule schemas |
 | `jobs/<domain>.json` | Core's manifests |

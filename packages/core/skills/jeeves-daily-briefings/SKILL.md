@@ -20,7 +20,7 @@ A daily briefing is a task-file dispatcher job: on schedule, the job script give
 
 1. A content directory for the briefing (in the right silo) with `standing-orders.md`; seed its `.meta/` with `meta_seed`.
 2. The TASK file, following the anatomy in dispatchers.md.
-3. A dispatcher job (core's task-file dispatcher, with `silo` and `taskFile`), added to `jobs/*.json` and, where the operator wants overrides, `jobs.<id>` in `jeeves-scripts.json`; commit and push (see `jeeves-scripts`).
-4. Register it with the runner, running the launcher (`run <job-id>`), and test with the dispatcher's no-post mode before enabling it.
+3. A dispatcher runnable in the instance (`defineJob` calling core's `dispatchTaskFile`, with `silo` and `taskFile`), registered by the instance plugin, with a manifest in `jobs/*.json` and, where the operator wants changes, `jobs.<id>` in `jeeves-scripts.json`; commit and push (see `jeeves-scripts`).
+4. Register it with the runner, running the launcher (`run <id>`), and test with the dispatcher's no-post mode before enabling it.
 
 Briefings that need email or calendars read the pipeline archives (watcher search), not Google directly; see `jeeves-email` and `jeeves-calendar`.

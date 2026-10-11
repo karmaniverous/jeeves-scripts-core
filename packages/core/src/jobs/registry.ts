@@ -1,15 +1,16 @@
 /**
  * @module jobs/registry
  *
- * The core job registry (Decisions 4, 40): every core job id with its
- * domain, its module path under `src/` and a lazy loader. Listing or
- * resolving jobs never imports a job module; {@link loadJob} imports one
- * and checks it declares the id it is registered under.
+ * The core runnable registry (Decisions 4, 40, 49): every core runnable id
+ * with its domain, its module path under `src/` and a lazy loader, with or
+ * without a manifest, plus core's domain names. Resolving a runnable never
+ * imports its module; {@link loadJob} imports one and checks it declares
+ * the id it is registered under.
  *
  * Ids are the public contract (`jeeves-scripts run <id>`): the scheduled
- * jobs keep the ids of their manifests in `jobs/<domain>.json`; the
- * manual and event-driven jobs (drains, backfills, converters, X actions)
- * have no manifest.
+ * runnables have manifests in `jobs/<domain>.json`; the manual and
+ * event-driven ones (drains, backfills, X actions, `people-propose`, ...)
+ * have none and describe themselves in `defineJob`.
  */
 
 import { isJobModule, type JobModule } from './define-job.js';
@@ -26,7 +27,29 @@ export interface RegistryEntry {
   load: () => Promise<{ default: unknown }>;
 }
 
-/** Every core job. */
+/**
+ * Core's domains: its top-level domain source folders (R45). An instance
+ * domain never reuses one. `cli`, `config`, `jobs` and `lib` are
+ * framework folders, not domains.
+ */
+export const coreDomains: readonly string[] = [
+  'admin',
+  'calendar',
+  'convert',
+  'dispatchers',
+  'email',
+  'github',
+  'google-drive',
+  'jira',
+  'linear',
+  'meetings',
+  'meta',
+  'people',
+  'slack',
+  'x',
+];
+
+/** Every core runnable. */
 export const coreJobs: readonly RegistryEntry[] = [
   // admin
   {
@@ -317,22 +340,6 @@ export const findJob = (
   id: string,
   registry: readonly RegistryEntry[] = coreJobs,
 ): RegistryEntry | undefined => registry.find((e) => e.id === id);
-
-/**
- * The registry entry whose module is `script` (an instance manifest's
- * `src/<domain>/<job>.ts` path), if any: the transitional alias for
- * instance runner jobs whose ids differ from core's (Decision 40).
- */
-export const findJobByScript = (
-  script: string,
-  registry: readonly RegistryEntry[] = coreJobs,
-): RegistryEntry | undefined => {
-  const module = script
-    .replace(/\\/g, '/')
-    .replace(/^(\.\/)?src\//, '')
-    .replace(/\.[cm]?[jt]s$/, '');
-  return registry.find((e) => e.module === module);
-};
 
 /**
  * Import a registered job and check it is a `defineJob` module with the

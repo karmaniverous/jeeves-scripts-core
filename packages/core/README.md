@@ -25,7 +25,7 @@ node -p "path.dirname(require.resolve('@karmaniverous/jeeves-scripts-core/packag
 
 The `exports` map publishes `./package.json`, `./guides/*`, `./skills/*`, `./schema/*` and `./config/*`, so `require.resolve('@karmaniverous/jeeves-scripts-core/guides/<domain>.md')` (or `import.meta.resolve`) returns a doc's absolute path from anywhere in the instance repo. `test/package-docs.test.ts` keeps this true: every doc and guide ships, resolves, and is indexed below.
 
-Job ids named in the docs are core's registered ids ([`guides/jobs.md`](guides/jobs.md)): `jeeves-scripts run <id>` runs any of them. Scheduled jobs have a manifest in core (`jobs/<domain>.json`); an instance adjusts them with `jobs.<id>` deltas in `jeeves-scripts.json` and never copies them.
+Job ids named in the docs are core's registered ids ([`guides/jobs.md`](guides/jobs.md)): `jeeves-scripts run <id>` runs any of them. Scheduled jobs have a manifest in core (`jobs/<domain>.json`); an instance adjusts them with `jobs.<id>` deltas in `jeeves-scripts.json` and never copies them. `jeeves-scripts list` shows every registered runnable.
 
 ### Domain docs
 
@@ -33,7 +33,7 @@ Job ids named in the docs are core's registered ids ([`guides/jobs.md`](guides/j
 | --- | --- |
 | [`guides/cli.md`](guides/cli.md) | The `jeeves-scripts` CLI and the instance launcher |
 | [`guides/config.md`](guides/config.md) | `jeeves-scripts.json`: schema, resolution, getters, silos |
-| [`guides/jobs.md`](guides/jobs.md) | The job registry: ids, `defineJob`, manifests, instance deltas |
+| [`guides/jobs.md`](guides/jobs.md) | The runnable registry: ids, `defineJob`, manifests, instance deltas, the instance plugin |
 | [`guides/lib.md`](guides/lib.md) | Shared infrastructure: constants, gateway, workers, gh, gog, entity store |
 | [`guides/admin.md`](guides/admin.md) | Token metrics, rate card, session refresh, housekeeping (`.tmp` sweep, Qdrant health) |
 | [`guides/calendar.md`](guides/calendar.md) | Google Calendar polling |
@@ -75,11 +75,12 @@ process.exitCode = await main({ root: new URL('..', import.meta.url) });
 Runner jobs execute it with `node`, so the CLI never needs to be on `PATH` and the job always runs the core version pinned in that repo:
 
 ```bash
-node <scriptsDir>/bin/jeeves-scripts.js run <job-id> [args...]
+node <scriptsDir>/bin/jeeves-scripts.js run <id> [args...]
+node <scriptsDir>/bin/jeeves-scripts.js list [glob] [--json]
 node <scriptsDir>/bin/jeeves-scripts.js config check
 ```
 
-See [`guides/cli.md`](guides/cli.md) for every command and how `run` resolves a job id.
+See [`guides/cli.md`](guides/cli.md) for every command and how `run` resolves an id. An instance adds its own runnables, overrides of core runnables and the schema of its own `local` config block in `{root}/jeeves-scripts.plugin.ts`, which the CLI loads with tsx ([`guides/jobs.md`](guides/jobs.md#instance-runnables-and-overrides)).
 
 ## Configuration
 
@@ -98,7 +99,7 @@ See [`guides/config.md`](guides/config.md).
 
 | Import | What it is |
 | --- | --- |
-| `@karmaniverous/jeeves-scripts-core` | The config API (schemas, loader, getters `paths()`, `integrations()`, `pipeline()`, refs, silo resolver and routing, `configCheck`); `constants()`; `defineJob`; the utilities: the task-file dispatcher (`taskFileDispatcher`, `dispatchTaskFile`, `resolveTaskFile`) with `digestTimeZone` and the date helpers (`withDateContext`, `requireTimeZone`, `dayOfWeek`, `formatDate`, `relativeDays`), `dispatchWithSlack` and the worker-slack config schemas, the readers for other components' config (OpenClaw, jeeves-runner, jeeves-meta, any `jeeves-<name>`), the `gh` helpers, `getTokenMetrics`, and `convertDocxToMd` / `convertPdfToMd`. |
+| `@karmaniverous/jeeves-scripts-core` | The config API (schemas, loader, getters `paths()`, `integrations()`, `pipeline()`, refs, silo resolver and routing, `configCheck`); `constants()`; `defineJob`; the plugin API (`definePlugin`, `override`, `localConfig`); the utilities: the task-file dispatcher (`taskFileDispatcher`, `dispatchTaskFile`, `resolveTaskFile`) with `digestTimeZone` and the date helpers (`withDateContext`, `requireTimeZone`, `dayOfWeek`, `formatDate`, `relativeDays`), `dispatchWithSlack` and the worker-slack config schemas, the readers for other components' config (OpenClaw, jeeves-runner, jeeves-meta, any `jeeves-<name>`), the `gh` helpers, `getTokenMetrics`, and `convertDocxToMd` / `convertPdfToMd`. |
 | `@karmaniverous/jeeves-scripts-core/cli` | `main`, `buildProgram`: the CLI the launcher runs. |
 
 No other module is exported: instance code imports only these (Decision 7). A core function instance code needs is added to the root export, with docs and tests.

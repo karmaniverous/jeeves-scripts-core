@@ -13,7 +13,7 @@ Framework for autonomous LLM task dispatchers that read Markdown task files and 
 
 Core ships no dispatcher runnable: a daily digest or briefing is an instance's choice of what to summarise and where to post it, so it is instance code (Decision 44). Core provides the machinery below. To add a dispatcher to an instance:
 
-1. Write it as an instance runnable with `defineJob`, in an instance domain, registered by the instance plugin ([jobs](./jobs.md#instance-jobs-and-overrides)), calling `dispatchTaskFile` (below) or building its task at runtime.
+1. Write it as an instance runnable with `defineJob`, in an instance domain, registered by the instance plugin ([jobs](./jobs.md#instance-runnables-and-overrides)), calling `dispatchTaskFile` (below) or building its task at runtime.
 2. Task-file dispatchers: write the TASK file with your standing orders. Dynamic dispatchers: set the `pipeline.refs` they read in `jeeves-scripts.json`.
 3. Give it a manifest in the instance's `jobs/*.json` (see [jobs](./jobs.md#manifests)) so the runner can schedule it as `["run", "<id>"]`, on a jeeves-runner schedule (e.g. `{"freq":"daily","byhour":6,"byminute":30,"timezone":"America/Chicago"}`).
 4. Test with `--print-task`, then `--dry-run` (below), before enabling it: `node bin/jeeves-scripts.js run acme-generate-digest --print-task`.

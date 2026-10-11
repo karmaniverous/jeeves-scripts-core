@@ -4,7 +4,8 @@
  * The single `jeeves-scripts.json` schema (Decision 3, Decision 19):
  * instance settings (the template's constants), `paths` overrides,
  * `integrations`, `pipeline` (the template's `pipeline-config.json`, same keys),
- * `siloRouting` (silo routing) and `jobs` deltas.
+ * `siloRouting` (silo routing), `jobs` deltas and the instance's own
+ * `local` block (validated by the instance plugin).
  *
  * Rejects any literal secret value anywhere in the raw tree (Decision
  * 19; see `config/secret-guard.ts`), checked against the *raw* parsed
@@ -68,7 +69,11 @@ export const configObjectSchema = z.object({
   people: peopleSchema.default({}),
   /** Per-job deltas. */
   jobs: jobsSchema,
-  /** Seam implementations. */
+  /**
+   * The instance's own block: core never reads it; the instance plugin's
+   * `configSchema` validates it and `localConfig()` returns it.
+   */
+  local: z.unknown().optional(),
 });
 
 /**

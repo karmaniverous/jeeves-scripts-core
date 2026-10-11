@@ -9,8 +9,7 @@
  * mode is the default; pass `--live` for actual writes.
  *
  * Usage:
- *   jeeves-scripts run <job-id> --team CRE [--type issue] [--live]
- *   (a manifest entry in the instance's jobs/*.json with script src/linear/backfill.ts)
+ *   jeeves-scripts run linear-backfill --team CRE [--type issue] [--live]
  *
  * CLI arguments:
  *   --team KEY   Linear team key, e.g. CRE (required for type=issue)

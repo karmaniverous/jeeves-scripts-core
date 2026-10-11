@@ -4,7 +4,8 @@
  *
  * The root export is the only API instance code builds on (Decision 7,
  * design §3): the config API, `constants()`, `defineJob` (Decisions 4, 40,
- * 49) and the utilities (the task-file dispatcher and its date helpers,
+ * 49), the plugin API (`definePlugin`, `override`, `localConfig`) and the
+ * utilities (the task-file dispatcher and its date helpers,
  * worker dispatch with job-side Slack I/O, the readers for other
  * components' own config, the `gh` helpers, token-metrics queries and the
  * document converters). No other built module is exported; the CLI entry
@@ -45,6 +46,20 @@ export {
   type JobPrerequisite,
   type JobRun,
 } from './jobs/define-job.js';
+export {
+  definePlugin,
+  isJobOverride,
+  isPlugin,
+  type JobOverride,
+  type JobOverrideDeclaration,
+  jobOverrideDeclarationSchema,
+  localConfig,
+  type LocalConfigSchema,
+  override,
+  type Plugin,
+  type PluginDeclaration,
+  pluginDeclarationSchema,
+} from './jobs/plugin.js';
 export * from './lib/component-config.js';
 export { type Constants, constants } from './lib/constants.js';
 export {

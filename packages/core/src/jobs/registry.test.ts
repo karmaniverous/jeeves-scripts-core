@@ -13,9 +13,9 @@ vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
 import { defineJob } from './define-job.js';
 import { readCoreManifests } from './manifest.js';
 import {
+  coreDomains,
   coreJobs,
   findJob,
-  findJobByScript,
   loadJob,
   type RegistryEntry,
 } from './registry.js';
@@ -34,6 +34,17 @@ describe('core job registry', () => {
         .map((e) => `${e.module}.ts`)
         .filter((f) => !fs.existsSync(path.join(srcDir, f))),
     ).toEqual([]);
+  });
+
+  it('names every top-level domain folder as a core domain, and only those', () => {
+    const framework = new Set(['cli', 'config', 'jobs', 'lib']);
+    const folders = fs
+      .readdirSync(srcDir, { withFileTypes: true })
+      .filter((d) => d.isDirectory() && !framework.has(d.name))
+      .map((d) => d.name)
+      .sort();
+    expect([...coreDomains].sort()).toEqual(folders);
+    expect(coreJobs.filter((e) => !coreDomains.includes(e.domain))).toEqual([]);
   });
 
   it('registers every scheduled job in core manifests under the same domain', () => {
@@ -60,20 +71,10 @@ describe('core job registry', () => {
   }, 120_000);
 });
 
-describe('findJob / findJobByScript', () => {
+describe('findJob', () => {
   it('finds a job by id, or nothing', () => {
     expect(findJob('email-poll')?.module).toBe('email/poll');
     expect(findJob('nope')).toBeUndefined();
-  });
-
-  it.each([
-    ['src/email/poll.ts', 'email-poll'],
-    ['./src/email/poll.ts', 'email-poll'],
-    ['src\\email\\google-workspace\\download.ts', 'email-download'],
-    ['src/jira/drain.ts', 'jira-drain'],
-    ['src/acme/report.ts', undefined],
-  ])('maps the script %s to %s', (script, id) => {
-    expect(findJobByScript(script)?.id).toBe(id);
   });
 });
 

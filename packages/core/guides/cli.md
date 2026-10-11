@@ -15,7 +15,7 @@ import { main } from '@karmaniverous/jeeves-scripts-core/cli';
 process.exitCode = await main({ root: new URL('..', import.meta.url) });
 ```
 
-Node resolves core from the launcher's own `node_modules`, so a job always runs the core version pinned in that repo. Runner jobs are registered as script `{scriptsDir}/bin/jeeves-scripts.js` with args `["run", "<job-id>", ...]`; jeeves-runner runs `.js` scripts with `node` on Windows and Linux.
+Node resolves core from the launcher's own `node_modules`, so a job always runs the core version pinned in that repo. Runner jobs are registered as script `{scriptsDir}/bin/jeeves-scripts.js` with args `["run", "<id>", ...]`; jeeves-runner runs `.js` scripts with `node` on Windows and Linux.
 
 The package `bin` (`npx jeeves-scripts ...`, from the instance repo) does the same with the working directory as the root.
 
@@ -23,7 +23,8 @@ The package `bin` (`npx jeeves-scripts ...`, from the instance repo) does the sa
 
 | Command | What it does |
 | --- | --- |
-| `run <job-id> [args...]` | Run a job by id (below). Options after the job id are passed to the job unchanged. |
+| `run <id> [args...]` | Run a runnable by id (below). Everything after the id is passed to it unchanged. Exit 0 when done or skipped; 1 on a crash, an unknown id or a registration error; a runnable may set another code with `process.exitCode`. |
+| `list [glob] [--json]` | Every registered runnable whose id matches the glob ([below](#listing-runnables)). Exit 1 on an invalid manifest, delta or registration. |
 | `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
 | `run people-propose [--all] [--out <file>]` | Runnable `people-propose` (no manifest). Read-only: reads `users.list` for every gateway Slack bot account (`slackBotTokens`), skips bots, deactivated users and Slackbot, groups users across workspaces by email (case-insensitive) and real name, and prints `{ summary, people, uncertain }`: a proposed `people` block ([config.md](./config.md#people)) of people with more than one account (`--all`: everyone) and the matches to check by hand (grouped by name only; a name shared inside one workspace; one email on two users of a workspace). Never writes config; `--out` writes the same JSON (UTF-8) to a file and refuses `jeeves-scripts.json`. |
 | `run email-apply-labels [--since <date>] [--account <id>] [--max <n>] [--dry-run] [--config <file>]` | Runnable `email-apply-labels` (no manifest). Enqueue the classification labels stored thread state calls for but that were never applied (e.g. while `emailConfig.reportOnly` was on); `drain-updates` applies them. Idempotent. Refuses while `reportOnly` is on unless `--dry-run`. See [email.md](./email.md#label-catch-up). |
@@ -32,27 +33,42 @@ Domain work is never a CLI verb (Decision 49): it is a runnable, run with `run <
 
 `main()` resolves to the exit code and never calls `process.exit` itself.
 
-## How `run` resolves a job
+## How `run` resolves a runnable
 
-Core's jobs are registered by id ([jobs](./jobs.md)); an instance declares its own jobs in `{root}/jobs/*.json` (arrays of runner job objects with `id` and `script`; other runner fields pass through) until plugins land (Dev Plan 33 phase 2).
+Before resolving, `run` sets `JEEVES_SCRIPTS_CONFIG` to `{root}/jeeves-scripts.json` (unless it is already set) and loads the instance plugin, `{root}/jeeves-scripts.plugin.ts`, in its own process with tsx ([jobs](./jobs.md#instance-runnables-and-overrides)). Then:
 
-1. **A core job id** runs core's job, always: its module is loaded through the registry and runs in the CLI's process ([`defineJob`](./jobs.md#declaring-a-job): `process.argv` is `[node, <id>, ...args]`, a crash exits 1 through `runScript`). `run` resolves when the job body has finished; a job that sets `process.exitCode` sets the CLI's exit code.
-2. **An instance file never replaces a core job.** If the instance's `jobs/*.json` reuses a core id and the instance repo has a file at that entry's `script` path, `run` fails and says so. Instances change core jobs through `jobs.<id>` deltas in `jeeves-scripts.json` or (phase 2) a declared override (Decisions 6, 27).
-3. **An instance-declared id** (not a core id) runs the instance file at its `script` path (e.g. `src/acme/daily-briefing.ts`) in a child process (`node --import tsx <file> [args...]`, working directory = the instance root). The exit code is the child's.
-4. **An instance-declared id with no instance file** whose `script` names a core module (`src/email/poll.ts`) runs that core job (`email-poll`): a transitional alias for runner job ids that differ from core's.
-5. Otherwise `run` fails: an unknown id, or an instance job whose script exists nowhere.
+1. **A plugin override** for `<id>` runs instead of core's runnable.
+2. Else **a core id** runs core's runnable, its module loaded through the registry.
+3. Else **a plugin runnable** id runs the instance runnable.
+4. Else `run` fails: unknown id.
 
-Running a core module by path (`node dist/<domain>/<job>.js`) runs nothing: job modules only declare their job.
+Every runnable runs in the CLI's process ([`defineJob`](./jobs.md#declaring-a-job): `process.argv` is `[node, <id>, ...args]`, a crash exits 1 through `runScript`). `run` resolves when the body has finished. A plugin that fails to load, or breaks a registration rule (a core id or core domain reused, an override of an unknown id), fails `run` before anything runs.
 
-Before running anything, `run` sets `JEEVES_SCRIPTS_CONFIG` to `{root}/jeeves-scripts.json` unless it is already set, so core jobs and instance scripts read the instance's config.
+`run` never adds a manifest's `args`: a registered runner job's args are `["run", <id>, ...effective manifest args]`, so a person typing `run <id>` gets exactly what was typed.
 
-A malformed `jobs/*.json` entry (missing `id` or `script`, or not an object) fails `run` with the file name and the entry's position, instead of being skipped.
+Running a core module by path (`node dist/<domain>/<module>.js`) runs nothing: runnable modules only declare themselves.
+
+## Listing runnables
+
+`jeeves-scripts list [glob] [--json]` lists every registered runnable, core and instance, whose id matches `glob` (shell-style `*`, `?` and `[...]` against the id; default `*`), sorted by id, which sorts by domain:
+
+| Column | Content |
+| --- | --- |
+| `id` | The runnable id |
+| `source` | `core`, `instance`, or `override` (a plugin override of a core id) |
+| `schedule` | The effective schedule after instance deltas, as compact JSON, when it has a manifest; blank otherwise |
+| `enabled` | The effective `enabled` after deltas, when it has a manifest; blank otherwise |
+| `description` | The manifest's `description`, else the `defineJob` one |
+
+`--json` prints an array with one object per runnable: the same fields (`schedule` and `enabled` are `null` without a manifest) plus `domain` and `manifest` (the effective manifest after deltas, or `null`). jeeves-tools registers runner jobs from it: every entry with a manifest whose `prerequisite` is `null`. `list` reads the instance config (for deltas), loads the plugin, reads core's and the instance's manifests, and imports the modules of runnables without a manifest to read their descriptions.
 
 ## Examples
 
 ```bash
 node bin/jeeves-scripts.js config check
 node bin/jeeves-scripts.js config check --config ./test/fixture.json
+node bin/jeeves-scripts.js list
+node bin/jeeves-scripts.js list 'email-*' --json
 node bin/jeeves-scripts.js run meetings-fetch-notes --dry-run
 node bin/jeeves-scripts.js run email-apply-labels --dry-run --since 2026-10-01
 JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run admin-refresh-token-rates
@@ -63,6 +79,8 @@ JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run admin-refresh
 | File | Purpose |
 | --- | --- |
 | `src/cli/index.ts` | `main`, `buildProgram`, `resolveRoot`, the `config` command |
-| `src/cli/run.ts` | `readJobs`, `resolveJob`, `runJob` |
+| `src/cli/list.ts` | `listRunnables`, `formatList` |
+| `src/cli/load-plugin.ts` | `loadPlugin`: imports `jeeves-scripts.plugin.ts` with tsx |
+| `src/cli/run.ts` | `registerInstance`, `resolveRunnable`, `runJob` |
 | `src/jobs/` | `defineJob`, the job registry and manifests ([jobs](./jobs.md)) |
 | `src/cli/bin.ts` | Package `bin`: runs `main` with the working directory as root |

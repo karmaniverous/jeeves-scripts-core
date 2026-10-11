@@ -6,7 +6,8 @@
  * into a `Costs` report for a given time range.
  *
  * Serves as both an importable function and a CLI entry point:
- * `jeeves-scripts run <job-id> [--from ISO] [--to ISO]` (a manifest entry in the instance's jobs/*.json with script src/admin/token-metrics.ts)
+ * `node node_modules/@karmaniverous/jeeves-scripts-core/dist/admin/token-metrics.js [--from ISO] [--to ISO]`
+ * (not a runnable; `getTokenMetrics` is on the root export)
  *
  * Config dependencies: TOKEN_METRICS_DIR, TOKEN_RATES_PATH from constants.ts.
  */
