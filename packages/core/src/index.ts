@@ -14,7 +14,11 @@
  * @packageDocumentation
  */
 
-export { getTokenMetrics } from './admin/token-metrics.js';
+export {
+  getTokenMetrics,
+  type TokenMetricsBound,
+  type TokenMetricsOptions,
+} from './admin/token-metrics.js';
 export type {
   ChannelBucket,
   Channels,

@@ -142,15 +142,14 @@ afterAll(() => {
 });
 
 describe('getTokenMetrics', () => {
-  // Dynamic import to avoid module-level side effects
   const loadModule = async () => import('./token-metrics.js');
 
   it('aggregates across multiple hours', async () => {
     const { getTokenMetrics } = await loadModule();
     // Time range covering both fixture hours
-    const from = new Date('2099-01-15T10:00:00Z').getTime() / 1000;
-    const to = new Date('2099-01-15T11:59:59Z').getTime() / 1000;
-    const costs = getTokenMetrics({ fromTs: from, toTs: to });
+    const from = '2099-01-15T10:00:00Z';
+    const to = '2099-01-15T11:59:59Z';
+    const costs = getTokenMetrics({ from, to });
 
     // Grand total should be sum of all costs
     expect(costs.cost).toBeGreaterThan(0);
@@ -175,9 +174,9 @@ describe('getTokenMetrics', () => {
 
   it('returns per-channel breakdowns', async () => {
     const { getTokenMetrics } = await loadModule();
-    const from = new Date('2099-01-15T10:00:00Z').getTime() / 1000;
-    const to = new Date('2099-01-15T11:59:59Z').getTime() / 1000;
-    const costs = getTokenMetrics({ fromTs: from, toTs: to });
+    const from = '2099-01-15T10:00:00Z';
+    const to = '2099-01-15T11:59:59Z';
+    const costs = getTokenMetrics({ from, to });
 
     expect(costs.channels).toHaveProperty('slack:channel:#general');
     expect(costs.channels).toHaveProperty('heartbeat');
@@ -191,9 +190,9 @@ describe('getTokenMetrics', () => {
 
   it('returns per-model breakdowns', async () => {
     const { getTokenMetrics } = await loadModule();
-    const from = new Date('2099-01-15T10:00:00Z').getTime() / 1000;
-    const to = new Date('2099-01-15T11:59:59Z').getTime() / 1000;
-    const costs = getTokenMetrics({ fromTs: from, toTs: to });
+    const from = '2099-01-15T10:00:00Z';
+    const to = '2099-01-15T11:59:59Z';
+    const costs = getTokenMetrics({ from, to });
 
     expect(costs.models).toHaveProperty('anthropic/claude-opus-4-6');
     expect(costs.models).toHaveProperty('openai/gpt-4o');
@@ -207,12 +206,34 @@ describe('getTokenMetrics', () => {
     expect(opus.tokens.output.count).toBe(200 + 100 + 300);
   });
 
+  it('takes Date bounds as well as ISO strings', async () => {
+    const { getTokenMetrics } = await loadModule();
+    const fromString = getTokenMetrics({
+      from: '2099-01-15T10:00:00Z',
+      to: '2099-01-15T10:59:59Z',
+    });
+    const fromDates = getTokenMetrics({
+      from: new Date('2099-01-15T10:00:00Z'),
+      to: new Date('2099-01-15T10:59:59Z'),
+    });
+    expect(fromDates).toEqual(fromString);
+    expect(fromDates.models).not.toHaveProperty('openai/gpt-4o');
+  });
+
+  it.each([
+    [{ from: 'not a date' }, /from is not a valid date: not a date/],
+    [{ to: new Date(Number.NaN) }, /to is not a valid date/],
+  ])('rejects an invalid bound %#', async (options, message) => {
+    const { getTokenMetrics } = await loadModule();
+    expect(() => getTokenMetrics(options)).toThrow(message);
+  });
+
   it('handles empty time range gracefully', async () => {
     const { getTokenMetrics } = await loadModule();
     // Far future range with no data
-    const from = new Date('2099-06-01T00:00:00Z').getTime() / 1000;
-    const to = new Date('2099-06-01T01:00:00Z').getTime() / 1000;
-    const costs = getTokenMetrics({ fromTs: from, toTs: to });
+    const from = '2099-06-01T00:00:00Z';
+    const to = '2099-06-01T01:00:00Z';
+    const costs = getTokenMetrics({ from, to });
 
     expect(costs.cost).toBe(0);
     expect(Object.keys(costs.channels)).toHaveLength(0);
@@ -221,9 +242,9 @@ describe('getTokenMetrics', () => {
 
   it('computes costPct values that sum to ~1', async () => {
     const { getTokenMetrics } = await loadModule();
-    const from = new Date('2099-01-15T10:00:00Z').getTime() / 1000;
-    const to = new Date('2099-01-15T11:59:59Z').getTime() / 1000;
-    const costs = getTokenMetrics({ fromTs: from, toTs: to });
+    const from = '2099-01-15T10:00:00Z';
+    const to = '2099-01-15T11:59:59Z';
+    const costs = getTokenMetrics({ from, to });
 
     // Channel costPcts should sum to ~1
     const chanPctSum = Object.values(costs.channels).reduce(
@@ -242,9 +263,9 @@ describe('getTokenMetrics', () => {
 
   it('single hour query returns correct data', async () => {
     const { getTokenMetrics } = await loadModule();
-    const from = new Date('2099-01-15T10:00:00Z').getTime() / 1000;
-    const to = new Date('2099-01-15T10:59:59Z').getTime() / 1000;
-    const costs = getTokenMetrics({ fromTs: from, toTs: to });
+    const from = '2099-01-15T10:00:00Z';
+    const to = '2099-01-15T10:59:59Z';
+    const costs = getTokenMetrics({ from, to });
 
     // Only hour 1 data — no gpt-4o
     expect(costs.models).not.toHaveProperty('openai/gpt-4o');
@@ -253,9 +274,9 @@ describe('getTokenMetrics', () => {
 
   it('reports ref as the rate card ($/MTok per model), not token usage', async () => {
     const { getTokenMetrics } = await loadModule();
-    const from = new Date('2099-01-15T10:00:00Z').getTime() / 1000;
-    const to = new Date('2099-01-15T10:59:59Z').getTime() / 1000;
-    const costs = getTokenMetrics({ fromTs: from, toTs: to });
+    const from = '2099-01-15T10:00:00Z';
+    const to = '2099-01-15T10:59:59Z';
+    const costs = getTokenMetrics({ from, to });
 
     // gpt-4o has no usage in this hour but is in the rate card.
     expect(costs.ref).toEqual({

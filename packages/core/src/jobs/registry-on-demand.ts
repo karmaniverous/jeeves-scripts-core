@@ -3,7 +3,8 @@
  *
  * Core's on-demand runnables: core runnables without a manifest, run by a
  * person, the assistant or a jeeves-server webhook (drains, backfills,
- * X actions, `people-propose`, conversions; Decisions 49, 50, 51). Each
+ * X actions, `people-propose`, conversions, the token cost report;
+ * Decisions 49, 50, 51, 57). Each
  * describes itself in `defineJob`. Entries only; importing this module
  * imports no runnable.
  */
@@ -17,6 +18,12 @@ export const onDemandJobs: readonly RegistryEntry[] = [
     domain: 'admin',
     module: 'admin/regenerate-token-metrics',
     load: () => import('../admin/regenerate-token-metrics.js'),
+  },
+  {
+    id: 'admin-report-token-metrics',
+    domain: 'admin',
+    module: 'admin/report-token-metrics',
+    load: () => import('../admin/report-token-metrics.js'),
   },
   {
     id: 'convert-docx-to-md',
