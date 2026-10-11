@@ -78,3 +78,19 @@ describe('isSamePath edge cases', () => {
     }
   });
 });
+
+describe('isSamePath on Windows', () => {
+  it('ignores case', () => {
+    const saved = process.platform;
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    try {
+      const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'same-path-win-'));
+      expect(isSamePath(path.join(dir, 'Sub'), path.join(dir, 'sub'))).toBe(
+        true,
+      );
+      fs.rmSync(dir, { recursive: true, force: true });
+    } finally {
+      Object.defineProperty(process, 'platform', { value: saved });
+    }
+  });
+});
