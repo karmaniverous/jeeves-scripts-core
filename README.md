@@ -47,7 +47,7 @@ Core is public and shared by every instance, so every addition must be generic. 
 
 ### Held-back Dependencies
 
-All dependencies are pinned at their latest version subject to peer constraints. The following are held back from the newest release available on npm at the time of writing, each for the peer constraint that holds it:
+All dependencies are pinned at their latest version subject to peer constraints. The following are held back from the newest release available on npm (checked 2026-10-11), each for the peer constraint that holds it:
 
 | Dependency | Latest on npm | Pinned here | Held back by |
 | --- | --- | --- | --- |

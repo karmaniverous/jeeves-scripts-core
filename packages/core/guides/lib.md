@@ -151,6 +151,26 @@ Usage: `echo "task" | node <core>/dist/lib/spawn-worker.js --job-id=<id> [--labe
 - Outputs `WORKER_RESULT:{"sessionKey":"...","tokens":12345,"durationMs":123000}` on last stdout line
 - Implements retry with exponential backoff (3 retries, 30s base)
 
+### frontmatter.ts
+
+YAML frontmatter for generated Markdown: builds the `---` block (every value JSON-quoted, so no value can break it) that the converters and the Google Drive sync put at the top of a file.
+
+### worker-session.ts
+
+Waits for a spawned worker: polls the gateway's `sessions_list` for the child session until its run ends, then reads token usage from the transcript (`waitForWorkerCompletion`, `findSession`, `sessionTokens`, `getTokensFromTranscript`). `spawn-worker.ts` uses it.
+
+### retry.ts
+
+The one retry helper, on the root export: `retryAsync(fn, policy)` and `retrySync(fn, policy)` try up to `policy.attempts` times, waiting `policy.delayMs(attempt)` (`exponentialBackoff(baseMs)` for doubling waits) after a failure `policy.isRetryable` accepts, and rethrow the last error. The worker spawn, the Drive rename, the Fathom share fetch and the Notion page reader use it.
+
+### json-file.ts
+
+Validated JSON file I/O, on the root export: `readJsonFile(file, schema)` parses and Zod-validates (throwing), `readJsonFileIfExists(file, schema, fallback)` returns `fallback` for a missing file, and `writeJsonFile(file, data, indent = 2)` writes atomically (temp file, rename), creating parent directories. (`@karmaniverous/jeeves`'s `readJson` / `writeJsonAtomic` remain for fallback reads and fixed-indent writes.)
+
+### args.ts
+
+The one argument parser for core runnables (internal): `parseRunnableArgs(ctx.args, { live: flag('--live'), project: value('--project', ''), days: optional('--days') })`. A flag is present or not, a value is the argument after its name (else the default, or `undefined` for `optional`), and unknown arguments are ignored. `admin-report-token-metrics` keeps its own strict parser, which rejects unknown arguments.
+
 ### entity-store.ts
 
 Shared entity persistence — upsert, backfill, and delete entity files with reverse-diff history using `fast-json-patch`. Used by any domain that persists structured entities (Jira, Linear, etc.).
@@ -166,7 +186,7 @@ Entity file structure:
 ```json
 {
   "entityType": "issue",
-  "entityKey": "CRE-1",
+  "entityKey": "ACME-1",
   "current": { ... },
   "history": [{ "ts": "...", "patch": [...] }],
   "meta": { "firstSeen": "...", "lastWebhook": "...", "lastBackfill": null, "version": 7 }

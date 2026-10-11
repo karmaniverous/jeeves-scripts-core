@@ -4,7 +4,7 @@ Shared Jeeves scripts domains, configuration and the `jeeves-scripts` CLI for `j
 
 ## Where the documentation lives
 
-Everything below ships in the npm package. From an instance repo, the package root is `node_modules/@karmaniverous/jeeves-scripts-core/` (on a jeeves-tools-managed instance: `{scriptsDir}/node_modules/@karmaniverous/jeeves-scripts-core/`). Skills and the watcher should point there, so they always read the docs for the core version the instance has installed.
+Everything below ships in the npm package. From an instance repo, the package root is `node_modules/@karmaniverous/jeeves-scripts-core/` (on a jeeves-tools-managed instance: `$JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/`). Skills and the watcher should point there, so they always read the docs for the core version the instance has installed.
 
 | Path in the package | What it is |
 | --- | --- |
@@ -88,10 +88,10 @@ process.exitCode = await main({ root: new URL('..', import.meta.url) });
 Runner jobs execute it with `node`, so the CLI never needs to be on `PATH` and the job always runs the core version pinned in that repo:
 
 ```bash
-node <scriptsDir>/bin/jeeves-scripts.js run <id> [args...]
-node <scriptsDir>/bin/jeeves-scripts.js list [glob] [--json]
-node <scriptsDir>/bin/jeeves-scripts.js config check
-node <scriptsDir>/bin/jeeves-scripts.js doctor
+node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js run <id> [args...]
+node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js list [glob] [--json]
+node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js config check
+node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js doctor
 ```
 
 See [`guides/cli.md`](guides/cli.md) for every command and how `run` resolves an id. An instance adds its own runnables, overrides of core runnables and the schema of its own `local` config block in `{root}/jeeves-scripts.plugin.ts`, which the CLI loads with tsx ([`guides/jobs.md`](guides/jobs.md#instance-runnables-and-overrides)).
@@ -103,7 +103,7 @@ One file, `{root}/jeeves-scripts.json`, holds every setting; it never holds a se
 ```json
 {
   "$schema": "./node_modules/@karmaniverous/jeeves-scripts-core/schema/jeeves-scripts.schema.json",
-  "instance": { "name": "my-instance", "baseDir": "/opt/jeeves" }
+  "instance": { "name": "my-instance", "baseDir": "/base" }
 }
 ```
 

@@ -10,9 +10,9 @@ Read [admin.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-c
 
 ## Answering cost questions
 
-- Answer from the report core produces, never from estimates: `node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js run admin-report-token-metrics --from <date> --to <date>` ([Querying Costs]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/admin.md#querying-costs)).
+- Answer from the report core produces, never from estimates: `node "$JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js" run admin-report-token-metrics --from <date> --to <date>` ([Querying Costs]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/admin.md#querying-costs)).
 - Scope the report to the period the question asks about.
-- Costs come from the rate card; a model missing from it shows as unpriced. Say so instead of guessing a price, and follow the runbook to add the rate.
+- Costs come from the rate card. The collector writes no buckets for a model missing from it: it records the model as pending and triggers a rate refresh, so those hours appear once the rate lands. Say so instead of guessing a price, and follow the runbook to add the rate if the refresh can't find it.
 
 ## Operator rules
 

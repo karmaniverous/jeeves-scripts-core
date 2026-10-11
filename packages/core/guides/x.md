@@ -42,7 +42,7 @@ flowchart TD
 ## Prerequisites
 
 - `X_ACCOUNTS` from `constants()`, built from `integrations.x.accounts` (each handle's `silo` and `relativePath`, default `x/<handle>` in the default silo): a map of account handle → that account's output directory. Empty by default.
-- Per-account OAuth 2.0 PKCE credentials: one JSON file per handle under `X_OAUTH_DIR` (`{CREDENTIALS_DIR}/oauth`, i.e. `/opt/jeeves/config/credentials/oauth`), named `x-{handle}-oauth2.json`, containing `clientId`, `clientSecret`, `access_token` and `refresh_token`. These are secrets: keep them in that directory, never in the repo. Tokens come from the initial auth flow and are refreshed by `refresh-token.ts` (and automatically on a 401).
+- Per-account OAuth 2.0 PKCE credentials: one JSON file per handle under `X_OAUTH_DIR` (`{CREDENTIALS_DIR}/oauth`, i.e. `/base/config/credentials/oauth`), named `x-{handle}-oauth2.json`, containing `clientId`, `clientSecret`, `access_token` and `refresh_token`. These are secrets: keep them in that directory, never in the repo. Tokens come from the initial auth flow and are refreshed by `refresh-token.ts` (and automatically on a 401).
 
 ## Runner Jobs
 

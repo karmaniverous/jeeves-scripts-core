@@ -24,11 +24,11 @@ Each resolves to `{ converted, skipped, failed }` and logs one line per file (`C
 To convert one file without writing code, run a thin runnable with the input file and the Markdown file to write:
 
 ```bash
-node {scriptsDir}/bin/jeeves-scripts.js run convert-pdf-to-md /base/content/docs/spec.pdf /base/content/docs/spec.pdf.md
-node {scriptsDir}/bin/jeeves-scripts.js run convert-docx-to-md report.docx report.md
+node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js run convert-pdf-to-md /base/content/docs/spec.pdf /base/content/docs/spec.pdf.md
+node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js run convert-docx-to-md report.docx report.md
 ```
 
-Each takes exactly `<in> <out>` (anything else fails with a usage message), writes `<out>` with the same frontmatter as the utilities (`source`, `converted`, and `pages` for a PDF), overwriting it, and exits 1 when the input can't be read or converted. Neither has a manifest; an instance that wants one scheduled adds a manifest in its own `jobs/*.json` ([jobs.md](jobs.md)).
+Each takes exactly `<in> <out>` (anything else fails the run: a `CRASH` line with the usage error on stderr, exit 1), writes `<out>` with the same frontmatter as the utilities (`source`, `converted`, and `pages` for a PDF), overwriting it, and exits 1 when the input can't be read or converted. Neither has a manifest; an instance that wants one scheduled adds a manifest in its own `jobs/*.json` ([jobs.md](jobs.md)).
 
 ## Data Flow
 

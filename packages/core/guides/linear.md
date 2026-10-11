@@ -19,7 +19,7 @@ flowchart TD
   linear["Linear"] -->|webhook POST| gw["jeeves-server\nEvent Gateway"]
   gw -->|stdin pipe| drain["drain.ts\n(routes by action + type)"]
 
-  drain -->|"Issue create/update"| issue["issue/CRE-123.json"]
+  drain -->|"Issue create/update"| issue["issue/ACME-123.json"]
   drain -->|Issue remove| del["delete file"]
   drain -->|"Comment create/update"| comment["comment/{uuid}.json"]
   drain -->|Comment remove| del
@@ -57,7 +57,7 @@ Supporting modules in `lib/`:
 ```
 {CONTENT_DIR}/linear/          ← or silo basePath/linear/ in multi-tenant
   issue/
-    CRE-1.json
+    ACME-1.json
     CRE-2.json
     ...
   comment/
@@ -81,7 +81,7 @@ Supporting modules in `lib/`:
 
 | Entity Type | Payload Object | Key Field    | Example File          |
 | ----------- | -------------- | ------------ | --------------------- |
-| `issue`     | `body.data`    | `identifier` | `issue/CRE-1.json`    |
+| `issue`     | `body.data`    | `identifier` | `issue/ACME-1.json`    |
 | `comment`   | `body.data`    | `id`         | `comment/{uuid}.json` |
 | `cycle`     | `body.data`    | `number`     | `cycle/1.json`        |
 | `project`   | `body.data`    | `id`         | `project/{uuid}.json` |
@@ -94,10 +94,10 @@ Each entity file is a JSON object with the following structure:
 ```json
 {
   "entityType": "issue",
-  "entityKey": "CRE-1",
+  "entityKey": "ACME-1",
   "current": {
     "id": "abc123",
-    "identifier": "CRE-1",
+    "identifier": "ACME-1",
     "title": "Fix login bug",
     "state": { "id": "...", "name": "In Progress", "type": "started" },
     "assignee": {
@@ -136,11 +136,11 @@ Linear delivers payloads with an `action` + `type` discriminator (unlike Jira's 
   "type": "Issue",
   "data": {
     "id": "abc123",
-    "identifier": "CRE-1",
+    "identifier": "ACME-1",
     "title": "Fix login bug",
     "...": "..."
   },
-  "url": "https://linear.app/team/issue/CRE-1",
+  "url": "https://linear.app/team/issue/ACME-1",
   "createdAt": "2026-06-29T11:00:00.000Z"
 }
 ```
@@ -176,14 +176,14 @@ Add this block to your jeeves-server Event Gateway configuration:
           "type": { "type": "string" },
         },
       },
-      "cmd": "node {SCRIPTS_DIR}/bin/jeeves-scripts.js run linear-drain",
+      "cmd": "node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js run linear-drain",
       "timeoutMs": 10000,
     },
   },
 }
 ```
 
-- `{SCRIPTS_DIR}` — absolute path to the instance repo (`paths().scriptsDir`)
+- `$JEEVES_SCRIPTS_DIR` — absolute path to the instance repo (`paths().scriptsDir`)
 - `linear-drain`: a registered core job with no manifest (event-driven: the event gateway runs `run linear-drain`)
 - `schema` — JSON Schema validated against the POST body (ajv, first match wins across all configured events)
 - `cmd` — the server spawns this command and pipes the request body JSON to stdin

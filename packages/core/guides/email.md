@@ -86,7 +86,7 @@ node bin/jeeves-scripts.js run email-apply-labels [--since <date>] [--account <i
 | Runner state `email-backfill`, key `cursor-<email>` | Historical backfill cursor |
 | Queue `email-pending` | Threads whose bodies `download` fetches |
 | Queue `email-updates` | Label actions `drain-updates` applies to Gmail |
-| `EMAIL_EVENTS_DIR` (`/opt/jeeves/state/runner/email-events`) | Event logs: `<account>.jsonl` (thread seen/updated) and `_runs-*.jsonl` (per-run summaries); `trim-jsonl.ts` drops event lines older than 7 days after each poll |
+| `EMAIL_EVENTS_DIR` (`/base/state/runner/email-events`) | Event logs: `<account>.jsonl` (thread seen/updated) and `_runs-*.jsonl` (per-run summaries); `trim-jsonl.ts` drops event lines older than 7 days after each poll |
 
 ## Shared Modules
 
@@ -99,7 +99,7 @@ node bin/jeeves-scripts.js run email-apply-labels [--since <date>] [--account <i
 
 ## Prerequisites
 
-- **gog accounts**: gog credentials under `GOG_CONFIG_DIR` (`GOG_HOME`, default `/opt/jeeves/config/gogcli`), either or both of:
+- **gog accounts**: gog credentials under `GOG_CONFIG_DIR` (`GOG_HOME`, default `/base/config/gogcli`), either or both of:
   - an OAuth client at `GOG_CLIENT_PATH` (`<GOG_CONFIG_DIR>/credentials.json`) plus per-account tokens; or
   - service-account mailboxes (domain-wide delegation) registered by gog at `<GOG_CONFIG_DIR>/data/sa-<base64(email)>.json` (padding stripped; checked first, then the `<GOG_CONFIG_DIR>` root for older gog builds without `data/`). jeeves-tools deploy writes the key to `<GOG_CONFIG_DIR>/service-account.json`.
 
@@ -137,7 +137,7 @@ Accounts are the entries of `pipeline.accounts` in `jeeves-scripts.json` (schema
 
 `imap.password` takes one form (schema: `config/pipeline-schema.ts`; resolver: `config/imap-secrets.ts`):
 
-- **`{ "secretRef": "<name>" }`**. The password lives in the file `IMAP_SECRETS_DIR/<name>`, i.e. `<CREDENTIALS_DIR>/imap/<name>` (`/opt/jeeves/config/credentials/imap/<name>` on a standard instance). `<name>` follows the jeeves-tools secret-name rule: 1-64 characters, letters, digits, `_` and `-`, starting with a letter or digit (no dots, no path separators); anything else fails config validation. The poller reads the file each time it connects, so a rotated password needs no restart; trailing newlines are removed. A missing, unreadable or empty file fails that account's poll with an error naming the ref and the path (never the value); the other accounts are still polled.
+- **`{ "secretRef": "<name>" }`**. The password lives in the file `IMAP_SECRETS_DIR/<name>`, i.e. `<CREDENTIALS_DIR>/imap/<name>` (`/base/config/credentials/imap/<name>` on a standard instance). `<name>` follows the jeeves-tools secret-name rule: 1-64 characters, letters, digits, `_` and `-`, starting with a letter or digit (no dots, no path separators); anything else fails config validation. The poller reads the file each time it connects, so a rotated password needs no restart; trailing newlines are removed. A missing, unreadable or empty file fails that account's poll with an error naming the ref and the path (never the value); the other accounts are still polled.
 - A literal string is a config error (core carries no deprecated aliases, Decision 29): put the password in a file in `IMAP_SECRETS_DIR` and set `imap.password` to `{ "secretRef": "<file name>" }`.
 
 Provisioning: on a jeeves-tools-managed instance, put each password in the instance config's `secrets` map under the same name as the `secretRef`; deploy writes it to `IMAP_SECRETS_DIR/<name>` (owner jeeves, mode 0600) and never logs it (see [jeeves-tools#178](https://github.com/karmaniverous/jeeves-tools/issues/178)). On a standalone instance, create the file yourself with the same owner and mode. The password is never logged, written to runner state or included in an error.

@@ -261,7 +261,7 @@ Decided per file by MIME type, then extension. All tables are config with the de
 
 ### 6.1 State
 
-**Where it lives:** the jeeves-runner SQLite database (`JR_DB_PATH`, e.g. `/opt/jeeves/state/runner/runner.sqlite`), through the runner client's state API (`getRunnerClient()`). This is the same store the email, calendar and Linear scripts use. Nothing goes in the content tree, which the watcher indexes, and there are no sidecar files.
+**Where it lives:** the jeeves-runner SQLite database (`JR_DB_PATH`, e.g. `/base/state/runner/runner.sqlite`), through the runner client's state API (`getRunnerClient()`). This is the same store the email, calendar and Linear scripts use. Nothing goes in the content tree, which the watcher indexes, and there are no sidecar files.
 
 | Runner state | Namespace / key | Item key | Value |
 | --- | --- | --- | --- |

@@ -33,7 +33,7 @@ flowchart LR
 
 ### Storage
 
-- Buckets: `TOKEN_METRICS_DIR` (`/opt/jeeves/state/jeeves-runner/token-metrics`, override with the `TOKEN_METRICS_DIR` environment variable), one file per UTC hour at `<yyyy>/<mm>/<hour>.json`.
+- Buckets: `TOKEN_METRICS_DIR` (`paths.tokenMetricsDir` in `jeeves-scripts.json`, default `{stateDir}/jeeves-runner/token-metrics`; the `TOKEN_METRICS_DIR` environment variable wins), one file per UTC hour at `<yyyy>/<mm>/<hour>.json`.
 - Rate card: `token-rates.json` in that directory ($/MTok per model per token category), seeded from `config/token-rates.seed.json` when missing (never overwritten). `admin-refresh-token-rates` refreshes it from OpenRouter (base tier; prompt-length overrides and 1-hour cache writes ignored) and fails if a model can't be resolved or the card is missing or invalid. Token metrics are estimates; they are normalized against provider billing before invoicing.
 - Cursors: runner state namespace `token-metrics`, keys `cursors` (legacy transcripts), `cursors-openclaw-db` (agent DB) and `cursors-claude-code`. A file cursor stops at the first record in the current (still-open) UTC hour, so the next run counts it once the hour closes; without one it stops at the end of the last complete line (an unterminated last line counts only once it parses). Each record is counted exactly once.
 
@@ -45,7 +45,7 @@ flowchart LR
 - a live `--from` earlier than it is refused unless `--allow-pre-upgrade` is given (owner-approved only);
 - `--out` scratch runs never touch the live store (an `--out` that resolves to `TOKEN_METRICS_DIR`, directly or through a symlink, is refused), so they ignore it: no variable or flag is needed to scan pre-upgrade hours into a scratch directory.
 
-It is an environment variable (like `TOKEN_METRICS_DIR`) rather than a `jeeves-scripts.json` key because it is a one-off operator setting for a manually run CLI: a constant would need a per-instance template edit with a default, and `pipeline-config.json` requires the email configuration, which token metrics does not. `admin-collect-token-metrics`, `admin-report-token-metrics` and the other runnables never read it.
+It is an environment variable rather than a `jeeves-scripts.json` key because it is a one-off operator setting for a manually run CLI, with no sensible default to ship. `admin-collect-token-metrics`, `admin-report-token-metrics` and the other runnables never read it.
 
 ## Querying Costs
 
@@ -61,7 +61,9 @@ node "$JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js" run admin-report-token-metrics 
 
 ## Prerequisites
 
-No external prerequisites — all jobs run against local filesystem and gateway API.
+Most jobs need only the local filesystem and the gateway. `admin-check-qdrant-health` needs the Qdrant service (`integrations.qdrant`); `admin-refresh-token-rates` (and the refresh `admin-collect-token-metrics` triggers for unknown models) reaches OpenRouter over HTTPS.
+
+`admin-refresh-sessions` reads three environment variables, all optional: `CACHE_READ_THRESHOLD` (last-turn cache-read tokens before a session counts as large; default 150000), `IDLE_MINUTES` (minutes since the last message; default 60) and `EXCLUDED_SESSION_KEYS` (comma-separated session keys never refreshed). Set them in the runner job's `env` (a `jobs.admin-refresh-sessions.env` delta). It writes `sessions.json` once per run; when that write fails it renames every rotated transcript back and fails the run, and it notifies the sessions only after the write.
 
 | Runnable                      | Schedule        |
 | ----------------------------- | --------------- |
@@ -81,7 +83,7 @@ All five entries in core's manifest `jobs/admin.json` have `"prerequisite": null
 
 ## Qdrant restart privileges
 
-`admin-check-qdrant-health` runs as the unprivileged runner user. On Linux it restarts with `systemctl --no-ask-password restart qdrant`, so it never waits on a polkit prompt. No sudoers or polkit rule for the Qdrant unit is assumed (the jeeves-tools polkit rule covers only `jeeves-*.service`). When the restart is denied, the job logs `qdrant down; restart requires operator` (or `qdrant unhealthy; …`) and exits non-zero, so the runner records an error for an operator to act on. Any other restart failure also exits non-zero.
+`admin-check-qdrant-health` runs as the unprivileged runner user. On Linux it restarts the unit named by `integrations.qdrant.serviceName` with `systemctl --no-ask-password restart <unit>` (on Windows, `Restart-Service <name>`), so it never waits on a polkit prompt. No sudoers or polkit rule for the Qdrant unit is assumed (the jeeves-tools polkit rule covers only `jeeves-*.service`). When the restart is denied, the job logs `qdrant down; restart requires operator` (or `qdrant unhealthy; …`) and exits non-zero, so the runner records an error for an operator to act on. Any other restart failure also exits non-zero.
 
 ## Documentation
 

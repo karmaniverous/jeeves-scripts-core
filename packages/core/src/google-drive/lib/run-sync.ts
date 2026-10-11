@@ -9,6 +9,7 @@
 
 import path from 'node:path';
 
+import { paths } from '../../config/index.js';
 import { constants } from '../../lib/constants.js';
 import {
   assertNoSymlinks,
@@ -122,8 +123,7 @@ export async function syncOne(
   if (!opts.live) return summary;
 
   const stagingRoot =
-    opts.stagingRoot ??
-    path.join(constants().JEEVES_BASE_DIR, 'state', 'google-drive', 'tmp');
+    opts.stagingRoot ?? path.join(paths().stateDir, 'google-drive', 'tmp');
   const stagingDir = stagingDirFor(stagingRoot, cfg.account);
   prepareStaging(stagingDir, targetDir);
 

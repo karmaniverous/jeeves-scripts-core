@@ -15,7 +15,7 @@ import { main } from '@karmaniverous/jeeves-scripts-core/cli';
 process.exitCode = await main({ root: new URL('..', import.meta.url) });
 ```
 
-Node resolves core from the launcher's own `node_modules`, so a job always runs the core version pinned in that repo. Runner jobs are registered as script `{scriptsDir}/bin/jeeves-scripts.js` with args `["run", "<id>", ...]`; jeeves-runner runs `.js` scripts with `node` on Windows and Linux.
+Node resolves core from the launcher's own `node_modules`, so a job always runs the core version pinned in that repo. Runner jobs are registered as script `$JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js` with args `["run", "<id>", ...]`; jeeves-runner runs `.js` scripts with `node` on Windows and Linux.
 
 ## The global hand-off
 
@@ -43,7 +43,7 @@ jeeves-scripts --dir ./new-instance init        # no repo yet
 | `doctor` | Report on the instance ([below](#doctor)). Informational: always exits 0. |
 | `--version`, `--help` | The core version; usage (there is no `help` verb; `<verb> --help` gives a verb's usage). |
 | `init [--name <pkg>] [--core <version>]` | Write an instance repo into the root from the template bundled in core ([below](#init)). Exit 1 on an invalid name or version. |
-| `skills install \| uninstall \| status [--yes]` | Wire core's shipped skills into OpenClaw through `openclaw config set` ([below](#skills)). Exit 1, with `skills <action>: FAILED: <reason>` on stderr, when `openclaw` fails. |
+| `skills install \| uninstall [-y \| --yes]`, `skills status` | Wire core's shipped skills into OpenClaw through `openclaw config set` ([below](#skills)). Exit 1, with `skills <action>: FAILED: <reason>` on stderr, when `openclaw` fails. |
 | `run people-propose [--all] [--out <file>]` | Runnable `people-propose` (no manifest). Read-only: reads `users.list` for every gateway Slack bot account (`slackBotTokens`), skips bots, deactivated users and Slackbot, groups users across workspaces by email (case-insensitive) and real name, and prints `{ summary, people, uncertain }`: a proposed `people` block ([config.md](./config.md#people)) of people with more than one account (`--all`: everyone) and the matches to check by hand (grouped by name only; a name shared inside one workspace; one email on two users of a workspace). Never writes config; `--out` writes the same JSON (UTF-8) to a file and refuses `jeeves-scripts.json`. |
 | `run email-apply-labels [--since <date>] [--account <id>] [--max <n>] [--dry-run] [--config <file>]` | Runnable `email-apply-labels` (no manifest). Enqueue the classification labels stored thread state calls for but that were never applied (e.g. while `emailConfig.reportOnly` was on); `drain-updates` applies them. Idempotent. Refuses while `reportOnly` is on unless `--dry-run`. See [email.md](./email.md#label-catch-up). |
 
@@ -136,6 +136,10 @@ node bin/jeeves-scripts.js run meetings-fetch-notes --dry-run
 node bin/jeeves-scripts.js run email-apply-labels --dry-run --since 2026-10-01
 JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run admin-refresh-token-rates
 ```
+
+## Programmatic use
+
+The CLI is also importable from `@karmaniverous/jeeves-scripts-core/cli`: `main({ root?, argv? })` runs it and resolves the exit code (the launcher calls it), and `buildProgram({ root })` returns the Commander program without parsing, for tests and wrappers. It is outside the root export (and the TypeDoc API reference, which covers the root export); `src/cli/index.ts` documents both.
 
 ## Key files
 

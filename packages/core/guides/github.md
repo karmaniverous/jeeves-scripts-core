@@ -50,7 +50,7 @@ flowchart LR
 ## Prerequisites
 
 - `GH_ACCOUNT` (primary account) and `GH_BOT_USER` (bot) from `integrations.gh.account` / `integrations.gh.botUser` in `jeeves-scripts.json`; both default to empty. The scripts switch between them with `gh auth switch -u <user>`, so `gh` must hold a login for each.
-- `GH_CONFIG_DIR` (`/opt/jeeves/config/gh-cli`): every GitHub script sets the `GH_CONFIG_DIR` environment variable to it (`setupGhConfig()`) before calling `gh`, so the logins must live there. The jobs skip (`[skip]`, exit 0) when the directory does not exist; `build-registry` also skips when `GH_ACCOUNT` is empty.
+- `GH_CONFIG_DIR` (`integrations.gh.configDir`, default `{configDir}/gh-cli`, where `paths.configDir` defaults to `{baseDir}/config`; the `GH_CONFIG_DIR` environment variable wins): every GitHub script sets the `GH_CONFIG_DIR` environment variable to it (`setupGhConfig()`) before calling `gh`, so the logins must live there. The jobs skip (`[skip]`, exit 0) when the directory does not exist; `build-registry` also skips when `GH_ACCOUNT` is empty.
 - `GH_BIN` (`gh`, resolved through `PATH`).
 - The sync jobs only process repos in the registry, so `github-build-registry` must have run.
 

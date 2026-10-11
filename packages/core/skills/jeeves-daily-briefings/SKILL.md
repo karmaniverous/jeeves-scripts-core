@@ -6,7 +6,7 @@ metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
 
 # Daily Briefings
 
-A daily briefing is a task-file dispatcher job: on schedule, the job script gives an LLM worker a TASK file plus Slack context, the worker writes a dated Markdown briefing into the content tree, and the job script posts the worker's summary (with an insider link to the full document) to the delivery channel. Read [dispatchers.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/dispatchers.md) for the framework, the TASK file anatomy and how to create one.
+A daily briefing is a task-file dispatcher job: on schedule, the job script gives an LLM worker a TASK file plus Slack context, the worker writes a dated Markdown briefing into the content tree, and the job script posts the worker's summary to the delivery channel (a link to the full document is a TASK-file convention, not core behaviour). Read [dispatchers.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/dispatchers.md) for the framework, the TASK file anatomy and how to create one.
 
 ## Operator rules
 

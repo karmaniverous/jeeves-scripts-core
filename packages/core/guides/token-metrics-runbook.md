@@ -6,7 +6,7 @@ The token metrics pipeline has three stages:
 
 ### 1. Collection (`collect-token-metrics.ts`)
 
-Runs on a 97-minute cron cycle. Scans two data sources:
+Runs every 97 minutes (a jeeves-runner schedule). Scans two data sources:
 
 - **OpenClaw gateway transcripts** — JSONL files in `~/.openclaw/agents/main/sessions/`
 - **Claude Code project sessions** — JSONL files under `~/.claude/projects/`
@@ -30,7 +30,7 @@ If `SESSIONS_DIR` is missing or holds no transcript files (OpenClaw 2026.9+ move
 Each bucket file is a JSON file at:
 
 ```
-/opt/jeeves/state/jeeves-runner/token-metrics/{YYYY}/{MM}/{YYYY-MM-DDTHH}.json
+/base/state/jeeves-runner/token-metrics/{YYYY}/{MM}/{YYYY-MM-DDTHH}.json
 ```
 
 Schema:
@@ -151,13 +151,13 @@ The bucket file layout is partitioned by `{YYYY}/{MM}/`. There is no automatic p
 
 If you need to implement data retention:
 
-- **Delete old month directories** (e.g., `rm -rf /opt/jeeves/state/jeeves-runner/token-metrics/2025/`) to free disk space. This is safe because the collector never writes to hours in the past.
+- **Delete old month directories** (e.g., `rm -rf /base/state/jeeves-runner/token-metrics/2025/`) to free disk space. This is safe because the collector never writes to hours in the past.
 - **Cursor state does not need pruning** — cursors for deleted/rotated transcript files are inert (the file check skips them).
 - **pruneAfter** and **maxEntries** are runner-level settings for job state management, not token metrics settings. They control how long runner job execution history is retained, not bucket data.
 
 ## How to Add New Models to the Rate Card
 
-The rate card lives at `/opt/jeeves/state/jeeves-runner/token-metrics/token-rates.json`.
+The rate card lives at `/base/state/jeeves-runner/token-metrics/token-rates.json`.
 
 ### Seed on fresh instances
 
@@ -226,4 +226,4 @@ Add `"manual": true` to an entry to maintain its prices by hand. `admin-refresh-
 }
 ```
 
-After adding a model manually, restart the collector or wait for the next cron cycle. If the model is listed in `token-rates.pending.json`, the next refresh run clears it once it finds the model on the card.
+After adding a model manually, restart the collector or wait for its next scheduled run. If the model is listed in `token-rates.pending.json`, the next refresh run clears it once it finds the model on the card.

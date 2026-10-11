@@ -21,8 +21,8 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
 ```json
 {
   "$schema": "./node_modules/@karmaniverous/jeeves-scripts-core/schema/jeeves-scripts.schema.json",
-  "instance": { "name": "acme", "baseDir": "/opt/jeeves" },
-  "paths": { "contentDir": "/opt/jeeves/content" },
+  "instance": { "name": "acme", "baseDir": "/base" },
+  "paths": { "contentDir": "/base/content" },
   "integrations": {
     "gh": { "account": "acme-org" },
     "x": { "accounts": { "acme": { "relativePath": "x/acme" } } }
@@ -39,16 +39,19 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
   "siloRouting": {
     "silos": {
       "client": {
-        "basePath": "/opt/jeeves/client",
-        "emailDomains": ["client.com"]
+        "basePath": "/base/client",
+        "emailDomains": ["client.example.com"]
       }
     }
   },
   "jobs": {
-    "acme-generate-digest": { "silo": "client", "taskFile": "digest/TASK.md" }
+    "meetings-extract": { "enabled": false },
+    "admin-sweep-orphaned-tmp": { "extraDirs": ["/base/scratch"] }
   }
 }
 ```
+
+This example passes `config check` as it stands. A `jobs` key must be the id of a registered runnable (core's, or one the instance plugin registers), so a task-file dispatcher's delta such as `"acme-generate-digest": { "silo": "client", "taskFile": "digest/TASK.md" }` belongs in an instance whose plugin registers `acme-generate-digest`.
 
 | Block | Schema | Contents |
 | --- | --- | --- |
@@ -171,7 +174,7 @@ These win over the file: `GOG_HOME` (`paths().gogHome`), `TOKEN_METRICS_DIR` (`p
 
 Every content path core resolves goes through a silo. The default silo's base path is `siloRouting.defaultBasePath`, else `paths().contentDir`; named silos are `siloRouting.silos.<name>.basePath`. A single-tenant instance can omit `siloRouting`.
 
-Each silo: `basePath` (required, absolute); `emailDomains` (mail domains), `githubOrgs` (org names, or `{ "githubOrg", "relativePath" }` to route an org to a subdirectory), `slackWorkspaces` (team ids), `jira` / `linear` (`true`: that integration's content routes here), all optional.
+Each silo: `basePath` (required; give an absolute path, since a relative one resolves against the working directory); `emailDomains` (mail domains), `githubOrgs` (org names, or `{ "githubOrg", "relativePath" }` to route an org to a subdirectory), `slackWorkspaces` (team ids), `jira` / `linear` (`true`: that integration's content routes here), all optional.
 
 - `siloPath(silo, segments)` joins `segments` onto the silo's base path (`undefined` = the default silo). Throws `UnknownSiloError` for an unconfigured name.
 - `isKnownSilo(silo)` checks a name; `siloRouting()` returns the resolved `siloRouting` block (the default silo's base path filled in).
@@ -181,7 +184,7 @@ Instance and plugin code never joins absolute content roots itself; it calls `si
 
 ## Validation: `config check`
 
-`configCheck({ root?, configPath? })` (and `jeeves-scripts config check`) loads the file fresh, validates it, and checks that every `jobs.<id>.silo` names a configured silo. It returns `{ ok, configPath, errors }`; the CLI prints one line per error and exits 1 on failure. When those checks pass, `jeeves-scripts config check` also loads the instance plugin, as `list` and `run` do, so the plugin's `configSchema` validates the `local` block; a plugin that fails to load or rejects `local` adds its message to `errors` (`instanceConfigCheck` in `src/cli/config-check.ts`).
+`configCheck({ root?, configPath? })` (and `jeeves-scripts config check`) loads the file fresh, validates it, and checks that every `jobs.<id>.silo` and every `integrations.x.accounts.<handle>.silo` names a configured silo. It returns `{ ok, configPath, errors }`; the CLI prints one line per error and exits 1 on failure. When those checks pass, `jeeves-scripts config check` also loads the instance plugin, as `list` and `run` do, so the plugin's `configSchema` validates the `local` block; a plugin that fails to load or rejects `local` adds its message to `errors` (`instanceConfigCheck` in `src/cli/config-check.ts`). Registration then checks the manifests and the `jobs` deltas as `list` does: a delta for an id no runnable has fails, and so does a delta that sets `enabled`, `schedule`, `timeout_seconds`, `env` or `args` on a runnable with no manifest, where those fields would have no effect (Decision 58).
 
 ## Key files
 

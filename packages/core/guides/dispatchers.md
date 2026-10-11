@@ -16,7 +16,7 @@ Core ships no dispatcher runnable: a daily digest or briefing is an instance's c
 1. Write it as an instance runnable with `defineJob`, in an instance domain, registered by the instance plugin ([jobs](./jobs.md#instance-runnables-and-overrides)), calling `dispatchTaskFile` (below) or building its task at runtime.
 2. Task-file dispatchers: write the TASK file with your standing orders. Dynamic dispatchers: set the `pipeline.refs` they read in `jeeves-scripts.json`.
 3. Give it a manifest in the instance's `jobs/*.json` (see [jobs](./jobs.md#manifests)) so the runner can schedule it as `["run", "<id>"]`, on a jeeves-runner schedule (e.g. `{"freq":"daily","byhour":6,"byminute":30,"timezone":"America/Chicago"}`).
-4. Test with `--print-task`, then `--dry-run` (below), before enabling it: `node bin/jeeves-scripts.js run acme-generate-digest --print-task`.
+4. Test with `--print-task`, then `--dry-run`, before enabling it: `node bin/jeeves-scripts.js run acme-generate-digest --print-task`. Both flags work for every `dispatchTaskFile` dispatcher: `--print-task` prints the full TASK and dispatches nothing; `--dry-run` with `slack` dispatches the worker and prints its posts instead of sending them (below), and without `slack` (nothing to post) reports what it would dispatch and dispatches nothing. Either way `dispatchTaskFile` resolves `'previewed'`. It reads the flags from `options.args` (`taskFileDispatcher` passes `ctx.args`); a caller that passes no `args` falls back to `process.argv`.
 
 ## Slack: the job script does it, not the worker
 
@@ -96,11 +96,12 @@ export default defineJob({
   id: 'acme-generate-summary',
   domain: 'acme',
   description: 'Dispatch a worker to write the results summary.',
+  // tryGetRef returns '' (never undefined) for a missing ref.
   prerequisite: () =>
-    tryGetRef('slack.myChannel') !== undefined ||
+    tryGetRef('slack.myChannel') !== '' ||
     'set pipeline.refs["slack.myChannel"] in jeeves-scripts.json',
   run: async () => {
-    const channel = tryGetRef('slack.myChannel') ?? '';
+    const channel = tryGetRef('slack.myChannel');
     const task = 'Do the work, then return a results summary as a Slack post.';
     await dispatchWithSlack(
       task,

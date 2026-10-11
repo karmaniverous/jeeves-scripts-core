@@ -17,5 +17,5 @@ The `gh` CLI must be logged in as the instance's bot identity (`gh auth status`)
 - **Use the bot identity** by default. Act as another identity only when the operator explicitly asks.
 - **Never print a token.** When a tool needs one in the environment, take it from `gh auth token` inline at the point of use.
 - **Authenticate through `gh`**, never by reading its files. A shell without the gateway's `GH_CONFIG_DIR` sees no login; export the same value.
-- **Missing or broken login:** escalate to the operator; logins are provisioned with the instance, not with `gh auth login` on the host.
+- **Missing or broken login:** escalate to the operator. The login lives in `GH_CONFIG_DIR` (provisioned with the instance); the operator repairs it there (`gh auth login` with `GH_CONFIG_DIR` set), never in the default `gh` profile.
 - **Bot token permissions** (minimum): classic PAT scopes `repo`, `workflow`, `read:org`; fine-grained: Contents, Pull requests, Issues and Workflows read/write, organization Members read.

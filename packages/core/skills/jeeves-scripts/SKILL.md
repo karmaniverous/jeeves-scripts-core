@@ -34,7 +34,7 @@ How `run` resolves an id and every other command: [cli.md]($JEEVES_SCRIPTS_DIR/n
 - **Fix shared behaviour in core** (branch, PR, release, bump the pin), never by editing `node_modules` or copying core code into `src/`.
 - **Per-instance values are the operator's call:** accounts, channels, schedules. Ask; don't copy another instance's values.
 - **The docs for the installed core** are under `$JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/`, one per domain.
-- **`JEEVES_SCRIPTS_DIR`** is set for these skills by `jeeves-scripts skills install`. If it is empty or wrong, run `jeeves-scripts skills status` and tell the operator.
+- **`JEEVES_SCRIPTS_DIR`** is set for these skills by `jeeves-scripts skills install`. If it is empty or wrong, run `node <repo>/bin/jeeves-scripts.js skills status` (from the instance repo) and tell the operator.
 
 ## Domain skills
 
