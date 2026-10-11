@@ -30,7 +30,8 @@ import {
 import { makeAuthHeader, readApiToken } from './lib/jira-client.js';
 
 /**
- * `integrations.jira.boardId` in jeeves-scripts.json, else JIRA_BOARD_ID.
+ * The JIRA_BOARD_ID environment variable, else `integrations.jira.boardId`
+ * in jeeves-scripts.json (Decision 53).
  * Missing: logs the error and exits 1 before anything else runs.
  */
 function requireBoardId(): number {

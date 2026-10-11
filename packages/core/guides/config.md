@@ -163,7 +163,7 @@ Library code reads config-derived values through `constants()` (`lib/constants`)
 
 ### Environment overrides
 
-These win over the file: `GOG_HOME` (`paths().gogHome`), `TOKEN_METRICS_DIR` (`paths().tokenMetricsDir`), `GH_CONFIG_DIR`, `QDRANT_API_URL`, `LINEAR_CONFIG_PATH`. One works the other way round: `JIRA_BOARD_ID` fills `integrations().jira.boardId` only when the file sets no `boardId`.
+These win over the file: `GOG_HOME` (`paths().gogHome`), `TOKEN_METRICS_DIR` (`paths().tokenMetricsDir`), `GH_CONFIG_DIR`, `QDRANT_API_URL`, `LINEAR_CONFIG_PATH`, `JIRA_BOARD_ID` (`integrations().jira.boardId`). Set a value in one place only.
 
 ## Silos
 

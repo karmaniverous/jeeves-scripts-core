@@ -5,7 +5,8 @@
  * the template's `constants/integrations.ts` and `constants/trackers.ts` as a
  * function of the loaded config, with the environment overrides that
  * exist today (`QDRANT_API_URL`, `GH_CONFIG_DIR`, `LINEAR_CONFIG_PATH`,
- * `JIRA_BOARD_ID`) honoured and derived defaults applied. Settings that
+ * `JIRA_BOARD_ID`) winning over the file (Decision 53) and derived defaults
+ * applied. Settings that
  * belong to another component are read from that component's own config
  * (Qdrant's URL from the watcher's); the gateway port comes from the
  * OpenClaw config (`lib/openclaw-config`).
@@ -95,11 +96,9 @@ export const deriveIntegrations = (config: Config): ResolvedIntegrations => {
       apiTokenPath:
         i.jira.apiTokenPath ??
         path.join(resolvedPaths.credentialsDir, 'atlassian/acli-token.txt'),
-      boardId:
-        i.jira.boardId ??
-        (process.env.JIRA_BOARD_ID
-          ? Number(process.env.JIRA_BOARD_ID)
-          : undefined),
+      boardId: process.env.JIRA_BOARD_ID
+        ? Number(process.env.JIRA_BOARD_ID)
+        : i.jira.boardId,
       fieldsFilename: i.jira.fieldsFilename ?? '_fields.json',
       maxHistory: i.jira.maxHistory ?? 50,
     },

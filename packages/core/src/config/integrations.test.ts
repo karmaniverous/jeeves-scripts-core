@@ -130,6 +130,12 @@ describe('deriveIntegrations', () => {
     expect(result.jira.boardId).toBe(6);
   });
 
+  it('JIRA_BOARD_ID env wins over the configured boardId', () => {
+    vi.stubEnv('JIRA_BOARD_ID', '7');
+    const result = deriveIntegrations(baseConfig({ jira: { boardId: 6 } }));
+    expect(result.jira.boardId).toBe(7);
+  });
+
   it('derives jira.apiTokenPath and linear.configPath from credentialsDir', () => {
     const result = deriveIntegrations(baseConfig());
     expect(result.jira.apiTokenPath).toBe(
