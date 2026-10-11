@@ -8,7 +8,19 @@
  * filesystem; logs one line per file. No dependency on instance config.
  */
 
-import { convertFiles, type ConvertResult } from './lib/convert-files.js';
+import {
+  convertFiles,
+  type ConvertResult,
+  type Extract,
+} from './lib/convert-files.js';
+
+/** Extract a `.pdf` file's text as Markdown, with its page count in `pages`. */
+export const extractPdf: Extract = async (data) => {
+  // Loaded on first use, so importing the root export stays cheap.
+  const { extractPdfText } = await import('./lib/pdf-text.js');
+  const { text, total } = await extractPdfText(data);
+  return { content: text, frontmatter: { pages: total } };
+};
 
 /**
  * Convert every `.pdf` file under `dirs` to `<file>.pdf.md`.
@@ -26,10 +38,5 @@ import { convertFiles, type ConvertResult } from './lib/convert-files.js';
 export function convertPdfToMd(
   dirs: readonly string[],
 ): Promise<ConvertResult> {
-  return convertFiles(dirs, '.pdf', async (data) => {
-    // Loaded on first use, so importing the root export stays cheap.
-    const { extractPdfText } = await import('./lib/pdf-text.js');
-    const { text, total } = await extractPdfText(data);
-    return { content: text, frontmatter: { pages: total } };
-  });
+  return convertFiles(dirs, '.pdf', extractPdf);
 }

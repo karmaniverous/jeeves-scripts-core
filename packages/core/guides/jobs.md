@@ -10,6 +10,7 @@ A job id is the public contract: runner jobs run `node {scriptsDir}/bin/jeeves-s
 | --- | --- | --- |
 | `admin` | `admin-check-qdrant-health`, `admin-collect-token-metrics`, `admin-refresh-sessions`, `admin-refresh-token-rates`, `admin-sweep-orphaned-tmp` | `admin-regenerate-token-metrics` |
 | `calendar` | `calendar-poll` |  |
+| `convert` |  | `convert-docx-to-md`, `convert-pdf-to-md` ([convert](./convert.md#runnables)) |
 | `email` | `email-poll`, `email-download`, `email-drain-updates`, `email-backfill-historical` | `email-apply-labels`, `email-inventory` |
 | `github` | `github-sync-repos`, `github-sync-issues`, `github-watch`, `github-build-registry`, `github-poll-collabs`, `github-drain-collabs` |  |
 | `google-drive` | `google-drive-sync` |  |

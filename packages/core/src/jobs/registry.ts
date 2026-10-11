@@ -95,6 +95,19 @@ export const coreJobs: readonly RegistryEntry[] = [
     module: 'calendar/poll',
     load: () => import('../calendar/poll.js'),
   },
+  // convert
+  {
+    id: 'convert-docx-to-md',
+    domain: 'convert',
+    module: 'convert/convert-docx-to-md',
+    load: () => import('../convert/convert-docx-to-md.js'),
+  },
+  {
+    id: 'convert-pdf-to-md',
+    domain: 'convert',
+    module: 'convert/convert-pdf-to-md',
+    load: () => import('../convert/convert-pdf-to-md.js'),
+  },
   // email
   {
     id: 'email-backfill-historical',

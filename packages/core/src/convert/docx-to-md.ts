@@ -8,7 +8,11 @@
  * filesystem; logs one line per file. No dependency on instance config.
  */
 
-import { convertFiles, type ConvertResult } from './lib/convert-files.js';
+import {
+  convertFiles,
+  type ConvertResult,
+  type Extract,
+} from './lib/convert-files.js';
 
 /** Convert simple HTML (from mammoth) to Markdown. */
 function htmlToMarkdown(html: string): string {
@@ -59,6 +63,14 @@ function htmlToMarkdown(html: string): string {
   return md.trim();
 }
 
+/** Extract a `.docx` file's bytes as Markdown (mammoth HTML, reduced). */
+export const extractDocx: Extract = async (buffer) => {
+  // Loaded on first use, so importing the root export stays cheap.
+  const { default: mammoth } = await import('mammoth');
+  const { value } = await mammoth.convertToHtml({ buffer });
+  return { content: htmlToMarkdown(value) };
+};
+
 /**
  * Convert every `.docx` file under `dirs` to `<file>.docx.md`.
  *
@@ -75,10 +87,5 @@ function htmlToMarkdown(html: string): string {
 export function convertDocxToMd(
   dirs: readonly string[],
 ): Promise<ConvertResult> {
-  return convertFiles(dirs, '.docx', async (buffer) => {
-    // Loaded on first use, so importing the root export stays cheap.
-    const { default: mammoth } = await import('mammoth');
-    const { value } = await mammoth.convertToHtml({ buffer });
-    return { content: htmlToMarkdown(value) };
-  });
+  return convertFiles(dirs, '.docx', extractDocx);
 }
