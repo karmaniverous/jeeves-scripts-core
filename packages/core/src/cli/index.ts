@@ -8,7 +8,7 @@
  * The instance launcher (Decision 16) calls {@link main} with the instance
  * repo root, so config resolution never depends on the working directory
  * (Architecture → Config Resolution). The verbs are the framework's own
- * (R46): `run`, `list`, `config check`, `doctor`. Domain work is never a verb
+ * (R46): `run`, `list`, `config check`, `doctor`, `init`. Domain work is never a verb
  * (Decision 49): it is a runnable, run with `run <id>`.
  */
 
@@ -18,6 +18,7 @@ import { Command } from '@commander-js/extra-typings';
 
 import { configCheck } from '../config/check.js';
 import { doctorReport } from './doctor.js';
+import { describeError, formatInit, initRepo } from './init.js';
 import { formatList, listRunnables } from './list.js';
 import { runJob } from './run.js';
 
@@ -96,6 +97,26 @@ const buildDoctorCommand = (root: string) =>
       for (const line of await doctorReport(root)) console.log(line);
     });
 
+const buildInitCommand = (root: string) =>
+  new Command('init')
+    .description(
+      'Write an instance repo here from the template bundled in core. Never overwrites a file.',
+    )
+    .option('--name <pkg>', 'package name (default: jeeves-scripts)')
+    .option(
+      '--core <version>',
+      'exact core version to pin (default: the running core version)',
+    )
+    .action((options) => {
+      try {
+        for (const line of formatInit(root, initRepo(root, options)))
+          console.log(line);
+      } catch (e) {
+        console.error(`init: FAILED: ${describeError(e)}`);
+        process.exitCode = 1;
+      }
+    });
+
 /** Build the `jeeves-scripts` program for an instance repo root. */
 export const buildProgram = (options: CliOptions) => {
   const root = resolveRoot(options.root);
@@ -105,7 +126,8 @@ export const buildProgram = (options: CliOptions) => {
     .addCommand(buildConfigCommand(root))
     .addCommand(buildRunCommand(root))
     .addCommand(buildListCommand(root))
-    .addCommand(buildDoctorCommand(root));
+    .addCommand(buildDoctorCommand(root))
+    .addCommand(buildInitCommand(root));
 };
 
 /**

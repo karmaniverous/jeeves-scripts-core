@@ -27,10 +27,11 @@ The package `bin` (`npx jeeves-scripts ...`, from the instance repo) does the sa
 | `list [glob] [--json]` | Every registered runnable whose id matches the glob ([below](#listing-runnables)). Exit 1 on an invalid manifest, delta or registration. |
 | `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
 | `doctor` | Report on the instance ([below](#doctor)). Informational: always exits 0. |
+| `init [--name <pkg>] [--core <version>]` | Write an instance repo into the root from the template bundled in core ([below](#init)). Exit 1 on an invalid name or version. |
 | `run people-propose [--all] [--out <file>]` | Runnable `people-propose` (no manifest). Read-only: reads `users.list` for every gateway Slack bot account (`slackBotTokens`), skips bots, deactivated users and Slackbot, groups users across workspaces by email (case-insensitive) and real name, and prints `{ summary, people, uncertain }`: a proposed `people` block ([config.md](./config.md#people)) of people with more than one account (`--all`: everyone) and the matches to check by hand (grouped by name only; a name shared inside one workspace; one email on two users of a workspace). Never writes config; `--out` writes the same JSON (UTF-8) to a file and refuses `jeeves-scripts.json`. |
 | `run email-apply-labels [--since <date>] [--account <id>] [--max <n>] [--dry-run] [--config <file>]` | Runnable `email-apply-labels` (no manifest). Enqueue the classification labels stored thread state calls for but that were never applied (e.g. while `emailConfig.reportOnly` was on); `drain-updates` applies them. Idempotent. Refuses while `reportOnly` is on unless `--dry-run`. See [email.md](./email.md#label-catch-up). |
 
-Domain work is never a CLI verb (Decision 49): it is a runnable, run with `run <id>`, like the last two rows. The CLI's own verbs are `run`, `list`, `config check` and `doctor`.
+Domain work is never a CLI verb (Decision 49): it is a runnable, run with `run <id>`, like the last two rows. The CLI's own verbs are `run`, `list`, `config check`, `doctor` and `init`.
 
 `main()` resolves to the exit code and never calls `process.exit` itself.
 
@@ -62,6 +63,23 @@ Running a core module by path (`node dist/<domain>/<module>.js`) runs nothing: r
 | `description` | The manifest's `description`, else the `defineJob` one |
 
 `--json` prints an array with one object per runnable: the same fields (`schedule` and `enabled` are `null` without a manifest) plus `domain` and `manifest` (the effective manifest after deltas, or `null`). jeeves-tools registers runner jobs from it: every entry with a manifest whose `prerequisite` is `null`. `list` reads the instance config (for deltas), loads the plugin, reads core's and the instance's manifests, and imports the modules of runnables without a manifest to read their descriptions.
+
+## Init
+
+`jeeves-scripts init [--name <pkg>] [--core <version>]` writes a new instance repo into the root (the working directory for `npx`):
+
+```bash
+mkdir jeeves-scripts && cd jeeves-scripts
+npx @karmaniverous/jeeves-scripts-core init --name acme-scripts
+npm install
+node bin/jeeves-scripts.js config check
+node bin/jeeves-scripts.js doctor
+```
+
+- It copies the template bundled in the package (`template/`, fewer than 15 files: the launcher, a sample `jeeves-scripts.json`, the plugin with the sample runnable `example-say-hello` and its manifest and test, one-line tool configs extending core's presets, and a README).
+- It **never overwrites** a file: every file that exists is reported as skipped, so running it again in a repo changes nothing.
+- `gitignore`, `npmrc` and `nvmrc` are stored renamed in the package (npm would drop or rename them) and written as `.gitignore`, `.npmrc` and `.nvmrc`.
+- `package.json` gets the package name (`--name`, default `jeeves-scripts`) and core pinned at an exact version (`--core`, default the running core's version); a range such as `^0.1.0` is refused.
 
 ## Doctor
 
@@ -97,6 +115,7 @@ JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run admin-refresh
 | `src/cli/index.ts` | `main`, `buildProgram`, `resolveRoot`, the `config` command |
 | `src/cli/list.ts` | `listRunnables`, `formatList` |
 | `src/cli/doctor.ts` | `doctorReport` |
+| `src/cli/init.ts` | `initRepo`, `formatInit` |
 | `src/cli/package-info.ts` | The running core's package directory and version |
 | `src/cli/load-plugin.ts` | `loadPlugin`: imports `jeeves-scripts.plugin.ts` with tsx |
 | `src/cli/run.ts` | `registerInstance`, `resolveRunnable`, `runJob` |
