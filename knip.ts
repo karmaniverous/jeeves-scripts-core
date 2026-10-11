@@ -23,6 +23,8 @@ const config: KnipConfig = {
         'src/cli/bin.ts',
         'src/**/*.ts',
         '!src/**/*.test.ts',
+        '!src/**/*.test-helper.ts',
+        '!src/**/*.fixtures.ts',
       ],
       project: ['**/*.ts', '!template/**'],
     },

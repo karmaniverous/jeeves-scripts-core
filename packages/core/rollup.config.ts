@@ -80,6 +80,7 @@ const input = readdirSync('src', { recursive: true, encoding: 'utf8' })
     (f) =>
       f.endsWith('.ts') &&
       !f.endsWith('.test.ts') &&
+      !f.endsWith('.test-helper.ts') &&
       !f.endsWith('.fixtures.ts') &&
       !f.includes('/__fixtures__/') &&
       !f.includes('/test-support/'),
