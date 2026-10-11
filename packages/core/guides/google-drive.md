@@ -26,7 +26,7 @@ Do these in order on a new instance. Each step has a check.
 4. **Add the `googleDrive` block** as `pipeline.googleDrive` in `jeeves-scripts.json` ([Configuration](#configuration)). The seeded config carries it as `_googleDriveExample` (ignored at runtime): rename the key and fill in `account` and `pathResolution.domains`.
 5. **Do not exclude the mirror from watcher version tracking yet.** The intent is to exclude it (Drive is the system of record, and versioning the mirror duplicates its history), but `watcher_vcs_exclude` works by writing a `.gitignore`, and with `watch.respectGitignore` on, that **also removes the files from the search index**. Wait for [jeeves-watcher#253](https://github.com/karmaniverous/jeeves-watcher/issues/253) (VCS-only exclusion).
 6. **Dry run** and review the plan ([Running](#running)).
-7. **Register the job**: the `google-drive-sync` manifest entry in the instance's `jobs/google-drive.json`, run as `bin/jeeves-scripts.js run google-drive-sync` (see [cli](./cli.md)). Deploy skips manifests that carry a `prerequisite`.
+7. **Register the job**: core's `google-drive-sync` manifest (`jobs/google-drive.json`), run as `bin/jeeves-scripts.js run google-drive-sync` (see [cli](./cli.md)); adjust it with a `jobs.google-drive-sync` delta. Deploy skips manifests that carry a `prerequisite`.
 8. **Ask people to share** files, folders and shared drives with the assistant's address. Sharing is the whole interface; no acceptance step is needed.
 
 ## Configuration
@@ -212,7 +212,7 @@ JR_DB_PATH=… node bin/jeeves-scripts.js run google-drive-sync --live
 
 | Job                 | Schedule     | Manifest                 |
 | ------------------- | ------------ | ------------------------ |
-| `google-drive-sync` | Every 13 min | template `jobs/google-drive.json` |
+| `google-drive-sync` | Every 13 min | core `jobs/google-drive.json` |
 
 `overlap_policy: skip`, `timeout_seconds: 720`, `args: ["--live"]`. The manifest carries a non-null `prerequisite`, so deploy does not auto-register it.
 

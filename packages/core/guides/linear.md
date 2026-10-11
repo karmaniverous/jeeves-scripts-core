@@ -184,7 +184,7 @@ Add this block to your jeeves-server Event Gateway configuration:
 ```
 
 - `{SCRIPTS_DIR}` — absolute path to the instance repo (`paths().scriptsDir`)
-- `linear-drain` — a manifest entry in the instance's `jobs/*.json` with `script: "src/linear/drain.ts"` and no schedule (`run` resolves job ids only from manifests until the job registry, Decision 32)
+- `linear-drain`: a registered core job with no manifest (event-driven: the event gateway runs `run linear-drain`)
 - `schema` — JSON Schema validated against the POST body (ajv, first match wins across all configured events)
 - `cmd` — the server spawns this command and pipes the request body JSON to stdin
 - `timeoutMs` — kill timeout for the drain process (falls back to global `eventTimeoutMs`)
@@ -204,7 +204,7 @@ On first run (no cursor), all issues/comments are fetched from the beginning. On
 
 ## Backfill
 
-Run the backfill once after setting up the webhook to populate historical data: add a manifest entry with `script: "src/linear/backfill.ts"` and no schedule to the instance's `jobs/*.json` (here `linear-backfill`; `run` resolves job ids only from manifests until the job registry, Decision 32), then:
+Run the backfill once after setting up the webhook to populate historical data: run the registered core job `linear-backfill` (no manifest needed):
 
 ```bash
 # Dry run (preview — no writes)
@@ -283,5 +283,5 @@ Tracked as [jeeves-tools #99](https://github.com/karmaniverous/jeeves-tools/issu
 | `backfill.ts` | One-time historical backfill via GraphQL API |
 | `lib/linear-client.ts` | Typed Linear GraphQL client (fetch, paginate) |
 | `../lib/entity-store.ts` | File I/O helpers with reverse-diff history (shared with Jira) |
-| template `jobs/linear.json` | Runner job manifest (sync-issues, sync-comments schedules), carried in the instance repo |
+| core `jobs/linear.json` | Runner job manifests (sync-issues, sync-comments schedules) |
 | `../lib/constants.ts` | Linear values from `constants()` (`LINEAR_CONFIG_PATH`, `LINEAR_MAX_HISTORY`) |

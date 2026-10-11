@@ -42,7 +42,7 @@ Calendar accounts are the entries of `pipeline.accounts` in `jeeves-scripts.json
 
 | Job             | Schedule     | Manifest             |
 | --------------- | ------------ | -------------------- |
-| `calendar-poll` | Every 17 min | template `jobs/calendar.json` |
+| `calendar-poll` | Every 17 min | core `jobs/calendar.json` |
 
 The manifest entry carries a non-null `prerequisite`.
 

@@ -53,7 +53,7 @@ flowchart TD
 | `email-drain-updates` | `google-workspace/drain-updates.ts` | Every 17 min |
 | `email-backfill-historical` | `google-workspace/backfill-historical.ts --live` | Hourly; needs `emailConfig.backfill` |
 
-The template manifest (`jobs/email.json`, carried in the instance repo) is authoritative. All four entries carry a non-null `prerequisite` (gog credentials or IMAP, plus `emailConfig.backfill` for the backfill).
+Core's manifest (`jobs/email.json`) is authoritative; an instance adjusts it with `jobs.<id>` deltas. `email-inventory` is registered without a manifest. All four entries carry a non-null `prerequisite` (gog credentials or IMAP, plus `emailConfig.backfill` for the backfill).
 
 ### Historical backfill
 

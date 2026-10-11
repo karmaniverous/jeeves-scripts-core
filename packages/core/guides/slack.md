@@ -104,7 +104,7 @@ No config file, or no token in it, fails the run. Each channel is read with the 
 
 | Job          | Schedule     | Manifest          |
 | ------------ | ------------ | ----------------- |
-| `slack-poll` | Every 11 min | template `jobs/slack.json` |
+| `slack-poll` | Every 11 min | core `jobs/slack.json` |
 
 The manifest entry carries a non-null `prerequisite` naming the token sources in [Bot Tokens](#bot-tokens).
 

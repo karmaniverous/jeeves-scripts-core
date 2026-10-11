@@ -32,13 +32,17 @@ The package `bin` (`npx jeeves-scripts ...`, from the instance repo) does the sa
 
 ## How `run` resolves a job
 
-Until the job registry lands, job ids come from the instance repo's `jobs/*.json` (arrays of runner job objects). `run` reads every `jobs/*.json` file, validates each entry (`id` and `script` strings; other runner fields pass through), and finds the entry whose `id` matches.
+Core's jobs are registered by id ([jobs](./jobs.md)); an instance declares its own jobs in `{root}/jobs/*.json` (arrays of runner job objects with `id` and `script`; other runner fields pass through) until plugins land (Dev Plan 33 phase 2).
 
-1. If the instance repo has a file at the job's `script` path (e.g. `src/acme/daily-briefing.ts`), that file runs in a child process (`node --import tsx <file> [args...]`, working directory = the instance root). The exit code is the child's.
-2. Otherwise the same path is mapped into core's build: `src/<domain>/<name>.ts` â†’ `dist/<domain>/<name>.js`, and that module is imported in the CLI's process with `process.argv` set to `[node, <module>, ...args]`. The module's own `runScript()` sets `process.exitCode` on failure.
-3. Neither exists: `run` fails, naming both paths.
+1. **A core job id** runs core's job, always: its module is loaded through the registry and runs in the CLI's process ([`defineJob`](./jobs.md#declaring-a-job): `process.argv` is `[node, <id>, ...args]`, a crash exits 1 through `runScript`). `run` resolves when the job body has finished; a job that sets `process.exitCode` sets the CLI's exit code.
+2. **An instance file never replaces a core job.** If the instance's `jobs/*.json` reuses a core id and the instance repo has a file at that entry's `script` path, `run` fails and says so. Instances change core jobs through `jobs.<id>` deltas in `jeeves-scripts.json` or (phase 2) a declared override (Decisions 6, 27).
+3. **An instance-declared id** (not a core id) runs the instance file at its `script` path (e.g. `src/acme/daily-briefing.ts`) in a child process (`node --import tsx <file> [args...]`, working directory = the instance root). The exit code is the child's.
+4. **An instance-declared id with no instance file** whose `script` names a core module (`src/email/poll.ts`) runs that core job (`email-poll`): a transitional alias for runner job ids that differ from core's.
+5. Otherwise `run` fails: an unknown id, or an instance job whose script exists nowhere.
 
-Before running anything, `run` sets `JEEVES_SCRIPTS_CONFIG` to `{root}/jeeves-scripts.json` unless it is already set, so core modules and instance scripts read the instance's config.
+Running a core module by path (`node dist/<domain>/<job>.js`) runs nothing: job modules only declare their job.
+
+Before running anything, `run` sets `JEEVES_SCRIPTS_CONFIG` to `{root}/jeeves-scripts.json` unless it is already set, so core jobs and instance scripts read the instance's config.
 
 A malformed `jobs/*.json` entry (missing `id` or `script`, or not an object) fails `run` with the file name and the entry's position, instead of being skipped.
 
@@ -47,7 +51,7 @@ A malformed `jobs/*.json` entry (missing `id` or `script`, or not an object) fai
 ```bash
 node bin/jeeves-scripts.js config check
 node bin/jeeves-scripts.js config check --config ./test/fixture.json
-node bin/jeeves-scripts.js run fetch-meeting-notes --dry-run
+node bin/jeeves-scripts.js run meetings-fetch-notes --dry-run
 node bin/jeeves-scripts.js email apply-labels --dry-run --since 2026-10-01
 JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run refresh-token-rates
 ```
@@ -59,4 +63,5 @@ JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run refresh-token
 | `src/cli/index.ts` | `main`, `buildProgram`, `resolveRoot`, the `config` command |
 | `src/cli/email.ts` | The `email` command (`apply-labels`) |
 | `src/cli/run.ts` | `readJobs`, `resolveJob`, `runJob` |
+| `src/jobs/` | `defineJob`, the job registry and manifests ([jobs](./jobs.md)) |
 | `src/cli/bin.ts` | Package `bin`: runs `main` with the working directory as root |

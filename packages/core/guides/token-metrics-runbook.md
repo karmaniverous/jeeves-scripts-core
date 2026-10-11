@@ -95,13 +95,13 @@ When `~/.openclaw/agents/main/agent/openclaw-agent.sqlite` exists, the collector
 # PowerShell: $env:OPENCLAW_UPGRADE_CUTOFF = '<YYYY-MM-DDTHH:00:00Z>'
 export OPENCLAW_UPGRADE_CUTOFF=<YYYY-MM-DDTHH:00:00Z>
 # scratch (never touches runner state or the live store; point TOKEN_METRICS_DIR at a dir holding a copied token-rates.json)
-node node_modules/@karmaniverous/jeeves-scripts-core/dist/admin/regenerate-token-metrics.js --from <ISO hour> --out /tmp/regen
+node bin/jeeves-scripts.js run regenerate-token-metrics --from <ISO hour> --out /tmp/regen
 # live: rebuild [from, last closed hour), back up + replace buckets, REPLACE the DB cursor (bootstrap / full rebuild)
-node node_modules/@karmaniverous/jeeves-scripts-core/dist/admin/regenerate-token-metrics.js --from "$OPENCLAW_UPGRADE_CUTOFF" --dry-run
-node node_modules/@karmaniverous/jeeves-scripts-core/dist/admin/regenerate-token-metrics.js --from "$OPENCLAW_UPGRADE_CUTOFF"
+node bin/jeeves-scripts.js run regenerate-token-metrics --from "$OPENCLAW_UPGRADE_CUTOFF" --dry-run
+node bin/jeeves-scripts.js run regenerate-token-metrics --from "$OPENCLAW_UPGRADE_CUTOFF"
 # live: rebuild a closed range from already-counted events (OpenClaw seq <= DB cursor,
 # Claude Code bytes before the CC cursor); DB and CC cursors untouched
-node node_modules/@karmaniverous/jeeves-scripts-core/dist/admin/regenerate-token-metrics.js --from <ISO hour> --to <ISO hour>
+node bin/jeeves-scripts.js run regenerate-token-metrics --from <ISO hour> --to <ISO hour>
 ```
 
 Pause the `collect-token-metrics` job while a live regeneration runs.

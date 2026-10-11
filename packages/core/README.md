@@ -13,6 +13,7 @@ Everything below ships in the npm package. From an instance repo, the package ro
 | `skills/<name>/SKILL.md` | The assistant skills core ships ([Skills](#skills)). |
 | `schema/jeeves-scripts.schema.json` | JSON Schema for `jeeves-scripts.json`, generated from the Zod config schema. |
 | `config/token-rates.seed.json` | The token rate card seed (`constants().TOKEN_RATES_SEED_PATH`). |
+| `jobs/<domain>.json` | Core's job manifests, keyed by job id ([`guides/jobs.md`](guides/jobs.md)). |
 | `CHANGELOG.md` | Release notes. |
 | `dist/**/*.d.ts` | TSDoc for every module, next to its type declarations. |
 
@@ -24,7 +25,7 @@ node -p "path.dirname(require.resolve('@karmaniverous/jeeves-scripts-core/packag
 
 The `exports` map publishes `./package.json`, `./guides/*`, `./skills/*`, `./schema/*` and `./config/*`, so `require.resolve('@karmaniverous/jeeves-scripts-core/guides/<domain>.md')` (or `import.meta.resolve`) returns a doc's absolute path from anywhere in the instance repo. `test/package-docs.test.ts` keeps this true: every doc and guide ships, resolves, and is indexed below.
 
-Job ids and schedules named in the docs are the template's manifest entries. Until the job registry ships them in core (Decision 32), each instance carries them in its own `jobs/*.json`; a module without a manifest entry (backfills, migrations, event-gateway drains) needs one before `run` can start it.
+Job ids named in the docs are core's registered ids ([`guides/jobs.md`](guides/jobs.md)): `jeeves-scripts run <id>` runs any of them. Scheduled jobs have a manifest in core (`jobs/<domain>.json`); an instance adjusts them with `jobs.<id>` deltas in `jeeves-scripts.json` and never copies them.
 
 ### Domain docs
 
@@ -32,6 +33,7 @@ Job ids and schedules named in the docs are the template's manifest entries. Unt
 | --- | --- |
 | [`guides/cli.md`](guides/cli.md) | The `jeeves-scripts` CLI and the instance launcher |
 | [`guides/config.md`](guides/config.md) | `jeeves-scripts.json`: schema, resolution, getters, silos |
+| [`guides/jobs.md`](guides/jobs.md) | The job registry: ids, `defineJob`, manifests, instance deltas |
 | [`guides/lib.md`](guides/lib.md) | Shared infrastructure: constants, gateway, workers, gh, gog, entity store |
 | [`guides/admin.md`](guides/admin.md) | Token metrics, rate card, session refresh |
 | [`guides/calendar.md`](guides/calendar.md) | Google Calendar polling |

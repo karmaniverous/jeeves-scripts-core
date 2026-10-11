@@ -22,7 +22,7 @@ flowchart LR
 - Both scripts accept `--paths` with comma-separated directories to scan recursively.
 - Output files are written alongside the source (e.g., `report.docx` → `report.docx.md`).
 - Staleness checking: skips files whose `.md` output is newer than the source.
-- No runner job manifests — these are invoked on-demand via CLI.
+- No runner job manifests: run on demand as `jeeves-scripts run convert-docx-to-md` / `convert-pdf-to-md` with the module's arguments.
 
 ## Prerequisites
 

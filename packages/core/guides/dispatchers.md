@@ -11,11 +11,11 @@ Framework for autonomous LLM task dispatchers that read Markdown task files and 
 
 ## Activation
 
-Dispatchers are not in the template's `jobs/` manifests, because each instance's dispatcher configuration (task content, schedule, channels) is unique. To activate one:
+Core's daily digest is registered as `generate-daily-digest` without a manifest, because each instance's dispatcher configuration (task content, schedule, channels) is unique. To activate it (or an instance dispatcher):
 
 1. Meet its prerequisites (see each script's module-level TSDoc).
 2. Task-file dispatchers (`daily-digest`): write the TASK file with your standing orders. Dynamic dispatchers (like the template's example `src/dispatchers/social-posts.ts`, which an instance copies into its own `src/dispatchers/`): set the required `pipeline.refs` in `jeeves-scripts.json`.
-3. Add a manifest entry to the instance's `jobs/*.json`: `{ "id": "generate-daily-digest", "script": "src/dispatchers/daily-digest.ts", "schedule": "...", ... }`, with the schedule as an RRStack JSON string (e.g. `{"freq":"daily","byhour":6,"byminute":30,"timezone":"America/Chicago"}`) or a cron expression. The runner job runs `bin/jeeves-scripts.js` with args `["run", "<job-id>"]` (see [cli](./cli.md)); `run` maps the script path into core's build unless the instance repo has its own file there.
+3. Register a runner job that runs `bin/jeeves-scripts.js` with args `["run", "generate-daily-digest"]` (see [cli](./cli.md)) on the instance's schedule, as an RRStack object (e.g. `{"freq":"daily","byhour":6,"byminute":30,"timezone":"America/Chicago"}`) or a cron expression. An instance dispatcher (its own task-file job) is declared in the instance's `jobs/*.json` with its own id and `script`; it may not reuse a core id ([jobs](./jobs.md#instance-jobs-and-overrides)).
 4. Test with `--print-task`, then `--dry-run` (below), before enabling the job: `node bin/jeeves-scripts.js run generate-daily-digest --print-task`.
 
 ## Slack: the job script does it, not the worker

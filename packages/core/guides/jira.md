@@ -147,7 +147,7 @@ Add this block to your jeeves-server Event Gateway configuration:
 ```
 
 - `{SCRIPTS_DIR}` — absolute path to the instance repo (`paths().scriptsDir`)
-- `jira-drain` — a manifest entry in the instance's `jobs/*.json` with `script: "src/jira/drain.ts"` and no schedule (`run` resolves job ids only from manifests until the job registry, Decision 32)
+- `jira-drain`: a registered core job with no manifest (event-driven: the event gateway runs `run jira-drain`)
 - `pattern` — must match the path segment used in the webhook URL (e.g. `/api/events/jira`)
 - `timeoutMs` — 10 seconds is ample; drain scripts are fast I/O-only operations
 
@@ -176,7 +176,7 @@ The map is updated daily by `refresh-fields.ts` (scheduled runner job). After an
 
 ## Backfill
 
-Run the backfill once after setting up the webhook to populate historical data: add a manifest entry with `script: "src/jira/backfill.ts"` and no schedule to the instance's `jobs/*.json` (here `jira-backfill`; `run` resolves job ids only from manifests until the job registry, Decision 32), then:
+Run the backfill once after setting up the webhook to populate historical data: run the registered core job `jira-backfill` (no manifest needed):
 
 ```bash
 # Dry run (preview — no writes)
@@ -223,5 +223,5 @@ node bin/jeeves-scripts.js run jira-backfill --project WEB --type issue --live
 | `sort-backlog.ts` | Backlog priority sort — stable re-rank by priority group via Agile API |
 | `../lib/entity-store.ts` | Shared file I/O helpers with reverse-diff history — `upsertEntity`, `backfillEntity`, `deleteEntity`, `writeUnmatched`, `readStdinJson` (see [entity-store docs](./lib.md#entity-storets)) |
 | `lib/jira-client.ts` | Typed Jira REST API v3 client (fetch, paginate) |
-| template `jobs/jira.json` | Runner job manifest (refresh-fields schedule), carried in the instance repo |
+| core `jobs/jira.json` | Runner job manifests (refresh-fields and sort-backlog schedules) |
 | `../lib/constants.ts` | Jira values from `constants()` (`JIRA_SITE_URL`, `JIRA_EMAIL`, etc.) |

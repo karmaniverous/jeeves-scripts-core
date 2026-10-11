@@ -66,7 +66,7 @@ No external prerequisites — all jobs run against local filesystem and gateway 
 | `session-refresh`       | Every 23 min    |
 | `refresh-token-rates`   | Daily 05:37 UTC |
 
-All three entries in the template manifest `jobs/admin.json` (carried in the instance repo until the job registry, Decision 32) have `"prerequisite": null`. `refresh-token-rates` uses the RRStack schedule `{"freq":"daily","byhour":5,"byminute":37,"timezone":"UTC"}`.
+All three entries in core's manifest `jobs/admin.json` have `"prerequisite": null`. `regenerate-token-metrics` is registered without a manifest (run it by hand, see the [runbook](./token-metrics-runbook.md)). `refresh-token-rates` uses the RRStack schedule `{"freq":"daily","byhour":5,"byminute":37,"timezone":"UTC"}`.
 
 ## Documentation
 

@@ -54,7 +54,7 @@ flowchart LR
 - `GH_BIN` (`gh`, resolved through `PATH`).
 - The sync jobs only process repos in the registry, so `github-build-registry` must have run.
 
-All entries in the template manifest `jobs/github.json` carry a non-null `prerequisite` (GitHub CLI auth).
+All entries in core's manifest `jobs/github.json` carry a non-null `prerequisite` (GitHub CLI auth).
 
 | Job                     | Schedule           |
 | ----------------------- | ------------------ |
