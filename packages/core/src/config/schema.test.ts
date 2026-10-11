@@ -13,7 +13,7 @@ describe('configSchema', () => {
     expect(result.paths).toEqual({});
     expect(result.siloRouting).toEqual({ silos: {} });
     expect(result.jobs).toEqual({});
-    expect(result.extensions).toEqual({});
+    expect(result).not.toHaveProperty('extensions');
     expect(result.pipeline).toBeUndefined();
   });
 

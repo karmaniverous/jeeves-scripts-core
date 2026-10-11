@@ -4,8 +4,7 @@
  * The single `jeeves-scripts.json` schema (Decision 3, Decision 19):
  * instance settings (the template's constants), `paths` overrides,
  * `integrations`, `pipeline` (the template's `pipeline-config.json`, same keys),
- * `siloRouting` (silo routing), `jobs` deltas and
- * `extensions`.
+ * `siloRouting` (silo routing) and `jobs` deltas.
  *
  * Rejects any literal secret value anywhere in the raw tree (Decision
  * 19; see `config/secret-guard.ts`), checked against the *raw* parsed
@@ -20,7 +19,7 @@ import {
   defaultXIntegration,
   integrationsSchema,
 } from './integrations-schema.js';
-import { extensionsSchema, jobsSchema } from './jobs-schema.js';
+import { jobsSchema } from './jobs-schema.js';
 import { pathsSchema } from './paths-schema.js';
 import { peopleSchema } from './people-schema.js';
 import { pipelineSchema } from './pipeline-schema.js';
@@ -70,7 +69,6 @@ export const configObjectSchema = z.object({
   /** Per-job deltas. */
   jobs: jobsSchema,
   /** Seam implementations. */
-  extensions: extensionsSchema,
 });
 
 /**
@@ -101,11 +99,7 @@ export {
   type IntegrationsConfig,
   type XAccountConfig,
 } from './integrations-schema.js';
-export {
-  type ExtensionsConfig,
-  type JobDelta,
-  type JobsConfig,
-} from './jobs-schema.js';
+export { type JobDelta, type JobsConfig } from './jobs-schema.js';
 export { type PathsConfigInput } from './paths-schema.js';
 export {
   type AccountConfig,

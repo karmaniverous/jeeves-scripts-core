@@ -58,7 +58,6 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
 | `slack` | `slackConfigSchema` | `channels.<channelId>`: `project`, `homeDir` (absolute path). What this instance decides about a channel; see [Slack channels](#slack-channels). |
 | `people` | `peopleSchema` | `<personId>` (slug): `name`, `emails?`, `accounts?: { channel, account, id }[]`. Which accounts and addresses belong to one person; see [People](#people). |
 | `jobs` | `jobsSchema` | Per-job deltas by job id: `enabled`, `schedule`, `env`, `args`, `timeout_seconds`, `silo`, `taskFile`. Today `silo` and `taskFile` are read by the task-file dispatcher (see [dispatchers](./dispatchers.md)) and `silo` is checked by `config check`; the rest are validated and wait for the job registry (Decision 32). |
-| `extensions` | `extensionsSchema` | Named seam → `local:<module>` (reserved for the extension-point registry). |
 
 Every schema is exported (Zod 4), with its `z.infer` type (`Config`, `PathsConfigInput`, `IntegrationsConfig`, `PipelineConfig`, `SiloRoutingConfig`, `JobDelta`, ...).
 

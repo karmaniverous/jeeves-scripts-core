@@ -13,6 +13,6 @@ describe('generateJsonSchema', () => {
     expect(properties).toHaveProperty('pipeline');
     expect(properties).toHaveProperty('siloRouting');
     expect(properties).toHaveProperty('jobs');
-    expect(properties).toHaveProperty('extensions');
+    expect(properties).not.toHaveProperty('extensions');
   });
 });

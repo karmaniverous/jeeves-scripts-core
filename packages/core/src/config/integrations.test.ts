@@ -43,7 +43,6 @@ const baseConfig = (
   slack: { channels: {} },
   people: {},
   jobs: {},
-  extensions: {},
 });
 
 describe('deriveIntegrations', () => {

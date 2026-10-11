@@ -1,9 +1,10 @@
 /**
  * @module config/jobs-schema
  *
- * Zod schema for the `jobs` and `extensions` blocks of
- * `jeeves-scripts.json`: instance deltas per job id (Decisions 5, 40) and
- * named seam implementations (Decision 8). The runner schedule shape is
+ * Zod schema for the `jobs` block of `jeeves-scripts.json`: instance
+ * deltas per job id (Decisions 5, 40). There is no `extensions` block
+ * (Decision 50): a seam and its config arrive only on evidence (Decision
+ * 8). The runner schedule shape is
  * shared with core's job manifests (`jobs/manifest`).
  */
 
@@ -54,12 +55,7 @@ export const jobDeltaSchema = z.object({
 /** The `jobs` block: deltas keyed by job id. */
 export const jobsSchema = z.record(z.string(), jobDeltaSchema).default({});
 
-/** The `extensions` block: named seam to `local:<module>` implementation (Decision 8). */
-export const extensionsSchema = z.record(z.string(), z.string()).default({});
-
 /** Parsed delta for one job. */
 export type JobDelta = z.infer<typeof jobDeltaSchema>;
 /** Parsed `jobs` block. */
 export type JobsConfig = z.infer<typeof jobsSchema>;
-/** Parsed `extensions` block. */
-export type ExtensionsConfig = z.infer<typeof extensionsSchema>;
