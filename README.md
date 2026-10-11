@@ -37,6 +37,10 @@ npm run docs         # TypeDoc; warnings are errors
 
 `build`, `typecheck` and `test` run **per workspace** from the repo root (`npm run <script> --workspaces --if-present`); `lint`, `knip` and `docs` run once at the root over every workspace. The release gates run again from the same `cwd` each package's release process uses (`release-it` `after:init` hooks), per the project's pre-PR checklist.
 
+### Releases
+
+The owner cuts releases; nothing else runs these scripts. `packages/core` is versioned toward `1.0.0` (Release Sequence): its version line is `1.0.0-0`, so `npm run release:pre -w packages/core` publishes `1.0.0-rc.0`, then `1.0.0-rc.1`, and so on (release-it `--preRelease=rc`: GitHub prerelease, npm dist-tag `rc`), and `npm run release -w packages/core` from the last candidate publishes `1.0.0`. Tags are `core/<version>`.
+
 ### Code Quality Standard
 
 Every file in this repo — library code, CLI code, tests, and tool config files alike (`eslint.config.ts`, `rollup.config.ts`, `knip.ts`, `prettier.config.ts`, `tsconfig.json`) — is linted with strict, type-aware `typescript-eslint` (`strictTypeChecked` + `stylisticTypeChecked`) and type-checked with strict `tsc`. No file is excluded from type-aware linting and `eslint-disable` is never used; if a rule can't be satisfied the code is fixed instead.
