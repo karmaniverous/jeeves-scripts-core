@@ -83,6 +83,26 @@ describe('jeeves-scripts CLI', () => {
     expect(code).toBe(0);
   });
 
+  it.each([
+    'jeeves-scripts.json',
+    'JEEVES-SCRIPTS.JSON',
+    'sub/Jeeves-Scripts.Json',
+  ])(
+    'people propose refuses --out %s before reading Slack or writing',
+    async (out) => {
+      const write = vi
+        .spyOn(fs, 'writeFileSync')
+        .mockImplementation(() => undefined);
+
+      await expect(
+        buildProgram({ root }).parseAsync(['people', 'propose', '--out', out], {
+          from: 'user',
+        }),
+      ).rejects.toThrow('people propose never writes jeeves-scripts.json');
+      expect(write).not.toHaveBeenCalled();
+    },
+  );
+
   it('resolveRoot passes paths through and converts file URLs', () => {
     expect(resolveRoot(root)).toBe(root);
     expect(resolveRoot(pathToFileURL(root))).toBe(root);

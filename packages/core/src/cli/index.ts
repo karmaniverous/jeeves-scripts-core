@@ -87,7 +87,11 @@ const buildPeopleCommand = () => {
     .option('--all', 'include people with a single account')
     .option('--out <file>', 'also write the proposal (UTF-8 JSON) to this file')
     .action(async (options) => {
-      if (options.out && path.basename(options.out) === 'jeeves-scripts.json')
+      // Case-insensitive: on Windows JEEVES-SCRIPTS.JSON is the same file.
+      if (
+        options.out &&
+        path.basename(options.out).toLowerCase() === 'jeeves-scripts.json'
+      )
         throw new Error('people propose never writes jeeves-scripts.json');
       const proposal = await proposeFromSlack({ all: options.all });
       const json = `${JSON.stringify(proposal, null, 2)}\n`;
