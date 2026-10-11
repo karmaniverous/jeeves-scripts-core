@@ -10,7 +10,7 @@ import {
   runtimeContext,
   sessionHeader,
   userMessage,
-} from './real-events-v23.js';
+} from './real-events-v23.fixtures.js';
 import type { SessionMeta } from './types.js';
 
 const DM_HEAD = [

@@ -25,7 +25,7 @@ import {
 import type { HourlyBucket } from '../types/token-metrics.js';
 import { readBucket } from './bucket-io.js';
 import { parseDbCursorState } from './openclaw-db/db-cursor.js';
-import { createV23Fixture } from './openclaw-db/test-fixture-v23.js';
+import { createV23Fixture } from './openclaw-db/v23.fixtures.js';
 
 // Builds real SQLite fixtures and runs the collector: seconds per test on a
 // loaded Windows CI runner, where 5 s default timeouts failed.

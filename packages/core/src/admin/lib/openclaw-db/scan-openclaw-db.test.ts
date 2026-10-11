@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type * as ConstantsModule from '../../../lib/constants.js';
 import type { HourlyBucket } from '../../types/token-metrics.js';
 import type { DbCursorState } from './db-cursor.js';
-import { createV23Fixture } from './test-fixture-v23.js';
+import { createV23Fixture } from './v23.fixtures.js';
 
 const header = (id: string) =>
   JSON.stringify({ type: 'session', version: 3, id });

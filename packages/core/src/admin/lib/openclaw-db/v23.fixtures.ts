@@ -1,8 +1,8 @@
 /**
- * @module openclaw-db/test-fixture-v23
+ * @module openclaw-db/v23.fixtures
  *
  * Test-only builder for an OpenClaw agent DB using the REAL schema-23 DDL
- * (test-fixture-v23-ddl.ts) for the tables token metrics reads. Sessions
+ * (v23-ddl.fixtures.ts) for the tables token metrics reads. Sessions
  * default to key `agent:main:test:<id>` with an empty entry; pass a
  * {@link FixtureNode} to record real-shaped channel metadata. Writes a scratch SQLite file plus cold-archive files; used by the
  * openclaw-db tests. Never touches a live store.
@@ -14,7 +14,7 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import zlib from 'node:zlib';
 
-import { V23_DDL } from './test-fixture-v23-ddl.js';
+import { V23_DDL } from './v23-ddl.fixtures.js';
 
 /** Valid navigation_json for compressed rows (required by the v23 CHECK). */
 const NAVIGATION_JSON = JSON.stringify({

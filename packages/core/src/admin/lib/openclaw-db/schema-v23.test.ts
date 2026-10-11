@@ -11,7 +11,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { openAgentDb, OpenClawSchemaMismatchError } from './open-agent-db.js';
-import { createV23Fixture } from './test-fixture-v23.js';
+import { createV23Fixture } from './v23.fixtures.js';
 
 const header = (id: string) =>
   JSON.stringify({ type: 'session', version: 3, id });

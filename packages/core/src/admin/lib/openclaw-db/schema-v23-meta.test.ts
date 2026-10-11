@@ -20,13 +20,13 @@ import {
   slackChannelEntry,
   slackDirectEntry,
   userMessage,
-} from './real-events-v23.js';
+} from './real-events-v23.fixtures.js';
 import {
   channelNameFromLabel,
   loadV23Meta,
   parseNodeEntry,
 } from './schema-v23-meta.js';
-import { createV23Fixture } from './test-fixture-v23.js';
+import { createV23Fixture } from './v23.fixtures.js';
 
 // Builds real SQLite fixtures and runs the collector: seconds per test on a
 // loaded Windows CI runner, where 5 s default timeouts failed.

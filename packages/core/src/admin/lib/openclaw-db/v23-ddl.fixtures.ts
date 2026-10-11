@@ -1,5 +1,5 @@
 /**
- * @module openclaw-db/test-fixture-v23-ddl
+ * @module openclaw-db/v23-ddl.fixtures
  *
  * Test-only: the REAL schema-23 DDL (copied verbatim from a 2026.9.6 host's
  * `sqlite_master`) for the tables token metrics reads.

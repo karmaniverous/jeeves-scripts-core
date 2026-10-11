@@ -1,5 +1,5 @@
 /**
- * @module openclaw-db/real-events-v23
+ * @module openclaw-db/real-events-v23.fixtures
  *
  * Test-only builders for transcript events shaped like real OpenClaw
  * 2026.9.6 agent-DB rows (session header, user message, injected
