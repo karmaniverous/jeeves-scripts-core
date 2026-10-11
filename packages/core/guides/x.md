@@ -37,7 +37,7 @@ flowchart TD
 
 `poll-feed` is the exception — it writes feed items directly to the account's `feed/` directory instead of using the queue pattern.
 
-- Ingest queues are named `x-<type>-<handle>` (`x-posts-`, `x-mentions-`, `x-feed-`, `x-likes-`, `x-bookmarks-`); `drain-queues` writes each item to `<X_ACCOUNTS[handle]>/<type>/<id>.json`. `like.ts` and `repost.ts` dequeue from the runner queues `x-like-<handle>` and `x-repost-<handle>`. `post.ts` does not use a runner queue: it reads JSON files (`{ text, type?, targetTime?, replyToId?, quoteId? }`) from `<account dir>/queue/`, posts those whose `targetTime` has passed, and moves each to `queue/done/` or, after 3 failed attempts, `queue/failed/`.
+- Ingest queues are named `x-<type>-<handle>` (`x-posts-`, `x-mentions-`, `x-feed-`, `x-likes-`, `x-bookmarks-`); `drain-queues` writes each item to `<X_ACCOUNTS[handle]>/<type>/<id>.json`. `like.ts` and `repost.ts` dequeue from the runner queues `x-like-<handle>` and `x-repost-<handle>` (`lib/drain-x-queue.ts`): an item is marked done only when the action succeeds; an API error, or a handle that no longer resolves to an X user, fails the item in the runner and counts it as `failed`. `post.ts` does not use a runner queue: it reads JSON files (`{ text, type?, targetTime?, replyToId?, quoteId? }`) from `<account dir>/queue/`, posts those whose `targetTime` has passed, and moves each to `queue/done/` or, after 3 failed attempts, `queue/failed/`.
 
 ## Prerequisites
 

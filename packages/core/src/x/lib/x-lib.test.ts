@@ -215,6 +215,8 @@ describe('x-actions', () => {
   it('does nothing for a handle that does not resolve', async () => {
     const { client, users } = fakeClient();
     expect(await likePost(client, 'ghost', 't1')).toBe(false);
+    expect(await repostPost(client, 'ghost', 't1')).toBe(false);
     expect(users.likePost).not.toHaveBeenCalled();
+    expect(users.repostPost).not.toHaveBeenCalled();
   });
 });

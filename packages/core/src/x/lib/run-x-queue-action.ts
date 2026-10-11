@@ -3,8 +3,8 @@
  *
  * Shared entry-point wrapper for X queue-action scripts (like, repost).
  *
- * Handles handle parsing, credential check, client creation, queue draining,
- * action execution with per-item error handling, and runScript boilerplate.
+ * Handles handle parsing, credential check, client creation and runScript
+ * boilerplate; drain-x-queue runs the action per item and settles it.
  */
 
 import fs from 'node:fs';
@@ -13,6 +13,7 @@ import { getArg, runScript } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 import type { Client } from '@xdevplatform/xdk';
 
+import { drainXQueue } from './drain-x-queue.js';
 import { withAutoRefresh } from './x-api.js';
 import { getOAuthPath } from './x-oauth.js';
 
@@ -25,7 +26,7 @@ export interface XQueueActionOptions {
   actionLabel: string;
   /** Past-tense label for success log (e.g. 'liked', 'reposted') */
   successLabel: string;
-  /** The action to perform on each tweet */
+  /** The action to perform on each tweet; false fails the queue item. */
   actionFn: (
     client: Client,
     handle: string,
@@ -48,33 +49,16 @@ export function runXQueueAction(options: XQueueActionOptions): void {
 
     const runnerClient = getRunnerClient();
     try {
-      const items = runnerClient.dequeue(queueName, maxItems);
-      let succeeded = 0,
-        failed = 0;
-
-      for (const { id: queueItemId, payload } of items) {
-        const tweetId = (payload as { tweetId?: string }).tweetId;
-        if (!tweetId) {
-          runnerClient.done(queueItemId);
-          continue;
-        }
-
-        try {
-          await withAutoRefresh(handle, (client) =>
+      await drainXQueue(
+        runnerClient,
+        queueName,
+        maxItems,
+        (tweetId) =>
+          withAutoRefresh(handle, (client) =>
             options.actionFn(client, handle, tweetId),
-          );
-          runnerClient.done(queueItemId);
-          succeeded++;
-        } catch (err) {
-          console.log(
-            `${options.actionLabel}: WARN failed to ${options.actionLabel} ${tweetId}: ${err instanceof Error ? err.message : String(err)}`,
-          );
-          failed++;
-        }
-      }
-
-      console.log(
-        `${options.actionLabel}: @${handle} ${options.successLabel}=${String(succeeded)}, failed=${String(failed)}`,
+          ),
+        options,
+        handle,
       );
     } finally {
       runnerClient.close();
