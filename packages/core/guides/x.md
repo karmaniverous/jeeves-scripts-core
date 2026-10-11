@@ -55,7 +55,7 @@ flowchart TD
 | `x-poll-bookmarks` | `poll-bookmarks.ts` | Every 13 min |
 | `x-drain-queues`   | `drain-queues.ts`   | Every 11 min |
 
-All entries in core's manifest `jobs/x.json` carry a non-null `prerequisite` (`X_ACCOUNTS` plus each handle's OAuth file). `x-post`, `x-like`, `x-repost` and `x-refresh-token` are registered without a manifest; they take the handle as their first argument (`run x-post <handle>`).
+All entries in core's manifest `jobs/x.json` carry a non-null `prerequisite` (`X_ACCOUNTS` plus each handle's OAuth file). `x-post`, `x-like`, `x-repost` and `x-refresh-token` are registered without a manifest (kept in core, Decision 50: an instance that wants to publish, like or repost schedules them in its own `jobs/*.json`, see [jobs](./jobs.md)); they take the handle as their first argument (`run x-post <handle>`).
 
 **Handles come from `X_ACCOUNTS`, the one list of the instance's X accounts.** The manifest entries pass no arguments, so as registered:
 

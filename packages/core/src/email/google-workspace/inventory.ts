@@ -124,6 +124,8 @@ function main(): void {
 export default defineJob({
   id: 'email-inventory',
   domain: 'email',
+  description:
+    'Print thread directory, message file and thread-state counts per email account and silo (diagnostics).',
   name: 'email/inventory',
   run: () => {
     main();

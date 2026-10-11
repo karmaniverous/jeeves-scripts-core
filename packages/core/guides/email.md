@@ -67,8 +67,8 @@ Core's manifest (`jobs/email.json`) is authoritative; an instance adjusts it wit
 `poll` enqueues a thread's classification labels only when its classification changes, so labels skipped while `emailConfig.reportOnly` was on are never applied by the regular jobs. Run the catch-up once after turning `reportOnly` off (or whenever `labelApplied` lags the stored classification):
 
 ```bash
-node bin/jeeves-scripts.js email apply-labels --dry-run
-node bin/jeeves-scripts.js email apply-labels [--since <date>] [--account <id>] [--max <n>]
+node bin/jeeves-scripts.js run email-apply-labels --dry-run
+node bin/jeeves-scripts.js run email-apply-labels [--since <date>] [--account <id>] [--max <n>]
 ```
 
 - It reads each Gmail account's thread state (runner state `email` / `<email>.seenThreadIds`) and, for every thread whose stored classification (`receipt`, `junk`, a currently configured bucket) has labels missing from `labelApplied`, enqueues them on `email-updates` through `enqueueLabelActions()` and records them in `labelApplied`, exactly as `poll` does. It never calls Gmail itself: `drain-updates` applies the queue at its usual rate limit.
@@ -197,7 +197,7 @@ Gmail polling via the `gog` CLI (OAuth client or service-account mailboxes). Han
 | `backfill-settings.ts` | `resolveBackfillSettings()`: CLI args over `emailConfig.backfill`, per field; throws when any field is missing |
 | `backfill-window.ts` | Cursor and window arithmetic and `backfillAccount()`: processes the window one search page at a time and advances the cursor (live only) after the last page |
 | `label-actions.ts` | Every `email-updates` write, gated on `reportOnly` (`enqueueEmailUpdates`, `enqueueLabelActions`, `curationSignalActions`; meetings/extract.ts also enqueues through `enqueueEmailUpdates`); the drain-updates go/no-go (`planDrain`); action-to-label mapping for drain-updates (`labelChangesFor`, `threadModifyArgs`) |
-| `apply-labels.ts` | `applyPendingLabels()`: the label catch-up behind `email apply-labels` ([Label catch-up](#label-catch-up)); `pendingLabels()` is `computeLabelsToApply()` over stored thread state |
+| `apply-labels.ts` | `applyPendingLabels()`: the label catch-up behind the runnable `email-apply-labels` (`email-apply-labels.ts`) ([Label catch-up](#label-catch-up)); `pendingLabels()` is `computeLabelsToApply()` over stored thread state |
 | `inventory.ts` | Prints a summary table of thread directories, message files, and state counts per account |
 
 ### Classification

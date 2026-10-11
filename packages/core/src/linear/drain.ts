@@ -226,6 +226,8 @@ async function drainMain(): Promise<void> {
 export default defineJob({
   id: 'linear-drain',
   domain: 'linear',
+  description:
+    "Persist one Linear webhook payload read from stdin (run by jeeves-server's webhook route).",
   name: 'linear/drain',
   run: () => {
     drainMain().catch((e: unknown) => {

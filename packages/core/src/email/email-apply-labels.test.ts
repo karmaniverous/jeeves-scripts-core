@@ -1,5 +1,5 @@
 /**
- * Tests for the `email apply-labels` CLI command: reportOnly refusal and
+ * Tests for the `email-apply-labels` runnable: reportOnly refusal and
  * dry run, account and option validation, wiring to applyPendingLabels,
  * and the summary lines. Config is a temp file; the runner client is a
  * fake.
@@ -12,9 +12,12 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetConfig } from '../config/loader.js';
-import { setThreadState } from '../email/email-state.js';
-import type { ApplyLabelsClient } from '../email/google-workspace/apply-labels.js';
-import { buildEmailCommand, formatApplyLabels } from './email.js';
+import emailApplyLabelsJob, {
+  emailApplyLabels,
+  formatApplyLabels,
+} from './email-apply-labels.js';
+import { setThreadState } from './email-state.js';
+import type { ApplyLabelsClient } from './google-workspace/apply-labels.js';
 
 const A = 'me@example.com';
 
@@ -56,17 +59,13 @@ const fakeClient = () => {
   return { client, enqueue, close };
 };
 
-const run = async (args: string[], client = fakeClient().client) => {
-  const cmd = buildEmailCommand('/instance', { client: () => client });
-  // Throw on parse errors instead of exiting (set per subcommand).
-  for (const sub of cmd.commands)
-    sub.exitOverride().configureOutput({ writeErr: () => undefined });
-  await cmd.parseAsync(['apply-labels', '--config', configPath, ...args], {
-    from: 'user',
+const run = (args: string[], client = fakeClient().client) => {
+  emailApplyLabels(['--config', configPath, ...args], {
+    client: () => client,
   });
 };
 
-describe('email apply-labels', () => {
+describe('email-apply-labels', () => {
   beforeEach(() => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jsc-apply-labels-'));
     configPath = path.join(dir, 'jeeves-scripts.json');
@@ -80,16 +79,13 @@ describe('email apply-labels', () => {
     process.exitCode = undefined;
   });
 
-  it('refuses while reportOnly is on, without opening the store', async () => {
+  it('refuses while reportOnly is on, without opening the store', () => {
     writeConfig(true);
     const error = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
     const factory = vi.fn();
-    await buildEmailCommand('/instance', { client: factory }).parseAsync(
-      ['apply-labels', '--config', configPath],
-      { from: 'user' },
-    );
+    emailApplyLabels(['--config', configPath], { client: factory });
     expect(process.exitCode).toBe(1);
     expect(factory).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(
@@ -97,11 +93,11 @@ describe('email apply-labels', () => {
     );
   });
 
-  it('allows a dry run while reportOnly is on', async () => {
+  it('allows a dry run while reportOnly is on', () => {
     writeConfig(true);
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const { client, enqueue, close } = fakeClient();
-    await run(['--dry-run'], client);
+    run(['--dry-run'], client);
     expect(enqueue).not.toHaveBeenCalled();
     expect(close).toHaveBeenCalled();
     expect(log).toHaveBeenCalledWith(
@@ -110,23 +106,23 @@ describe('email apply-labels', () => {
     expect(process.exitCode).toBeUndefined();
   });
 
-  it('enqueues pending labels once reportOnly is off', async () => {
+  it('enqueues pending labels once reportOnly is off', () => {
     writeConfig(false);
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
     const { client, enqueue } = fakeClient();
-    await run(['--account', A, '--since', '2000-01-01', '--max', '10'], client);
+    run(['--account', A, '--since', '2000-01-01', '--max', '10'], client);
     expect(enqueue).toHaveBeenCalledTimes(2);
     expect(log).toHaveBeenCalledWith(
       `${A}: 1 of 1 threads need labels (receipt 1, clients 1)`,
     );
   });
 
-  it('rejects an account that is not a configured Gmail account', async () => {
+  it('rejects an account that is not a configured Gmail account', () => {
     writeConfig(false);
     const error = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
-    await run(['--account', 'nobody@example.com']);
+    run(['--account', 'nobody@example.com']);
     expect(process.exitCode).toBe(1);
     expect(error).toHaveBeenCalledWith(
       expect.stringContaining('is not a configured Gmail account'),
@@ -137,9 +133,28 @@ describe('email apply-labels', () => {
     ['--since', 'yesterday-ish'],
     ['--max', '0'],
     ['--max', '2.5'],
-  ])('rejects %s %s', async (flag, value) => {
+    ['--bogus', 'x'],
+  ])('rejects %s %s with exit code 1, opening nothing', (flag, value) => {
     writeConfig(false);
-    await expect(run([flag, value])).rejects.toThrow();
+    const error = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const factory = vi.fn();
+    emailApplyLabels(['--config', configPath, flag, value], {
+      client: factory,
+    });
+    expect(process.exitCode).toBe(1);
+    expect(factory).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith(
+      expect.stringMatching(/^apply-labels: /),
+    );
+  });
+
+  it('is the email-domain runnable email-apply-labels', () => {
+    expect(emailApplyLabelsJob).toMatchObject({
+      id: 'email-apply-labels',
+      domain: 'email',
+    });
   });
 });
 

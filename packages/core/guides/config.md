@@ -87,7 +87,7 @@ Every schema is exported (Zod 4), with its `z.infer` type (`Config`, `PathsConfi
 - No account (`channel` + `account` + `id`) and no email (compared case-insensitively) may belong to two people; `config check` reports the clash.
 - Code resolves with `lib/people`: `personForAccount(channel, account, id)`, `personForEmail(email)` (accepts `Name <addr>`), `personForChannelId(channel, id)` (the one owner of an id across accounts), `peopleForEmails`, `emailPeopleFields`. Unlisted accounts and addresses resolve to `undefined`.
 - Where it is used: Slack message authors ([slack.md](./slack.md)), token-metrics DM names ([admin.md](./admin.md)), meeting packages ([meetings.md](./meetings.md)), email messages ([email.md](./email.md#output-format)) and calendar events ([calendar.md](./calendar.md)). A listed person gets the configured `name` and their person id; anyone unlisted is recorded as before.
-- Facts about each account (name, email, bot flag) still come from the channel, e.g. the Slack cache. To draft the block, run `jeeves-scripts people propose` ([cli.md](./cli.md)), check it, and copy what is right.
+- Facts about each account (name, email, bot flag) still come from the channel, e.g. the Slack cache. To draft the block, run `jeeves-scripts run people-propose` ([cli.md](./cli.md#commands)), check it, and copy what is right.
 
 ### Other components' settings
 

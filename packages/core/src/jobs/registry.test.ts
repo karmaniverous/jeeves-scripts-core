@@ -47,10 +47,15 @@ describe('core job registry', () => {
   });
 
   it('loads every job module as defineJob(...) with its id, running nothing on import', async () => {
+    const scheduled = new Set(readCoreManifests().map((m) => m.id));
+    const undescribed: string[] = [];
     for (const e of coreJobs) {
       const job = await loadJob(e);
       expect(job.id).toBe(e.id);
+      if (!scheduled.has(e.id) && !job.description) undescribed.push(e.id);
     }
+    // A runnable without a manifest takes its `list` line from defineJob.
+    expect(undescribed).toEqual([]);
     expect(runScript).not.toHaveBeenCalled();
   }, 120_000);
 });

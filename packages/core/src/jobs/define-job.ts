@@ -46,25 +46,41 @@ const fn = <T>(what: string) =>
 /**
  * A job declaration (Zod-validated by {@link defineJob}).
  */
-export const jobDeclarationSchema = z.object({
-  /** Stable job id, the public contract (`jeeves-scripts run <id>`): lowercase, digits and dashes. */
-  id: z
-    .string()
-    .regex(
-      /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
-      'job id: lowercase words separated by dashes',
-    ),
-  /** Domain the job belongs to (`email`, `slack`, ...). */
-  domain: z.string().min(1),
-  /** Label used in crash logs (default: the id). Core jobs keep their pre-registry labels. */
-  name: z.string().min(1).optional(),
-  /** Directory for `_crash.log`, resolved when the job runs (default: the working directory). */
-  crashDir: fn<() => string>('crashDir').optional(),
-  /** Checked before `run`; anything but `true` skips the run. */
-  prerequisite: fn<JobPrerequisite>('prerequisite').optional(),
-  /** The job body. */
-  run: fn<JobRun>('run'),
-});
+export const jobDeclarationSchema = z
+  .object({
+    /**
+     * Stable runnable id, the public contract (`jeeves-scripts run <id>`):
+     * `domain-verb[-modifier][-object][-specifier]`, lowercase words
+     * separated by dashes, starting with the domain and a dash (R44, R45).
+     */
+    id: z
+      .string()
+      .regex(
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+        'job id: lowercase words separated by dashes',
+      ),
+    /** Domain the runnable belongs to: its top-level source folder (`email`, `google-drive`, ...). */
+    domain: z
+      .string()
+      .regex(
+        /^[a-z0-9]+(?:-[a-z0-9]+)*$/,
+        'domain: lowercase words separated by dashes',
+      ),
+    /** One line for `list`; required when the runnable has no manifest. */
+    description: z.string().min(1).optional(),
+    /** Label used in crash logs (default: the id). Core jobs keep their pre-registry labels. */
+    name: z.string().min(1).optional(),
+    /** Directory for `_crash.log`, resolved when the job runs (default: the working directory). */
+    crashDir: fn<() => string>('crashDir').optional(),
+    /** Checked before `run`; anything but `true` skips the run. */
+    prerequisite: fn<JobPrerequisite>('prerequisite').optional(),
+    /** The job body. */
+    run: fn<JobRun>('run'),
+  })
+  .refine((d) => d.id.startsWith(`${d.domain}-`), {
+    message: 'job id must start with its domain and a dash',
+    path: ['id'],
+  });
 
 /** A job declaration. */
 export type JobDeclaration = z.infer<typeof jobDeclarationSchema>;

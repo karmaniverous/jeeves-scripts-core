@@ -203,6 +203,8 @@ async function backfillMain(): Promise<void> {
 export default defineJob({
   id: 'linear-backfill',
   domain: 'linear',
+  description:
+    'Seed the Linear issue or comment archive from a team (dry run unless --live).',
   name: 'linear/backfill',
   run: () => {
     backfillMain().catch((e: unknown) => {

@@ -10,7 +10,7 @@ A job id is the public contract: runner jobs run `node {scriptsDir}/bin/jeeves-s
 | --- | --- | --- |
 | `admin` | `admin-check-qdrant-health`, `admin-collect-token-metrics`, `admin-refresh-sessions`, `admin-refresh-token-rates`, `admin-sweep-orphaned-tmp` | `admin-regenerate-token-metrics` |
 | `calendar` | `calendar-poll` |  |
-| `email` | `email-poll`, `email-download`, `email-drain-updates`, `email-backfill-historical` | `email-inventory` |
+| `email` | `email-poll`, `email-download`, `email-drain-updates`, `email-backfill-historical` | `email-apply-labels`, `email-inventory` |
 | `github` | `github-sync-repos`, `github-sync-issues`, `github-watch`, `github-build-registry`, `github-poll-collabs`, `github-drain-collabs` |  |
 | `google-drive` | `google-drive-sync` |  |
 | `jira` | `jira-refresh-fields`, `jira-sort-backlog` | `jira-backfill`, `jira-drain` |
@@ -18,7 +18,8 @@ A job id is the public contract: runner jobs run `node {scriptsDir}/bin/jeeves-s
 | `meetings` | `meetings-fetch-notes`, `meetings-extract`, `meetings-ingest-notion` |  |
 | `meta` | `meta-sweep-duplicates`, `meta-disable-old` |  |
 | `slack` | `slack-poll` |  |
-| `x` | `x-poll-posts`, `x-poll-mentions`, `x-poll-feed`, `x-poll-likes`, `x-poll-bookmarks`, `x-drain-queues` | `x-post`, `x-refresh-token`, `x-like`, `x-repost` |
+| `x` | `x-poll-posts`, `x-poll-mentions`, `x-poll-feed`, `x-poll-likes`, `x-poll-bookmarks`, `x-drain-queues` | `x-post`, `x-refresh-token`, `x-like`, `x-repost` (kept, Decision 50) |
+| `people` |  | `people-propose` |
 
 The scheduled ids are the template's manifest ids. `src/jobs/registry.ts` holds the list; each domain's guide says what its jobs do.
 
@@ -30,8 +31,9 @@ Every job module default-exports `defineJob(...)`, exported from the package roo
 import { defineJob } from '@karmaniverous/jeeves-scripts-core';
 
 export default defineJob({
-  id: 'acme-report', // lowercase words separated by dashes
-  domain: 'acme',
+  id: 'acme-report', // domain-verb[-modifier][-object][-specifier]
+  domain: 'acme', // the top-level source folder
+  description: 'Report on acme.', // one line for list; required without a manifest
   name: 'acme/report', // crash-log label; default: the id
   crashDir: () => '/base/acme', // where _crash.log goes; default: the working directory
   prerequisite: () => hasAcmeConfig() || 'no acme block in jeeves-scripts.json',
@@ -41,7 +43,7 @@ export default defineJob({
 });
 ```
 
-The declaration is validated with Zod (Decision 31) and returned frozen. Importing a job module never runs the job. Running it (`run <id>`):
+The declaration is validated with Zod (Decision 31) and returned frozen: the id and domain are lowercase words separated by dashes, and the id starts with its domain and a dash (`acme-report` in `acme`, `google-drive-sync-files` in `google-drive`), so `acme` alone or `report-acme` throws. A runnable without a manifest needs a `description`: core's registry tests check every core one. Importing a job module never runs the job. Running it (`run <id>`):
 
 1. sets `process.argv` to `[node, <id>, ...args]` (job code may read `process.argv.slice(2)` as before) and passes the args as `ctx.args`;
 2. checks `prerequisite`: anything but `true` logs `[skip] <reason>` and the run exits 0;

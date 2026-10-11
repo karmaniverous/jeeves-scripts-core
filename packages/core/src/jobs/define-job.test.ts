@@ -36,10 +36,35 @@ describe('defineJob', () => {
     expect(run).not.toHaveBeenCalled();
   });
 
+  it('keeps a one-line description for list', () => {
+    const job = defineJob({
+      id: 'google-drive-report',
+      domain: 'google-drive',
+      description: 'Report on the drive.',
+      run: () => undefined,
+    });
+    expect(job.description).toBe('Report on the drive.');
+  });
+
   it.each([
     ['an id with capitals', { id: 'Acme', domain: 'acme' }, /job id/],
     ['an id with a trailing dash', { id: 'acme-', domain: 'acme' }, /job id/],
     ['an empty domain', { id: 'acme', domain: '' }, /domain/],
+    [
+      'an id that does not start with its domain',
+      { id: 'report-acme', domain: 'acme' },
+      /must start with its domain and a dash/,
+    ],
+    [
+      'an id that is only its domain',
+      { id: 'acme', domain: 'acme' },
+      /must start with its domain and a dash/,
+    ],
+    [
+      'an empty description',
+      { id: 'acme-report', domain: 'acme', description: '' },
+      /description/,
+    ],
   ])('rejects %s', (_label, fields, message) => {
     expect(() => defineJob({ ...fields, run: () => undefined })).toThrow(
       message,

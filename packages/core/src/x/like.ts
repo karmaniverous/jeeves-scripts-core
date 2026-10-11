@@ -15,6 +15,8 @@ import { likePost } from './lib/x-actions.js';
 export default defineJob({
   id: 'x-like',
   domain: 'x',
+  description:
+    "Like the tweets queued in the account's x-like-<handle> runner queue.",
   name: 'x/like',
   run: xQueueAction({
     scriptName: 'x/like',

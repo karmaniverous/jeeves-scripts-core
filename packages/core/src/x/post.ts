@@ -131,6 +131,8 @@ async function main(
 export default defineJob({
   id: 'x-post',
   domain: 'x',
+  description:
+    "Publish the queued posts, replies and quotes in an X account's queue folder.",
   name: 'x/post',
   run: () => {
     // Checked in this order before the job registry too: handle argument,

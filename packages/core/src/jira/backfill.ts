@@ -155,6 +155,8 @@ async function backfillMain(): Promise<void> {
 export default defineJob({
   id: 'jira-backfill',
   domain: 'jira',
+  description:
+    'Seed the Jira issue archive from a project backlog (dry run unless --live).',
   name: 'jira/backfill',
   run: () => {
     backfillMain().catch((e: unknown) => {

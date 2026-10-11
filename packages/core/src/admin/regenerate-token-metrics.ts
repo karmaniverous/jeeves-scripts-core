@@ -112,6 +112,8 @@ async function regenerate(): Promise<void> {
 export default defineJob({
   id: 'admin-regenerate-token-metrics',
   domain: 'admin',
+  description:
+    'Rebuild hourly token-metrics buckets for [--from, --to) (scratch with --out, or live), and bootstrap the agent-DB cursor after the OpenClaw 2026.9 upgrade.',
   name: 'regenerate-token-metrics',
   run: () => regenerate(),
 });

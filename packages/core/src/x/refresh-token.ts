@@ -32,6 +32,8 @@ async function main(handle: string): Promise<void> {
 export default defineJob({
   id: 'x-refresh-token',
   domain: 'x',
+  description:
+    "Refresh an X account's OAuth 2.0 access token (manual or diagnostic; pollers refresh on 401).",
   name: 'x/refresh-token',
   run: () => {
     const handle = requireXHandle('refresh-token.ts');

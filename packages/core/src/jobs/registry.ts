@@ -98,6 +98,12 @@ export const coreJobs: readonly RegistryEntry[] = [
     load: () => import('../email/google-workspace/inventory.js'),
   },
   {
+    id: 'email-apply-labels',
+    domain: 'email',
+    module: 'email/email-apply-labels',
+    load: () => import('../email/email-apply-labels.js'),
+  },
+  {
     id: 'email-poll',
     domain: 'email',
     module: 'email/poll',
@@ -228,6 +234,13 @@ export const coreJobs: readonly RegistryEntry[] = [
     domain: 'meta',
     module: 'meta/sweep-duplicates',
     load: () => import('../meta/sweep-duplicates.js'),
+  },
+  // people
+  {
+    id: 'people-propose',
+    domain: 'people',
+    module: 'people/people-propose',
+    load: () => import('../people/people-propose.js'),
   },
   // slack
   {

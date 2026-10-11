@@ -234,6 +234,8 @@ async function drainMain(): Promise<void> {
 export default defineJob({
   id: 'jira-drain',
   domain: 'jira',
+  description:
+    "Persist one Jira webhook payload read from stdin (run by jeeves-server's webhook route).",
   name: 'jira/drain',
   run: () => {
     drainMain().catch((e: unknown) => {

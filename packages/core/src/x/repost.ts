@@ -15,6 +15,8 @@ import { repostPost } from './lib/x-actions.js';
 export default defineJob({
   id: 'x-repost',
   domain: 'x',
+  description:
+    "Repost the tweets queued in the account's x-repost-<handle> runner queue.",
   name: 'x/repost',
   run: xQueueAction({
     scriptName: 'x/repost',

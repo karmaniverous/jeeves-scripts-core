@@ -83,25 +83,11 @@ describe('jeeves-scripts CLI', () => {
     expect(code).toBe(0);
   });
 
-  it.each([
-    'jeeves-scripts.json',
-    'JEEVES-SCRIPTS.JSON',
-    'sub/Jeeves-Scripts.Json',
-  ])(
-    'people propose refuses --out %s before reading Slack or writing',
-    async (out) => {
-      const write = vi
-        .spyOn(fs, 'writeFileSync')
-        .mockImplementation(() => undefined);
-
-      await expect(
-        buildProgram({ root }).parseAsync(['people', 'propose', '--out', out], {
-          from: 'user',
-        }),
-      ).rejects.toThrow('people propose never writes jeeves-scripts.json');
-      expect(write).not.toHaveBeenCalled();
-    },
-  );
+  it('has no domain command groups (Decision 49)', () => {
+    const verbs = buildProgram({ root }).commands.map((c) => c.name());
+    expect(verbs).not.toContain('people');
+    expect(verbs).not.toContain('email');
+  });
 
   it('resolveRoot passes paths through and converts file URLs', () => {
     expect(resolveRoot(root)).toBe(root);
