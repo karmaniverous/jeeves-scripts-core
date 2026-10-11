@@ -39,7 +39,7 @@ jeeves-scripts --dir ./new-instance init        # no repo yet
 | --- | --- |
 | `run <id> [args...]` | Run a runnable by id (below). Everything after the id is passed to it unchanged. Exit 0 when done or skipped; 1 on a crash, an unknown id or a registration error; a runnable may set another code with `process.exitCode`. |
 | `list [glob] [--json]` | Every registered runnable whose id matches the glob ([below](#listing-runnables)). Exit 1 on an invalid manifest, delta or registration. |
-| `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
+| `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references, then load the instance plugin as `list` and `run` do, so its `configSchema` validates the `local` block ([jobs](./jobs.md#instance-runnables-and-overrides)); a plugin that fails to load or rejects `local` is a problem like any other. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
 | `doctor` | Report on the instance ([below](#doctor)). Informational: always exits 0. |
 | `--version`, `--help` | The core version; usage. |
 | `init [--name <pkg>] [--core <version>]` | Write an instance repo into the root from the template bundled in core ([below](#init)). Exit 1 on an invalid name or version. |

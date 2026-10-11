@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { Command } from '@commander-js/extra-typings';
 
-import { configCheck } from '../config/check.js';
+import { instanceConfigCheck } from './config-check.js';
 import { doctorReport } from './doctor.js';
 import { describeError, formatInit, initRepo } from './init.js';
 import { formatList, listRunnables } from './list.js';
@@ -43,14 +43,14 @@ const buildConfigCommand = (root: string) => {
   config
     .command('check')
     .description(
-      'Validate jeeves-scripts.json against the core schema and its silo references.',
+      "Validate jeeves-scripts.json against the core schema and its silo references, and its local block against the plugin's configSchema.",
     )
     .option(
       '--config <file>',
       'config file path (default: {root}/jeeves-scripts.json, or JEEVES_SCRIPTS_CONFIG)',
     )
-    .action((options) => {
-      const result = configCheck({ root, configPath: options.config });
+    .action(async (options) => {
+      const result = await instanceConfigCheck(root, options.config);
       const where = result.configPath ?? 'unresolved path';
       if (result.ok) {
         console.log(`config check: OK (${where})`);

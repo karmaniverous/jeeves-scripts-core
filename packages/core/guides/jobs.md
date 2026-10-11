@@ -148,7 +148,7 @@ Registration (plugin load) fails, listing every problem with its id and domain, 
 
 An override runs instead of core's runnable, under core's id and domain; `list` shows its source as `override`. It needs unit tests in the instance repo. `writtenFor` records the core version it was written for, so a core upgrade can review every override whose core has moved on: `doctor` marks each one whose `writtenFor` differs from the installed core as `DRIFT` ([cli](./cli.md#doctor)); it never fails a run.
 
-**Instance config.** Core never reads `local` in `jeeves-scripts.json`. When the plugin declares a `configSchema`, the CLI parses `local` with it at plugin load (an invalid block fails, naming the config file) and runnables read the result with `localConfig`:
+**Instance config.** Core never reads `local` in `jeeves-scripts.json`. When the plugin declares a `configSchema`, the CLI parses `local` with it at plugin load (an invalid block fails, naming the config file; `config check` loads the plugin to report it) and runnables read the result with `localConfig`:
 
 ```ts
 import { localConfig } from '@karmaniverous/jeeves-scripts-core';

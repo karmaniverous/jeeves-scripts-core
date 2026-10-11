@@ -179,7 +179,7 @@ Instance and plugin code never joins absolute content roots itself; it calls `si
 
 ## Validation: `config check`
 
-`configCheck({ root?, configPath? })` (and `jeeves-scripts config check`) loads the file fresh, validates it, and checks that every `jobs.<id>.silo` names a configured silo. It returns `{ ok, configPath, errors }`; the CLI prints one line per error and exits 1 on failure.
+`configCheck({ root?, configPath? })` (and `jeeves-scripts config check`) loads the file fresh, validates it, and checks that every `jobs.<id>.silo` names a configured silo. It returns `{ ok, configPath, errors }`; the CLI prints one line per error and exits 1 on failure. When those checks pass, `jeeves-scripts config check` also loads the instance plugin, as `list` and `run` do, so the plugin's `configSchema` validates the `local` block; a plugin that fails to load or rejects `local` adds its message to `errors` (`instanceConfigCheck` in `src/cli/config-check.ts`).
 
 ## Key files
 
