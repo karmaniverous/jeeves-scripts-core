@@ -6,6 +6,10 @@
  * frontmatter, because it would corrupt code and config.
  */
 
+import {
+  frontmatterBlock,
+  type FrontmatterValue,
+} from '../../lib/frontmatter.js';
 import type { ConversionKind } from './classify.js';
 import type { SnapshotFile } from './types.js';
 
@@ -29,9 +33,9 @@ export function drivePathOf(f: SnapshotFile): string {
   return driveSegments(f).join(' / ');
 }
 
-/** Prefix `body` with frontmatter describing `f`. JSON strings are valid YAML scalars. */
+/** Prefix `body` with frontmatter describing `f` (values quoted by lib/frontmatter). */
 export function withFrontmatter(f: SnapshotFile, body: string): string {
-  const fields: [string, string | boolean | undefined][] = [
+  const fields: [string, FrontmatterValue][] = [
     ['source', 'google-drive'],
     ['driveFileId', f.file.id],
     ['driveUrl', `https://drive.google.com/open?id=${f.file.id}`],
@@ -42,8 +46,5 @@ export function withFrontmatter(f: SnapshotFile, body: string): string {
     ['drivePath', drivePathOf(f)],
     ['pathResolved', f.pathResolved],
   ];
-  const lines = fields
-    .filter((e): e is [string, string | boolean] => e[1] !== undefined)
-    .map(([k, v]) => `${k}: ${JSON.stringify(v)}`);
-  return `---\n${lines.join('\n')}\n---\n\n${body.endsWith('\n') || body === '' ? body : `${body}\n`}`;
+  return `${frontmatterBlock(fields)}${body.endsWith('\n') || body === '' ? body : `${body}\n`}`;
 }

@@ -102,7 +102,7 @@ describe('convert-utils', () => {
 
       const content = fs.readFileSync(mdPath, 'utf8');
       expect(content).toContain('---');
-      expect(content).toContain('title: Test Doc');
+      expect(content).toContain('title: "Test Doc"');
       expect(content).toContain('pages: 5');
       expect(content).toContain('Body text here');
     });
@@ -113,7 +113,27 @@ describe('convert-utils', () => {
 
       const content = fs.readFileSync(mdPath, 'utf8');
       expect(content.startsWith('---\n')).toBe(true);
-      expect(content).toMatch(/---\nkey: value\n---\n\ncontent\n/);
+      expect(content).toMatch(/---\nkey: "value"\n---\n\ncontent\n/);
+    });
+
+    it.each([
+      ['colon-space', 'C:\\docs\\a: b.pdf'],
+      ['hash', 'notes #1.pdf'],
+      ['newline', 'line1\nline2: x.pdf'],
+    ])('quotes a string value containing a %s', (_, source) => {
+      const mdPath = path.join(tmpDir, 'quoted.md');
+      writeMdFile(mdPath, { source, pages: 2 }, 'body');
+
+      const content = fs.readFileSync(mdPath, 'utf8');
+      const lines = content.split('\n');
+      // One line per field: the value can't spill onto another line.
+      expect(lines.slice(0, 4)).toEqual([
+        '---',
+        `source: ${JSON.stringify(source)}`,
+        'pages: 2',
+        '---',
+      ]);
+      expect(JSON.parse(lines[1].slice('source: '.length))).toBe(source);
     });
 
     it('handles empty frontmatter', () => {

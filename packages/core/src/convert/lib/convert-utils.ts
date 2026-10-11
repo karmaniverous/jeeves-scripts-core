@@ -11,6 +11,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import {
+  frontmatterBlock,
+  type FrontmatterValue,
+} from '../../lib/frontmatter.js';
+
 /** Recursively find all files with the given extension under the provided directories. */
 export function findFiles(dirs: string[], ext: string): string[] {
   const results: string[] = [];
@@ -46,15 +51,12 @@ export function needsConversion(sourcePath: string, mdPath: string): boolean {
   return srcStat.mtimeMs > mdStat.mtimeMs;
 }
 
-/** Write a Markdown file with YAML frontmatter. */
+/** Write a Markdown file with YAML frontmatter (string values quoted). */
 export function writeMdFile(
   mdPath: string,
-  frontmatter: Record<string, unknown>,
+  frontmatter: Record<string, FrontmatterValue>,
   content: string,
 ): void {
-  const yamlLines = Object.entries(frontmatter).map(
-    ([k, v]) => `${k}: ${typeof v === 'string' ? v : String(v)}`,
-  );
-  const out = `---\n${yamlLines.join('\n')}\n---\n\n${content}\n`;
+  const out = `${frontmatterBlock(Object.entries(frontmatter))}${content}\n`;
   fs.writeFileSync(mdPath, out, 'utf8');
 }
