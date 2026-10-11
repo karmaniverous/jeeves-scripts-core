@@ -142,6 +142,7 @@ describe('dispatchTaskFile', () => {
         silo: 'acme',
         taskFile: 'ops/TASK.md',
         slack: () => slack,
+        args: ['--dry-run'],
       },
       deps,
     );
@@ -149,8 +150,47 @@ describe('dispatchTaskFile', () => {
       'Do the thing.',
       { jobId: 'j' },
       slack,
+      ['--dry-run'],
     );
     expect(deps.runDispatcher).not.toHaveBeenCalled();
+  });
+
+  it('previews without Slack: --print-task prints the task, --dry-run reports, neither dispatches', async () => {
+    writeTask('content/digest/TASK.md');
+    const deps = makeDeps();
+    const base = {
+      scriptName: 'acme/digest',
+      jobId: 'j',
+      taskFile: 'digest/TASK.md',
+    };
+    await expect(
+      dispatchTaskFile({ ...base, args: ['--print-task'] }, deps),
+    ).resolves.toBe('previewed');
+    expect(deps.log).toHaveBeenCalledWith('Do the thing.');
+    await expect(
+      dispatchTaskFile({ ...base, args: ['--dry-run'] }, deps),
+    ).resolves.toBe('previewed');
+    expect(deps.log).toHaveBeenCalledWith(
+      '[dry-run] acme/digest: would dispatch job j with a 13-character task',
+    );
+    expect(deps.runDispatcher).not.toHaveBeenCalled();
+  });
+
+  it('reports a Slack --print-task as previewed', async () => {
+    writeTask('content/digest/TASK.md');
+    const deps = makeDeps();
+    await expect(
+      dispatchTaskFile(
+        {
+          scriptName: 's',
+          jobId: 'j',
+          taskFile: 'digest/TASK.md',
+          slack: { accountId: 'a' },
+          args: ['--print-task'],
+        },
+        deps,
+      ),
+    ).resolves.toBe('previewed');
   });
 
   it('prefixes the date in the given zone', async () => {

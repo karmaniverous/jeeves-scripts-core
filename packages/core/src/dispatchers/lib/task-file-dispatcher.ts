@@ -13,8 +13,12 @@
  * - With `dateTimeZone`, the task is prefixed with today's date in that
  *   zone (`withDateContext`). There is no default zone (Decision 26).
  * - With `slack`, dispatch goes through `dispatchWithSlack` (job-side Slack
- *   reads and posts, `--dry-run`, `--print-task`); without it, through
- *   jeeves-runner's `runDispatcher` and core's `spawn-worker`.
+ *   reads and posts); without it, through jeeves-runner's `runDispatcher`
+ *   and core's `spawn-worker`.
+ * - `--print-task` prints the full task and dispatches nothing, with or
+ *   without `slack`. `--dry-run` with `slack` dispatches the worker and
+ *   prints its posts instead of sending them; without `slack` (nothing to
+ *   post) it reports what it would dispatch and dispatches nothing.
  *
  * Side effects: reads the config and the task file; spawns a worker.
  */
@@ -46,6 +50,12 @@ export interface TaskFileDispatcherOptions extends DispatchOptions {
   dateTimeZone?: Lazy<string>;
   /** Job-side Slack reads and allowed post targets (see `lib/worker-slack`). */
   slack?: Lazy<WorkerSlackConfig>;
+  /**
+   * The runnable's arguments (`ctx.args`), read for `--print-task` and
+   * `--dry-run`. Default: `process.argv`, for callers written before the
+   * flags were read from here.
+   */
+  args?: readonly string[];
 }
 
 /** Collaborators of {@link dispatchTaskFile}, injectable for tests. */
@@ -56,7 +66,7 @@ export interface TaskFileDispatcherDeps {
   runDispatcher: (task: string, options: DispatchOptions) => void;
   /** The current time, for the date context. */
   now: () => Date;
-  /** Logs the `[skip]` line. */
+  /** Logs the `[skip]` line and the previews. */
   log: (message: string) => void;
 }
 
@@ -92,18 +102,20 @@ export const resolveTaskFile = (
 /**
  * Read the task and dispatch it (the body of {@link taskFileDispatcher}).
  *
- * @returns `'skipped'` when the task file does not exist, else `'dispatched'`.
+ * @returns `'skipped'` when the task file does not exist, `'previewed'`
+ *   for `--print-task` (and `--dry-run` without `slack`), else `'dispatched'`.
  */
 export const dispatchTaskFile = async (
   options: TaskFileDispatcherOptions,
   deps: TaskFileDispatcherDeps = defaultDeps,
-): Promise<'skipped' | 'dispatched'> => {
+): Promise<'skipped' | 'previewed' | 'dispatched'> => {
   const {
     scriptName,
     taskFile,
     silo,
     dateTimeZone,
     slack,
+    args = process.argv,
     ...dispatchOptions
   } = options;
   const file = resolveTaskFile({
@@ -120,8 +132,22 @@ export const dispatchTaskFile = async (
   if (dateTimeZone !== undefined)
     task = withDateContext(task, deps.now(), resolve(dateTimeZone));
 
-  if (slack === undefined) deps.runDispatcher(task, dispatchOptions);
-  else await deps.dispatchWithSlack(task, dispatchOptions, resolve(slack));
+  if (slack !== undefined) {
+    // The Slack path handles both flags (it adds the Slack context first).
+    await deps.dispatchWithSlack(task, dispatchOptions, resolve(slack), args);
+    return args.includes('--print-task') ? 'previewed' : 'dispatched';
+  }
+  if (args.includes('--print-task')) {
+    deps.log(task);
+    return 'previewed';
+  }
+  if (args.includes('--dry-run')) {
+    deps.log(
+      `[dry-run] ${scriptName}: would dispatch job ${dispatchOptions.jobId} with a ${String(task.length)}-character task`,
+    );
+    return 'previewed';
+  }
+  deps.runDispatcher(task, dispatchOptions);
   return 'dispatched';
 };
 
@@ -144,7 +170,9 @@ export const dispatchTaskFile = async (
  * ```
  */
 export const taskFileDispatcher =
-  (options: TaskFileDispatcherOptions): (() => Promise<void>) =>
-  async () => {
-    await dispatchTaskFile(options);
+  (
+    options: TaskFileDispatcherOptions,
+  ): ((ctx?: { args: readonly string[] }) => Promise<void>) =>
+  async (ctx) => {
+    await dispatchTaskFile({ args: ctx?.args, ...options });
   };
