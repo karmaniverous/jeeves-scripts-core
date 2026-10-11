@@ -57,7 +57,8 @@
     "description": "Monitor Qdrant liveness (/healthz), collection status and optimizer health. Attempt a non-interactive service restart when Qdrant is down, a collection is red or the optimizer is stuck; exit non-zero (restart requires operator) when the restart is denied or fails.",
     "schedule": {
       "freq": "hourly",
-      "interval": 4
+      "interval": 4,
+      "timezone": "UTC"
     },
     "overlap_policy": "skip",
     "timeout_seconds": 60,
