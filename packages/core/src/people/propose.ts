@@ -1,7 +1,8 @@
 /**
  * @module people/propose
  *
- * `jeeves-scripts people propose` (Decision 34): read the users of every
+ * The `people-propose` runnable (`jeeves-scripts run people-propose`,
+ * Decisions 34, 49): read the users of every
  * Slack workspace the gateway's bots belong to (`users.list`, read-only),
  * group users across workspaces by email (case-insensitive) and by real
  * name, and print a proposed `people` block with the matches that need a
@@ -30,7 +31,7 @@ export interface UncertainMatch {
   users: SeedUser[];
 }
 
-/** The proposal printed by `people propose`. */
+/** The proposal printed by `people-propose`. */
 export interface PeopleProposal {
   summary: {
     accounts: Record<string, number>;
