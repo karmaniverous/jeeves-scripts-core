@@ -175,7 +175,7 @@ Each account type defines `threadId` and `messageId` as `string[]` — JSONPath 
 
 ### Watermark
 
-Incremental polling via IMAP UIDs stored in runner state namespace `imap-poll`. Per-account, per-folder `{ uidValidity, lastUid }`. First run caps at last 100 messages to avoid loading entire mailboxes.
+Incremental polling via IMAP UIDs stored in runner state namespace `imap-poll`. Per-account, per-folder `{ uidValidity, lastUid }`. First run caps at last 100 messages to avoid loading entire mailboxes. Stored state that doesn't parse (bad JSON, or not that shape with non-negative integer UIDs) is logged as a warning and treated as missing, so the account polls as a first run.
 
 ---
 
