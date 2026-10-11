@@ -25,7 +25,7 @@ The package `bin` (`jeeves-scripts ...` after `npm install -g @karmaniverous/jee
 2. `JEEVES_SCRIPTS_DIR`;
 3. the nearest `jeeves-scripts.json` at or above the working directory;
 
-and runs that repo's `bin/jeeves-scripts.js` with the rest of the command line, so the repo's pinned core runs, whatever version is installed globally. With no repo found (or one without its launcher yet), it runs only `init`, `--help` and `--version` itself, in the named directory or the working directory; anything else exits 1 saying how to point it at a repo. Runner jobs never use it.
+and runs that repo's `bin/jeeves-scripts.js` with the rest of the command line, so the repo's pinned core runs, whatever version is installed globally. With no repo found (or one without its launcher yet), it runs only `init`, `--help` and `--version` itself, in the named directory or the working directory; anything else exits 1 saying how to point it at a repo. A repo initialised but not yet installed (launcher present, core not resolvable) is treated the same, and the error says to run `npm install` there. Runner jobs never use it.
 
 ```bash
 jeeves-scripts --dir /srv/jeeves-scripts list   # any directory
@@ -39,11 +39,11 @@ jeeves-scripts --dir ./new-instance init        # no repo yet
 | --- | --- |
 | `run <id> [args...]` | Run a runnable by id (below). Everything after the id is passed to it unchanged. Exit 0 when done or skipped; 1 on a crash, an unknown id or a registration error; a runnable may set another code with `process.exitCode`. |
 | `list [glob] [--json]` | Every registered runnable whose id matches the glob ([below](#listing-runnables)). Exit 1 on an invalid manifest, delta or registration. |
-| `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references, then load the instance plugin as `list` and `run` do, so its `configSchema` validates the `local` block ([jobs](./jobs.md#instance-runnables-and-overrides)); a plugin that fails to load or rejects `local` is a problem like any other. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
+| `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references, then load and register the instance plugin as `list` does: its `configSchema` validates the `local` block ([jobs](./jobs.md#instance-runnables-and-overrides)), and registration checks unique ids, the naming rule and core domains, the instance manifests and the `jobs` deltas (an unknown id fails). A plugin that fails to load or register, an invalid manifest or delta, or a rejected `local` is a problem like any other. Silo references are `jobs.<id>.silo` and `integrations.x.accounts.<handle>.silo`. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
 | `doctor` | Report on the instance ([below](#doctor)). Informational: always exits 0. |
 | `--version`, `--help` | The core version; usage. |
 | `init [--name <pkg>] [--core <version>]` | Write an instance repo into the root from the template bundled in core ([below](#init)). Exit 1 on an invalid name or version. |
-| `skills install \| uninstall \| status [--yes]` | Wire core's shipped skills into OpenClaw through `openclaw config set` ([below](#skills)). Exit 1 when `openclaw` fails. |
+| `skills install \| uninstall \| status [--yes]` | Wire core's shipped skills into OpenClaw through `openclaw config set` ([below](#skills)). Exit 1, with `skills <action>: FAILED: <reason>` on stderr, when `openclaw` fails. |
 | `run people-propose [--all] [--out <file>]` | Runnable `people-propose` (no manifest). Read-only: reads `users.list` for every gateway Slack bot account (`slackBotTokens`), skips bots, deactivated users and Slackbot, groups users across workspaces by email (case-insensitive) and real name, and prints `{ summary, people, uncertain }`: a proposed `people` block ([config.md](./config.md#people)) of people with more than one account (`--all`: everyone) and the matches to check by hand (grouped by name only; a name shared inside one workspace; one email on two users of a workspace). Never writes config; `--out` writes the same JSON (UTF-8) to a file and refuses `jeeves-scripts.json`. |
 | `run email-apply-labels [--since <date>] [--account <id>] [--max <n>] [--dry-run] [--config <file>]` | Runnable `email-apply-labels` (no manifest). Enqueue the classification labels stored thread state calls for but that were never applied (e.g. while `emailConfig.reportOnly` was on); `drain-updates` applies them. Idempotent. Refuses while `reportOnly` is on unless `--dry-run`. See [email.md](./email.md#label-catch-up). |
 
@@ -105,7 +105,7 @@ Core ships its skills in the package (`skills/<name>/SKILL.md`); they are wired 
 | Command | What it changes in OpenClaw's config |
 | --- | --- |
 | `skills install` | Adds `<repo>/node_modules/@karmaniverous/jeeves-scripts-core/skills` to `skills.load.extraDirs` (exact match, so running it again changes nothing) and sets `skills.entries.<skill>.env.JEEVES_SCRIPTS_DIR` to the repo root for each shipped skill. |
-| `skills uninstall` | Removes exactly those entries: this repo's folder from `extraDirs`, and each `JEEVES_SCRIPTS_DIR` that names this repo. |
+| `skills uninstall` | Removes exactly those entries: this repo's folder from `extraDirs`, and each `JEEVES_SCRIPTS_DIR` that names this repo, plus any object that removing them would leave empty (`skills.load`, a skill's `env` or entry, `skills.entries`). |
 | `skills status` | Changes nothing. Reports the folder and each skill as `wired`, `missing` or `stale` (another core skills folder in `extraDirs`, or `JEEVES_SCRIPTS_DIR` naming another repo), and a core skill shadowed by a same-named skill from another source (such as the workspace). |
 
 `install` and `uninstall` print the change and ask `Apply? [y/N]`; `--yes` applies without asking. Without a terminal to ask on (a script, a runner job), they apply nothing and print the command to re-run with `--yes`. Changes go through `openclaw config get`, `openclaw config set --batch-file` (one atomic batch) and `openclaw config unset`, so OpenClaw validates its own config.
@@ -119,7 +119,7 @@ Core ships its skills in the package (`skills/<name>/SKILL.md`); they are wired 
 | `core:` | The installed core version |
 | `config:` | The config file location and `OK` or `FAILED`, with one indented line per problem (as `config check`) |
 | `plugin:` | `jeeves-scripts.plugin.ts` with its runnable and override counts, `none`, or `FAILED` with the load or registration error |
-| `manifests:` | Every effective manifest (core's and the instance's, deltas applied): enabled or disabled, and its `prerequisite` (`none` means deploy registers it) |
+| `manifests:` | A count of met, not met and manual prerequisites, then every effective manifest (core's and the instance's, deltas applied): enabled or disabled, and its prerequisite state: `met` or `not met: <reason>` from the runnable's `defineJob` prerequisite check when it has one; else `met` when the manifest's `prerequisite` is `null` (deploy registers it), or `manual: <text>` |
 | `overrides:` | Every declared override with the core version it was written for; one whose `writtenFor` differs from the installed core is marked `DRIFT` with its issue to recheck |
 
 Use it after an upgrade (override drift) and when a runnable won't register.

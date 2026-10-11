@@ -34,7 +34,7 @@ import { defineJob } from '@karmaniverous/jeeves-scripts-core';
 export default defineJob({
   id: 'acme-report', // domain-verb[-modifier][-object][-specifier]
   domain: 'acme', // the top-level source folder
-  description: 'Report on acme.', // one line for list; required without a manifest
+  description: 'Report on acme.', // one line for list; registration fails without it when there's no manifest
   name: 'acme/report', // crash-log label; default: the id
   crashDir: () => '/base/acme', // where _crash.log goes; default: the working directory
   prerequisite: () => hasAcmeConfig() || 'no acme block in jeeves-scripts.json',
@@ -50,7 +50,7 @@ The declaration is validated with Zod (Decision 31) and returned frozen: the id 
 2. checks `prerequisite`: anything but `true` logs `[skip] <reason>` and the run exits 0;
 3. runs `run` inside `runScript(name ?? id, ..., crashDir)` from `@karmaniverous/jeeves`: an uncaught error is logged, appended to `_crash.log`, and exits 1.
 
-Core's jobs keep the crash labels and crash directories they had before the registry (`email/poll`, `x/poll-posts`, ...), and their inline `[skip]` guards; `prerequisite` is for new jobs. Some modules still compute config-derived constants when imported; none starts work.
+Core's jobs keep the crash labels and crash directories they had before the registry (`email/poll`, `x/poll-posts`, ...; the two that named the removed `core` domain are `admin/qdrant-health-check` and `admin/sweep-orphaned-tmp`), and their inline `[skip]` guards; `prerequisite` is for new jobs. Some modules still compute config-derived constants when imported; none starts work.
 
 ## Manifests
 
@@ -147,7 +147,7 @@ Registration (plugin load) fails, listing every problem with its id and domain, 
 
 `defineJob` itself already rejects an id that doesn't start with its domain and a dash. `definePlugin` and `override` validate their declarations with Zod and return them frozen; an unknown field (there is no `extensions` field, Decision 50) is an error.
 
-An override runs instead of core's runnable, under core's id and domain; `list` shows its source as `override`. It needs unit tests in the instance repo. `writtenFor` records the core version it was written for, so a core upgrade can review every override whose core has moved on: `doctor` marks each one whose `writtenFor` differs from the installed core as `DRIFT` ([cli](./cli.md#doctor)); it never fails a run.
+An override runs instead of core's runnable, under core's id and domain, and with core's crash label, crash directory and description; `list` shows its source as `override`. It needs unit tests in the instance repo. `writtenFor` records the exact core version (semver, no range) it was written for, so a core upgrade can review every override whose core has moved on: `doctor` marks each one whose `writtenFor` differs from the installed core as `DRIFT` ([cli](./cli.md#doctor)); it never fails a run.
 
 **Instance config.** Core never reads `local` in `jeeves-scripts.json`. When the plugin declares a `configSchema`, the CLI parses `local` with it at plugin load (an invalid block fails, naming the config file; `config check` loads the plugin to report it) and runnables read the result with `localConfig`:
 
