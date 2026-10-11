@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module post
  *
@@ -14,8 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { runScript } from '@karmaniverous/jeeves';
-
+import { defineJob } from '../jobs/define-job.js';
 import { createPost } from './lib/x-actions.js';
 import {
   requireAccountDir,
@@ -24,15 +22,24 @@ import {
 } from './lib/x-api.js';
 import { getOAuthPath } from './lib/x-oauth.js';
 
-const handle = requireXHandle('post.ts');
-const accountDir = requireAccountDir(handle);
-const QUEUE_DIR = path.join(accountDir, 'queue');
-const DONE_DIR = path.join(QUEUE_DIR, 'done');
-const FAILED_DIR = path.join(QUEUE_DIR, 'failed');
-const POSTS_DIR = path.join(accountDir, 'posts');
 const MAX_RETRIES = 3;
 
-async function main(): Promise<void> {
+/** The account's queue, done, failed and posts directories. */
+function postDirs(handle: string) {
+  const accountDir = requireAccountDir(handle);
+  const QUEUE_DIR = path.join(accountDir, 'queue');
+  return {
+    QUEUE_DIR,
+    DONE_DIR: path.join(QUEUE_DIR, 'done'),
+    FAILED_DIR: path.join(QUEUE_DIR, 'failed'),
+    POSTS_DIR: path.join(accountDir, 'posts'),
+  };
+}
+
+async function main(
+  handle: string,
+  { QUEUE_DIR, DONE_DIR, FAILED_DIR, POSTS_DIR }: ReturnType<typeof postDirs>,
+): Promise<void> {
   for (const dir of [DONE_DIR, FAILED_DIR, POSTS_DIR])
     fs.mkdirSync(dir, { recursive: true });
 
@@ -121,17 +128,26 @@ async function main(): Promise<void> {
   );
 }
 
-runScript('x/post', () => {
-  if (!fs.existsSync(getOAuthPath(handle))) {
-    console.log('[skip] X OAuth2 credentials not configured');
-    return;
-  }
+export default defineJob({
+  id: 'x-post',
+  domain: 'x',
+  name: 'x/post',
+  run: () => {
+    // Checked in this order before the job registry too: handle argument,
+    // configured account (both exit 0 with [skip]), then OAuth file.
+    const handle = requireXHandle('post.ts');
+    const dirs = postDirs(handle);
+    if (!fs.existsSync(getOAuthPath(handle))) {
+      console.log('[skip] X OAuth2 credentials not configured');
+      return;
+    }
 
-  main().catch((err: unknown) => {
-    console.error(
-      'post: FATAL',
-      err instanceof Error ? err.message : String(err),
-    );
-    process.exit(1);
-  });
+    main(handle, dirs).catch((err: unknown) => {
+      console.error(
+        'post: FATAL',
+        err instanceof Error ? err.message : String(err),
+      );
+      process.exit(1);
+    });
+  },
 });

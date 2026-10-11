@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module sweep-orphaned-tmp
  *
@@ -16,8 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { runScript } from '@karmaniverous/jeeves';
-
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 
 /** Maximum age in milliseconds before a .tmp file is considered orphaned (1 hour). */
@@ -84,4 +82,11 @@ function main() {
   }
 }
 
-runScript('core/sweep-orphaned-tmp', main);
+export default defineJob({
+  id: 'sweep-orphaned-tmp',
+  domain: 'core',
+  name: 'core/sweep-orphaned-tmp',
+  run: () => {
+    main();
+  },
+});

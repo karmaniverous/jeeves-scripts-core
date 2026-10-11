@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module sync-repos
  *
@@ -13,16 +12,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import {
-  ensureDir,
-  nowIso,
-  readJson,
-  run,
-  runScript,
-} from '@karmaniverous/jeeves';
+import { ensureDir, nowIso, readJson, run } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
 import { getBasePathForGitHubOrg } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { setupGhConfig } from '../lib/gh.js';
 
@@ -195,4 +189,11 @@ function main(): void {
   }
 }
 
-runScript('github/sync-repos', main);
+export default defineJob({
+  id: 'github-sync-repos',
+  domain: 'github',
+  name: 'github/sync-repos',
+  run: () => {
+    main();
+  },
+});

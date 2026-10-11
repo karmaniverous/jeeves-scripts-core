@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module slack/poll
  *
@@ -20,12 +19,12 @@
 
 import fs from 'node:fs';
 
-import { runScript } from '@karmaniverous/jeeves';
 import {
   getRunnerClient,
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
 
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { accountTeams } from './lib/account-teams.js';
 import { resolveChannelDir } from './lib/channel-dir.js';
@@ -180,9 +179,14 @@ async function main(): Promise<void> {
   }
 }
 
-runScript('slack/poll', () => {
-  main().catch((err: unknown) => {
-    console.error('FATAL:', err);
-    process.exit(1);
-  });
+export default defineJob({
+  id: 'slack-poll',
+  domain: 'slack',
+  name: 'slack/poll',
+  run: () => {
+    main().catch((err: unknown) => {
+      console.error('FATAL:', err);
+      process.exit(1);
+    });
+  },
 });

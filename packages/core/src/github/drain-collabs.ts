@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module drain-collabs
  *
@@ -11,9 +10,10 @@
 
 import fs from 'node:fs';
 
-import { getArg, runScript } from '@karmaniverous/jeeves';
+import { getArg } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { gh, setupGhConfig } from '../lib/gh.js';
 
@@ -98,4 +98,11 @@ function main(): void {
   }
 }
 
-runScript('github/drain-collabs', main);
+export default defineJob({
+  id: 'github-drain-collabs',
+  domain: 'github',
+  name: 'github/drain-collabs',
+  run: () => {
+    main();
+  },
+});

@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module poll-collabs
  *
@@ -12,9 +11,10 @@
 
 import fs from 'node:fs';
 
-import { getArg, nowIso, runScript } from '@karmaniverous/jeeves';
+import { getArg, nowIso } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { gh, setupGhConfig } from '../lib/gh.js';
 
@@ -129,4 +129,11 @@ function main(): void {
   }
 }
 
-runScript('github/poll-collabs', main);
+export default defineJob({
+  id: 'github-poll-collabs',
+  domain: 'github',
+  name: 'github/poll-collabs',
+  run: () => {
+    main();
+  },
+});

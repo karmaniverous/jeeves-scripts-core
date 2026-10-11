@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module session-refresh
  *
@@ -17,8 +16,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { runScript } from '@karmaniverous/jeeves';
-
+import { defineJob } from '../jobs/define-job.js';
 import {
   constants,
   SESSION_REFRESH_CACHE_READ_THRESHOLD,
@@ -245,4 +243,9 @@ async function sessionRefresh(): Promise<void> {
   );
 }
 
-runScript('session-refresh', sessionRefresh);
+export default defineJob({
+  id: 'session-refresh',
+  domain: 'admin',
+  name: 'session-refresh',
+  run: () => sessionRefresh(),
+});

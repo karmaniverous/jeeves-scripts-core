@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module download
  *
@@ -26,13 +25,13 @@ import {
   ensureDir,
   nowIso,
   readJson,
-  runScript,
   sleepMs,
   writeJsonAtomic,
 } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
 import { getGmailAccounts } from '../../config/index.js';
+import { defineJob } from '../../jobs/define-job.js';
 import { constants } from '../../lib/constants.js';
 import { gogWithRetry } from '../../lib/gog.js';
 import { requireGogCredentials } from '../../lib/gog-credentials.js';
@@ -297,4 +296,12 @@ function main(): void {
   }
 }
 
-runScript('email/download', main, constants().EMAIL_EVENTS_DIR);
+export default defineJob({
+  id: 'email-download',
+  domain: 'email',
+  name: 'email/download',
+  crashDir: () => constants().EMAIL_EVENTS_DIR,
+  run: () => {
+    main();
+  },
+});

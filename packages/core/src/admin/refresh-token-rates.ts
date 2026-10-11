@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module refresh-token-rates
  *
@@ -17,8 +16,9 @@
  * constants.ts.
  */
 
-import { atomicWrite, runScript } from '@karmaniverous/jeeves';
+import { atomicWrite } from '@karmaniverous/jeeves';
 
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { fetchOpenRouterRates, httpGetJson } from './lib/openrouter-pricing.js';
 import {
@@ -29,27 +29,33 @@ import { readRateCardFile } from './lib/rate-card-schema.js';
 import { ensureRateCard } from './lib/rate-card-seed.js';
 import { refreshTokenRatesMain } from './lib/refresh-rates-run.js';
 
-runScript('admin/refresh-token-rates', async () => {
-  await refreshTokenRatesMain(process.argv, {
-    ensure: () => {
-      ensureRateCard(
-        constants().TOKEN_RATES_PATH,
-        constants().TOKEN_RATES_SEED_PATH,
-      );
-    },
-    read: () => readRateCardFile(constants().TOKEN_RATES_PATH),
-    fetchRates: async (id) =>
-      (await fetchOpenRouterRates(id, httpGetJson))?.rates ?? null,
-    write: (card) => {
-      atomicWrite(
-        constants().TOKEN_RATES_PATH,
-        `${JSON.stringify(card, null, 1)}\n`,
-      );
-    },
-    readPending: () => readPendingModels(constants().TOKEN_RATES_PENDING_PATH),
-    writePending: (ids) => {
-      writePendingModels(constants().TOKEN_RATES_PENDING_PATH, ids);
-    },
-    now: () => new Date().toISOString(),
-  });
+export default defineJob({
+  id: 'refresh-token-rates',
+  domain: 'admin',
+  name: 'admin/refresh-token-rates',
+  run: async () => {
+    await refreshTokenRatesMain(process.argv, {
+      ensure: () => {
+        ensureRateCard(
+          constants().TOKEN_RATES_PATH,
+          constants().TOKEN_RATES_SEED_PATH,
+        );
+      },
+      read: () => readRateCardFile(constants().TOKEN_RATES_PATH),
+      fetchRates: async (id) =>
+        (await fetchOpenRouterRates(id, httpGetJson))?.rates ?? null,
+      write: (card) => {
+        atomicWrite(
+          constants().TOKEN_RATES_PATH,
+          `${JSON.stringify(card, null, 1)}\n`,
+        );
+      },
+      readPending: () =>
+        readPendingModels(constants().TOKEN_RATES_PENDING_PATH),
+      writePending: (ids) => {
+        writePendingModels(constants().TOKEN_RATES_PENDING_PATH, ids);
+      },
+      now: () => new Date().toISOString(),
+    });
+  },
 });

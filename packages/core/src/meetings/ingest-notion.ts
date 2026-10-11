@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module ingest-notion
  *
@@ -12,9 +11,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { parseArgs, runScript } from '@karmaniverous/jeeves';
+import { parseArgs } from '@karmaniverous/jeeves';
 
 import { getRef } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { notionRequest } from './lib/notion-api.js';
 import { processNotionInboxMeeting } from './lib/notion-inbox-processor.js';
@@ -98,9 +98,14 @@ async function main(): Promise<void> {
   }
 }
 
-runScript('meetings/ingest-notion', () => {
-  main().catch((err: unknown) => {
-    console.error(err);
-    process.exit(1);
-  });
+export default defineJob({
+  id: 'meetings-ingest-notion',
+  domain: 'meetings',
+  name: 'meetings/ingest-notion',
+  run: () => {
+    main().catch((err: unknown) => {
+      console.error(err);
+      process.exit(1);
+    });
+  },
 });

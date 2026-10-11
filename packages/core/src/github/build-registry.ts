@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module build-registry
  *
@@ -12,8 +11,9 @@
 
 import fs from 'node:fs';
 
-import { ensureDir, nowIso, run, runScript } from '@karmaniverous/jeeves';
+import { ensureDir, nowIso, run } from '@karmaniverous/jeeves';
 
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { ghApi, setupGhConfig } from '../lib/gh.js';
 
@@ -204,4 +204,11 @@ function main(): void {
   );
 }
 
-runScript('github/build-registry', main);
+export default defineJob({
+  id: 'github-build-registry',
+  domain: 'github',
+  name: 'github/build-registry',
+  run: () => {
+    main();
+  },
+});

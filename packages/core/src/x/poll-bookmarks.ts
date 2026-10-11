@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module poll-bookmarks
  *
@@ -10,11 +9,18 @@
  * into the x-bookmarks-\{handle\} runner queue for drain-queues to flush to disk.
  */
 
+import { defineJob } from '../jobs/define-job.js';
 import { runXPoller } from './lib/poll-x-items.js';
 import { pollBookmarks } from './lib/x-timelines.js';
 
-runXPoller('x/poll-bookmarks', {
-  pollFn: pollBookmarks,
-  queuePrefix: 'x-bookmarks',
-  typeLabel: 'bookmarks',
+export default defineJob({
+  id: 'x-poll-bookmarks',
+  domain: 'x',
+  name: 'x/poll-bookmarks',
+  run: () =>
+    runXPoller({
+      pollFn: pollBookmarks,
+      queuePrefix: 'x-bookmarks',
+      typeLabel: 'bookmarks',
+    }),
 });

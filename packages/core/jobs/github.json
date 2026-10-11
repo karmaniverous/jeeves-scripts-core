@@ -1,0 +1,82 @@
+{
+  "github-sync-repos": {
+    "name": "GitHub Sync Repos",
+    "description": "Round-robin batch clone/pull of GitHub repos listed in the registry.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 19,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 600,
+    "enabled": true,
+    "prerequisite": "GitHub CLI auth (gh auth login)"
+  },
+  "github-sync-issues": {
+    "name": "GitHub Sync Issues",
+    "description": "Batch fetch GitHub issues with diff-based change tracking via fast-json-patch.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 23,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 600,
+    "enabled": true,
+    "prerequisite": "GitHub CLI auth (gh auth login)"
+  },
+  "github-watch": {
+    "name": "GitHub Notifications",
+    "description": "Poll GitHub notifications and write formatted summaries for review.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 29,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "GitHub CLI auth (gh auth login)"
+  },
+  "github-build-registry": {
+    "name": "GitHub Build Registry",
+    "description": "Enumerate all GitHub repos and rebuild the registry JSON file.",
+    "schedule": {
+      "freq": "daily",
+      "byhour": 2,
+      "byminute": 13,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 600,
+    "enabled": true,
+    "prerequisite": "GitHub CLI auth (gh auth login)"
+  },
+  "github-poll-collabs": {
+    "name": "GitHub Poll Collabs",
+    "description": "Poll repos for missing bot collaborator access and enqueue for remediation.",
+    "schedule": {
+      "freq": "daily",
+      "byhour": 3,
+      "byminute": 7,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "GitHub CLI auth (gh auth login)"
+  },
+  "github-drain-collabs": {
+    "name": "GitHub Drain Collabs",
+    "description": "Process the collab queue — add bot as collaborator and accept pending invitations.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 31,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "GitHub CLI auth (gh auth login)"
+  }
+}

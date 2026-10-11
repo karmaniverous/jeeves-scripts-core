@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module poll-posts
  *
@@ -10,11 +9,18 @@
  * into the x-posts-\{handle\} runner queue for drain-queues to flush to disk.
  */
 
+import { defineJob } from '../jobs/define-job.js';
 import { runXPoller } from './lib/poll-x-items.js';
 import { pollUserTweets } from './lib/x-timelines.js';
 
-runXPoller('x/poll-posts', {
-  pollFn: pollUserTweets,
-  queuePrefix: 'x-posts',
-  typeLabel: 'posts',
+export default defineJob({
+  id: 'x-poll-posts',
+  domain: 'x',
+  name: 'x/poll-posts',
+  run: () =>
+    runXPoller({
+      pollFn: pollUserTweets,
+      queuePrefix: 'x-posts',
+      typeLabel: 'posts',
+    }),
 });

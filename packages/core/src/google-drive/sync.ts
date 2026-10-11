@@ -16,12 +16,12 @@
  *   --reset-state        clear the ledger + run state (requires --live)
  */
 
-import { runScript } from '@karmaniverous/jeeves';
 import {
   getRunnerClient,
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
 
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import {
   assertDisjointTargets,
@@ -35,33 +35,38 @@ import { createLedgerStore } from './lib/ledger.js';
 import { runSyncs, selectSyncs } from './lib/orchestrate.js';
 import { compactMeta, exitCodeFor } from './lib/summary.js';
 
-runScript('google-drive/sync', async () => {
-  const argv = process.argv.slice(2);
-  const live = argv.includes('--live');
-  const config = loadGoogleDriveConfig();
-  const configured = config?.syncs ?? [];
-  assertDisjointTargets(configured, constants().CONTENT_DIR);
-  const syncs = selectSyncs(configured, argv, live);
-  if (syncs.length === 0) {
-    console.log('[skip] no googleDrive syncs configured');
-    return;
-  }
-
-  const runner = getRunnerClient();
-  try {
-    if (argv.includes('--reset-state')) {
-      for (const s of syncs) {
-        const n = createLedgerStore(runner, s.account, live).reset();
-        console.log(
-          `${live ? 'RESET' : 'WOULD RESET'} ${s.account}: ${String(n)} ledger records`,
-        );
-      }
+export default defineJob({
+  id: 'google-drive-sync',
+  domain: 'google-drive',
+  name: 'google-drive/sync',
+  run: async () => {
+    const argv = process.argv.slice(2);
+    const live = argv.includes('--live');
+    const config = loadGoogleDriveConfig();
+    const configured = config?.syncs ?? [];
+    assertDisjointTargets(configured, constants().CONTENT_DIR);
+    const syncs = selectSyncs(configured, argv, live);
+    if (syncs.length === 0) {
+      console.log('[skip] no googleDrive syncs configured');
       return;
     }
-    await sync(runner, syncs, live, config?.budget, argv);
-  } finally {
-    runner.close();
-  }
+
+    const runner = getRunnerClient();
+    try {
+      if (argv.includes('--reset-state')) {
+        for (const s of syncs) {
+          const n = createLedgerStore(runner, s.account, live).reset();
+          console.log(
+            `${live ? 'RESET' : 'WOULD RESET'} ${s.account}: ${String(n)} ledger records`,
+          );
+        }
+        return;
+      }
+      await sync(runner, syncs, live, config?.budget, argv);
+    } finally {
+      runner.close();
+    }
+  },
 });
 
 /** The sync proper: SIGTERM handling, the run budget, the run report. */

@@ -25,15 +25,23 @@
  *   optional. With neither set, the worker can't post to Slack.
  */
 
+import { defineJob } from '../jobs/define-job.js';
 import { digestTargets } from './lib/digest-targets.js';
 import { digestTimeZone } from './lib/digest-timezone.js';
-import { taskFileDispatcher } from './lib/task-file-dispatcher.js';
+import { dispatchTaskFile } from './lib/task-file-dispatcher.js';
 
-taskFileDispatcher({
-  scriptName: 'dispatchers/daily-digest',
-  jobId: 'generate-daily-digest',
-  thinking: 'low',
-  taskFile: 'digest/TASK.md',
-  dateTimeZone: digestTimeZone,
-  slack: () => ({ posts: digestTargets() }),
+export default defineJob({
+  id: 'generate-daily-digest',
+  domain: 'dispatchers',
+  name: 'dispatchers/daily-digest',
+  run: async () => {
+    await dispatchTaskFile({
+      scriptName: 'dispatchers/daily-digest',
+      jobId: 'generate-daily-digest',
+      thinking: 'low',
+      taskFile: 'digest/TASK.md',
+      dateTimeZone: digestTimeZone,
+      slack: () => ({ posts: digestTargets() }),
+    });
+  },
 });

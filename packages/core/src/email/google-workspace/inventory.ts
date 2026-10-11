@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module inventory
  *
@@ -16,11 +15,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { runScript } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
 import { getEmailAccounts } from '../../config/index.js';
 import { getEmailBaseForAccount } from '../../config/index.js';
+import { defineJob } from '../../jobs/define-job.js';
 import { seenKey } from '../email-state.js';
 
 function countFiles(dir: string): number {
@@ -122,4 +121,11 @@ function main(): void {
   }
 }
 
-runScript('email/inventory', main);
+export default defineJob({
+  id: 'email-inventory',
+  domain: 'email',
+  name: 'email/inventory',
+  run: () => {
+    main();
+  },
+});

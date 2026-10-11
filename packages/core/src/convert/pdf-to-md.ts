@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module convert/pdf-to-md
  *
@@ -12,8 +11,9 @@
 
 import { readFileSync } from 'node:fs';
 
-import { getArg, runScript } from '@karmaniverous/jeeves';
+import { getArg } from '@karmaniverous/jeeves';
 
+import { defineJob } from '../jobs/define-job.js';
 import {
   findFiles,
   needsConversion,
@@ -68,4 +68,9 @@ async function main(): Promise<void> {
   );
 }
 
-runScript('convert/pdf-to-md', main);
+export default defineJob({
+  id: 'convert-pdf-to-md',
+  domain: 'convert',
+  name: 'convert/pdf-to-md',
+  run: () => main(),
+});

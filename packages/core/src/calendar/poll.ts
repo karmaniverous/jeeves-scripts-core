@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module calendar/poll
  *
@@ -24,12 +23,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { AccountConfig as JeevesAccountConfig } from '@karmaniverous/jeeves';
-import { createGoogleAuth, ensureDir, runScript } from '@karmaniverous/jeeves';
+import { createGoogleAuth, ensureDir } from '@karmaniverous/jeeves';
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
 import { getCalendarAccounts } from '../config/index.js';
 import { getBasePathForEmailDomain } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import {
   detectGogCredentials,
@@ -238,9 +238,14 @@ async function main(): Promise<void> {
   }
 }
 
-runScript('calendar/poll', () => {
-  main().catch((err: unknown) => {
-    console.error('Fatal:', err);
-    process.exit(1);
-  });
+export default defineJob({
+  id: 'calendar-poll',
+  domain: 'calendar',
+  name: 'calendar/poll',
+  run: () => {
+    main().catch((err: unknown) => {
+      console.error('Fatal:', err);
+      process.exit(1);
+    });
+  },
 });

@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module sync-comments
  *
@@ -14,10 +13,11 @@
 
 import path from 'node:path';
 
-import { nowIso, runScript } from '@karmaniverous/jeeves';
+import { nowIso } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
 import { getBasePathForLinear } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { upsertEntity } from '../lib/entity-store.js';
 import {
@@ -109,9 +109,14 @@ async function main(): Promise<void> {
   }
 }
 
-runScript('linear/sync-comments', () => {
-  main().catch((e: unknown) => {
-    console.error(e);
-    process.exit(1);
-  });
+export default defineJob({
+  id: 'linear-sync-comments',
+  domain: 'linear',
+  name: 'linear/sync-comments',
+  run: () => {
+    main().catch((e: unknown) => {
+      console.error(e);
+      process.exit(1);
+    });
+  },
 });

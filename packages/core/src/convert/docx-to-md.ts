@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module convert/docx-to-md
  *
@@ -12,9 +11,10 @@
 
 import { readFileSync } from 'node:fs';
 
-import { getArg, runScript } from '@karmaniverous/jeeves';
+import { getArg } from '@karmaniverous/jeeves';
 import mammoth from 'mammoth';
 
+import { defineJob } from '../jobs/define-job.js';
 import {
   findFiles,
   needsConversion,
@@ -118,4 +118,9 @@ async function main(): Promise<void> {
   );
 }
 
-runScript('convert/docx-to-md', main);
+export default defineJob({
+  id: 'convert-docx-to-md',
+  domain: 'convert',
+  name: 'convert/docx-to-md',
+  run: () => main(),
+});

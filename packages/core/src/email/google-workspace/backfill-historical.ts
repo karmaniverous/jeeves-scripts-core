@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module backfill-historical
  *
@@ -22,10 +21,11 @@
  * window processing) and gmail-search.ts (validated paging).
  */
 
-import { ensureDir, runScript } from '@karmaniverous/jeeves';
+import { ensureDir } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
 import { pipeline } from '../../config/index.js';
+import { defineJob } from '../../jobs/define-job.js';
 import { constants } from '../../lib/constants.js';
 import { gogWithRetry } from '../../lib/gog.js';
 import { requireGogCredentials } from '../../lib/gog-credentials.js';
@@ -84,4 +84,12 @@ function main(): void {
   }
 }
 
-runScript('email/backfill-historical', main, constants().EMAIL_EVENTS_DIR);
+export default defineJob({
+  id: 'email-backfill-historical',
+  domain: 'email',
+  name: 'email/backfill-historical',
+  crashDir: () => constants().EMAIL_EVENTS_DIR,
+  run: () => {
+    main();
+  },
+});

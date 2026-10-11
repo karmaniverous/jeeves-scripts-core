@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module poll-feed
  *
@@ -16,8 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { runScript } from '@karmaniverous/jeeves';
-
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { pollHandlesFromArgv } from './lib/poll-x-items.js';
 import { withAutoRefresh } from './lib/x-api.js';
@@ -83,20 +81,25 @@ async function pollFeed(handle: string): Promise<void> {
   );
 }
 
-runScript('x/poll-feed', async () => {
-  // One handle failing does not stop the others; the run still fails.
-  const failed: string[] = [];
-  for (const handle of pollHandlesFromArgv()) {
-    try {
-      await pollFeed(handle);
-    } catch (err) {
-      console.error(
-        `poll-feed: @${handle} failed:`,
-        err instanceof Error ? err.message : String(err),
-      );
-      failed.push(handle);
+export default defineJob({
+  id: 'x-poll-feed',
+  domain: 'x',
+  name: 'x/poll-feed',
+  run: async () => {
+    // One handle failing does not stop the others; the run still fails.
+    const failed: string[] = [];
+    for (const handle of pollHandlesFromArgv()) {
+      try {
+        await pollFeed(handle);
+      } catch (err) {
+        console.error(
+          `poll-feed: @${handle} failed:`,
+          err instanceof Error ? err.message : String(err),
+        );
+        failed.push(handle);
+      }
     }
-  }
-  if (failed.length > 0)
-    throw new Error(`poll-feed failed for @${failed.join(', @')}`);
+    if (failed.length > 0)
+      throw new Error(`poll-feed failed for @${failed.join(', @')}`);
+  },
 });

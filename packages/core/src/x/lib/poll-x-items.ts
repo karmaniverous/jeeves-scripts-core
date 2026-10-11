@@ -16,7 +16,7 @@
 
 import fs from 'node:fs';
 
-import { getArg, runScript } from '@karmaniverous/jeeves';
+import { getArg } from '@karmaniverous/jeeves';
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 import type { Client } from '@xdevplatform/xdk';
@@ -123,14 +123,11 @@ export function pollHandlesFromArgv(): string[] {
 }
 
 /**
- * Entry-point wrapper for X poll scripts: resolves the handles
+ * Job body for the X poll jobs: resolves the handles
  * ({@link pollHandlesFromArgv}) and polls each in turn. An API error for
  * one handle is logged and the next handle is still polled; any other
- * error fails the run (runScript exits 1).
+ * error fails the run (the job's `runScript` wrapper exits 1).
  */
-export function runXPoller(scriptName: string, options: PollXOptions): void {
-  runScript(scriptName, async () => {
-    for (const handle of pollHandlesFromArgv())
-      await pollXItems(handle, options);
-  });
+export async function runXPoller(options: PollXOptions): Promise<void> {
+  for (const handle of pollHandlesFromArgv()) await pollXItems(handle, options);
 }

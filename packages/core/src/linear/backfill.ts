@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module backfill
  *
@@ -21,9 +20,10 @@
 
 import path from 'node:path';
 
-import { getArg, nowIso, runScript } from '@karmaniverous/jeeves';
+import { getArg, nowIso } from '@karmaniverous/jeeves';
 
 import { getBasePathForLinear } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { backfillEntity } from '../lib/entity-store.js';
 import {
@@ -200,9 +200,14 @@ async function backfillMain(): Promise<void> {
   if (failed > 0) process.exit(1);
 }
 
-runScript('linear/backfill', () => {
-  backfillMain().catch((e: unknown) => {
-    console.error(e);
-    process.exit(1);
-  });
+export default defineJob({
+  id: 'linear-backfill',
+  domain: 'linear',
+  name: 'linear/backfill',
+  run: () => {
+    backfillMain().catch((e: unknown) => {
+      console.error(e);
+      process.exit(1);
+    });
+  },
 });

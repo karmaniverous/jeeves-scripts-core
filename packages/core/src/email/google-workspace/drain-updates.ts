@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module drain-updates
  *
@@ -22,10 +21,11 @@
 
 import path from 'node:path';
 
-import { appendJsonl, nowIso, runScript, sleepMs } from '@karmaniverous/jeeves';
+import { appendJsonl, nowIso, sleepMs } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
 import { getGmailAccounts, pipeline } from '../../config/index.js';
+import { defineJob } from '../../jobs/define-job.js';
 import { constants } from '../../lib/constants.js';
 import { gogWithRetry } from '../../lib/gog.js';
 import { loadCache, saveCache } from '../email-cache.js';
@@ -193,4 +193,12 @@ function main(): void {
   }
 }
 
-runScript('email/drain-updates', main, constants().EMAIL_EVENTS_DIR);
+export default defineJob({
+  id: 'email-drain-updates',
+  domain: 'email',
+  name: 'email/drain-updates',
+  crashDir: () => constants().EMAIL_EVENTS_DIR,
+  run: () => {
+    main();
+  },
+});

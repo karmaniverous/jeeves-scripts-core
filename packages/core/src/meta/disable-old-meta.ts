@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module disable-old-meta
  *
@@ -16,9 +15,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { runScript } from '@karmaniverous/jeeves';
-
 import { getEntityDirs } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { ENTITY_TYPES } from '../lib/constants.js';
 
 /** Extract a parseable date from meta fields or _content header. */
@@ -48,83 +46,88 @@ function getEntityDate(meta: Record<string, unknown>): Date | null {
   return null;
 }
 
-runScript('meta/disable-old-meta', () => {
-  for (const entityType of ENTITY_TYPES) {
-    if (entityType.maxAgeDays == null) continue;
+export default defineJob({
+  id: 'meta-disable-old',
+  domain: 'meta',
+  name: 'meta/disable-old-meta',
+  run: () => {
+    for (const entityType of ENTITY_TYPES) {
+      if (entityType.maxAgeDays == null) continue;
 
-    const cutoff = new Date(
-      Date.now() - entityType.maxAgeDays * 24 * 60 * 60 * 1000,
-    );
-    let scanned = 0;
-    let disabled = 0;
-    let alreadyDisabled = 0;
-    let skippedNoContent = 0;
-    let skippedNoDate = 0;
-    let skippedRecent = 0;
+      const cutoff = new Date(
+        Date.now() - entityType.maxAgeDays * 24 * 60 * 60 * 1000,
+      );
+      let scanned = 0;
+      let disabled = 0;
+      let alreadyDisabled = 0;
+      let skippedNoContent = 0;
+      let skippedNoDate = 0;
+      let skippedRecent = 0;
 
-    const entityRoots = getEntityDirs(entityType.subdir);
+      const entityRoots = getEntityDirs(entityType.subdir);
 
-    for (const root of entityRoots) {
-      if (!fs.existsSync(root)) continue;
+      for (const root of entityRoots) {
+        if (!fs.existsSync(root)) continue;
 
-      const entries = fs.readdirSync(root, { withFileTypes: true });
-      for (const entry of entries) {
-        if (!entry.isDirectory() || entry.name === '.meta') continue;
+        const entries = fs.readdirSync(root, { withFileTypes: true });
+        for (const entry of entries) {
+          if (!entry.isDirectory() || entry.name === '.meta') continue;
 
-        const metaPath = path.join(root, entry.name, '.meta', 'meta.json');
-        if (!fs.existsSync(metaPath)) continue;
+          const metaPath = path.join(root, entry.name, '.meta', 'meta.json');
+          if (!fs.existsSync(metaPath)) continue;
 
-        scanned++;
+          scanned++;
 
-        try {
-          const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')) as {
-            _disabled?: boolean;
-            _content?: string;
-            [key: string]: unknown;
-          };
+          try {
+            const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8')) as {
+              _disabled?: boolean;
+              _content?: string;
+              [key: string]: unknown;
+            };
 
-          if (meta._disabled === true) {
-            alreadyDisabled++;
-            continue;
+            if (meta._disabled === true) {
+              alreadyDisabled++;
+              continue;
+            }
+
+            if (!meta._content) {
+              skippedNoContent++;
+              continue;
+            }
+
+            const entityDate = getEntityDate(meta);
+            if (!entityDate) {
+              skippedNoDate++;
+              continue;
+            }
+
+            if (entityDate > cutoff) {
+              skippedRecent++;
+              continue;
+            }
+
+            meta._disabled = true;
+            fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n');
+            disabled++;
+          } catch {
+            // Skip malformed meta files
           }
-
-          if (!meta._content) {
-            skippedNoContent++;
-            continue;
-          }
-
-          const entityDate = getEntityDate(meta);
-          if (!entityDate) {
-            skippedNoDate++;
-            continue;
-          }
-
-          if (entityDate > cutoff) {
-            skippedRecent++;
-            continue;
-          }
-
-          meta._disabled = true;
-          fs.writeFileSync(metaPath, JSON.stringify(meta, null, 2) + '\n');
-          disabled++;
-        } catch {
-          // Skip malformed meta files
         }
       }
-    }
 
-    console.log(
-      JSON.stringify({
-        entityType: entityType.subdir,
-        maxAgeDays: entityType.maxAgeDays,
-        scanned,
-        disabled,
-        alreadyDisabled,
-        skippedNoContent,
-        skippedNoDate,
-        skippedRecent,
-        cutoffDate: cutoff.toISOString().slice(0, 10),
-      }),
-    );
-  }
+      console.log(
+        JSON.stringify({
+          entityType: entityType.subdir,
+          maxAgeDays: entityType.maxAgeDays,
+          scanned,
+          disabled,
+          alreadyDisabled,
+          skippedNoContent,
+          skippedNoDate,
+          skippedRecent,
+          cutoffDate: cutoff.toISOString().slice(0, 10),
+        }),
+      );
+    }
+  },
 });

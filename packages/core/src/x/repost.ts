@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module repost
  *
@@ -9,13 +8,19 @@
  * for each one, reporting success and failure counts.
  */
 
-import { runXQueueAction } from './lib/run-x-queue-action.js';
+import { defineJob } from '../jobs/define-job.js';
+import { xQueueAction } from './lib/run-x-queue-action.js';
 import { repostPost } from './lib/x-actions.js';
 
-runXQueueAction({
-  scriptName: 'x/repost',
-  queuePrefix: 'x-repost',
-  actionLabel: 'repost',
-  successLabel: 'reposted',
-  actionFn: repostPost,
+export default defineJob({
+  id: 'x-repost',
+  domain: 'x',
+  name: 'x/repost',
+  run: xQueueAction({
+    scriptName: 'x/repost',
+    queuePrefix: 'x-repost',
+    actionLabel: 'repost',
+    successLabel: 'reposted',
+    actionFn: repostPost,
+  }),
 });

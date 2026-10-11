@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module extract
  *
@@ -21,10 +20,11 @@
  * (see lib/pending-actions.ts).
  */
 
-import { nowIso, runScript } from '@karmaniverous/jeeves';
+import { nowIso } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
 import { getEmailAccounts, pipeline } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import {
   detectFathomFromBodies,
   detectMeetingSource,
@@ -231,4 +231,11 @@ function main(): void {
   }
 }
 
-runScript('meetings/extract', main);
+export default defineJob({
+  id: 'meetings-extract',
+  domain: 'meetings',
+  name: 'meetings/extract',
+  run: () => {
+    main();
+  },
+});

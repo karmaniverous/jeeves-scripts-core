@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module sweep-duplicates
  *
@@ -18,9 +17,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { readJson, runScript } from '@karmaniverous/jeeves';
+import { readJson } from '@karmaniverous/jeeves';
 
 import { getEntityDirs } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { ENTITY_TYPES } from '../lib/constants.js';
 
 /** All case variants of "duplicateOf" that builders might emit. */
@@ -213,4 +213,11 @@ function main(): void {
   }
 }
 
-runScript('meta/sweep-duplicates', main);
+export default defineJob({
+  id: 'meta-sweep-duplicates',
+  domain: 'meta',
+  name: 'meta/sweep-duplicates',
+  run: () => {
+    main();
+  },
+});

@@ -4,15 +4,24 @@
  * `jeeves-scripts run <job-id> [args...]` (Decision 16): the command runner
  * jobs execute through the instance launcher.
  *
- * Transitional job registry (Decision 32): the job is looked up by id in the
- * instance's `jobs/*.json`, whose `script` is a template-style path
- * (`src/<domain>/<name>.ts`). An instance-local script at that path wins
- * (instance-only code); otherwise the same path is resolved to core's
- * built module (`dist/<domain>/<name>.js`). Core modules are imported in
- * this process, after the config location is pinned to the instance root,
- * so they read the instance's `jeeves-scripts.json`. Instance scripts are
- * TypeScript and run in a child `node --import tsx` process with the same
- * environment.
+ * Resolution (Decisions 4, 6, 27, 40):
+ *
+ * 1. A core job id resolves through the core job registry, always. An
+ *    instance file never silently replaces a core job: an instance
+ *    `jobs/*.json` entry that reuses a core id with a script present in the
+ *    instance repo is an error. Instances change core jobs only through
+ *    `jobs.<id>` deltas in `jeeves-scripts.json`, or (Dev Plan 33 phase 2)
+ *    a declared override.
+ * 2. Any other id must be declared by the instance in `{root}/jobs/*.json`
+ *    with a `script` path (`src/<domain>/<name>.ts`). The instance file at
+ *    that path runs. With no instance file, a script naming a core module
+ *    runs that core job (transitional alias for runner job ids that differ
+ *    from core's).
+ *
+ * Core jobs run in this process ({@link runJobModule}), after the config
+ * location is pinned to the instance root, so they read the instance's
+ * `jeeves-scripts.json`. Instance scripts are TypeScript and run in a child
+ * `node --import tsx` process with the same environment.
  *
  * Job files are validated with Zod (Decision 31): a malformed entry fails
  * the run, naming its file and position, rather than being skipped.
@@ -21,36 +30,45 @@
 import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { z } from 'zod';
 
 import { CONFIG_PATH_ENV } from '../config/loader.js';
+import { runJobModule } from '../jobs/define-job.js';
+import {
+  coreJobs,
+  findJob,
+  findJobByScript,
+  loadJob,
+  type RegistryEntry,
+} from '../jobs/registry.js';
 
 /**
- * A runner job definition, as far as `run` needs it. Other runner fields
- * (`schedule`, `enabled`, `env`, ...) are allowed and ignored here.
+ * An instance runner job definition, as far as `run` needs it. Other
+ * runner fields (`schedule`, `enabled`, `env`, ...) are allowed and
+ * ignored here.
  */
 export const jobDefinitionSchema = z.looseObject({
   /** Job id (`jeeves-scripts run <id>`). */
   id: z.string().min(1),
-  /** Script path relative to the instance root, e.g. `src/email/poll.ts`. */
+  /** Script path relative to the instance root, e.g. `src/acme/report.ts`. */
   script: z.string().min(1),
 });
 
 /** A `jobs/*.json` file: an array of job definitions. */
 export const jobFileSchema = z.array(jobDefinitionSchema);
 
-/** A validated runner job definition. */
+/** A validated instance runner job definition. */
 export type JobDefinition = z.infer<typeof jobDefinitionSchema>;
 
 /** Where a job's code lives. */
 export type ResolvedJob =
-  | { kind: 'instance'; job: JobDefinition; file: string }
-  | { kind: 'core'; job: JobDefinition; file: string };
+  | { kind: 'core'; entry: RegistryEntry; alias?: JobDefinition }
+  | { kind: 'instance'; job: JobDefinition; file: string };
 
 /**
- * Every job defined in `{root}/jobs/*.json`, in file-name order.
+ * Every job the instance declares in `{root}/jobs/*.json`, in file-name
+ * order.
  *
  * @throws When a file is not valid JSON or not an array of job
  *   definitions; the message names the file and the failing entry.
@@ -75,47 +93,55 @@ export const readJobs = (root: string): JobDefinition[] => {
     });
 };
 
-/** Core's built output directory (`dist/`), next to this module's parent. */
-const coreDistDir = (): string =>
-  path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-
 /**
- * Resolve a job id to the file that runs it.
+ * Resolve a job id (rules in the module doc).
  *
- * @param distDir - Core's module root. Default: this package's `dist/`.
- * @throws When the id is unknown or no file exists for its script.
+ * @param registry - Core job registry. Default: core's.
+ * @throws When the id is unknown, when an instance file would replace a
+ *   core job, or when an instance job's script exists nowhere.
  */
 export const resolveJob = (
   root: string,
   jobId: string,
-  distDir: string = coreDistDir(),
+  registry: readonly RegistryEntry[] = coreJobs,
 ): ResolvedJob => {
-  const job = readJobs(root).find((j) => j.id === jobId);
-  if (!job)
-    throw new Error(`Unknown job "${jobId}" (no entry in jobs/*.json).`);
-  const local = path.join(root, job.script);
-  if (fs.existsSync(local)) return { kind: 'instance', job, file: local };
-  const rel = job.script.replace(/^src[\\/]/, '').replace(/\.ts$/, '.js');
-  const built = path.join(distDir, rel);
-  if (fs.existsSync(built)) return { kind: 'core', job, file: built };
+  const declared = readJobs(root).find((j) => j.id === jobId);
+  const core = findJob(jobId, registry);
+  if (core) {
+    if (declared && fs.existsSync(path.join(root, declared.script)))
+      throw new Error(
+        `Job "${jobId}" is a core job; the instance file ${declared.script} would replace it. ` +
+          'Instances change core jobs only through jobs.<id> deltas in jeeves-scripts.json or a declared override (Decisions 6, 27). ' +
+          'Give an instance-only job its own id.',
+      );
+    return { kind: 'core', entry: core };
+  }
+  if (!declared)
+    throw new Error(
+      `Unknown job "${jobId}": not a core job and not declared in the instance's jobs/*.json.`,
+    );
+  const local = path.join(root, declared.script);
+  if (fs.existsSync(local))
+    return { kind: 'instance', job: declared, file: local };
+  const alias = findJobByScript(declared.script, registry);
+  if (alias) return { kind: 'core', entry: alias, alias: declared };
   throw new Error(
-    `Job "${jobId}": script ${job.script} is neither in the instance repo nor in core (${built}).`,
+    `Job "${jobId}": script ${declared.script} is neither in the instance repo nor a core job module.`,
   );
 };
 
 /**
- * Run a job. Core modules run in this process; instance scripts run in a
- * child process. Resolves to the exit code for instance scripts; for core
- * modules, to 0 once the module has loaded (the job's own `runScript`
- * sets `process.exitCode` on failure).
+ * Run a job. Core jobs run in this process and resolve when the job body
+ * has finished (a crash exits 1 through `runScript`); instance scripts run
+ * in a child process and resolve to its exit code.
  */
 export const runJob = async (
   root: string,
   jobId: string,
   args: readonly string[],
-  distDir?: string,
+  registry?: readonly RegistryEntry[],
 ): Promise<number> => {
-  const resolved = resolveJob(root, jobId, distDir);
+  const resolved = resolveJob(root, jobId, registry);
   process.env[CONFIG_PATH_ENV] ??= path.join(root, 'jeeves-scripts.json');
   if (resolved.kind === 'instance') {
     const result = spawnSync(
@@ -125,7 +151,6 @@ export const runJob = async (
     );
     return result.status ?? 1;
   }
-  process.argv = [process.argv[0] ?? process.execPath, resolved.file, ...args];
-  await import(pathToFileURL(resolved.file).href);
+  await runJobModule(await loadJob(resolved.entry), args);
   return 0;
 };

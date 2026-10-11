@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module sort-backlog
  *
@@ -15,6 +14,7 @@
  */
 
 import { integrations } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { agilePut, fetchBacklog } from './lib/agile-api.js';
 import {
@@ -29,13 +29,19 @@ import {
 } from './lib/backlog-sort.js';
 import { makeAuthHeader, readApiToken } from './lib/jira-client.js';
 
-// `integrations.jira.boardId` in jeeves-scripts.json, else JIRA_BOARD_ID.
-const BOARD_ID = integrations().jira.boardId ?? NaN;
-if (!BOARD_ID || isNaN(BOARD_ID)) {
-  console.error(
-    'Error: set integrations.jira.boardId in jeeves-scripts.json (or the JIRA_BOARD_ID environment variable) to your Jira board ID.',
-  );
-  process.exit(1);
+/**
+ * `integrations.jira.boardId` in jeeves-scripts.json, else JIRA_BOARD_ID.
+ * Missing: logs the error and exits 1 before anything else runs.
+ */
+function requireBoardId(): number {
+  const boardId = integrations().jira.boardId ?? NaN;
+  if (!boardId || isNaN(boardId)) {
+    console.error(
+      'Error: set integrations.jira.boardId in jeeves-scripts.json (or the JIRA_BOARD_ID environment variable) to your Jira board ID.',
+    );
+    process.exit(1);
+  }
+  return boardId;
 }
 
 /** Execute (live) or log (dry-run) the planned rank calls; returns call count. */
@@ -56,7 +62,7 @@ async function rerank(
   return ops.length;
 }
 
-async function main(): Promise<void> {
+async function main(BOARD_ID: number): Promise<void> {
   const live = process.argv.includes('--live');
   const mode = live ? 'LIVE' : 'DRY-RUN';
 
@@ -130,7 +136,15 @@ async function main(): Promise<void> {
   }
 }
 
-main().catch((err: unknown) => {
-  console.error('Fatal:', err);
-  process.exit(1);
+export default defineJob({
+  id: 'jira-sort-backlog',
+  domain: 'jira',
+  name: 'jira/sort-backlog',
+  run: () => {
+    const boardId = requireBoardId();
+    main(boardId).catch((err: unknown) => {
+      console.error('Fatal:', err);
+      process.exit(1);
+    });
+  },
 });

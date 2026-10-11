@@ -2,33 +2,48 @@
  * @module config/jobs-schema
  *
  * Zod schema for the `jobs` and `extensions` blocks of
- * `jeeves-scripts.json`, stubbed only as far as the config work needs
- * (Dev Plan 4, 28, 32): instance deltas per job id and named seam
- * implementations. The job registry itself (`defineJob`, resolution) is
- * Dev Plan 5 and 31.
+ * `jeeves-scripts.json`: instance deltas per job id (Decisions 5, 40) and
+ * named seam implementations (Decision 8). The runner schedule shape is
+ * shared with core's job manifests (`jobs/manifest`).
  */
 
 import { z } from 'zod';
 
-/** A runner schedule override. */
-export const scheduleSchema = z.object({
-  /** Frequency unit (runner schedule syntax, e.g. `minutely`, `daily`). */
-  freq: z.string(),
-  /** Interval in `freq` units. */
-  interval: z.number().int().positive().optional(),
-});
+/**
+ * A jeeves-runner schedule: either a recurrence (`freq` with `interval`,
+ * `byhour`, `byminute`, `timezone`, ...) or a rule set (`rules`). Fields
+ * the runner adds later pass through unchanged.
+ */
+export const scheduleSchema = z
+  .looseObject({
+    /** Frequency unit (runner schedule syntax, e.g. `minutely`, `daily`). */
+    freq: z.string().optional(),
+    /** Interval in `freq` units. */
+    interval: z.number().int().positive().optional(),
+    /** Hour(s) of the day for daily schedules. */
+    byhour: z.union([z.number().int(), z.array(z.number().int())]).optional(),
+    /** Minute(s) of the hour. */
+    byminute: z.union([z.number().int(), z.array(z.number().int())]).optional(),
+    /** IANA time zone the schedule is evaluated in. */
+    timezone: z.string().optional(),
+    /** Rule-based schedule (runner `rules` syntax). */
+    rules: z.array(z.unknown()).optional(),
+  })
+  .refine((s) => s.freq !== undefined || s.rules !== undefined, {
+    message: 'a schedule needs freq or rules',
+  });
 
 /** An instance's changes to one core job (Decision 5). */
 export const jobDeltaSchema = z.object({
   /** Turn the job on or off for this instance. */
   enabled: z.boolean().optional(),
-  /** Replace the job's schedule. */
+  /** Replace the job's schedule (wholesale). */
   schedule: scheduleSchema.optional(),
-  /** Extra environment variables for the job. */
+  /** Extra environment variables for the job, merged over the manifest's (the delta wins). */
   env: z.record(z.string(), z.string()).optional(),
-  /** Extra command-line arguments for the job. */
+  /** Extra command-line arguments for the job, appended to the manifest's. */
   args: z.array(z.string()).optional(),
-  /** Run timeout in seconds. */
+  /** Run timeout in seconds (replaces the manifest's). */
   timeout_seconds: z.number().int().positive().optional(),
   /** Data silo this job's dispatcher reads and writes under (Decision 28). */
   silo: z.string().optional(),

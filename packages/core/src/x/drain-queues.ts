@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module drain-queues
  *
@@ -13,9 +12,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { getArg, runScript } from '@karmaniverous/jeeves';
+import { getArg } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 
 function main(): void {
@@ -75,4 +75,11 @@ function main(): void {
   }
 }
 
-runScript('x/drain-queues', main);
+export default defineJob({
+  id: 'x-drain-queues',
+  domain: 'x',
+  name: 'x/drain-queues',
+  run: () => {
+    main();
+  },
+});

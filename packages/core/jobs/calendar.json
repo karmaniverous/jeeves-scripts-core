@@ -1,0 +1,15 @@
+{
+  "calendar-poll": {
+    "name": "Calendar Poll",
+    "description": "Poll Google Calendar events for configured accounts and write individual JSON files with change detection.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 17,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "Google Calendar via gog (OAuth client or service-account mailboxes) + calendar accounts in jeeves-scripts.json (pipeline)"
+  }
+}

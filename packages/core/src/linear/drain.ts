@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module drain
  *
@@ -21,9 +20,10 @@
 
 import path from 'node:path';
 
-import { nowIso, runScript } from '@karmaniverous/jeeves';
+import { nowIso } from '@karmaniverous/jeeves';
 
 import { getBasePathForLinear } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import {
   deleteEntity,
@@ -223,9 +223,14 @@ async function drainMain(): Promise<void> {
   console.log(JSON.stringify(result));
 }
 
-runScript('linear/drain', () => {
-  drainMain().catch((e: unknown) => {
-    console.error(e);
-    process.exit(1);
-  });
+export default defineJob({
+  id: 'linear-drain',
+  domain: 'linear',
+  name: 'linear/drain',
+  run: () => {
+    drainMain().catch((e: unknown) => {
+      console.error(e);
+      process.exit(1);
+    });
+  },
 });

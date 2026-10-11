@@ -1,15 +1,15 @@
 /**
  * @module run-x-queue-action
  *
- * Shared entry-point wrapper for X queue-action scripts (like, repost).
+ * Shared job body for the X queue-action jobs (like, repost).
  *
- * Handles handle parsing, credential check, client creation and runScript
- * boilerplate; drain-x-queue runs the action per item and settles it.
+ * Handles handle parsing, credential check and client creation;
+ * drain-x-queue runs the action per item and settles it.
  */
 
 import fs from 'node:fs';
 
-import { getArg, runScript } from '@karmaniverous/jeeves';
+import { getArg } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 import type { Client } from '@xdevplatform/xdk';
 
@@ -18,7 +18,7 @@ import { withAutoRefresh } from './x-api.js';
 import { getOAuthPath } from './x-oauth.js';
 
 export interface XQueueActionOptions {
-  /** Script name for runScript wrapper */
+  /** Script name shown in the usage line (the job's crash label) */
   scriptName: string;
   /** Queue name prefix, e.g. 'x-like' or 'x-repost' */
   queuePrefix: string;
@@ -35,9 +35,9 @@ export interface XQueueActionOptions {
 }
 
 /**
- * Entry-point wrapper for X queue-action scripts.
+ * The job body for an X queue-action job (`defineJob`'s `run`).
  */
-export function runXQueueAction(options: XQueueActionOptions): void {
+export function xQueueAction(options: XQueueActionOptions): () => void {
   async function main(handle: string): Promise<void> {
     const argv = process.argv.slice(2);
     const maxItems = Number(getArg(argv, '--maxItems', '50'));
@@ -65,7 +65,7 @@ export function runXQueueAction(options: XQueueActionOptions): void {
     }
   }
 
-  runScript(options.scriptName, () => {
+  return () => {
     const handle = process.argv[2];
     if (!handle) {
       console.log(
@@ -86,5 +86,5 @@ export function runXQueueAction(options: XQueueActionOptions): void {
       );
       process.exit(1);
     });
-  });
+  };
 }

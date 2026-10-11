@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module fetch-notes
  *
@@ -12,9 +11,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { runScript } from '@karmaniverous/jeeves';
-
 import { siloRouting } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { runDocFetch } from './lib/doc-fetch.js';
 import { runFathomExtract } from './lib/fathom-extract.js';
 import {
@@ -125,9 +123,14 @@ async function main(): Promise<void> {
   }
 }
 
-runScript('meetings/fetch-notes', () => {
-  main().catch((err: unknown) => {
-    console.error(err);
-    process.exit(1);
-  });
+export default defineJob({
+  id: 'meetings-fetch-notes',
+  domain: 'meetings',
+  name: 'meetings/fetch-notes',
+  run: () => {
+    main().catch((err: unknown) => {
+      console.error(err);
+      process.exit(1);
+    });
+  },
 });

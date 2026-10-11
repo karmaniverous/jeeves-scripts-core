@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module refresh-fields
  *
@@ -16,9 +15,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { nowIso, runScript } from '@karmaniverous/jeeves';
+import { nowIso } from '@karmaniverous/jeeves';
 
 import { getBasePathForJira } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import type { JiraField } from './lib/jira-client.js';
 import { jiraGet, makeAuthHeader, readApiToken } from './lib/jira-client.js';
@@ -69,9 +69,14 @@ async function refreshFieldsMain(): Promise<void> {
   );
 }
 
-runScript('jira/refresh-fields', () => {
-  refreshFieldsMain().catch((e: unknown) => {
-    console.error(e);
-    process.exit(1);
-  });
+export default defineJob({
+  id: 'jira-refresh-fields',
+  domain: 'jira',
+  name: 'jira/refresh-fields',
+  run: () => {
+    refreshFieldsMain().catch((e: unknown) => {
+      console.error(e);
+      process.exit(1);
+    });
+  },
 });

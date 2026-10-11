@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module collect-token-metrics
  *
@@ -34,8 +33,7 @@
 
 import fs from 'node:fs';
 
-import { runScript } from '@karmaniverous/jeeves';
-
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { triggerRunnerJob } from '../lib/runner-config.js';
 import { userCacheFile } from '../slack/lib/slack-cache.js';
@@ -115,4 +113,9 @@ async function collect(): Promise<void> {
   if (code !== 0) process.exitCode = code;
 }
 
-runScript('collect-token-metrics', collect);
+export default defineJob({
+  id: 'collect-token-metrics',
+  domain: 'admin',
+  name: 'collect-token-metrics',
+  run: () => collect(),
+});

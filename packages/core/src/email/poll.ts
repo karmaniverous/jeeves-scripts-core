@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module poll
  *
@@ -25,18 +24,14 @@
 
 import path from 'node:path';
 
-import {
-  appendJsonl,
-  ensureDir,
-  nowIso,
-  runScript,
-} from '@karmaniverous/jeeves';
+import { appendJsonl, ensureDir, nowIso } from '@karmaniverous/jeeves';
 import {
   getRunnerClient,
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
 
 import { type AccountConfig, pipeline } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { requireGogCredentials } from '../lib/gog-credentials.js';
 import { pollGogAccount } from './google-workspace/gog-poll.js';
@@ -109,4 +104,10 @@ async function main(): Promise<void> {
   }
 }
 
-runScript('email/poll', main, constants().EMAIL_EVENTS_DIR);
+export default defineJob({
+  id: 'email-poll',
+  domain: 'email',
+  name: 'email/poll',
+  crashDir: () => constants().EMAIL_EVENTS_DIR,
+  run: () => main(),
+});

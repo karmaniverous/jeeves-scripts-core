@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module watch
  *
@@ -13,9 +12,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { nowIso, runScript } from '@karmaniverous/jeeves';
+import { nowIso } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { gh, setupGhConfig } from '../lib/gh.js';
 
@@ -252,4 +252,11 @@ function main(): void {
   }
 }
 
-runScript('github/watch', main);
+export default defineJob({
+  id: 'github-watch',
+  domain: 'github',
+  name: 'github/watch',
+  run: () => {
+    main();
+  },
+});

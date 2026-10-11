@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module qdrant-health-check
  *
@@ -28,8 +27,7 @@
 
 import { execSync } from 'node:child_process';
 
-import { runScript } from '@karmaniverous/jeeves';
-
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -266,4 +264,9 @@ async function main(): Promise<void> {
   await runHealthCheck(constants().QDRANT_API_URL);
 }
 
-runScript('core/qdrant-health-check', main);
+export default defineJob({
+  id: 'qdrant-health-check',
+  domain: 'core',
+  name: 'core/qdrant-health-check',
+  run: () => main(),
+});

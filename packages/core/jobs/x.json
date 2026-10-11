@@ -1,0 +1,80 @@
+{
+  "x-poll-posts": {
+    "name": "X Poll Posts",
+    "description": "Poll own posts via X API v2 (Owned Read) and enqueue to runner queue for drain.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 17,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+  },
+  "x-poll-mentions": {
+    "name": "X Poll Mentions",
+    "description": "Poll mentions via X API v2 (Owned Read) and enqueue to runner queue.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 19,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+  },
+  "x-poll-feed": {
+    "name": "X Poll Feed",
+    "description": "Poll home timeline via X API v2 and write items directly to the content directory.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 23,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+  },
+  "x-poll-likes": {
+    "name": "X Poll Likes",
+    "description": "Poll liked tweets via X API v2 (Owned Read) and enqueue to runner queue.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 29,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+  },
+  "x-poll-bookmarks": {
+    "name": "X Poll Bookmarks",
+    "description": "Poll bookmarks via X API v2 (Owned Read) and enqueue to runner queue.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 13,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+  },
+  "x-drain-queues": {
+    "name": "X Drain Queues",
+    "description": "Dequeue polled X items from runner queues and write them to the content directory.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 11,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+  }
+}

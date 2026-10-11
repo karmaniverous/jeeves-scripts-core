@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module sync-issues
  *
@@ -14,10 +13,11 @@
 
 import path from 'node:path';
 
-import { nowIso, runScript } from '@karmaniverous/jeeves';
+import { nowIso } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
 import { getBasePathForLinear } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { upsertEntity } from '../lib/entity-store.js';
 import { loadConfig, paginateIssues, sleepMs } from './lib/linear-client.js';
@@ -100,9 +100,14 @@ async function main(): Promise<void> {
   }
 }
 
-runScript('linear/sync-issues', () => {
-  main().catch((e: unknown) => {
-    console.error(e);
-    process.exit(1);
-  });
+export default defineJob({
+  id: 'linear-sync-issues',
+  domain: 'linear',
+  name: 'linear/sync-issues',
+  run: () => {
+    main().catch((e: unknown) => {
+      console.error(e);
+      process.exit(1);
+    });
+  },
 });

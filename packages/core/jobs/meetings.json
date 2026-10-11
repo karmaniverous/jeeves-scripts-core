@@ -1,0 +1,41 @@
+{
+  "meetings-extract": {
+    "name": "Meetings Extract",
+    "description": "Scan email cache for meeting-related threads and extract structured meeting packages. For each new meeting, enqueues the Gmail meeting label (and an archive if in the inbox and not watched) on email-updates; nothing when emailConfig.reportOnly is true.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 13,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 600,
+    "enabled": true,
+    "prerequisite": "Gmail OAuth via gog (email pipeline must be running)"
+  },
+  "meetings-fetch-notes": {
+    "name": "Meetings Fetch Notes",
+    "description": "Fetch Gemini doc transcripts and extract Fathom share-page content for meetings missing transcripts.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 19,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 600,
+    "enabled": true,
+    "prerequisite": "Gmail OAuth via gog"
+  },
+  "meetings-ingest-notion": {
+    "name": "Meetings Ingest Notion",
+    "description": "Poll a Notion inbox database for new meeting pages and ingest them into the meetings pipeline.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 23,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 600,
+    "enabled": false,
+    "prerequisite": "Notion API key + inbox database ID configured"
+  }
+}

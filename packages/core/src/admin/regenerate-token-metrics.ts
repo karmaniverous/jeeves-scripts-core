@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module regenerate-token-metrics
  *
@@ -37,8 +36,9 @@
 
 import fs from 'node:fs';
 
-import { getArg, runScript } from '@karmaniverous/jeeves';
+import { getArg } from '@karmaniverous/jeeves';
 
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { userCacheFile } from '../slack/lib/slack-cache.js';
 import {
@@ -109,4 +109,9 @@ async function regenerate(): Promise<void> {
   );
 }
 
-runScript('regenerate-token-metrics', regenerate);
+export default defineJob({
+  id: 'regenerate-token-metrics',
+  domain: 'admin',
+  name: 'regenerate-token-metrics',
+  run: () => regenerate(),
+});

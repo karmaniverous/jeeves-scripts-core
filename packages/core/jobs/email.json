@@ -1,0 +1,55 @@
+{
+  "email-poll": {
+    "name": "Email Poll",
+    "description": "Poll email accounts for new and updated messages (gog/Gmail and IMAP), classify, and enqueue for download.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 11,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "Gmail via gog (OAuth client or service-account mailboxes) or IMAP credentials"
+  },
+  "email-download": {
+    "name": "Email Download",
+    "description": "Dequeue threads from email-pending and download full message bodies from Gmail.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 13,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 600,
+    "enabled": true,
+    "prerequisite": "Gmail via gog (OAuth client or service-account mailboxes)"
+  },
+  "email-drain-updates": {
+    "name": "Email Drain Updates",
+    "description": "Drain the email-updates queue and apply label changes (add, remove, archive, trash) via Gmail API.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 17,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "Gmail via gog (OAuth client or service-account mailboxes)"
+  },
+  "email-backfill-historical": {
+    "name": "Email Historical Backfill",
+    "description": "Paced Gmail backfill: each run searches one window (emailConfig.backfill.windowDays) per account, walking back until emailConfig.backfill.lookbackDays, then no-ops. Cursor in runner state (email-backfill/cursor-<email>).",
+    "schedule": {
+      "freq": "hourly",
+      "interval": 1,
+      "timezone": "UTC"
+    },
+    "args": ["--live"],
+    "overlap_policy": "skip",
+    "timeout_seconds": 1800,
+    "enabled": true,
+    "prerequisite": "Gmail via gog (OAuth client or service-account mailboxes) + emailConfig.backfill (accounts, lookbackDays, windowDays) in jeeves-scripts.json (pipeline)"
+  }
+}

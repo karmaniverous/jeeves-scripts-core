@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module refresh-token
  *
@@ -13,14 +12,11 @@
  * This script remains useful for manual/diagnostic token refresh.
  */
 
-import { runScript } from '@karmaniverous/jeeves';
-
+import { defineJob } from '../jobs/define-job.js';
 import { requireXHandle } from './lib/x-api.js';
 import { getOAuthPath, refreshOAuth2Token } from './lib/x-oauth.js';
 
-const handle = requireXHandle('refresh-token.ts');
-
-async function main(): Promise<void> {
+async function main(handle: string): Promise<void> {
   console.log(`Refreshing X OAuth 2.0 token for @${handle}...`);
   const result = await refreshOAuth2Token(handle);
   if (!result) return;
@@ -33,9 +29,15 @@ async function main(): Promise<void> {
   console.log(`Written to: ${getOAuthPath(handle)}`);
 }
 
-runScript('x/refresh-token', () => {
-  main().catch((err: unknown) => {
-    console.error('Error:', err instanceof Error ? err.message : String(err));
-    process.exit(1);
-  });
+export default defineJob({
+  id: 'x-refresh-token',
+  domain: 'x',
+  name: 'x/refresh-token',
+  run: () => {
+    const handle = requireXHandle('refresh-token.ts');
+    main(handle).catch((err: unknown) => {
+      console.error('Error:', err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+  },
 });
