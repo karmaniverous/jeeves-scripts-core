@@ -5,7 +5,8 @@
  * `stylisticTypeChecked`) to every TypeScript file in the repo, including
  * config files, scripts and tests in every workspace. No file is excluded
  * from type-aware linting and no `eslint-disable` is permitted anywhere in
- * the repo (Decision 22).
+ * the repo (Decision 22). `max-lines` enforces R34's 300-line limit
+ * in code lines (blank lines and comments not counted).
  *
  * @module eslint.config
  */
@@ -95,6 +96,12 @@ export default [
       'simple-import-sort/exports': 'error',
       'tsdoc/syntax': 'warn',
       'prettier/prettier': 'error',
+      // R34: no file over 300 lines, counting code lines (blank lines and
+      // comments excluded). Core's own gate; the instance presets don't set it.
+      'max-lines': [
+        'error',
+        { max: 300, skipBlankLines: true, skipComments: true },
+      ],
     },
   },
   {

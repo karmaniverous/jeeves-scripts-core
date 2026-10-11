@@ -1,24 +1,14 @@
 /**
  * The `people` registry at each caller (Decision 34): Slack message
- * authors, DM names, meeting packages, email (Gmail events, IMAP message
- * files) and calendar events. Listed people get their configured name
- * and id; unlisted ones are recorded exactly as before.
+ * authors, DM names and meeting packages (email and calendar callers are
+ * in people-callers-email.test.ts). Listed people get their configured
+ * name and id; unlisted ones are recorded exactly as before.
  */
 
-import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';
-import {
-  afterAll,
-  beforeAll,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   appendJsonl: vi.fn(),
@@ -53,62 +43,24 @@ vi.mock('./constants.js', async (importOriginal) => {
 
 import { dmPeopleNames } from '../admin/lib/dm-name-sources.js';
 import { resolveDmNames } from '../admin/lib/dm-names.js';
-import { eventPeopleField } from '../calendar/lib/calendar-api.js';
-import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
-import { fetchThreadMetadata } from '../email/google-workspace/email-fetch.js';
-import { writeMessage as writeImapMessage } from '../email/imap/message-store.js';
-import type { NormalizedMessage } from '../email/imap/normalize.js';
 import { updateMeetingPackage } from '../meetings/lib/package.js';
 import { writeMessage as writeSlackMessage } from '../slack/lib/message-writer.js';
 import type * as ConstantsModule from './constants.js';
-import { emailPeopleFields } from './people.js';
+import {
+  JANE,
+  readJson,
+  usePeopleConfig,
+} from './people-callers.test-helper.js';
 
-const JANE = { id: 'jane-doe', name: 'Jane Doe' };
-
+const tmp = usePeopleConfig();
 let dir: string;
-const savedEnv = process.env[CONFIG_PATH_ENV];
-
-beforeAll(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'people-callers-'));
-  const base = JSON.parse(fs.readFileSync(savedEnv ?? '', 'utf8')) as Record<
-    string,
-    unknown
-  >;
-  const configPath = path.join(dir, 'jeeves-scripts.json');
-  fs.writeFileSync(
-    configPath,
-    JSON.stringify({
-      ...base,
-      people: {
-        'jane-doe': {
-          name: JANE.name,
-          emails: ['jane@example.com', 'jane.doe@example.org'],
-          accounts: [
-            { channel: 'slack', account: 'default', id: 'U0JANE0001' },
-            { channel: 'slack', account: 'work', id: 'U0JANE0002' },
-          ],
-        },
-      },
-    }),
-  );
-  process.env[CONFIG_PATH_ENV] = configPath;
-  resetConfig();
-});
-
-afterAll(() => {
-  process.env[CONFIG_PATH_ENV] = savedEnv;
-  resetConfig();
-  fs.rmSync(dir, { recursive: true, force: true });
-});
 
 beforeEach(() => {
+  dir = tmp();
   mocks.threadsDir = path.join(dir, 'threads');
   mocks.meetingsDir = path.join(dir, 'meetings');
   vi.clearAllMocks();
 });
-
-const readJson = (file: string) =>
-  JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>;
 
 describe('Slack message authors', () => {
   const write = (user: string, account?: string) => {
@@ -202,106 +154,5 @@ describe('meeting packages', () => {
     expect(
       readJson(path.join(mocks.meetingsDir, 'm2', 'meeting.json')),
     ).not.toHaveProperty('people');
-  });
-});
-
-describe('email', () => {
-  it('emailPeopleFields names the sender and every listed party', () => {
-    expect(
-      emailPeopleFields({
-        from: 'Jane <JANE@example.com>',
-        to: 'a@x.com, jane.doe@example.org',
-      }),
-    ).toEqual({ fromPerson: JANE, people: [JANE] });
-    expect(
-      emailPeopleFields({ from: 'a@x.com', to: 'Jane <jane@example.com>' }),
-    ).toEqual({ people: [JANE] });
-    expect(emailPeopleFields({ from: 'a@x.com', to: 'b@x.com' })).toEqual({});
-  });
-
-  it('records people on Gmail message events', () => {
-    mocks.gogWithRetry.mockReturnValue(
-      JSON.stringify({
-        thread: {
-          messages: [
-            {
-              id: 'm1',
-              internalDate: '1000',
-              labelIds: ['INBOX'],
-              payload: {
-                headers: [
-                  { name: 'From', value: 'Jane <jane@example.com>' },
-                  { name: 'To', value: 'me@example.com' },
-                ],
-              },
-            },
-            {
-              id: 'm2',
-              internalDate: '2000',
-              labelIds: ['INBOX'],
-              payload: { headers: [{ name: 'From', value: 'a@x.com' }] },
-            },
-          ],
-        },
-      }),
-    );
-    fetchThreadMetadata({
-      account: 'me@example.com',
-      threadId: 't1',
-      subject: 'Hi',
-      from: '',
-      to: '',
-      receiptCandidate: false,
-      junkCandidate: false,
-      bucket: null,
-      labels: ['INBOX'],
-      query: 'q',
-      client: {
-        getState: () => null,
-        setState: vi.fn(),
-        getItem: () => null,
-        setItem: vi.fn(),
-        enqueue: vi.fn(() => 1),
-      },
-      reportOnly: true,
-    });
-    const events = mocks.appendJsonl.mock.calls.map(
-      (c) => c[1] as Record<string, unknown>,
-    );
-    expect(events[0]).toMatchObject({ fromPerson: JANE, people: [JANE] });
-    expect(events[1]).not.toHaveProperty('people');
-    expect(events[1]).not.toHaveProperty('fromPerson');
-  });
-
-  it('records people in IMAP message files', () => {
-    const msg = (from: string) =>
-      ({
-        headers: { subject: 's', from, to: 'me@example.com', cc: '', date: '' },
-        internalDate: new Date('2026-10-01T00:00:00Z'),
-        computed: { snippet: '' },
-        body: { text: '' },
-        attachments: [],
-      }) as unknown as NormalizedMessage;
-    writeImapMessage('me@x', 't1', 'm1', msg('jane.doe@example.org'), []);
-    writeImapMessage('me@x', 't1', 'm2', msg('a@x.com'), []);
-    const file = (id: string) =>
-      readJson(path.join(mocks.threadsDir, 'me@x', 't1', `${id}.json`));
-    expect(file('m1')).toMatchObject({ fromPerson: JANE, people: [JANE] });
-    expect(file('m2')).not.toHaveProperty('people');
-  });
-});
-
-describe('calendar events', () => {
-  it('lists the people among organizer, creator and attendees', () => {
-    expect(
-      eventPeopleField({
-        id: 'e1',
-        organizer: { email: 'Jane@Example.com' },
-        attendees: [{ email: 'a@x.com' }],
-      }),
-    ).toEqual({ _people: [JANE] });
-    expect(
-      eventPeopleField({ id: 'e2', attendees: [{ email: 'a@x.com' }] }),
-    ).toEqual({});
   });
 });

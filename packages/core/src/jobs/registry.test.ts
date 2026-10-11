@@ -19,6 +19,8 @@ import {
   loadJob,
   type RegistryEntry,
 } from './registry.js';
+import { onDemandJobs } from './registry-on-demand.js';
+import { scheduledJobs } from './registry-scheduled.js';
 
 const srcDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -55,6 +57,17 @@ describe('core job registry', () => {
         .filter((m) => findJob(m.id)?.domain !== m.domain)
         .map((m) => m.id),
     ).toEqual([]);
+  });
+
+  it('holds exactly the runnables with a core manifest in scheduledJobs', () => {
+    const manifestIds = readCoreManifests()
+      .map((m) => m.id)
+      .sort();
+    expect(scheduledJobs.map((e) => e.id).sort()).toEqual(manifestIds);
+    expect(
+      onDemandJobs.filter((e) => manifestIds.includes(e.id)).map((e) => e.id),
+    ).toEqual([]);
+    expect(coreJobs).toHaveLength(scheduledJobs.length + onDemandJobs.length);
   });
 
   it('loads every job module as defineJob(...) with its id, running nothing on import', async () => {
