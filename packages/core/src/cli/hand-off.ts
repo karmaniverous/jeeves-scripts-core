@@ -9,7 +9,10 @@
  * line, so the repo's pinned core runs. With no repo (or one without a
  * launcher yet) it runs only `init`, `--help` and `--version` itself, in
  * the named directory or the working directory, and otherwise exits 1
- * saying how to point it at a repo. Runner jobs never use it.
+ * saying how to point it at a repo. A repo whose launcher exists but whose
+ * core isn't installed yet (`init` done, `npm install` not) is treated
+ * the same, and the error says to run `npm install` there (Decision 57).
+ * Runner jobs never use it.
  *
  * Reads the filesystem and the environment; spawns `node` for the
  * launcher.
@@ -17,9 +20,11 @@
 
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 import { main } from './index.js';
+import { CORE_PACKAGE } from './package-info.js';
 
 /** The file that marks a scripts repo. */
 export const REPO_MARKER = 'jeeves-scripts.json';
@@ -31,7 +36,19 @@ export const LAUNCHER = path.join('bin', 'jeeves-scripts.js');
 export const DIR_ENV = 'JEEVES_SCRIPTS_DIR';
 
 /** What runs without a repo. */
-const STANDALONE = new Set(['init', 'help', '--help', '-h', '--version', '-V']);
+const STANDALONE = new Set(['init', '--help', '-h', '--version', '-V']);
+
+/** Whether `repo` resolves core (its `npm install` has run). */
+export const coreInstalled = (repo: string): boolean => {
+  try {
+    createRequire(path.join(repo, 'package.json')).resolve(
+      `${CORE_PACKAGE}/package.json`,
+    );
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 /** Where a command line goes. */
 export interface Located {
@@ -101,6 +118,8 @@ export interface HandOffOptions {
   run?: (root: string, args: readonly string[]) => Promise<number>;
   /** Prints an error line. */
   error?: (line: string) => void;
+  /** Whether a repo has core installed. Default: {@link coreInstalled}. */
+  installed?: (repo: string) => boolean;
 }
 
 /** Run `node <launcher> ...args` with this terminal; resolves to its exit code. */
@@ -132,7 +151,9 @@ export const handOff = async (
     return 1;
   }
   const { launcher, root, args } = located;
-  if (launcher !== undefined)
+  const uninstalled =
+    launcher !== undefined && !(options.installed ?? coreInstalled)(root);
+  if (launcher !== undefined && !uninstalled)
     return (options.delegate ?? runLauncher)(launcher, args);
   if (args[0] === undefined || STANDALONE.has(args[0]))
     return (
@@ -140,7 +161,9 @@ export const handOff = async (
       ((r, a) => main({ root: r, argv: ['node', 'jeeves-scripts', ...a] }))
     )(root, args);
   error(
-    `jeeves-scripts: no scripts repo found from ${root}. Pass --dir <path>, set ${DIR_ENV}, or run inside a repo (a directory with ${REPO_MARKER} and ${LAUNCHER}). Without one, only init, --help and --version run.`,
+    uninstalled
+      ? `jeeves-scripts: ${root} has no installed ${CORE_PACKAGE} yet: run npm install there first. Until then, only init, --help and --version run.`
+      : `jeeves-scripts: no scripts repo found from ${root}. Pass --dir <path>, set ${DIR_ENV}, or run inside a repo (a directory with ${REPO_MARKER} and ${LAUNCHER}). Without one, only init, --help and --version run.`,
   );
   return 1;
 };

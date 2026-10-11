@@ -4,24 +4,32 @@
  * `jeeves-scripts doctor` (R29, Decisions 27, 49; design §6): an
  * informational report on an instance repo. Lines for the installed core
  * version, the config location and whether it validates, the plugin load,
- * each effective manifest's prerequisite, and override drift (an
+ * each effective manifest's prerequisite state, and override drift (an
  * override's `writtenFor` differing from the installed core). It reports
  * problems as lines and never throws, so the command always exits 0.
  *
- * Reads the instance config, loads its plugin (as `run` does) and reads
- * core's and the instance's manifests. Runs no runnable.
+ * A prerequisite's state (Decision 57): `met` or `not met: <reason>` from
+ * the runnable's `defineJob` prerequisite check when it declares one, else
+ * `met` when the manifest has no prerequisite, else `manual: <text>` (set
+ * up by a person; no check can tell).
+ *
+ * Reads the instance config, loads its plugin (as `run` does), reads
+ * core's and the instance's manifests, loads each manifest's module and
+ * runs its prerequisite check. Runs no job body.
  */
 
 import path from 'node:path';
 
 import { configCheck } from '../config/check.js';
 import { CONFIG_PATH_ENV, loadConfig } from '../config/loader.js';
-import { readCoreManifests } from '../jobs/manifest.js';
+import type { JobModule } from '../jobs/define-job.js';
+import { type JobManifest, readCoreManifests } from '../jobs/manifest.js';
 import type { Plugin } from '../jobs/plugin.js';
 import {
   buildRunnables,
   readInstanceManifests,
   registeredManifests,
+  type Runnable,
 } from '../jobs/runnables.js';
 import type { ListOptions } from './list.js';
 import { loadPlugin, PLUGIN_FILE } from './load-plugin.js';
@@ -52,6 +60,50 @@ const overrideLines = (plugin: Plugin | undefined, version: string) => {
             ? ''
             : `, installed ${version}: DRIFT (recheck ${o.issue})`
         }`,
+    ),
+  ];
+};
+
+/** A manifest's prerequisite state: `met`, `not met: …` or `manual: …`. */
+const prerequisiteState = async (
+  manifest: JobManifest,
+  runnable: Runnable | undefined,
+): Promise<string> => {
+  let job: JobModule | undefined;
+  try {
+    job = await runnable?.load();
+  } catch (e) {
+    return `unknown (module failed to load: ${message(e)})`;
+  }
+  if (job?.prerequisite) {
+    try {
+      const ready = await job.prerequisite({ args: manifest.args ?? [] });
+      return ready === true ? 'met' : `not met: ${ready}`;
+    } catch (e) {
+      return `unknown (check threw: ${message(e)})`;
+    }
+  }
+  return manifest.prerequisite === null
+    ? 'met'
+    : `manual: ${manifest.prerequisite}`;
+};
+
+/** The manifests section: a count line, then one line per manifest. */
+const manifestLines = async (
+  manifests: JobManifest[],
+  runnables: Runnable[],
+): Promise<string[]> => {
+  const byId = new Map(runnables.map((r) => [r.id, r]));
+  const states = await Promise.all(
+    manifests.map((m) => prerequisiteState(m, byId.get(m.id))),
+  );
+  const count = (prefix: string) =>
+    String(states.filter((s) => s.startsWith(prefix)).length);
+  return [
+    `manifests: ${String(manifests.length)} (prerequisites: ${count('met')} met, ${count('not met')} not met, ${count('manual')} manual)`,
+    ...manifests.map(
+      (m, i) =>
+        `  ${m.id}: ${m.enabled ? 'enabled' : 'disabled'}; prerequisite: ${states[i] ?? ''}`,
     ),
   ];
 };
@@ -103,14 +155,7 @@ export const doctorReport = async (
           deltas: loadConfig().jobs,
         }).values(),
       ];
-      const ready = manifests.filter((m) => m.prerequisite === null);
-      lines.push(
-        `manifests: ${String(manifests.length)} (${String(ready.length)} with no prerequisite)`,
-        ...manifests.map(
-          (m) =>
-            `  ${m.id}: ${m.enabled ? 'enabled' : 'disabled'}; prerequisite: ${m.prerequisite ?? 'none'}`,
-        ),
-      );
+      lines.push(...(await manifestLines(manifests, runnables)));
     } catch (e) {
       lines.push('manifests: FAILED', ...indent(message(e)));
     }

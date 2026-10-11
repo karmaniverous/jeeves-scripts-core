@@ -129,7 +129,31 @@ export const installChange = ({
   return { sets, unsets: [] };
 };
 
-/** The change `uninstall` makes: removes exactly this repo's entries. */
+/** Whether `object` holds nothing but `key`. */
+const onlyKey = (object: object | null | undefined, key: string): boolean =>
+  object !== null &&
+  object !== undefined &&
+  Object.keys(object).length === 1 &&
+  key in object;
+
+/**
+ * The path to unset to remove a skill's env var: the var itself, or the
+ * `env` object when the var is all it holds, or the whole entry when that
+ * `env` is all the entry holds (so no empty objects are left behind).
+ */
+const envUnset = (config: SkillsConfig, skill: string): string => {
+  const entry = config?.entries?.[skill];
+  if (!onlyKey(entry?.env, SKILLS_ENV)) return envPath(skill);
+  return onlyKey(entry, 'env')
+    ? `skills.entries.${skill}`
+    : `skills.entries.${skill}.env`;
+};
+
+/**
+ * The change `uninstall` makes: removes exactly this repo's entries, and
+ * any object (`skills.load`, an entry, its `env`, `skills.entries`) that
+ * removing them would leave empty.
+ */
 export const uninstallChange = ({
   root,
   skills,
@@ -142,10 +166,27 @@ export const uninstallChange = ({
   if (extraDirs.includes(dir)) {
     const rest = extraDirs.filter((d) => d !== dir);
     if (rest.length) change.sets.push({ path: EXTRA_DIRS, value: rest });
-    else change.unsets.push(EXTRA_DIRS);
+    else
+      change.unsets.push(
+        onlyKey(config?.load, 'extraDirs') ? 'skills.load' : EXTRA_DIRS,
+      );
   }
-  for (const skill of skills)
-    if (envValue(config, skill) === value) change.unsets.push(envPath(skill));
+  const unsets = skills
+    .filter((skill) => envValue(config, skill) === value)
+    .map((skill) => envUnset(config, skill));
+  const entries = Object.keys(config?.entries ?? {});
+  const whole = new Set(
+    unsets.filter((p) => /^skills\.entries\.[^.]+$/.test(p)),
+  );
+  if (
+    entries.length > 0 &&
+    entries.every((skill) => whole.has(`skills.entries.${skill}`))
+  )
+    change.unsets.push(
+      'skills.entries',
+      ...unsets.filter((p) => !whole.has(p)),
+    );
+  else change.unsets.push(...unsets);
   return change;
 };
 
@@ -221,6 +262,8 @@ export interface SkillsOptions {
   confirm?: (question: string) => Promise<boolean>;
   /** Prints a line. */
   log?: (line: string) => void;
+  /** Prints the failure line (stderr by default; design §12). */
+  error?: (line: string) => void;
 }
 
 /**
@@ -269,7 +312,7 @@ export const runSkills = async (
     log(`skills ${action}: applied`);
     return 0;
   } catch (e) {
-    log(
+    (options.error ?? console.error)(
       `skills ${action}: FAILED: ${e instanceof Error ? e.message : String(e)}`,
     );
     return 1;

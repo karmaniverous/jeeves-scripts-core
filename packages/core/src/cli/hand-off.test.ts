@@ -5,6 +5,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  coreInstalled,
   findRepo,
   handOff,
   LAUNCHER,
@@ -113,12 +114,22 @@ describe('locate', () => {
   });
 });
 
+describe('coreInstalled', () => {
+  it('is false for a repo that resolves no core, true for the template package', () => {
+    expect(coreInstalled(repo)).toBe(false);
+    expect(
+      coreInstalled(path.resolve(import.meta.dirname, '../../../template')),
+    ).toBe(true);
+  });
+});
+
 describe('handOff', () => {
   it("delegates to the repo's launcher with the rest of the command line", async () => {
     const delegate = vi.fn(() => Promise.resolve(3));
     const code = await handOff(['--dir', repo, 'run', 'x', '--dir', 'y'], {
       env: {},
       delegate,
+      installed: () => true,
     });
     expect(code).toBe(3);
     expect(delegate).toHaveBeenCalledWith(path.join(repo, LAUNCHER), [
@@ -155,6 +166,46 @@ describe('handOff', () => {
         /no scripts repo found.*--dir <path>.*JEEVES_SCRIPTS_DIR/,
       ),
     );
+  });
+
+  it('treats help as any other verb without a repo (design §9)', async () => {
+    const error = vi.fn();
+    const run = vi.fn(() => Promise.resolve(0));
+    const code = await handOff(['help'], {
+      env: {},
+      cwd: path.join(tmp, 'elsewhere'),
+      run,
+      error,
+    });
+    expect(code).toBe(1);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it('says to run npm install in a repo whose core is not installed yet', async () => {
+    const error = vi.fn();
+    const delegate = vi.fn(() => Promise.resolve(0));
+    const code = await handOff(['--dir', repo, 'list'], {
+      env: {},
+      delegate,
+      error,
+      installed: () => false,
+    });
+    expect(code).toBe(1);
+    expect(delegate).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith(
+      `jeeves-scripts: ${repo} has no installed @karmaniverous/jeeves-scripts-core yet: run npm install there first. Until then, only init, --help and --version run.`,
+    );
+  });
+
+  it('runs init itself in a repo whose core is not installed yet', async () => {
+    const run = vi.fn(() => Promise.resolve(0));
+    const code = await handOff(['--dir', repo, 'init'], {
+      env: {},
+      run,
+      installed: () => false,
+    });
+    expect(code).toBe(0);
+    expect(run).toHaveBeenCalledWith(repo, ['init']);
   });
 
   it('exits 1 on --dir without a path', async () => {

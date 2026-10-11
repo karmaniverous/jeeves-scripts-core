@@ -97,12 +97,63 @@ describe('doctorReport', () => {
       'core: @karmaniverous/jeeves-scripts-core 0.2.0',
       `config: ${path.join(root, 'jeeves-scripts.json')}: OK`,
       'plugin: jeeves-scripts.plugin.ts: 1 runnables, 1 overrides',
-      'manifests: 2 (1 with no prerequisite)',
-      '  email-poll: enabled; prerequisite: none',
-      '  acme-report: disabled; prerequisite: A token.',
+      'manifests: 2 (prerequisites: 1 met, 0 not met, 1 manual)',
+      '  email-poll: enabled; prerequisite: met',
+      '  acme-report: disabled; prerequisite: manual: A token.',
       'overrides: 1 (1 written for another core version)',
       '  email-poll: written for 0.1.0, installed 0.2.0: DRIFT (recheck karmaniverous/jeeves-scripts-core#1)',
     ]);
+  });
+
+  it("runs each manifest runnable's prerequisite check for its state (R29)", async () => {
+    writeConfig({ instance: { name: 't', baseDir: root } });
+    fs.mkdirSync(path.join(root, 'jobs'));
+    const manifest = { ...fields, prerequisite: null };
+    fs.writeFileSync(
+      path.join(root, 'jobs', 'local.json'),
+      JSON.stringify({
+        'acme-ready': manifest,
+        'acme-blocked': { ...manifest, args: ['--site', 'x'] },
+        'acme-broken': manifest,
+      }),
+    );
+    const seen: (readonly string[])[] = [];
+    const checked = (
+      id: string,
+      prerequisite: (ctx: { args: readonly string[] }) => true | string,
+    ) =>
+      defineJob({
+        id,
+        domain: 'acme',
+        prerequisite: (ctx) => {
+          seen.push(ctx.args);
+          return prerequisite(ctx);
+        },
+        run: () => undefined,
+      });
+    const plugin = definePlugin({
+      jobs: [
+        checked('acme-ready', () => true),
+        checked('acme-blocked', () => 'no acme token'),
+        checked('acme-broken', () => {
+          throw new Error('boom');
+        }),
+      ],
+    });
+
+    const lines = await doctorReport(root, options(plugin));
+
+    expect(lines).toContain(
+      'manifests: 4 (prerequisites: 2 met, 1 not met, 0 manual)',
+    );
+    expect(lines).toContain('  acme-ready: enabled; prerequisite: met');
+    expect(lines).toContain(
+      '  acme-blocked: enabled; prerequisite: not met: no acme token',
+    );
+    expect(lines).toContain(
+      '  acme-broken: enabled; prerequisite: unknown (check threw: boom)',
+    );
+    expect(seen).toContainEqual(['--site', 'x']);
   });
 
   it('shows an override written for the installed version without drift', async () => {

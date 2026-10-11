@@ -78,7 +78,39 @@ describe('install / uninstall changes', () => {
         skills: [],
         config: { load: { extraDirs: [dir] } },
       }),
-    ).toEqual({ sets: [], unsets: ['skills.load.extraDirs'] });
+    ).toEqual({ sets: [], unsets: ['skills.load'] });
+  });
+
+  it('uninstall leaves no empty objects behind', () => {
+    const config = {
+      load: { extraDirs: [dir], watch: true },
+      entries: {
+        'jeeves-email': { env: { JEEVES_SCRIPTS_DIR: root }, enabled: true },
+        'jeeves-x': { env: { JEEVES_SCRIPTS_DIR: root } },
+        other: { env: { TOKEN: 'x' } },
+      },
+    };
+    expect(uninstallChange({ root, skills: SKILLS, config })).toEqual({
+      sets: [],
+      unsets: [
+        'skills.load.extraDirs',
+        'skills.entries.jeeves-email.env',
+        'skills.entries.jeeves-x',
+      ],
+    });
+    const { other: _other, ...ours } = config.entries;
+    expect(
+      uninstallChange({
+        root,
+        skills: SKILLS,
+        config: {
+          entries: {
+            ...ours,
+            'jeeves-email': { env: { JEEVES_SCRIPTS_DIR: root } },
+          },
+        },
+      }),
+    ).toEqual({ sets: [], unsets: ['skills.entries'] });
   });
 });
 
@@ -193,10 +225,7 @@ describe('runSkills', () => {
 
     expect(confirm).not.toHaveBeenCalled();
     expect(fake.config).toEqual({
-      skills: {
-        load: { extraDirs: ['/keep'] },
-        entries: { 'jeeves-email': { env: {} }, 'jeeves-x': { env: {} } },
-      },
+      skills: { load: { extraDirs: ['/keep'] } },
     });
   });
 
@@ -227,10 +256,12 @@ describe('runSkills', () => {
       run,
       yes: true,
       log,
+      error: (line) => lines.push(`stderr: ${line}`),
     });
 
     expect(code).toBe(1);
-    expect(lines.at(-1)).toMatch(
+    expect(lines.at(-1)).toMatch(/^stderr: /);
+    expect(lines.at(-1)?.slice('stderr: '.length)).toMatch(
       /^skills install: FAILED: openclaw config set failed \(exit 1\): invalid config$/,
     );
   });
@@ -238,9 +269,15 @@ describe('runSkills', () => {
   it('exits 1 when openclaw is missing', async () => {
     const run: RunCommand = () =>
       Promise.reject(new Error('spawn openclaw ENOENT'));
+    const error = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
     expect(await runSkills('status', { root, skills: SKILLS, run, log })).toBe(
       1,
     );
-    expect(lines).toEqual(['skills status: FAILED: spawn openclaw ENOENT']);
+    expect(lines).toEqual([]);
+    expect(error).toHaveBeenCalledWith(
+      'skills status: FAILED: spawn openclaw ENOENT',
+    );
   });
 });
