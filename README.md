@@ -41,9 +41,9 @@ npm run docs         # TypeDoc; warnings are errors
 
 Every file in this repo — library code, CLI code, tests, and tool config files alike (`eslint.config.ts`, `rollup.config.ts`, `knip.ts`, `prettier.config.ts`, `tsconfig.json`) — is linted with strict, type-aware `typescript-eslint` (`strictTypeChecked` + `stylisticTypeChecked`) and type-checked with strict `tsc`. No file is excluded from type-aware linting and `eslint-disable` is never used; if a rule can't be satisfied the code is fixed instead.
 
-### Instance-Agnostic Guard
+### Instance-Agnostic Additions
 
-Core is public (Decision 18), so nothing in it may identify a particular instance. packages/core/test/instance-agnostic.test.ts scans core's source, guides, skills, tests, scripts, job manifests and README, and the template package, and fails on any instance-identifying text: instance and client names, an instance host's drive, an owner's account used as data, real people, and real Slack, Notion or Google Drive ids. The rules live in one place, [packages/core/test/instance-agnostic.deny-list.ts](packages/core/test/instance-agnostic.deny-list.ts), which documents how to add one. Examples use neutral values (Jane Doe, example.com, cme, /base, C000EXAMPLE1). It runs with the tests on Linux and Windows CI and is a release gate.
+Core is public and shared by every instance, so every addition must be generic. [AGENTS.md](AGENTS.md#instance-agnostic-additions-mandatory) sets out the confirmation every contributor (human or assistant) must make, and the PR template asks for it.
 
 ### Held-back Dependencies
 

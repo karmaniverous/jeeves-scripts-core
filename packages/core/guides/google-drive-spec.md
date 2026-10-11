@@ -505,7 +505,7 @@ jobs/google-drive.json   job "google-drive-sync", every 13 min, overlap skip, ti
                          scopes (VCS exclusion deferred: jeeves-watcher#253)"
 ```
 
-Tests co-located for `naming`, `classify`, `plan` (including the §7 tree cases and the worked example), `resolve-path` (with a fake drive client), `config`. All files < 300 LOC, quality gates clean, instance-agnostic guard passing in the template PR.
+Tests co-located for `naming`, `classify`, `plan` (including the §7 tree cases and the worked example), `resolve-path` (with a fake drive client), `config`. All files < 300 LOC, quality gates clean.
 
 ### 9.1 `src/google-drive/README.md` (assistant-facing)
 

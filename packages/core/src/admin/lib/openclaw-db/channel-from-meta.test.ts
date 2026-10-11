@@ -147,10 +147,7 @@ describe('resolveChannel', () => {
   it('strips trailing punctuation from text-rule keys', () => {
     const head = [
       sessionHeader('s2'),
-      userMessage(
-        // instance-agnostic-allow: fixture for Windows drive-path repo detection
-        '[Subagent Task] Fix the build in X:\\repos\\acme\\widget.',
-      ),
+      userMessage('[Subagent Task] Fix the build in X:\\repos\\acme\\widget.'),
     ];
     expect(resolveChannel(undefined, head).key).toBe(
       'subagent:repo:acme/widget',
