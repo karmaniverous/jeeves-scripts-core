@@ -53,7 +53,7 @@ const manifest = (
   domain,
   name: id,
   description: `manifest ${id}`,
-  schedule: { freq: 'hourly' },
+  schedule: { freq: 'hourly', timezone: 'UTC' },
   overlap_policy: 'skip',
   timeout_seconds: 60,
   enabled: true,

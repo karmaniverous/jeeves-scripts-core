@@ -4,35 +4,13 @@
  * Zod schema for the `jobs` block of `jeeves-scripts.json`: instance
  * deltas per job id (Decisions 5, 40). There is no `extensions` block
  * (Decision 50): a seam and its config arrive only on evidence (Decision
- * 8). The runner schedule shape is
- * shared with core's job manifests (`jobs/manifest`).
+ * 8). The schedule is the runner's (`config/schedule-schema`), shared
+ * with core's job manifests (`jobs/manifest`).
  */
 
 import { z } from 'zod';
 
-/**
- * A jeeves-runner schedule: either a recurrence (`freq` with `interval`,
- * `byhour`, `byminute`, `timezone`, ...) or a rule set (`rules`). Fields
- * the runner adds later pass through unchanged.
- */
-export const scheduleSchema = z
-  .looseObject({
-    /** Frequency unit (runner schedule syntax, e.g. `minutely`, `daily`). */
-    freq: z.string().optional(),
-    /** Interval in `freq` units. */
-    interval: z.number().int().positive().optional(),
-    /** Hour(s) of the day for daily schedules. */
-    byhour: z.union([z.number().int(), z.array(z.number().int())]).optional(),
-    /** Minute(s) of the hour. */
-    byminute: z.union([z.number().int(), z.array(z.number().int())]).optional(),
-    /** IANA time zone the schedule is evaluated in. */
-    timezone: z.string().optional(),
-    /** Rule-based schedule (runner `rules` syntax). */
-    rules: z.array(z.unknown()).optional(),
-  })
-  .refine((s) => s.freq !== undefined || s.rules !== undefined, {
-    message: 'a schedule needs freq or rules',
-  });
+import { scheduleSchema } from './schedule-schema.js';
 
 /** An instance's changes to one core job (Decision 5). */
 export const jobDeltaSchema = z.object({

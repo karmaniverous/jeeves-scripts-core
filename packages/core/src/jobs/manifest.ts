@@ -19,7 +19,8 @@ import { fileURLToPath } from 'node:url';
 
 import { z } from 'zod';
 
-import { type JobDelta, scheduleSchema } from '../config/jobs-schema.js';
+import type { JobDelta } from '../config/jobs-schema.js';
+import { scheduleSchema } from '../config/schedule-schema.js';
 
 /** One scheduled core job, as its manifest file holds it. */
 export const manifestEntrySchema = z.strictObject({
@@ -27,7 +28,7 @@ export const manifestEntrySchema = z.strictObject({
   name: z.string().min(1),
   /** What the job does. */
   description: z.string().min(1),
-  /** Default schedule. */
+  /** Default schedule, in any form the runner accepts (`config/schedule-schema`). */
   schedule: scheduleSchema,
   /** Default arguments after `run <id>`. */
   args: z.array(z.string()).optional(),

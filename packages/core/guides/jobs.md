@@ -70,7 +70,15 @@ Scheduled core jobs have a manifest in core, `jobs/<domain>.json`: an object key
 }
 ```
 
-`schedule` is any jeeves-runner schedule object (a recurrence with `freq`, `interval`, `byhour`, `byminute`, `timezone`, or a `rules` set). `timeout_seconds` is optional, as in the runner: without it the job has no timeout. A non-null `prerequisite` says what must be set up first; deploy registers only jobs without one. Every manifest is validated with Zod; an invalid entry or an id in two files fails with the file name.
+`schedule` takes every form a jeeves-runner job's schedule takes, and only those (Decision 54): it is validated with the runner's own `validateSchedule`, so a manifest is valid exactly when the runner would accept its schedule.
+
+| Form | Example | Time zone |
+| --- | --- | --- |
+| Cron expression (croner: five, six or seven fields, or a nickname such as `@daily`) | `"17 */6 * * *"` | The runner host's |
+| RRStack, flat: `freq` and `timezone` plus any RRule option (`interval`, `byhour`, `byminute`, `byweekday`, ...) | `{ "freq": "daily", "byhour": 6, "byminute": 0, "timezone": "UTC" }` | `timezone` (an IANA zone), required |
+| RRStack, full: `timezone`, optional `timeUnit`, `rules` | `{ "timezone": "UTC", "timeUnit": "ms", "rules": [{ "effect": "event", "options": { "freq": "minutely", "interval": 11 } }] }` | `timezone`, required |
+
+An RRStack schedule may also be written as its JSON string. The runner stores a schedule as a string: a string as written, an object as its JSON (`scheduleText`). An invalid schedule fails with the runner's message. `timeout_seconds` is optional, as in the runner: without it the job has no timeout. A non-null `prerequisite` says what must be set up first; deploy registers only jobs without one. Every manifest is validated with Zod; an invalid entry or an id in two files fails with the file name.
 
 An instance's own manifests are `{root}/jobs/*.json` in the same format. Each id must be a registered runnable that has no core manifest: an instance runnable, or a core runnable that ships without one (for example `x-post`, Decision 50). A core manifest is changed only by a delta (below). `list` fails, naming the file, on an instance manifest that breaks these rules.
 
@@ -81,7 +89,9 @@ An instance never copies a core manifest. It adjusts a runnable's manifest (core
 ```json
 {
   "jobs": {
-    "slack-poll": { "schedule": { "freq": "minutely", "interval": 5 } },
+    "slack-poll": {
+      "schedule": { "freq": "minutely", "interval": 5, "timezone": "UTC" }
+    },
     "email-backfill-historical": { "enabled": false },
     "google-drive-sync": {
       "env": { "JR_DB_PATH": "/base/state/runner/runner.sqlite" }
@@ -160,5 +170,6 @@ const { reportChannel } = localConfig<typeof configSchema>();
 | `src/jobs/runnables.ts` | Registration: `buildRunnables`, `readInstanceManifests`, `registeredManifests` |
 | `src/cli/load-plugin.ts` | Loads `jeeves-scripts.plugin.ts` with tsx |
 | `src/jobs/manifest.ts` | Manifest schema, `readCoreManifests`, `applyDelta`, `effectiveManifests` |
-| `src/config/jobs-schema.ts` | The `jobs` delta and runner schedule schemas |
+| `src/config/jobs-schema.ts` | The `jobs` delta schema |
+| `src/config/schedule-schema.ts` | The schedule schema (the runner's `validateSchedule`) and `scheduleText` |
 | `jobs/<domain>.json` | Core's manifests |

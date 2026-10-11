@@ -16,7 +16,7 @@ const base: JobManifest = {
   domain: 'acme',
   name: 'Acme Poll',
   description: 'Polls Acme.',
-  schedule: { freq: 'minutely', interval: 5 },
+  schedule: { freq: 'minutely', interval: 5, timezone: 'UTC' },
   args: ['--quiet'],
   env: { A: '1', B: '2' },
   overlap_policy: 'skip',
@@ -62,11 +62,20 @@ describe('readCoreManifests (fixtures)', () => {
     );
   });
 
-  it('fails on a schedule with neither freq nor rules', () => {
+  it('fails on a schedule the runner rejects, with its message', () => {
     write('acme.json', {
-      'acme-poll': { ...entry, schedule: { interval: 5 } },
+      'acme-poll': { ...entry, schedule: { freq: 'hourly', interval: 4 } },
     });
-    expect(() => readCoreManifests(dir)).toThrow(/freq or rules/);
+    expect(() => readCoreManifests(dir)).toThrow(
+      /jobs\/acme\.json[\s\S]*Invalid RRStack schedule[\s\S]*timezone/,
+    );
+  });
+
+  it('accepts a cron schedule', () => {
+    write('acme.json', {
+      'acme-poll': { ...entry, schedule: '17 */6 * * *' },
+    });
+    expect(readCoreManifests(dir)[0]?.schedule).toBe('17 */6 * * *');
   });
 
   it('accepts an entry without a timeout (none, as in the runner)', () => {

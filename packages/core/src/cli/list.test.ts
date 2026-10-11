@@ -39,7 +39,7 @@ const registry = [
 const fields = {
   name: 'Poll',
   description: 'Poll mail.',
-  schedule: { freq: 'minutely', interval: 13 },
+  schedule: { freq: 'minutely', interval: 13, timezone: 'UTC' },
   overlap_policy: 'skip',
   timeout_seconds: 300,
   enabled: true,
@@ -139,7 +139,11 @@ describe('listRunnables', () => {
       ['email-poll', 'core', 'email', false, 'Poll mail.'],
       ['x-post', 'core', 'x', false, 'Post hourly.'],
     ]);
-    expect(entries[3]?.schedule).toEqual({ freq: 'minutely', interval: 13 });
+    expect(entries[3]?.schedule).toEqual({
+      freq: 'minutely',
+      interval: 13,
+      timezone: 'UTC',
+    });
     expect(entries[3]?.manifest).toMatchObject({
       id: 'email-poll',
       enabled: false,
@@ -193,5 +197,21 @@ describe('formatList', () => {
       'email-poll  core      {"freq":"hourly"}  true     Poll mail.',
       'x-post      override                              Publish.',
     ]);
+  });
+
+  it('prints a cron schedule as written', () => {
+    expect(
+      formatList([
+        {
+          id: 'acme-poll',
+          source: 'instance',
+          domain: 'acme',
+          schedule: '*/5 * * * *',
+          enabled: true,
+          description: 'Poll.',
+          manifest: null,
+        },
+      ])[1],
+    ).toBe('acme-poll  instance  */5 * * * *  true     Poll.');
   });
 });

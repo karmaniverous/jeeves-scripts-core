@@ -15,6 +15,7 @@
  */
 
 import { loadConfig } from '../config/loader.js';
+import { scheduleText } from '../config/schedule-schema.js';
 import { type JobManifest, readCoreManifests } from '../jobs/manifest.js';
 import { loadJob } from '../jobs/registry.js';
 import {
@@ -113,7 +114,7 @@ export const formatList = (entries: readonly ListEntry[]): string[] => {
     ...entries.map((e) => [
       e.id,
       e.source,
-      e.schedule === null ? '' : JSON.stringify(e.schedule),
+      e.schedule === null ? '' : scheduleText(e.schedule),
       e.enabled === null ? '' : String(e.enabled),
       e.description,
     ]),

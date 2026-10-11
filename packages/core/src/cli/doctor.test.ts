@@ -28,7 +28,7 @@ const registry: RegistryEntry[] = [
 const fields = {
   name: 'Poll',
   description: 'Poll mail.',
-  schedule: { freq: 'minutely', interval: 13 },
+  schedule: { freq: 'minutely', interval: 13, timezone: 'UTC' },
   overlap_policy: 'skip',
   timeout_seconds: 300,
   enabled: true,

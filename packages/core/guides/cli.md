@@ -74,11 +74,11 @@ Running a core module by path (`node dist/<domain>/<module>.js`) runs nothing: r
 | --- | --- |
 | `id` | The runnable id |
 | `source` | `core`, `instance`, or `override` (a plugin override of a core id) |
-| `schedule` | The effective schedule after instance deltas, as compact JSON, when it has a manifest; blank otherwise |
+| `schedule` | The effective schedule after instance deltas, as the runner stores it (a cron string as written, an RRStack object as compact JSON), when it has a manifest; blank otherwise |
 | `enabled` | The effective `enabled` after deltas, when it has a manifest; blank otherwise |
 | `description` | The manifest's `description`, else the `defineJob` one |
 
-`--json` prints an array with one object per runnable: the same fields (`schedule` and `enabled` are `null` without a manifest) plus `domain` and `manifest` (the effective manifest after deltas, or `null`). jeeves-tools registers runner jobs from it: every entry with a manifest whose `prerequisite` is `null`. `list` reads the instance config (for deltas), loads the plugin, reads core's and the instance's manifests, and imports the modules of runnables without a manifest to read their descriptions.
+`--json` prints an array with one object per runnable: the same fields (`schedule` and `enabled` are `null` without a manifest) plus `domain` and `manifest` (the effective manifest after deltas, or `null`). `schedule` is as written: a string (cron, or RRStack JSON) or an RRStack object ([jobs](./jobs.md#manifests)); the runner job's `schedule` is the string, or the object's JSON. A manifest without `timeout_seconds` registers a job with no timeout. jeeves-tools registers runner jobs from it: every entry with a manifest whose `prerequisite` is `null`. `list` reads the instance config (for deltas), loads the plugin, reads core's and the instance's manifests, and imports the modules of runnables without a manifest to read their descriptions.
 
 ## Init
 
