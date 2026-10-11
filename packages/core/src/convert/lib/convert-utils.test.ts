@@ -133,7 +133,7 @@ describe('convert-utils', () => {
         'pages: 2',
         '---',
       ]);
-      expect(JSON.parse(lines[1].slice('source: '.length))).toBe(source);
+      expect(JSON.parse(lines[1]?.slice('source: '.length) ?? '')).toBe(source);
     });
 
     it('handles empty frontmatter', () => {

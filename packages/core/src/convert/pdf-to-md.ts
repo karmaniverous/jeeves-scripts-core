@@ -13,13 +13,13 @@
 import { readFileSync } from 'node:fs';
 
 import { getArg, runScript } from '@karmaniverous/jeeves';
-import { PDFParse } from 'pdf-parse';
 
 import {
   findFiles,
   needsConversion,
   writeMdFile,
 } from './lib/convert-utils.js';
+import { extractPdfText } from './lib/pdf-text.js';
 
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
@@ -44,10 +44,7 @@ async function main(): Promise<void> {
 
     try {
       console.log(`CONVERT ${filePath}`);
-      const buffer = readFileSync(filePath);
-      const parser = new PDFParse({ data: buffer });
-      const textResult = await parser.getText();
-      await parser.destroy();
+      const textResult = await extractPdfText(readFileSync(filePath));
 
       writeMdFile(
         mdPath,

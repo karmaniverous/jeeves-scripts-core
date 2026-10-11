@@ -32,4 +32,5 @@ No external prerequisites. Uses bundled npm dependencies (`mammoth`, `pdf-parse`
 
 | File | Purpose |
 | --- | --- |
-| `lib/convert-utils.ts` | Shared utilities — `findFiles()`, `needsConversion()`, `writeMdFile()` |
+| `lib/convert-utils.ts` | Shared utilities - `findFiles()`, `needsConversion()`, `writeMdFile()` (frontmatter values JSON-quoted via `lib/frontmatter.ts`) |
+| `lib/pdf-text.ts` | `extractPdfText()`: pdf-parse text and page count; the parser is destroyed even when extraction fails |
