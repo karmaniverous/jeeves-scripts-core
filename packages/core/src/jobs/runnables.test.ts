@@ -203,4 +203,77 @@ describe('registeredManifests', () => {
       }),
     ).toThrow(/acme-gone/);
   });
+
+  it('requires a description of an instance runnable that has no manifest (Decision 57)', () => {
+    const plugin = definePlugin({
+      jobs: [job('acme-bare', 'acme'), job('acme-told', 'acme', 'Tells.')],
+    });
+    const input = {
+      runnables: buildRunnables({ registry, domains, plugin }),
+      coreManifests,
+      deltas: {},
+    };
+    expect(() =>
+      registeredManifests({ ...input, instanceManifests: [] }),
+    ).toThrow(
+      [
+        'Invalid jeeves-scripts.plugin.ts:',
+        '- runnable "acme-bare" has no manifest and no description; add description to its defineJob',
+      ].join('\n'),
+    );
+    expect(
+      registeredManifests({
+        ...input,
+        instanceManifests: [manifest('acme-bare', 'acme')],
+      }).has('acme-bare'),
+    ).toBe(true);
+  });
+});
+
+describe('overrides', () => {
+  const labelled: RegistryEntry = {
+    id: 'email-poll',
+    domain: 'email',
+    module: 'email/poll',
+    load: () =>
+      Promise.resolve({
+        default: defineJob({
+          id: 'email-poll',
+          domain: 'email',
+          description: 'Poll mail.',
+          name: 'email/poll',
+          crashDir: () => '/crash',
+          run: () => undefined,
+        }),
+      }),
+  };
+
+  it("keep the core runnable's crash label, crash directory and description (Decision 57)", async () => {
+    const [runnable] = buildRunnables({
+      registry: [labelled],
+      domains,
+      plugin: definePlugin({ overrides: [ov('email-poll')] }),
+    });
+    const job = await runnable?.load();
+    expect(job).toMatchObject({
+      id: 'email-poll',
+      name: 'email/poll',
+      description: 'Poll mail.',
+    });
+    expect(job?.crashDir?.()).toBe('/crash');
+  });
+
+  it('run under their id when the core module fails to load', async () => {
+    const [runnable] = buildRunnables({
+      registry: [
+        { ...labelled, load: () => Promise.reject(new Error('broken')) },
+      ],
+      domains,
+      plugin: definePlugin({ overrides: [ov('email-poll')] }),
+    });
+    const job = await runnable?.load();
+    expect(job?.id).toBe('email-poll');
+    expect(job?.name).toBeUndefined();
+    expect(job?.crashDir).toBeUndefined();
+  });
 });

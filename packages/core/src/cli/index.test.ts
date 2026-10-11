@@ -17,6 +17,25 @@ vi.mock('./package-info.js', async (importOriginal) => ({
 
 const root = path.resolve('/instance');
 
+const readFile = fs.readFileSync.bind(fs);
+
+/**
+ * Stub reading the instance's config file only: core's manifests (which
+ * `config check` registers, Decision 57) are still read from disk.
+ */
+const stubConfig = (json: unknown) =>
+  vi
+    .spyOn(fs, 'readFileSync')
+    .mockImplementation(((file: fs.PathOrFileDescriptor, ...rest: unknown[]) =>
+      String(file).endsWith('.json') &&
+      !String(file).includes(`${path.sep}jobs${path.sep}`) &&
+      !String(file).includes('/jobs/')
+        ? JSON.stringify(json)
+        : (readFile as (...a: unknown[]) => unknown)(
+            file,
+            ...rest,
+          )) as typeof fs.readFileSync);
+
 describe('jeeves-scripts CLI', () => {
   // test/setup.ts points JEEVES_SCRIPTS_CONFIG at a shared test config;
   // these tests exercise root/--config resolution, so unset it here.
@@ -36,11 +55,7 @@ describe('jeeves-scripts CLI', () => {
   });
 
   it('config check prints OK for a valid config under the root', async () => {
-    const read = vi
-      .spyOn(fs, 'readFileSync')
-      .mockReturnValue(
-        JSON.stringify({ instance: { name: 'test', baseDir: '/base' } }),
-      );
+    const read = stubConfig({ instance: { name: 'test', baseDir: '/base' } });
     const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
     await buildProgram({ root }).parseAsync(['config', 'check'], {
@@ -78,9 +93,7 @@ describe('jeeves-scripts CLI', () => {
   });
 
   it('main accepts a file URL root, as the launcher passes it, and returns the exit code', async () => {
-    vi.spyOn(fs, 'readFileSync').mockReturnValue(
-      JSON.stringify({ instance: { name: 'test', baseDir: '/base' } }),
-    );
+    stubConfig({ instance: { name: 'test', baseDir: '/base' } });
     vi.spyOn(console, 'log').mockImplementation(() => undefined);
 
     const code = await main({

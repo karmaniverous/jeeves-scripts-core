@@ -57,7 +57,7 @@ const buildConfigCommand = (root: string) => {
   config
     .command('check')
     .description(
-      "Validate jeeves-scripts.json against the core schema and its silo references, and its local block against the plugin's configSchema.",
+      "Validate jeeves-scripts.json against the core schema and its silo references, its local block against the plugin's configSchema, and the plugin's runnables, the instance manifests and the jobs deltas as list registers them.",
     )
     .option(
       '--config <file>',
@@ -65,12 +65,13 @@ const buildConfigCommand = (root: string) => {
     )
     .action(async (options) => {
       const result = await instanceConfigCheck(root, options.config);
-      const where = result.configPath ?? 'unresolved path';
+      const where =
+        result.configPath === undefined ? '' : ` (${result.configPath})`;
       if (result.ok) {
-        console.log(`config check: OK (${where})`);
+        console.log(`config check: OK${where}`);
         return;
       }
-      console.error(`config check: FAILED (${where})`);
+      console.error(`config check: FAILED${where}`);
       for (const error of result.errors) console.error(error);
       process.exitCode = 1;
     });

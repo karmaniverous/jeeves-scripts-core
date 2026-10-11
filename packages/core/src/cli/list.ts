@@ -38,7 +38,7 @@ export interface ListEntry {
   schedule: JobManifest['schedule'] | null;
   /** Effective `enabled`, or `null` without a manifest. */
   enabled: boolean | null;
-  /** The manifest's description, else the `defineJob` one (`''` if neither). */
+  /** The manifest's description, else the `defineJob` one. */
   description: string;
   /** The effective manifest after deltas, or `null`. */
   manifest: JobManifest | null;
@@ -49,6 +49,28 @@ export interface ListOptions extends RegisterOptions {
   /** Core's manifests. Default: core's shipped `jobs/`. */
   coreManifests?: readonly JobManifest[];
 }
+
+/**
+ * Register an instance (plugin load and registration, {@link registerInstance})
+ * and resolve every runnable's effective manifest: what `list` and
+ * `config check` validate.
+ *
+ * @throws On a plugin load or registration error, an invalid manifest or
+ *   an invalid delta.
+ */
+export const registerWithManifests = async (
+  root: string,
+  options: ListOptions = {},
+): Promise<{ runnables: Runnable[]; manifests: Map<string, JobManifest> }> => {
+  const runnables = await registerInstance(root, options);
+  const manifests = registeredManifests({
+    runnables,
+    coreManifests: options.coreManifests ?? readCoreManifests(),
+    instanceManifests: readInstanceManifests(root),
+    deltas: loadConfig().jobs,
+  });
+  return { runnables, manifests };
+};
 
 /** A shell-style glob (`*`, `?`, `[...]`) as an anchored RegExp. */
 export const globToRegExp = (glob: string): RegExp => {
@@ -83,13 +105,7 @@ export const listRunnables = async (
   glob = '*',
   options: ListOptions = {},
 ): Promise<ListEntry[]> => {
-  const runnables = await registerInstance(root, options);
-  const manifests = registeredManifests({
-    runnables,
-    coreManifests: options.coreManifests ?? readCoreManifests(),
-    instanceManifests: readInstanceManifests(root),
-    deltas: loadConfig().jobs,
-  });
+  const { runnables, manifests } = await registerWithManifests(root, options);
   const match = globToRegExp(glob);
   const entries: ListEntry[] = [];
   for (const r of runnables.filter((x) => match.test(x.id))) {

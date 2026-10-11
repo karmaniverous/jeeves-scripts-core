@@ -13,14 +13,23 @@
  * - an override names a core runnable, at most once;
  * - an instance manifest names a registered runnable that has no core
  *   manifest: an instance runnable, or a manifest-less core runnable
- *   (Decision 50); a core manifest changes only through deltas.
+ *   (Decision 50); a core manifest changes only through deltas;
+ * - an instance runnable without a manifest has a `defineJob` description
+ *   (`list` shows it; Decision 57).
+ *
+ * An override runs under the core runnable's crash label and crash
+ * directory (Decision 57).
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 
 import type { JobDelta } from '../config/jobs-schema.js';
-import { defineJob, type JobModule } from './define-job.js';
+import {
+  defineJob,
+  type JobDeclaration,
+  type JobModule,
+} from './define-job.js';
 import {
   effectiveManifests,
   type JobManifest,
@@ -47,9 +56,33 @@ export interface Runnable {
   source: RunnableSource;
   /** Core's registry entry (core runnables and overrides). */
   core?: RegistryEntry;
+  /** An instance runnable's `defineJob` description, known at registration. */
+  description?: string;
   /** The runnable to run. */
   load: () => Promise<JobModule>;
 }
+
+/**
+ * The core runnable's crash label, crash directory and description, which
+ * its override keeps (Decision 57). When the core module fails to load
+ * (perhaps why it is overridden), the override runs with its id as the
+ * label and the working directory as the crash directory.
+ */
+const coreLabels = async (
+  entry: RegistryEntry,
+): Promise<Pick<JobDeclaration, 'name' | 'crashDir' | 'description'>> => {
+  let job: JobModule;
+  try {
+    job = await loadJob(entry);
+  } catch {
+    return {};
+  }
+  return {
+    ...(job.name === undefined ? {} : { name: job.name }),
+    ...(job.crashDir === undefined ? {} : { crashDir: job.crashDir }),
+    ...(job.description === undefined ? {} : { description: job.description }),
+  };
+};
 
 /** Inputs to {@link buildRunnables}. */
 export interface BuildRunnablesInput {
@@ -103,15 +136,14 @@ export const buildRunnables = ({
         domain: entry.domain,
         source: 'override',
         core: entry,
-        load: () =>
-          Promise.resolve(
-            defineJob({
-              id: entry.id,
-              domain: entry.domain,
-              ...(o.prerequisite ? { prerequisite: o.prerequisite } : {}),
-              run: o.run,
-            }),
-          ),
+        load: async () =>
+          defineJob({
+            id: entry.id,
+            domain: entry.domain,
+            ...(await coreLabels(entry)),
+            ...(o.prerequisite ? { prerequisite: o.prerequisite } : {}),
+            run: o.run,
+          }),
       });
   }
 
@@ -135,6 +167,9 @@ export const buildRunnables = ({
       id: job.id,
       domain: job.domain,
       source: 'instance',
+      ...(job.description === undefined
+        ? {}
+        : { description: job.description }),
       load: () => Promise.resolve(job),
     })),
   ].sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -168,8 +203,9 @@ export interface RegisteredManifestsInput {
  * Every runnable's effective manifest (deltas applied), keyed by id;
  * runnables without one are absent.
  *
- * @throws When an instance manifest breaks a rule in the module doc, or a
- *   delta names an unregistered id.
+ * @throws When an instance manifest breaks a rule in the module doc, a
+ *   delta names an unregistered id, or an instance runnable has neither a
+ *   manifest nor a description.
  */
 export const registeredManifests = ({
   runnables,
@@ -196,10 +232,24 @@ export const registeredManifests = ({
     throw new Error(
       `Invalid instance manifests:\n${problems.map((p) => `- ${p}`).join('\n')}`,
     );
-  const effective = effectiveManifests({
-    manifests: [...coreManifests, ...instance],
-    deltas,
-    knownIds: new Set(byId.keys()),
-  });
-  return new Map(effective.map((m) => [m.id, m]));
+  const effective = new Map(
+    effectiveManifests({
+      manifests: [...coreManifests, ...instance],
+      deltas,
+      knownIds: new Set(byId.keys()),
+    }).map((m) => [m.id, m]),
+  );
+  const undescribed = runnables.filter(
+    (r) => r.source === 'instance' && !effective.has(r.id) && !r.description,
+  );
+  if (undescribed.length > 0)
+    throw new Error(
+      `Invalid jeeves-scripts.plugin.ts:\n${undescribed
+        .map(
+          (r) =>
+            `- runnable "${r.id}" has no manifest and no description; add description to its defineJob`,
+        )
+        .join('\n')}`,
+    );
+  return effective;
 };

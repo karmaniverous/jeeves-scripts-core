@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
+import { defineJob } from '../jobs/define-job.js';
 import { definePlugin, resetLocalConfig } from '../jobs/plugin.js';
 import { instanceConfigCheck } from './config-check.js';
 import { loadPlugin, PLUGIN_FILE } from './load-plugin.js';
@@ -100,6 +101,56 @@ describe('instanceConfigCheck', () => {
       },
     });
     expect(seen).toBe(path.join(root, 'jeeves-scripts.json'));
+  });
+
+  /** A plugin registering these runnables. */
+  const pluginWith =
+    (...jobs: ReturnType<typeof defineJob>[]) =>
+    () =>
+      Promise.resolve(definePlugin({ jobs }));
+
+  it('reports a plugin runnable in a core domain, as list does (R45)', async () => {
+    writeConfig({});
+    const result = await instanceConfigCheck(root, undefined, {
+      loadPlugin: pluginWith(
+        defineJob({
+          id: 'email-extra',
+          domain: 'email',
+          description: 'Extra.',
+          run: () => undefined,
+        }),
+      ),
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).toMatch(
+      /runnable "email-extra": domain "email" is a core domain/,
+    );
+  });
+
+  it('reports a delta naming an unknown runnable id, as list does (R16)', async () => {
+    writeConfig({ jobs: { 'nope-x': { enabled: false } } });
+    const result = await instanceConfigCheck(root, undefined, {
+      loadPlugin: pluginWith(),
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      configPath: path.join(root, 'jeeves-scripts.json'),
+    });
+    expect(result.errors.join('\n')).toMatch(
+      /unknown runnable id\(s\): nope-x/,
+    );
+  });
+
+  it('reports an instance runnable with neither a manifest nor a description', async () => {
+    writeConfig({});
+    const result = await instanceConfigCheck(root, undefined, {
+      loadPlugin: pluginWith(
+        defineJob({ id: 'acme-bare', domain: 'acme', run: () => undefined }),
+      ),
+    });
+    expect(result.errors.join('\n')).toMatch(
+      /"acme-bare" has no manifest and no description/,
+    );
   });
 
   it('checks an explicit --config file', async () => {
