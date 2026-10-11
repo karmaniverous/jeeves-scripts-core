@@ -3,23 +3,29 @@ import fs from 'node:fs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { configCheck } from './check.js';
-import { resetConfig } from './loader.js';
+import { CONFIG_PATH_ENV, resetConfig } from './loader.js';
 
 const options = { root: '/root' };
 
 describe('configCheck', () => {
+  // test/setup.ts points JEEVES_SCRIPTS_CONFIG at a shared test config;
+  // these tests exercise root/configPath resolution, so unset it here.
+  const savedEnv = process.env[CONFIG_PATH_ENV];
+
   beforeEach(() => {
+    Reflect.deleteProperty(process.env, CONFIG_PATH_ENV);
     resetConfig();
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
+    process.env[CONFIG_PATH_ENV] = savedEnv;
     resetConfig();
   });
 
   it('passes for a valid config with no job silo references', () => {
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
-      JSON.stringify({ instance: { name: 'test', baseDir: 'J:/' } }),
+      JSON.stringify({ instance: { name: 'test', baseDir: '/base' } }),
     );
     const result = configCheck(options);
     expect(result.ok).toBe(true);
@@ -41,9 +47,9 @@ describe('configCheck', () => {
   it('fails when a job names an unknown silo', () => {
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
       JSON.stringify({
-        instance: { name: 'test', baseDir: 'J:/' },
+        instance: { name: 'test', baseDir: '/base' },
         siloRouting: {
-          silos: { veterancrowd: { basePath: 'J:/veterancrowd' } },
+          silos: { acme: { basePath: '/srv/acme' } },
         },
         jobs: { 'vc-daily-briefing': { silo: 'tcs' } },
       }),
@@ -56,11 +62,11 @@ describe('configCheck', () => {
   it('passes when a job names a known silo', () => {
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
       JSON.stringify({
-        instance: { name: 'test', baseDir: 'J:/' },
+        instance: { name: 'test', baseDir: '/base' },
         siloRouting: {
-          silos: { veterancrowd: { basePath: 'J:/veterancrowd' } },
+          silos: { acme: { basePath: '/srv/acme' } },
         },
-        jobs: { 'vc-daily-briefing': { silo: 'veterancrowd' } },
+        jobs: { 'acme-daily-briefing': { silo: 'acme' } },
       }),
     );
     const result = configCheck(options);

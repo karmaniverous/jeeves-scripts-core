@@ -14,6 +14,7 @@
     "node": ">=22.13"
   },
   "dependencies": {
+    "@karmaniverous/jeeves": "^0.6.0",
     "@karmaniverous/jeeves-scripts-core": "*"
   },
   "devDependencies": {

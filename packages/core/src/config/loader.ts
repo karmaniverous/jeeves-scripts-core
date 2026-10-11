@@ -6,7 +6,7 @@
  * instance repo root explicitly; resolution never depends on the working
  * directory. `--config` / `JEEVES_SCRIPTS_CONFIG` replace the file
  * location only. The loader is lazy and cached with a reset, matching
- * today's `pipeline-config.ts` / `silo-router.ts` pattern.
+ * the template's `pipeline-config.ts` / `silo-router.ts` pattern.
  */
 
 import fs from 'node:fs';

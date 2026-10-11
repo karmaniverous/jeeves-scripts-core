@@ -2,7 +2,7 @@
  * @module config/integrations-schema
  *
  * Zod schema for the `integrations` block of `jeeves-scripts.json`:
- * today's `constants/integrations.ts` and `constants/trackers.ts` plus
+ * the template's `constants/integrations.ts` and `constants/trackers.ts` plus
  * the Qdrant/gateway/gog settings from `constants/instance.ts`, as
  * instance-settable config (Decision 3). All fields are optional;
  * core derives sensible defaults from `instance.baseDir` and `paths`
@@ -25,30 +25,20 @@ export const ghIntegrationSchema = z.object({
 
 /** Qdrant (vector store) settings, used by the health check. */
 export const qdrantIntegrationSchema = z.object({
-  /** Qdrant HTTP API base URL. */
+  /**
+   * Qdrant HTTP API base URL. Default: the watcher's `vectorStore.url`
+   * (`{configDir}/jeeves-watcher/config.json`), else `http://localhost:6333`.
+   * Set it only when no watcher config names the Qdrant this instance uses.
+   */
   apiUrl: z.string().optional(),
   /** OS service name the health check restarts (case-sensitive on Windows). */
   serviceName: z.string().optional(),
-});
-
-/** OpenClaw gateway settings, used by dispatchers and gateway RPC. */
-export const gatewayIntegrationSchema = z.object({
-  /** Gateway host. */
-  host: z.string().optional(),
-  /** Gateway port. */
-  port: z.number().int().positive().optional(),
 });
 
 /** gog (Google Workspace CLI) settings; its home directory is `paths.gogHome`. */
 export const gogIntegrationSchema = z.object({
   /** Path to the `gog` executable. Default: `gog` on `PATH`. */
   bin: z.string().optional(),
-});
-
-/** Slack settings. */
-export const slackIntegrationSchema = z.object({
-  /** Team id of the instance's home Slack workspace. */
-  primaryWorkspace: z.string().optional(),
 });
 
 /** Notion settings. */
@@ -109,12 +99,8 @@ export const integrationsSchema = z.object({
   gh: ghIntegrationSchema.default({}),
   /** Qdrant. */
   qdrant: qdrantIntegrationSchema.default({}),
-  /** OpenClaw gateway. */
-  gateway: gatewayIntegrationSchema.default({}),
   /** gog. */
   gog: gogIntegrationSchema.default({}),
-  /** Slack. */
-  slack: slackIntegrationSchema.default({}),
   /** Notion. */
   notion: notionIntegrationSchema.default({}),
   /** Jira. */

@@ -1,0 +1,100 @@
+#!/usr/bin/env tsx
+/**
+ * @module dispatchers/social-posts
+ *
+ * EXAMPLE dispatcher for an instance repo: Generate Social Posts.
+ *
+ * Builds a social-post generation task from `pipeline.refs` and content
+ * paths, then dispatches a gateway session to execute it. Copy it into
+ * your instance's `src/dispatchers/` and customize the task template in
+ * {@link buildTask} for your content sources, post targets and editorial
+ * rules.
+ *
+ * Slack is handled by the script, not the worker (OpenClaw 2026.9 workers
+ * have no Slack tool): the worker returns its summary posts in a
+ * `slack-posts` block and the script posts them (core lib/worker-slack).
+ * `--dry-run` prints the posts instead; `--print-task` prints the TASK.
+ *
+ * Prerequisites (all `pipeline.refs` in jeeves-scripts.json):
+ * - `notion.socialPostsDatabaseId` — Notion database to write posts to
+ * - `slack.socialChannel` — Slack channel ID for posting summaries
+ * - `slack.operatorDm` — Slack user or DM channel ID for completion routing
+ *
+ * To run it, add an entry to the instance's jobs/*.json
+ * (`id: 'generate-social-posts'`, `script: 'src/dispatchers/social-posts.ts'`,
+ * a schedule) and run `jeeves-scripts run generate-social-posts`.
+ */
+
+import path from 'node:path';
+
+import { runScript } from '@karmaniverous/jeeves';
+
+import { tryGetRef } from '@karmaniverous/jeeves-scripts-core';
+import { constants } from '@karmaniverous/jeeves-scripts-core/lib/constants';
+import { dispatchWithSlack } from '@karmaniverous/jeeves-scripts-core/lib/worker-slack/run';
+import type { WorkerSlackConfig } from '@karmaniverous/jeeves-scripts-core/lib/worker-slack/worker-slack-config';
+
+const JOB_ID = 'generate-social-posts';
+
+/** The worker task and its allowed Slack posts, from `pipeline.refs`. */
+export function buildTask(): { task: string; slack: WorkerSlackConfig } {
+  const notionDb = tryGetRef('notion.socialPostsDatabaseId');
+  const socialChannel = tryGetRef('slack.socialChannel');
+  const operatorDm = tryGetRef('slack.operatorDm');
+
+  if (!notionDb || !socialChannel || !operatorDm) {
+    throw new Error(
+      'Missing required pipeline.refs in jeeves-scripts.json: notion.socialPostsDatabaseId, slack.socialChannel, slack.operatorDm',
+    );
+  }
+
+  const xDir = path.join(constants().CONTENT_DIR, 'x');
+  const githubDir = path.join(constants().CONTENT_DIR, 'github');
+  const emailDir = path.join(constants().CONTENT_DIR, 'email');
+  const globalDir = path.join(constants().CONTENT_DIR, 'global');
+
+  // Customize this task template for your instance's editorial rules,
+  // content sources, post targets, and volume requirements.
+  const task = `Generate social media content.
+
+Read:
+- ${path.join(xDir, 'blotter.md')} (PRIMARY — your editorial blotter)
+- ${path.join(githubDir, 'meta-summary.md')}, ${path.join(xDir, '.meta/meta.json')}, ${path.join(emailDir, '.meta/meta.json')}, ${path.join(globalDir, 'digest')}, ${path.join(globalDir, 'summary.md')}
+
+Write to Notion DB ${notionDb}.
+
+Generate posts based on your editorial direction in the blotter.
+
+LINK VERIFICATION: NEVER include unverified links. Use web_fetch to confirm.
+
+Then return a summary of the generated posts for the social channel (${socialChannel}) and a completion summary for the operator DM (${operatorDm}) as Slack posts (see the Slack section below).`;
+
+  return {
+    task,
+    slack: {
+      posts: [
+        {
+          target: socialChannel,
+          purpose: 'summary of the posts you generated',
+        },
+        {
+          target: operatorDm,
+          purpose: 'your completion summary (operator DM)',
+        },
+      ],
+    },
+  };
+}
+
+runScript('dispatchers/social-posts', async () => {
+  const notionDb = tryGetRef('notion.socialPostsDatabaseId');
+  if (!notionDb) {
+    console.log(
+      '[skip] Social posts dispatcher not configured — set pipeline.refs["notion.socialPostsDatabaseId"] in jeeves-scripts.json',
+    );
+    return;
+  }
+
+  const { task, slack } = buildTask();
+  await dispatchWithSlack(task, { jobId: JOB_ID, thinking: 'low' }, slack);
+});

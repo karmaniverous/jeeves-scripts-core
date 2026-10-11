@@ -9,9 +9,10 @@
     "ini",
     "javascript",
     "json",
-    "jsonc",
     "json5",
+    "jsonc",
     "md",
+    "mermaid",
     "powershell",
     "tsx",
     "typescript",
@@ -25,7 +26,11 @@
   },
   "out": "./docs/",
   "plugin": ["typedoc-plugin-mdn-links", "typedoc-plugin-replace-text"],
-  "projectDocuments": ["./packages/core/CHANGELOG.md"],
+  "projectDocuments": [
+    "./packages/core/README.md",
+    "./packages/core/guides/*.md",
+    "./packages/core/CHANGELOG.md"
+  ],
   "replaceText": {
     "replacements": [
       {
@@ -39,5 +44,6 @@
   "searchInDocuments": true,
   "validation": {
     "notDocumented": true
-  }
+  },
+  "treatWarningsAsErrors": true
 }
