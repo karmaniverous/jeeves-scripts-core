@@ -1,202 +1,94 @@
 /**
- * @module backfill
+ * @module linear/backfill
  *
- * One-time Linear backfill — populates the issue (or comment) archive
- * from the Linear GraphQL API via cursor pagination.
- *
- * Run manually when setting up a new instance or after a data loss event.
- * Existing entity files are skipped (webhook/sync data is fresher). Dry-run
- * mode is the default; pass `--live` for actual writes.
+ * One-time Linear backfill: populates the issue (or comment) archive under
+ * `{silo}/linear` from the GraphQL API by cursor pagination
+ * (`linear/lib/linear-sync`). Existing entity files are skipped
+ * (webhook and sync data is fresher). Dry run unless `--live`.
  *
  * Usage:
- *   jeeves-scripts run linear-backfill --team CRE [--type issue] [--live]
+ *   jeeves-scripts run linear-backfill --team ACME [--type issue] [--live]
  *
- * CLI arguments:
- *   --team KEY   Linear team key, e.g. CRE (required for type=issue)
+ * Arguments:
+ *   --team KEY   Linear team key, e.g. ACME (required for type=issue)
  *   --type TYPE  Entity type to backfill: issue | comment (default: issue)
- *   --live       Perform actual writes (default: dry-run)
+ *   --live       Perform actual writes (default: dry run)
  */
 
-import path from 'node:path';
-
-import { getArg, nowIso } from '@karmaniverous/jeeves';
-
-import { getBasePathForLinear } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
-import { constants } from '../lib/constants.js';
+import { flag, parseRunnableArgs, value } from '../lib/args.js';
 import { backfillEntity } from '../lib/entity-store.js';
 import {
-  enrichComment,
-  loadConfig,
-  paginateComments,
-  paginateIssues,
-  sleepMs,
-} from './lib/linear-client.js';
+  forEachLinearEntity,
+  linearConfigOrSkip,
+  type LinearJobDeps,
+  linearJobDeps,
+} from './lib/linear-sync.js';
 
-const DOMAIN_DIR = path.join(getBasePathForLinear(), 'linear');
-const RATE_LIMIT_MS = 200;
+const argSpec = {
+  team: value('--team'),
+  type: value('--type', 'issue'),
+  live: flag('--live'),
+};
 
-function hasFlag(args: string[], flag: string): boolean {
-  return args.includes(flag);
-}
-
-// ---------------------------------------------------------------------------
-// Issue backfill
-// ---------------------------------------------------------------------------
-
-async function backfillIssues(
-  teamKey: string,
-  now: string,
-  live: boolean,
-): Promise<{ created: number; skipped: number; failed: number }> {
-  const config = loadConfig();
-  let created = 0;
-  let skipped = 0;
-  let failed = 0;
-
-  for await (const issue of paginateIssues(config, teamKey)) {
-    const identifier = issue.identifier as string | undefined;
-    if (!identifier) {
-      console.error('[backfill] issue missing identifier, skipping');
-      failed++;
-      continue;
-    }
-
-    try {
-      if (live) {
-        const written = backfillEntity(
-          DOMAIN_DIR,
-          'issue',
-          identifier,
-          issue,
-          now,
-        );
-        if (written) {
-          created++;
-          console.log(`[backfill] created ${identifier}`);
-        } else {
-          skipped++;
-          console.log(`[backfill] skip   ${identifier} (exists)`);
-        }
-      } else {
-        console.log(`[backfill] dry-run ${identifier}`);
-        skipped++;
-      }
-    } catch (e) {
-      failed++;
-      console.error(
-        `[backfill] error ${identifier}: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    }
-
-    await sleepMs(RATE_LIMIT_MS);
-  }
-
-  return { created, skipped, failed };
-}
-
-// ---------------------------------------------------------------------------
-// Comment backfill
-// ---------------------------------------------------------------------------
-
-async function backfillComments(
-  now: string,
-  live: boolean,
-): Promise<{ created: number; skipped: number; failed: number }> {
-  const config = loadConfig();
-  let created = 0;
-  let skipped = 0;
-  let failed = 0;
-
-  for await (const comment of paginateComments(config)) {
-    const id = comment.id as string | undefined;
-    if (!id) {
-      console.error('[backfill] comment missing id, skipping');
-      failed++;
-      continue;
-    }
-
-    try {
-      const current = enrichComment(comment);
-
-      if (live) {
-        const written = backfillEntity(DOMAIN_DIR, 'comment', id, current, now);
-        if (written) {
-          created++;
-          console.log(`[backfill] created comment/${id}`);
-        } else {
-          skipped++;
-          console.log(`[backfill] skip   comment/${id} (exists)`);
-        }
-      } else {
-        console.log(`[backfill] dry-run comment/${id}`);
-        skipped++;
-      }
-    } catch (e) {
-      failed++;
-      console.error(
-        `[backfill] error comment/${id}: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    }
-
-    await sleepMs(RATE_LIMIT_MS);
-  }
-
-  return { created, skipped, failed };
-}
-
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
-
-async function backfillMain(): Promise<void> {
-  try {
-    loadConfig();
-  } catch {
-    console.log(
-      `[skip] Linear config not found at ${constants().LINEAR_CONFIG_PATH}`,
+/**
+ * Run the backfill. Missing credentials skip; an unsupported `--type`, an
+ * issue backfill without `--team` or any failed entity sets exit code 1.
+ */
+export async function linearBackfill(
+  args: readonly string[],
+  deps: LinearJobDeps,
+): Promise<void> {
+  const config = linearConfigOrSkip(deps);
+  if (!config) return;
+  const { team, type, live } = parseRunnableArgs(args, argSpec);
+  if (type !== 'issue' && type !== 'comment') {
+    console.error(
+      `[error] --type "${type}" is not supported (only "issue" or "comment")`,
     );
+    process.exitCode = 1;
+    return;
+  }
+  if (type === 'issue' && !team) {
+    console.error('[error] --team <key> is required for --type issue');
+    process.exitCode = 1;
     return;
   }
 
-  const argv = process.argv.slice(2);
-  const teamKey = getArg(argv, '--team', '');
-  const entityType = getArg(argv, '--type', 'issue');
-  const live = hasFlag(argv, '--live');
-
-  if (entityType !== 'issue' && entityType !== 'comment') {
-    console.error(
-      `[error] --type "${entityType}" is not supported (only "issue" or "comment")`,
-    );
-    process.exit(1);
-  }
-
-  if (entityType === 'issue' && !teamKey) {
-    console.error('[error] --team <key> is required for --type issue');
-    process.exit(1);
-  }
-
   console.log(
-    `[backfill] team=${teamKey || '(all)'} type=${entityType} live=${String(live)}`,
+    `[backfill] team=${team || '(all)'} type=${type} live=${String(live)}`,
   );
   if (!live)
-    console.log('[backfill] DRY-RUN mode — pass --live for actual writes');
+    console.log('[backfill] DRY-RUN mode \u2014 pass --live for actual writes');
 
-  const now = nowIso();
-  let stats: { created: number; skipped: number; failed: number };
-
-  if (entityType === 'issue') {
-    stats = await backfillIssues(teamKey, now, live);
-  } else {
-    stats = await backfillComments(now, live);
-  }
-
-  const { created, skipped, failed } = stats;
-  console.log(
-    `[backfill] done — created=${String(created)} skipped=${String(skipped)} failed=${String(failed)}`,
+  const now = deps.now();
+  const entities =
+    type === 'issue'
+      ? deps.paginate.issue(config, team)
+      : deps.paginate.comment(config);
+  const tally = await forEachLinearEntity(
+    type,
+    entities,
+    '[backfill]',
+    (key, snapshot, label) => {
+      if (!live) {
+        console.log(`[backfill] dry-run ${label}`);
+        return false;
+      }
+      const written = backfillEntity(deps.domainDir, type, key, snapshot, now);
+      console.log(
+        written
+          ? `[backfill] created ${label}`
+          : `[backfill] skip   ${label} (exists)`,
+      );
+      return written !== null;
+    },
+    deps,
   );
-
-  if (failed > 0) process.exit(1);
+  console.log(
+    `[backfill] done \u2014 created=${String(tally.stored)} skipped=${String(tally.skipped)} failed=${String(tally.failed)}`,
+  );
+  if (tally.failed > 0) process.exitCode = 1;
 }
 
 export default defineJob({
@@ -205,10 +97,5 @@ export default defineJob({
   description:
     'Seed the Linear issue or comment archive from a team (dry run unless --live).',
   name: 'linear/backfill',
-  run: () => {
-    backfillMain().catch((e: unknown) => {
-      console.error(e);
-      process.exit(1);
-    });
-  },
+  run: ({ args }) => linearBackfill(args, linearJobDeps()),
 });

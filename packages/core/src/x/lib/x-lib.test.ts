@@ -1,7 +1,7 @@
 /**
  * Tests for the modules split out of x-api: credential files and token
- * refresh (x-oauth), timeline reads (x-timelines) and write actions
- * (x-actions), with a fake XDK client and OAuth2.
+ * refresh (x-oauth, with an injected refresher), timeline reads
+ * (x-timelines) and write actions (x-actions), with a fake XDK client.
  */
 
 import fs from 'node:fs';
@@ -11,57 +11,49 @@ import path from 'node:path';
 import type { Client } from '@xdevplatform/xdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({
-  dir: '',
-  refreshToken: vi.fn(),
-  oauthOptions: [] as unknown[],
-}));
-
-vi.mock('../../lib/constants.js', () => ({
-  constants: () => ({ X_OAUTH_DIR: mocks.dir }),
-}));
-vi.mock('@xdevplatform/xdk', () => ({
-  OAuth2: class {
-    constructor(options: unknown) {
-      mocks.oauthOptions.push(options);
-    }
-    refreshToken = mocks.refreshToken;
-  },
-}));
-
-const {
+import {
+  createPost,
+  likePost,
+  repostPost,
+  unlikePost,
+  unrepostPost,
+} from './x-actions.js';
+import {
   getOAuthPath,
   readOAuthCredentials,
   refreshOAuth2Token,
   writeOAuthCredentials,
-} = await import('./x-oauth.js');
-const { pollBookmarks, pollHomeTimeline, pollUserTweets } =
-  await import('./x-timelines.js');
-const { createPost, likePost, repostPost, unlikePost, unrepostPost } =
-  await import('./x-actions.js');
+} from './x-oauth.js';
+import {
+  pollBookmarks,
+  pollHomeTimeline,
+  pollUserTweets,
+} from './x-timelines.js';
+
+let dir: string;
+const refresher = vi.fn();
 
 beforeEach(() => {
-  mocks.dir = fs.mkdtempSync(path.join(os.tmpdir(), 'x-lib-'));
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'x-lib-'));
 });
 
 afterEach(() => {
-  fs.rmSync(mocks.dir, { recursive: true, force: true });
-  mocks.oauthOptions.length = 0;
+  fs.rmSync(dir, { recursive: true, force: true });
   vi.clearAllMocks();
 });
 
 describe('x-oauth', () => {
-  it('stores credentials at {X_OAUTH_DIR}/x-<handle>-oauth2.json', () => {
-    expect(getOAuthPath('karma')).toBe(
-      path.join(mocks.dir, 'x-karma-oauth2.json'),
+  it('stores credentials at {oauthDir}/x-<handle>-oauth2.json', () => {
+    expect(getOAuthPath(dir, 'karma')).toBe(
+      path.join(dir, 'x-karma-oauth2.json'),
     );
-    expect(readOAuthCredentials('karma')).toBeNull();
-    writeOAuthCredentials('karma', {
+    expect(readOAuthCredentials(dir, 'karma')).toBeNull();
+    writeOAuthCredentials(dir, 'karma', {
       provider: 'x',
       account: 'karma',
       access_token: 'a',
     });
-    expect(readOAuthCredentials('karma')).toEqual({
+    expect(readOAuthCredentials(dir, 'karma')).toEqual({
       provider: 'x',
       account: 'karma',
       access_token: 'a',
@@ -69,24 +61,24 @@ describe('x-oauth', () => {
   });
 
   it('reads an unparseable file as no credentials', () => {
-    fs.writeFileSync(getOAuthPath('karma'), '{');
-    expect(readOAuthCredentials('karma')).toBeNull();
+    fs.writeFileSync(getOAuthPath(dir, 'karma'), '{');
+    expect(readOAuthCredentials(dir, 'karma')).toBeNull();
   });
 
   it('skips refresh without a refresh token or client credentials', async () => {
-    expect(await refreshOAuth2Token('nobody')).toBeNull();
-    writeOAuthCredentials('karma', {
+    expect(await refreshOAuth2Token(dir, 'nobody', refresher)).toBeNull();
+    writeOAuthCredentials(dir, 'karma', {
       provider: 'x',
       account: 'karma',
       access_token: 'a',
       clientId: 'id',
     });
-    expect(await refreshOAuth2Token('karma')).toBeNull();
-    expect(mocks.refreshToken).not.toHaveBeenCalled();
+    expect(await refreshOAuth2Token(dir, 'karma', refresher)).toBeNull();
+    expect(refresher).not.toHaveBeenCalled();
   });
 
   it('refreshes and writes the new tokens back, keeping the old refresh token if none is returned', async () => {
-    writeOAuthCredentials('karma', {
+    writeOAuthCredentials(dir, 'karma', {
       provider: 'x',
       account: 'karma',
       access_token: 'old',
@@ -94,32 +86,32 @@ describe('x-oauth', () => {
       clientId: 'id',
       clientSecret: 'secret',
     });
-    mocks.refreshToken.mockResolvedValue({
+    refresher.mockResolvedValue({
       access_token: 'new',
       token_type: 'bearer',
       scope: 'tweet.read',
       expires_in: 7200,
     });
-    await expect(refreshOAuth2Token('karma')).resolves.toEqual({
+    const at = new Date('2026-01-01T00:00:00Z');
+    await expect(
+      refreshOAuth2Token(dir, 'karma', refresher, () => at),
+    ).resolves.toEqual({
       accessToken: 'new',
       refreshToken: 'rt',
       tokenType: 'bearer',
       scope: 'tweet.read',
       expiresIn: 7200,
     });
-    expect(mocks.oauthOptions).toEqual([
-      {
-        clientId: 'id',
-        clientSecret: 'secret',
-        redirectUri: 'https://localhost',
-      },
-    ]);
-    expect(mocks.refreshToken).toHaveBeenCalledWith('rt');
-    expect(readOAuthCredentials('karma')).toMatchObject({
+    expect(refresher).toHaveBeenCalledWith(
+      { clientId: 'id', clientSecret: 'secret' },
+      'rt',
+    );
+    expect(readOAuthCredentials(dir, 'karma')).toMatchObject({
       access_token: 'new',
       refresh_token: 'rt',
       clientSecret: 'secret',
       expires_in: 7200,
+      obtained_at: at.toISOString(),
     });
   });
 });

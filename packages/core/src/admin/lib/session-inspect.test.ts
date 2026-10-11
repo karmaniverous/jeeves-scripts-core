@@ -1,21 +1,26 @@
 /**
- * Tests for session-refresh pure logic functions.
- * Does NOT test gateway calls — only threshold logic and JSONL parsing.
+ * Tests for the read-only session inspection helpers used by the session
+ * refresh: which sessions qualify, thresholds, and transcript tail parsing.
  */
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import {
   SESSION_REFRESH_CACHE_READ_THRESHOLD,
   SESSION_REFRESH_IDLE_MINUTES,
-} from '../lib/constants.js';
-import type { SessionEntry } from './lib/session-inspect.js';
+} from '../../lib/constants.js';
+import type { SessionEntry } from './session-inspect.js';
 import {
   getLastCacheRead,
   getLastMessageTimestamp,
   isSlackSession,
+  readTailLines,
   shouldRefresh,
-} from './lib/session-inspect.js';
+} from './session-inspect.js';
 
 // ── isSlackSession ─────────────────────────────────────────────────────
 
@@ -221,37 +226,16 @@ describe('getLastMessageTimestamp', () => {
   });
 });
 
-// ── Excluded session keys ──────────────────────────────────────────────
-
-describe('excluded session keys filtering', () => {
-  it('Set-based exclusion works correctly', () => {
-    const excludedKeys = new Set(['slack:direct:U123', 'slack:channel:C456']);
-    expect(excludedKeys.has('slack:direct:U123')).toBe(true);
-    expect(excludedKeys.has('slack:channel:C789')).toBe(false);
-  });
-
-  it('parses comma-separated env var correctly', () => {
-    const envVal = 'slack:direct:U123, slack:channel:C456 ,slack:direct:U789';
-    const excluded = new Set(
-      envVal
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    );
-    expect(excluded.size).toBe(3);
-    expect(excluded.has('slack:direct:U123')).toBe(true);
-    expect(excluded.has('slack:channel:C456')).toBe(true);
-    expect(excluded.has('slack:direct:U789')).toBe(true);
-  });
-
-  it('handles empty env var', () => {
-    const envVal = '';
-    const excluded = new Set(
-      envVal
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    );
-    expect(excluded.size).toBe(0);
+describe('readTailLines', () => {
+  it('reads a small file whole and drops the partial first line of a large one', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tail-'));
+    const file = path.join(dir, 't.jsonl');
+    fs.writeFileSync(file, 'one\ntwo\nthree');
+    expect(readTailLines(file)).toEqual(['one', 'two', 'three']);
+    fs.writeFileSync(file, 'aaaaaaaaaa\nbbbb\ncccc');
+    expect(readTailLines(file, 8)).toEqual(['cccc']);
+    fs.writeFileSync(file, 'abcdefghijkl');
+    expect(readTailLines(file, 4)).toEqual(['ijkl']);
+    fs.rmSync(dir, { recursive: true, force: true });
   });
 });

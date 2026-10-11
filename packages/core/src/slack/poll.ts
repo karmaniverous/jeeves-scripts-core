@@ -183,10 +183,5 @@ export default defineJob({
   id: 'slack-poll',
   domain: 'slack',
   name: 'slack/poll',
-  run: () => {
-    main().catch((err: unknown) => {
-      console.error('FATAL:', err);
-      process.exit(1);
-    });
-  },
+  run: () => main(),
 });

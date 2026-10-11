@@ -11,16 +11,9 @@ import fs from 'node:fs';
 
 import { z } from 'zod';
 
-import { constants } from '../../lib/constants.js';
-
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
-
-/** Delay helper for rate limiting between API calls. */
-export function sleepMs(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
 
 /**
  * Enrich a raw Linear comment with `_issueIdentifier` cross-reference.
@@ -58,9 +51,8 @@ export type LinearConfig = z.infer<typeof linearConfigSchema>;
 // Config loader
 // ---------------------------------------------------------------------------
 
-/** Read and validate constants().LINEAR_CONFIG_PATH. Throws if missing or malformed. */
-export function loadConfig(): LinearConfig {
-  const file = constants().LINEAR_CONFIG_PATH;
+/** Read and validate the Linear config file (integrations.linear.configPath). Throws if missing or malformed. */
+export function loadConfig(file: string): LinearConfig {
   const parsed = linearConfigSchema.safeParse(
     JSON.parse(fs.readFileSync(file, 'utf8')),
   );

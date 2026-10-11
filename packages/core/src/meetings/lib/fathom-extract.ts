@@ -219,5 +219,5 @@ export function runFathomExtract(argv: string[] = []): void {
   console.log(
     `[fathom-extract] Done: ${String(ok)} OK, ${String(failed)} failed`,
   );
-  if (failed > 0) process.exit(1);
+  if (failed > 0) process.exitCode = 1;
 }

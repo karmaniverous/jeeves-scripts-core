@@ -10,7 +10,6 @@ import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
-import { CONFIG_PATH_ENV, resetConfig } from '../../config/loader.js';
 import {
   enrichComment,
   type LinearConfig,
@@ -95,41 +94,26 @@ describe('enrichComment', () => {
 });
 
 describe('loadConfig', () => {
-  const saved = process.env[CONFIG_PATH_ENV];
-  const savedLinear = process.env.LINEAR_CONFIG_PATH;
-
-  const withLinearFile = (content: unknown, run: () => void) => {
+  const withLinearFile = (content: unknown, run: (file: string) => void) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'linear-'));
-    const configPath = path.join(dir, 'jeeves-scripts.json');
     const linearPath = path.join(dir, 'linear.json');
-    fs.writeFileSync(
-      configPath,
-      JSON.stringify({ instance: { name: 't', baseDir: dir } }),
-    );
     fs.writeFileSync(linearPath, JSON.stringify(content));
-    process.env[CONFIG_PATH_ENV] = configPath;
-    process.env.LINEAR_CONFIG_PATH = linearPath;
-    resetConfig();
     try {
-      run();
+      run(linearPath);
     } finally {
-      process.env[CONFIG_PATH_ENV] = saved;
-      if (savedLinear === undefined) delete process.env.LINEAR_CONFIG_PATH;
-      else process.env.LINEAR_CONFIG_PATH = savedLinear;
-      resetConfig();
       fs.rmSync(dir, { recursive: true, force: true });
     }
   };
 
-  it('reads the file at LINEAR_CONFIG_PATH', () => {
-    withLinearFile({ ...config, webhookSecret: 's' }, () => {
-      expect(loadConfig()).toEqual({ ...config, webhookSecret: 's' });
+  it('reads the given file', () => {
+    withLinearFile({ ...config, webhookSecret: 's' }, (file) => {
+      expect(loadConfig(file)).toEqual({ ...config, webhookSecret: 's' });
     });
   });
 
   it('rejects a file without string apiKey and apiUrl', () => {
-    withLinearFile({ apiKey: 1 }, () => {
-      expect(() => loadConfig()).toThrow(
+    withLinearFile({ apiUrl: 1 }, (file) => {
+      expect(() => loadConfig(file)).toThrow(
         /Invalid Linear config at .*linear\.json: must contain string apiKey and apiUrl/,
       );
     });

@@ -131,8 +131,9 @@ export async function spawnWithRetry(
   throw lastError ?? new Error('Spawn failed after all retries');
 }
 
-// ── CLI entry point ───────────────────────────────────────────────────
+// CLI entry point
 
+/** Read all of stdin (empty when it is a terminal). */
 function readStdin(): Promise<string> {
   return new Promise((resolve) => {
     let data = '';
@@ -147,61 +148,85 @@ function readStdin(): Promise<string> {
   });
 }
 
-async function main(): Promise<void> {
-  const args = parseArgs(process.argv.slice(2));
+/** Collaborators of {@link workerMain}, injectable for tests. */
+export interface WorkerMainDeps {
+  /** The task text (default: stdin). */
+  readTask: () => Promise<string>;
+  /** Spawn the session (default: {@link spawnWithRetry}). */
+  spawn: (
+    args: SpawnArgs,
+  ) => Promise<{ result: GatewayResponse; sessionKey: string }>;
+  /** Wait for the run to end (default: `waitForWorkerCompletion`). */
+  wait: typeof waitForWorkerCompletion;
+  /** Clock (ms). */
+  now: () => number;
+}
 
-  if (!args['job-id']) {
+const defaultWorkerMainDeps: WorkerMainDeps = {
+  readTask: readStdin,
+  spawn: (args) => spawnWithRetry(args),
+  wait: waitForWorkerCompletion,
+  now: Date.now,
+};
+
+const stamp = (deps: WorkerMainDeps): string =>
+  new Date(deps.now()).toISOString();
+
+/**
+ * Spawn a worker for `argv` and wait for it.
+ *
+ * @returns The process exit code: 0 on success, 1 on a usage error, no
+ * task, or a failed spawn or run.
+ */
+export async function workerMain(
+  argv: string[],
+  deps: WorkerMainDeps = defaultWorkerMainDeps,
+): Promise<number> {
+  const args = parseArgs(argv);
+  const jobId = args['job-id'];
+  if (!jobId) {
     console.error(
       'Usage: echo "task" | node spawn-worker.js --job-id=<id> [--label=<label>] [--thinking=<level>]',
     );
-    process.exit(1);
+    return 1;
   }
 
-  const taskInput = await readStdin();
+  const taskInput = await deps.readTask();
   if (!taskInput) {
     console.error('Error: No task provided on stdin');
-    process.exit(1);
+    return 1;
   }
 
-  const jobId = args['job-id'];
-  const startTime = Date.now();
+  const startTime = deps.now();
   const spawnArgs: SpawnArgs = {
     task: taskInput,
     label: args.label ?? `worker-${jobId.slice(0, 8)}`,
     thread: false,
   };
+  if (args.thinking) spawnArgs.thinking = args.thinking;
 
-  if (args.thinking) {
-    spawnArgs.thinking = args.thinking;
-  }
-
-  console.log(
-    `[${new Date().toISOString()}] Spawning worker for job ${jobId.slice(0, 8)}`,
-  );
+  console.log(`[${stamp(deps)}] Spawning worker for job ${jobId.slice(0, 8)}`);
   console.log(`  Label: ${spawnArgs.label}`);
 
   try {
-    const { result, sessionKey } = await spawnWithRetry(spawnArgs);
-    console.log(`[${new Date().toISOString()}] Worker spawned successfully`);
+    const { result, sessionKey } = await deps.spawn(spawnArgs);
+    console.log(`[${stamp(deps)}] Worker spawned successfully`);
     console.log(
-      `[${new Date().toISOString()}] Raw spawn result: ${JSON.stringify(result).slice(0, 500)}`,
+      `[${stamp(deps)}] Raw spawn result: ${JSON.stringify(result).slice(0, 500)}`,
+    );
+    console.log(
+      `[${stamp(deps)}] Waiting for worker to complete (session: ${sessionKey})...`,
     );
 
-    console.log(
-      `[${new Date().toISOString()}] Waiting for worker to complete (session: ${sessionKey})...`,
-    );
-
-    const completion = await waitForWorkerCompletion(sessionKey, startTime);
-
+    const completion = await deps.wait(sessionKey, startTime);
     if (!completion.success) {
-      console.error(`[${new Date().toISOString()}] Worker failed`);
-      process.exit(1);
+      console.error(`[${stamp(deps)}] Worker failed`);
+      return 1;
     }
 
-    console.log(`[${new Date().toISOString()}] Worker completed successfully`);
+    console.log(`[${stamp(deps)}] Worker completed successfully`);
     console.log(`  Duration: ${(completion.durationMs / 1000).toFixed(1)}s`);
     console.log(`  Tokens: ${String(completion.tokens)}`);
-
     console.log(
       `WORKER_RESULT:${JSON.stringify({
         sessionKey,
@@ -210,21 +235,28 @@ async function main(): Promise<void> {
         model: completion.model,
       })}`,
     );
-
-    process.exit(0);
+    return 0;
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error(`[${new Date().toISOString()}] Worker failed: ${msg}`);
-    process.exit(1);
+    console.error(`[${stamp(deps)}] Worker failed: ${msg}`);
+    return 1;
   }
 }
 
-// Run main when executed directly (not imported for testing)
+// Run when executed directly (not imported for testing). The exit code is
+// set, not forced: the process ends when the event loop drains.
 const isDirectExecution =
   process.argv[1] &&
   (process.argv[1].endsWith('spawn-worker.ts') ||
     process.argv[1].endsWith('spawn-worker.js'));
 
 if (isDirectExecution) {
-  main().catch(() => process.exit(1));
+  workerMain(process.argv.slice(2)).then(
+    (code) => {
+      process.exitCode = code;
+    },
+    () => {
+      process.exitCode = 1;
+    },
+  );
 }

@@ -1,12 +1,13 @@
 /**
- * @module drain
+ * @module jira/drain
  *
- * Jira webhook drain — receives Jira webhook payloads from the
- * jeeves-server Event Gateway via stdin, routes by `webhookEvent`, and
- * persists entity snapshots with reverse-diff history.
+ * Jira webhook drain: reads one Jira webhook payload from stdin (piped by
+ * jeeves-server's event gateway), routes it by `webhookEvent` through a
+ * route table and persists the entity snapshot with reverse-diff history
+ * under `{silo}/jira` (`lib/webhook-drain`). Prints one JSON result line.
  *
- * Invoked by jeeves-server's Event Gateway, not by jeeves-runner.
- * See README.md for gateway config and webhook setup instructions.
+ * Invoked by jeeves-server's event gateway, not by jeeves-runner
+ * (`guides/jira.md`).
  *
  * Supported events:
  *   jira:issue_created, jira:issue_updated, jira:issue_deleted
@@ -23,26 +24,22 @@ import path from 'node:path';
 
 import { nowIso } from '@karmaniverous/jeeves';
 
-import { getBasePathForJira } from '../config/index.js';
+import { getBasePathForJira, integrations } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
-import { constants } from '../lib/constants.js';
+import { readStdinJson } from '../lib/entity-store.js';
 import {
-  deleteEntity,
-  readStdinJson,
-  upsertEntity,
-  writeUnmatched,
-} from '../lib/entity-store.js';
+  applyDrainRoute,
+  type DrainRoute,
+  objectField,
+  type WebhookBody,
+} from '../lib/webhook-drain.js';
 
-const DOMAIN_DIR = path.join(getBasePathForJira(), 'jira');
-
-// ---------------------------------------------------------------------------
-// Custom field translation helpers
-// ---------------------------------------------------------------------------
-
+/** Custom field id to display name, from `_fields.json`. */
 type FieldMap = Record<string, string>;
 
-function loadFieldMap(): FieldMap {
-  const fieldsPath = path.join(DOMAIN_DIR, constants().JIRA_FIELDS_FILENAME);
+/** Read the custom field map (`{}` when absent or unreadable). */
+export function loadFieldMap(domainDir: string, filename: string): FieldMap {
+  const fieldsPath = path.join(domainDir, filename);
   if (!fs.existsSync(fieldsPath)) return {};
   try {
     return JSON.parse(fs.readFileSync(fieldsPath, 'utf8')) as FieldMap;
@@ -52,184 +49,158 @@ function loadFieldMap(): FieldMap {
 }
 
 /**
- * Add human-readable aliases for every `customfield_*` key present in
- * `fields`. The alias key is the mapped name from _fields.json; the
- * original key is preserved.
+ * Add a human-readable alias for every mapped `customfield_*` key in
+ * `fields`; the original key is kept.
  */
-function translateCustomFields(
+export function translateCustomFields(
   fields: Record<string, unknown>,
   fieldMap: FieldMap,
 ): Record<string, unknown> {
   const out: Record<string, unknown> = { ...fields };
   for (const [k, v] of Object.entries(fields)) {
-    if (k.startsWith('customfield_') && fieldMap[k]) {
-      out[fieldMap[k]] = v;
-    }
+    const alias = fieldMap[k];
+    if (k.startsWith('customfield_') && alias) out[alias] = v;
   }
   return out;
 }
 
-// ---------------------------------------------------------------------------
-// Result type
-// ---------------------------------------------------------------------------
+const issue = objectField('issue');
+const comment = objectField('comment');
 
-type DrainResult =
-  | {
-      event: string;
-      action: 'upsert';
-      type: string;
-      key: string | number;
-      path: string;
-    }
-  | {
-      event: string;
-      action: 'delete';
-      type: string;
-      key: string | number;
-      deleted: boolean;
-    }
-  | { event: string; action: 'unmatched' };
-
-// ---------------------------------------------------------------------------
-// Generic entity routing helper
-// ---------------------------------------------------------------------------
-
-function routeUpsertDelete(
+/** The route for a Jira event, or `undefined` when it is unmatched. */
+export function jiraRoute(
   event: string,
-  obj: Record<string, unknown> | undefined,
-  entityType: string,
-  idKey: 'id' | 'key',
-  now: string,
-): DrainResult {
-  const id = obj?.[idKey] as string | number | undefined;
-  if (id === undefined || id === '') {
-    console.error(`No ${entityType} ${idKey} in payload`);
-    process.exit(1);
-  }
-  if (event.includes('deleted')) {
-    const deleted = deleteEntity(DOMAIN_DIR, entityType, id);
-    return { event, action: 'delete', type: entityType, key: id, deleted };
-  }
-  const p = upsertEntity(
-    DOMAIN_DIR,
-    entityType,
-    id,
-    obj!,
-    now,
-    constants().JIRA_MAX_HISTORY,
-  );
-  return { event, action: 'upsert', type: entityType, key: id, path: p };
-}
-
-// ---------------------------------------------------------------------------
-// Main drain
-// ---------------------------------------------------------------------------
-
-async function drainMain(): Promise<void> {
-  const body = await readStdinJson();
-
-  const event = body.webhookEvent as string | undefined;
-  if (!event) {
-    console.error('No webhookEvent in payload');
-    process.exit(1);
-  }
-
-  const now = nowIso();
-  const fieldMap = loadFieldMap();
-  let result: DrainResult;
-
-  if (event === 'jira:issue_created' || event === 'jira:issue_updated') {
-    const issue = body.issue as Record<string, unknown> | undefined;
-    const key = issue?.key as string | undefined;
-    if (!key) {
-      console.error('No issue key');
-      process.exit(1);
-    }
-    // Translate custom fields in the `fields` sub-object
-    const rawFields = issue?.fields as Record<string, unknown> | undefined;
-    const current: Record<string, unknown> = {
-      ...issue,
-      fields: rawFields
-        ? translateCustomFields(rawFields, fieldMap)
-        : rawFields,
+  fieldMap: FieldMap,
+): DrainRoute | undefined {
+  if (event === 'jira:issue_created' || event === 'jira:issue_updated')
+    return {
+      entityType: 'issue',
+      entity: issue,
+      idKey: 'key',
+      missing: 'No issue key',
+      transform: (entity) => {
+        const fields = objectField('fields')(entity);
+        return {
+          ...entity,
+          fields: fields ? translateCustomFields(fields, fieldMap) : fields,
+        };
+      },
     };
-    const p = upsertEntity(
-      DOMAIN_DIR,
-      'issue',
-      key,
-      current,
-      now,
-      constants().JIRA_MAX_HISTORY,
-    );
-    result = { event, action: 'upsert', type: 'issue', key, path: p };
-  } else if (event === 'jira:issue_deleted') {
-    const issue = body.issue as Record<string, unknown> | undefined;
-    const key = issue?.key as string | undefined;
-    if (!key) {
-      console.error('No issue key');
-      process.exit(1);
-    }
-    const deleted = deleteEntity(DOMAIN_DIR, 'issue', key);
-    result = { event, action: 'delete', type: 'issue', key, deleted };
-  } else if (event === 'comment_created' || event === 'comment_updated') {
-    const comment = body.comment as Record<string, unknown> | undefined;
-    const id = comment?.id as string | number | undefined;
-    if (id === undefined || id === '') {
-      console.error('No comment id');
-      process.exit(1);
-    }
-    const current: Record<string, unknown> = { ...comment };
-    const issueKey = (body.issue as Record<string, unknown> | undefined)?.key;
-    if (issueKey) current._issueKey = issueKey;
-    const p = upsertEntity(
-      DOMAIN_DIR,
-      'comment',
-      id,
-      current,
-      now,
-      constants().JIRA_MAX_HISTORY,
-    );
-    result = { event, action: 'upsert', type: 'comment', key: id, path: p };
-  } else if (event === 'comment_deleted') {
-    const comment = body.comment as Record<string, unknown> | undefined;
-    const id = comment?.id as string | number | undefined;
-    if (id === undefined || id === '') {
-      console.error('No comment id');
-      process.exit(1);
-    }
-    const deleted = deleteEntity(DOMAIN_DIR, 'comment', id);
-    result = { event, action: 'delete', type: 'comment', key: id, deleted };
-  } else if (event.startsWith('jira:version_')) {
-    result = routeUpsertDelete(
-      event,
-      body.version as Record<string, unknown> | undefined,
-      'version',
-      'id',
-      now,
-    );
-  } else if (event.startsWith('sprint_')) {
-    result = routeUpsertDelete(
-      event,
-      body.sprint as Record<string, unknown> | undefined,
-      'sprint',
-      'id',
-      now,
-    );
-  } else if (event.startsWith('board_')) {
-    result = routeUpsertDelete(
-      event,
-      body.board as Record<string, unknown> | undefined,
-      'board',
-      'id',
-      now,
-    );
-  } else {
-    writeUnmatched(DOMAIN_DIR, event, body);
-    result = { event, action: 'unmatched' };
-  }
-
-  console.log(JSON.stringify(result));
+  if (event === 'jira:issue_deleted')
+    return {
+      entityType: 'issue',
+      entity: issue,
+      idKey: 'key',
+      missing: 'No issue key',
+      remove: true,
+    };
+  if (event === 'comment_created' || event === 'comment_updated')
+    return {
+      entityType: 'comment',
+      entity: comment,
+      idKey: 'id',
+      missing: 'No comment id',
+      transform: (entity, body) => {
+        const issueKey = issue(body)?.key;
+        return issueKey ? { ...entity, _issueKey: issueKey } : { ...entity };
+      },
+    };
+  if (event === 'comment_deleted')
+    return {
+      entityType: 'comment',
+      entity: comment,
+      idKey: 'id',
+      missing: 'No comment id',
+      remove: true,
+    };
+  const generic = (
+    [
+      ['jira:version_', 'version'],
+      ['sprint_', 'sprint'],
+      ['board_', 'board'],
+    ] as const
+  ).find(([prefix]) => event.startsWith(prefix));
+  if (!generic) return undefined;
+  const [, entityType] = generic;
+  return {
+    entityType,
+    entity: objectField(entityType),
+    idKey: 'id',
+    missing: `No ${entityType} id in payload`,
+    remove: event.includes('deleted'),
+  };
 }
+
+/** What {@link jiraDrain} reads and writes. */
+export interface JiraDrainDeps {
+  /** The `{silo}/jira` directory. */
+  domainDir: string;
+  /** `_fields.json` file name. */
+  fieldsFilename: string;
+  /** History entries kept per entity. */
+  maxHistory: number;
+  /** The payload (default: stdin). */
+  readBody: () => Promise<WebhookBody>;
+  /** ISO timestamp. */
+  now: () => string;
+  /** Result line writer. */
+  log: (line: string) => void;
+}
+
+/**
+ * Drain one Jira payload and print its result line.
+ *
+ * @throws When the payload has no `webhookEvent` or the routed entity has no key.
+ */
+export async function jiraDrain(deps: JiraDrainDeps): Promise<void> {
+  const body = await deps.readBody();
+  const event = body.webhookEvent;
+  if (typeof event !== 'string' || !event)
+    throw new Error('No webhookEvent in payload');
+  const route = jiraRoute(
+    event,
+    loadFieldMap(deps.domainDir, deps.fieldsFilename),
+  );
+  const outcome = applyDrainRoute(route, body, event, {
+    domainDir: deps.domainDir,
+    maxHistory: deps.maxHistory,
+    now: deps.now(),
+  });
+  const result =
+    outcome.kind === 'unmatched'
+      ? { event, action: 'unmatched' }
+      : outcome.kind === 'upsert'
+        ? {
+            event,
+            action: 'upsert',
+            type: outcome.entityType,
+            key: outcome.key,
+            path: outcome.path,
+          }
+        : {
+            event,
+            action: 'delete',
+            type: outcome.entityType,
+            key: outcome.key,
+            deleted: outcome.deleted,
+          };
+  deps.log(JSON.stringify(result));
+}
+
+/** The live dependencies, resolved from config when the drain runs. */
+export const jiraDrainDeps = (): JiraDrainDeps => {
+  const jira = integrations().jira;
+  return {
+    domainDir: path.join(getBasePathForJira(), 'jira'),
+    fieldsFilename: jira.fieldsFilename,
+    maxHistory: jira.maxHistory,
+    readBody: readStdinJson,
+    now: nowIso,
+    log: (line) => {
+      console.log(line);
+    },
+  };
+};
 
 export default defineJob({
   id: 'jira-drain',
@@ -237,10 +208,5 @@ export default defineJob({
   description:
     "Persist one Jira webhook payload read from stdin (run by jeeves-server's webhook route).",
   name: 'jira/drain',
-  run: () => {
-    drainMain().catch((e: unknown) => {
-      console.error(e);
-      process.exit(1);
-    });
-  },
+  run: () => jiraDrain(jiraDrainDeps()),
 });

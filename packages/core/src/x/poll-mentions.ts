@@ -11,16 +11,21 @@
 
 import { defineJob } from '../jobs/define-job.js';
 import { runXPoller } from './lib/poll-x-items.js';
+import { xJobDeps } from './lib/x-deps.js';
 import { pollUserMentions } from './lib/x-timelines.js';
 
 export default defineJob({
   id: 'x-poll-mentions',
   domain: 'x',
   name: 'x/poll-mentions',
-  run: () =>
-    runXPoller({
-      pollFn: pollUserMentions,
-      queuePrefix: 'x-mentions',
-      typeLabel: 'mentions',
-    }),
+  run: ({ args }) =>
+    runXPoller(
+      args,
+      {
+        pollFn: pollUserMentions,
+        queuePrefix: 'x-mentions',
+        typeLabel: 'mentions',
+      },
+      xJobDeps(),
+    ),
 });

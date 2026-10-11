@@ -18,7 +18,7 @@ export default defineJob({
   description:
     "Repost the tweets queued in the account's x-repost-<handle> runner queue.",
   name: 'x/repost',
-  run: xQueueAction({
+  ...xQueueAction({
     scriptName: 'x/repost',
     queuePrefix: 'x-repost',
     actionLabel: 'repost',

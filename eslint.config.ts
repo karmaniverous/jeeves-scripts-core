@@ -105,6 +105,23 @@ export default [
     },
   },
   {
+    // Core code never ends the process itself (Decision 58): a failure
+    // throws (runScript exits 1 and writes the crash log), a clean skip is
+    // a prerequisite or a return, and a partial failure sets exitCode.
+    files: ['packages/core/src/**/*.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'process',
+          property: 'exit',
+          message:
+            'Throw, skip through a prerequisite, or set process.exitCode (Decision 58).',
+        },
+      ],
+    },
+  },
+  {
     files: ['**/*.test.{ts,tsx}'],
     languageOptions: {
       parser: tseslint.parser,

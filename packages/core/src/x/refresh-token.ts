@@ -1,11 +1,12 @@
 /**
- * @module refresh-token
+ * @module x/refresh-token
  *
- * Refreshes the X OAuth 2.0 access token for an account.
+ * Refreshes the X OAuth 2.0 access token for one account and writes the
+ * new tokens back to its credential file (`x-oauth`).
  *
- * Entry-point script invoked manually or by the runner scheduler. Calls
- * refreshOAuth2Token from x-api, which reads client credentials and the
- * refresh token from the OAuth JSON file and writes updated tokens back.
+ * Usage: `jeeves-scripts run x-refresh-token <handle>`. The prerequisite
+ * skips (exit 0) without a handle; a missing credential file is reported
+ * by the refresh as a skip.
  *
  * NOTE: The scheduled runner job for this script can be retired now that
  * pollers and queue-action scripts auto-refresh on 401 via withAutoRefresh.
@@ -13,20 +14,24 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
-import { requireXHandle } from './lib/x-api.js';
-import { getOAuthPath, refreshOAuth2Token } from './lib/x-oauth.js';
+import { xHandlePrerequisite } from './lib/x-api.js';
+import { xConfig, type XJobDeps, xJobDeps } from './lib/x-deps.js';
+import { getOAuthPath } from './lib/x-oauth.js';
 
-async function main(handle: string): Promise<void> {
+/** Refresh the handle's token and report where it was written. */
+export async function refreshXToken(
+  handle: string,
+  deps: Pick<XJobDeps, 'refresh' | 'oauthDir'>,
+): Promise<void> {
   console.log(`Refreshing X OAuth 2.0 token for @${handle}...`);
-  const result = await refreshOAuth2Token(handle);
+  const result = await deps.refresh(handle);
   if (!result) return;
-
   console.log(
     `Token refreshed for @${handle}. Expires in:`,
     result.expiresIn,
     'seconds',
   );
-  console.log(`Written to: ${getOAuthPath(handle)}`);
+  console.log(`Written to: ${getOAuthPath(deps.oauthDir, handle)}`);
 }
 
 export default defineJob({
@@ -35,11 +40,10 @@ export default defineJob({
   description:
     "Refresh an X account's OAuth 2.0 access token (manual or diagnostic; pollers refresh on 401).",
   name: 'x/refresh-token',
-  run: () => {
-    const handle = requireXHandle('refresh-token.ts');
-    main(handle).catch((err: unknown) => {
-      console.error('Error:', err instanceof Error ? err.message : String(err));
-      process.exit(1);
-    });
-  },
+  prerequisite: xHandlePrerequisite({
+    scriptName: 'refresh-token.ts',
+    requireOAuth: false,
+    ...xConfig,
+  }),
+  run: ({ args }) => refreshXToken(args[0] ?? '', xJobDeps()),
 });

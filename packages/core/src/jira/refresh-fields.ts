@@ -1,71 +1,47 @@
 /**
- * @module refresh-fields
+ * @module jira/refresh-fields
  *
- * Fetch Jira custom field metadata from `/rest/api/3/field` and write
- * `_fields.json` to the Jira domain directory.
- *
- * The field map (customfield_N → human-readable name) is used by the
- * drain script to add human-readable aliases alongside raw customfield
- * keys in persisted issue snapshots.
- *
- * Scheduled via `jobs/jira.json` (daily at 03:00 UTC). Can also be
- * run manually: `jeeves-scripts run jira-refresh-fields`
+ * Refreshes `{silo}/jira/_fields.json`, the custom field id to name map the
+ * drain uses to add readable aliases, from `GET /rest/api/3/field`. Skips
+ * (exit 0) when Jira credentials are not configured.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { nowIso } from '@karmaniverous/jeeves';
-
-import { getBasePathForJira } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
-import { constants } from '../lib/constants.js';
-import type { JiraField } from './lib/jira-client.js';
-import { jiraGet, makeAuthHeader, readApiToken } from './lib/jira-client.js';
+import {
+  hasJiraCredentials,
+  jiraConnection,
+  type JiraField,
+  jiraGet,
+} from './lib/jira-client.js';
+import { type JiraJobDeps, jiraJobDeps } from './lib/jira-deps.js';
 
-const DOMAIN_DIR = path.join(getBasePathForJira(), 'jira');
-
-async function refreshFieldsMain(): Promise<void> {
-  if (
-    !constants().JIRA_SITE_URL ||
-    !constants().JIRA_EMAIL ||
-    !constants().JIRA_API_TOKEN_PATH
-  ) {
+/** Fetch the field metadata and write the custom field map. */
+export async function refreshJiraFields(deps: JiraJobDeps): Promise<void> {
+  if (!hasJiraCredentials(deps.settings)) {
     console.log('[skip] Jira API credentials not configured');
     return;
   }
+  const conn = jiraConnection(deps.settings, deps.fetch);
+  console.log(`[refresh-fields] fetching field metadata from ${conn.siteUrl}`);
+  const fields = await jiraGet<JiraField[]>(conn, 'field');
 
-  const apiToken = readApiToken(constants().JIRA_API_TOKEN_PATH);
-  const authHeader = makeAuthHeader(constants().JIRA_EMAIL, apiToken);
-
-  console.log(
-    `[refresh-fields] fetching field metadata from ${constants().JIRA_SITE_URL}`,
-  );
-
-  const fields = await jiraGet<JiraField[]>(
-    constants().JIRA_SITE_URL,
-    authHeader,
-    'field',
-  );
-
-  // Build a map of customfield_N → human-readable name (custom fields only)
   const fieldMap: Record<string, string> = {};
-  for (const field of fields) {
-    if (field.custom && field.id.startsWith('customfield_')) {
+  for (const field of fields)
+    if (field.custom && field.id.startsWith('customfield_'))
       fieldMap[field.id] = field.name;
-    }
-  }
 
-  fs.mkdirSync(DOMAIN_DIR, { recursive: true });
-  const outputPath = path.join(DOMAIN_DIR, constants().JIRA_FIELDS_FILENAME);
+  fs.mkdirSync(deps.domainDir, { recursive: true });
+  const outputPath = path.join(deps.domainDir, deps.fieldsFilename);
   fs.writeFileSync(
     outputPath,
     JSON.stringify(fieldMap, null, 2) + '\n',
     'utf8',
   );
-
   console.log(
-    `[refresh-fields] wrote ${String(Object.keys(fieldMap).length)} custom fields to ${outputPath} at ${nowIso()}`,
+    `[refresh-fields] wrote ${String(Object.keys(fieldMap).length)} custom fields to ${outputPath} at ${deps.now()}`,
   );
 }
 
@@ -73,10 +49,5 @@ export default defineJob({
   id: 'jira-refresh-fields',
   domain: 'jira',
   name: 'jira/refresh-fields',
-  run: () => {
-    refreshFieldsMain().catch((e: unknown) => {
-      console.error(e);
-      process.exit(1);
-    });
-  },
+  run: () => refreshJiraFields(jiraJobDeps()),
 });

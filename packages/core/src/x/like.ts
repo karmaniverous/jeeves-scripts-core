@@ -18,7 +18,7 @@ export default defineJob({
   description:
     "Like the tweets queued in the account's x-like-<handle> runner queue.",
   name: 'x/like',
-  run: xQueueAction({
+  ...xQueueAction({
     scriptName: 'x/like',
     queuePrefix: 'x-like',
     actionLabel: 'like',

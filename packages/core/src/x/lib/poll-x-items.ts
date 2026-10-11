@@ -1,14 +1,13 @@
 /**
- * @module poll-x-items
+ * @module x/lib/poll-x-items
  *
- * Shared poller for X/Twitter items via X API v2.
+ * Shared poller for X items via X API v2, called by each `x-poll-*` job
+ * with its API poll function and queue prefix: fetches the items for each
+ * handle and enqueues them into the jeeves-runner queue that
+ * `x-drain-queues` flushes to disk.
  *
- * Called by each poll-* entry-point script with a specific API poll function
- * and queue prefix. Fetches items through x-api, then enqueues them into the
- * jeeves-runner queue for downstream processing by drain-queues.
- *
- * With no handle argument every handle in `constants().X_ACCOUNTS` is polled (see
- * poll-handles.ts); `<handle>` narrows the run to one handle. Options
+ * With no handle argument every handle in `X_ACCOUNTS` is polled (see
+ * `poll-handles`); `<handle>` narrows the run to one handle. Options
  * (`--count N`, `--queue NAME`) follow the handle, or stand alone.
  * `--queue` overrides the queue name for every polled handle, so give it
  * together with a handle.
@@ -16,23 +15,19 @@
 
 import fs from 'node:fs';
 
-import { getArg } from '@karmaniverous/jeeves';
-import type { RunnerClient } from '@karmaniverous/jeeves-runner';
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 import type { Client } from '@xdevplatform/xdk';
 
-import { constants } from '../../lib/constants.js';
+import { parseRunnableArgs, value } from '../../lib/args.js';
 import {
   handleArg,
   logPollHandles,
   resolvePollHandles,
 } from './poll-handles.js';
-import { withAutoRefresh } from './x-api.js';
+import type { XJobDeps } from './x-deps.js';
 import { getOAuthPath } from './x-oauth.js';
 import type { PollOptions, XTweet } from './x-timelines.js';
 
-export { type XTweet } from './x-timelines.js';
-
+/** A poll job's API function and labels. */
 export interface PollXOptions {
   /** API poll function to call */
   pollFn: (
@@ -49,24 +44,24 @@ export interface PollXOptions {
 }
 
 /**
- * Run a parameterized X poll: fetch items via API, enqueue to runner.
- *
- * @param handle - The X account handle to poll for.
- * @param options - Poll configuration (API function, queue prefix, etc.).
+ * Poll one handle and enqueue what comes back. An API error is logged and
+ * the run carries on.
  */
 export async function pollXItems(
   handle: string,
+  args: readonly string[],
   options: PollXOptions,
+  deps: Pick<XJobDeps, 'withClient' | 'runner'>,
 ): Promise<void> {
-  const argv = process.argv.slice(2);
-  const count = Number(
-    getArg(argv, '--count', String(options.defaultCount ?? 50)),
-  );
-  const queueName = getArg(argv, '--queue', `${options.queuePrefix}-${handle}`);
+  const parsed = parseRunnableArgs(args, {
+    count: value('--count', String(options.defaultCount ?? 50)),
+    queue: value('--queue', `${options.queuePrefix}-${handle}`),
+  });
+  const count = Number(parsed.count);
 
   let tweets: XTweet[];
   try {
-    tweets = await withAutoRefresh(handle, (client) =>
+    tweets = await deps.withClient(handle, (client) =>
       options.pollFn(client, handle, { maxResults: count }),
     );
   } catch (err) {
@@ -82,12 +77,12 @@ export async function pollXItems(
     return;
   }
 
-  const runnerClient: RunnerClient = getRunnerClient();
+  const runnerClient = deps.runner();
   try {
     let enqueued = 0,
       dedupSkipped = 0;
     for (const t of tweets) {
-      const itemId = runnerClient.enqueue(queueName, {
+      const itemId = runnerClient.enqueue(parsed.queue, {
         id: t.id,
         createdAt: t.createdAt,
         author: t.authorId ?? handle,
@@ -98,7 +93,6 @@ export async function pollXItems(
       if (itemId === -1) dedupSkipped++;
       else enqueued++;
     }
-
     console.log(
       `${options.typeLabel}: @${handle} fetched=${String(tweets.length)}, enqueued=${String(enqueued)}, dedupSkipped=${String(dedupSkipped)}`,
     );
@@ -108,26 +102,31 @@ export async function pollXItems(
 }
 
 /**
- * Handles this run polls: the handle argument if given ({@link handleArg}),
- * else every handle in `constants().X_ACCOUNTS`; only handles with an OAuth file.
- * Logs a `[skip]` line for each handle left out.
+ * The handles a poll run covers: the handle argument, else every
+ * configured handle; only those with an OAuth file. Logs a `[skip]` line
+ * for each handle left out.
  */
-export function pollHandlesFromArgv(): string[] {
+export function pollHandles(
+  args: readonly string[],
+  deps: Pick<XJobDeps, 'accounts' | 'oauthDir'>,
+): string[] {
   return logPollHandles(
-    resolvePollHandles(
-      handleArg(process.argv.slice(2)),
-      constants().X_ACCOUNTS,
-      (h) => fs.existsSync(getOAuthPath(h)),
+    resolvePollHandles(handleArg(args), deps.accounts, (h) =>
+      fs.existsSync(getOAuthPath(deps.oauthDir, h)),
     ),
   );
 }
 
 /**
- * Job body for the X poll jobs: resolves the handles
- * ({@link pollHandlesFromArgv}) and polls each in turn. An API error for
- * one handle is logged and the next handle is still polled; any other
- * error fails the run (the job's `runScript` wrapper exits 1).
+ * The poll job body: polls each of {@link pollHandles} in turn. An API
+ * error for one handle is logged and the next is still polled; any other
+ * error fails the run.
  */
-export async function runXPoller(options: PollXOptions): Promise<void> {
-  for (const handle of pollHandlesFromArgv()) await pollXItems(handle, options);
+export async function runXPoller(
+  args: readonly string[],
+  options: PollXOptions,
+  deps: XJobDeps,
+): Promise<void> {
+  for (const handle of pollHandles(args, deps))
+    await pollXItems(handle, args, options, deps);
 }

@@ -2,67 +2,69 @@
  * @module x/lib/x-api
  *
  * Shared X API v2 client wrapping `@xdevplatform/xdk` with pipeline
- * conventions: handle and account-dir arguments, authenticated client
- * creation, the 401 refresh-and-retry wrapper and cached user lookup.
- * Credential files and token refresh are in `x-oauth`, timeline reads in
+ * conventions: the handle prerequisite, authenticated client creation,
+ * the 401 refresh-and-retry wrapper and cached user lookup. Credential
+ * files and token refresh are in `x-oauth`, timeline reads in
  * `x-timelines`, write actions in `x-actions`.
- *
- * If credentials are missing or lack an access_token the affected call is
- * skipped with a console warning.
  */
+
+import fs from 'node:fs';
 
 import { ApiError, Client } from '@xdevplatform/xdk';
 
-import { constants } from '../../lib/constants.js';
-import { readOAuthCredentials, refreshOAuth2Token } from './x-oauth.js';
+import type { JobContext } from '../../jobs/define-job.js';
+import {
+  getOAuthPath,
+  readOAuthCredentials,
+  refreshOAuth2Token,
+  type TokenRefreshResult,
+} from './x-oauth.js';
 
-// ── Handle resolution ──────────────────────────────────────────────
-
-/**
- * Parse the X account handle from CLI args. Logs a skip message and
- * calls `process.exit(0)` if no handle is provided. When used at
- * module top level, the `never` return ensures TS narrows correctly.
- */
-export function requireXHandle(scriptName: string): string {
-  const handle = process.argv[2];
-  if (!handle) {
-    console.log(
-      `[skip] No X account handle provided. Usage: jeeves-scripts run <job-id> <handle> (${scriptName})`,
-    );
-    process.exit(0);
-  }
-  return handle;
+/** What the handle prerequisite checks. */
+export interface XHandleCheck {
+  /** Usage label (the script name). */
+  scriptName: string;
+  /** `integrations.x.accounts` (handle to content directory). */
+  accounts: () => Readonly<Record<string, string>>;
+  /** `integrations.x.oauthDir`. */
+  oauthDir: () => string;
+  /** Also require the handle in `accounts` (default: no). */
+  requireAccount?: boolean;
+  /** Also require the OAuth2 credential file (default: yes). */
+  requireOAuth?: boolean;
 }
 
 /**
- * Resolve the X account content directory from constants().X_ACCOUNTS. Logs a skip
- * message and calls `process.exit(0)` if the handle is not configured.
+ * The prerequisite of the jobs that act for one X account (`<handle>` is
+ * the first argument): the handle is given, configured when
+ * `requireAccount`, and has an OAuth2 credential file unless
+ * `requireOAuth` is false. Each unmet check
+ * skips the run (`[skip] <reason>`, exit 0).
  */
-export function requireAccountDir(handle: string): string {
-  const dir = constants().X_ACCOUNTS[handle];
-  if (!dir) {
-    console.log(
-      `[skip] X account '${handle}' is not in integrations.x.accounts in jeeves-scripts.json`,
-    );
-    process.exit(0);
-  }
-  return dir;
-}
-
-// ── User-ID cache ──────────────────────────────────────────────────
+export const xHandlePrerequisite =
+  (check: XHandleCheck) =>
+  ({ args }: JobContext): true | string => {
+    const handle = args[0];
+    if (!handle)
+      return `No X account handle provided. Usage: jeeves-scripts run <job-id> <handle> (${check.scriptName})`;
+    if (check.requireAccount && !check.accounts()[handle])
+      return `X account '${handle}' is not in integrations.x.accounts in jeeves-scripts.json`;
+    if (
+      check.requireOAuth !== false &&
+      !fs.existsSync(getOAuthPath(check.oauthDir(), handle))
+    )
+      return 'X OAuth2 credentials not configured';
+    return true;
+  };
 
 const userIdCache = new Map<string, string>();
 
-// ── Client factory ─────────────────────────────────────────────────
-
 /**
- * Create an X API client for the given handle.
- *
- * Reads OAuth2 credentials from the server-managed JSON file at
- * `{constants().X_OAUTH_DIR}/x-{handle}-oauth2.json`.
+ * An X API client for a handle from its credential file; `null` (logged
+ * as a skip) when the file or its access token is missing.
  */
-export function createXClient(handle: string): Client | null {
-  const creds = readOAuthCredentials(handle);
+export function createXClient(oauthDir: string, handle: string): Client | null {
+  const creds = readOAuthCredentials(oauthDir, handle);
   if (!creds) {
     console.log(`[skip] X OAuth2 credentials not found for @${handle}`);
     return null;
@@ -71,50 +73,44 @@ export function createXClient(handle: string): Client | null {
     console.log(`[skip] No access_token in credentials for @${handle}`);
     return null;
   }
-
   return new Client({ accessToken: creds.access_token });
 }
 
-// ── Auto-refresh wrapper ────────────────────────────────────────────
-
 /**
- * Execute an API call with automatic token refresh on 401.
+ * Run `fn` with a client for the handle; on a 401 refresh the token and
+ * retry once with a fresh client.
  *
- * Creates a client, runs `fn`. If the call throws a 401 ApiError, refreshes
- * the OAuth2 token and retries once with a fresh client.
+ * @throws When there are no credentials, the refresh fails, or `fn` fails otherwise.
  */
 export async function withAutoRefresh<T>(
+  oauthDir: string,
   handle: string,
   fn: (client: Client) => Promise<T>,
+  refresh: (handle: string) => Promise<TokenRefreshResult | null> = (h) =>
+    refreshOAuth2Token(oauthDir, h),
 ): Promise<T> {
-  const client = createXClient(handle);
+  const client = createXClient(oauthDir, handle);
   if (!client) throw new Error(`No X credentials for @${handle}`);
-
   try {
     return await fn(client);
   } catch (err) {
     if (err instanceof ApiError && err.status === 401) {
       console.log(`x-api: 401 for @${handle}, refreshing token...`);
-      const refreshed = await refreshOAuth2Token(handle);
+      const refreshed = await refresh(handle);
       if (!refreshed) throw err;
-
-      const newClient = new Client({ accessToken: refreshed.accessToken });
-      return await fn(newClient);
+      return await fn(new Client({ accessToken: refreshed.accessToken }));
     }
     throw err;
   }
 }
 
-// ── User lookup ────────────────────────────────────────────────────
-
-/** Resolve a handle to a user ID, caching the result. */
+/** Resolve a handle to a user id, caching the result. */
 export async function lookupUser(
   client: Client,
   handle: string,
 ): Promise<string | null> {
   const cached = userIdCache.get(handle);
   if (cached) return cached;
-
   const res = await client.users.getByUsername(handle);
   const id = res.data?.id;
   if (!id) {

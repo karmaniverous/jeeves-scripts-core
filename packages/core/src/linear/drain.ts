@@ -1,12 +1,14 @@
 /**
- * @module drain
+ * @module linear/drain
  *
- * Linear webhook drain — receives Linear webhook payloads from the
- * jeeves-server Event Gateway via stdin, routes by `action` + `type`,
- * and persists entity snapshots with reverse-diff history.
+ * Linear webhook drain: reads one Linear webhook payload from stdin (piped
+ * by jeeves-server's event gateway), routes it by `type` and `action`
+ * through a route table and persists the entity snapshot with reverse-diff
+ * history under `{silo}/linear` (`lib/webhook-drain`). Prints one JSON
+ * result line.
  *
- * Invoked by jeeves-server's Event Gateway, not by jeeves-runner.
- * See README.md for gateway config and webhook setup instructions.
+ * Invoked by jeeves-server's event gateway, not by jeeves-runner
+ * (`guides/linear.md`).
  *
  * Supported webhook types:
  *   Issue create/update/remove
@@ -22,206 +24,142 @@ import path from 'node:path';
 
 import { nowIso } from '@karmaniverous/jeeves';
 
-import { getBasePathForLinear } from '../config/index.js';
+import { getBasePathForLinear, integrations } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
-import { constants } from '../lib/constants.js';
+import { readStdinJson } from '../lib/entity-store.js';
 import {
-  deleteEntity,
-  readStdinJson,
-  upsertEntity,
-  writeUnmatched,
-} from '../lib/entity-store.js';
+  applyDrainRoute,
+  type DrainRoute,
+  objectField,
+  type WebhookBody,
+} from '../lib/webhook-drain.js';
 import { enrichComment } from './lib/linear-client.js';
 
-const DOMAIN_DIR = path.join(getBasePathForLinear(), 'linear');
+const data = objectField('data');
 
-// ---------------------------------------------------------------------------
-// Result type
-// ---------------------------------------------------------------------------
-
-type DrainResult =
-  | {
-      action: string;
-      type: string;
-      entityAction: 'upsert';
-      entityType: string;
-      key: string | number;
-      path: string;
-    }
-  | {
-      action: string;
-      type: string;
-      entityAction: 'delete';
-      entityType: string;
-      key: string | number;
-      deleted: boolean;
-    }
-  | { action: string; type: string; entityAction: 'unmatched' };
-
-// ---------------------------------------------------------------------------
-// Main drain
-// ---------------------------------------------------------------------------
-
-async function drainMain(): Promise<void> {
-  const body = await readStdinJson();
-
-  const action = body.action as string | undefined;
-  const type = body.type as string | undefined;
-  const data = body.data as Record<string, unknown> | undefined;
-
-  if (!action || !type) {
-    console.error('Missing action or type in payload');
-    process.exit(1);
-  }
-
-  const now = nowIso();
-  const isRemove = action === 'remove';
-  let result: DrainResult;
-
-  if (type === 'Issue') {
-    const identifier = data?.identifier as string | undefined;
-    if (!identifier) {
-      console.error('No issue identifier in payload');
-      process.exit(1);
-    }
-    if (isRemove) {
-      const deleted = deleteEntity(DOMAIN_DIR, 'issue', identifier);
-      result = {
-        action,
-        type,
-        entityAction: 'delete',
+/**
+ * The route for a Linear event, or `undefined` when it is unmatched. Only
+ * issues and comments are deleted on `remove`; the other types are upserted
+ * whatever the action.
+ */
+export function linearRoute(
+  type: string,
+  action: string,
+): DrainRoute | undefined {
+  const remove = action === 'remove';
+  switch (type) {
+    case 'Issue':
+      return {
         entityType: 'issue',
-        key: identifier,
-        deleted,
+        entity: data,
+        idKey: 'identifier',
+        missing: 'No issue identifier in payload',
+        remove,
+        transform: (entity) => ({ ...entity }),
       };
-    } else {
-      const current: Record<string, unknown> = { ...data };
-      const p = upsertEntity(
-        DOMAIN_DIR,
-        'issue',
-        identifier,
-        current,
-        now,
-        constants().LINEAR_MAX_HISTORY,
-      );
-      result = {
-        action,
-        type,
-        entityAction: 'upsert',
-        entityType: 'issue',
-        key: identifier,
-        path: p,
-      };
-    }
-  } else if (type === 'Comment') {
-    const id = data?.id as string | undefined;
-    if (!id) {
-      console.error('No comment id in payload');
-      process.exit(1);
-    }
-    if (isRemove) {
-      const deleted = deleteEntity(DOMAIN_DIR, 'comment', id);
-      result = {
-        action,
-        type,
-        entityAction: 'delete',
+    case 'Comment':
+      return {
         entityType: 'comment',
-        key: id,
-        deleted,
+        entity: data,
+        idKey: 'id',
+        missing: 'No comment id in payload',
+        remove,
+        transform: (entity) => enrichComment(entity),
       };
-    } else {
-      const current = enrichComment(data!);
-      const p = upsertEntity(
-        DOMAIN_DIR,
-        'comment',
-        id,
-        current,
-        now,
-        constants().LINEAR_MAX_HISTORY,
-      );
-      result = {
-        action,
-        type,
-        entityAction: 'upsert',
-        entityType: 'comment',
-        key: id,
-        path: p,
+    case 'Cycle':
+      return {
+        entityType: 'cycle',
+        entity: data,
+        idKey: 'number',
+        missing: 'No cycle number in payload',
       };
-    }
-  } else if (type === 'Cycle') {
-    const number = data?.number as string | number | undefined;
-    if (number === undefined || number === '') {
-      console.error('No cycle number in payload');
-      process.exit(1);
-    }
-    const p = upsertEntity(
-      DOMAIN_DIR,
-      'cycle',
-      number,
-      data!,
-      now,
-      constants().LINEAR_MAX_HISTORY,
-    );
-    result = {
-      action,
-      type,
-      entityAction: 'upsert',
-      entityType: 'cycle',
-      key: number,
-      path: p,
-    };
-  } else if (type === 'Project') {
-    const id = data?.id as string | undefined;
-    if (!id) {
-      console.error('No project id in payload');
-      process.exit(1);
-    }
-    const p = upsertEntity(
-      DOMAIN_DIR,
-      'project',
-      id,
-      data!,
-      now,
-      constants().LINEAR_MAX_HISTORY,
-    );
-    result = {
-      action,
-      type,
-      entityAction: 'upsert',
-      entityType: 'project',
-      key: id,
-      path: p,
-    };
-  } else if (type === 'IssueLabel') {
-    const id = data?.id as string | undefined;
-    if (!id) {
-      console.error('No label id in payload');
-      process.exit(1);
-    }
-    const p = upsertEntity(
-      DOMAIN_DIR,
-      'label',
-      id,
-      data!,
-      now,
-      constants().LINEAR_MAX_HISTORY,
-    );
-    result = {
-      action,
-      type,
-      entityAction: 'upsert',
-      entityType: 'label',
-      key: id,
-      path: p,
-    };
-  } else {
-    const label = `${action}-${type}`;
-    writeUnmatched(DOMAIN_DIR, label, body);
-    result = { action, type, entityAction: 'unmatched' };
+    case 'Project':
+      return {
+        entityType: 'project',
+        entity: data,
+        idKey: 'id',
+        missing: 'No project id in payload',
+      };
+    case 'IssueLabel':
+      return {
+        entityType: 'label',
+        entity: data,
+        idKey: 'id',
+        missing: 'No label id in payload',
+      };
+    default:
+      return undefined;
   }
-
-  console.log(JSON.stringify(result));
 }
+
+/** What {@link linearDrain} reads and writes. */
+export interface LinearDrainDeps {
+  /** The `{silo}/linear` directory. */
+  domainDir: string;
+  /** History entries kept per entity. */
+  maxHistory: number;
+  /** The payload (default: stdin). */
+  readBody: () => Promise<WebhookBody>;
+  /** ISO timestamp. */
+  now: () => string;
+  /** Result line writer. */
+  log: (line: string) => void;
+}
+
+/**
+ * Drain one Linear payload and print its result line.
+ *
+ * @throws When the payload has no `action` or `type`, or the routed entity has no key.
+ */
+export async function linearDrain(deps: LinearDrainDeps): Promise<void> {
+  const body = await deps.readBody();
+  const { action, type } = body;
+  if (
+    typeof action !== 'string' ||
+    !action ||
+    typeof type !== 'string' ||
+    !type
+  )
+    throw new Error('Missing action or type in payload');
+  const outcome = applyDrainRoute(
+    linearRoute(type, action),
+    body,
+    `${action}-${type}`,
+    { domainDir: deps.domainDir, maxHistory: deps.maxHistory, now: deps.now() },
+  );
+  const result =
+    outcome.kind === 'unmatched'
+      ? { action, type, entityAction: 'unmatched' }
+      : outcome.kind === 'upsert'
+        ? {
+            action,
+            type,
+            entityAction: 'upsert',
+            entityType: outcome.entityType,
+            key: outcome.key,
+            path: outcome.path,
+          }
+        : {
+            action,
+            type,
+            entityAction: 'delete',
+            entityType: outcome.entityType,
+            key: outcome.key,
+            deleted: outcome.deleted,
+          };
+  deps.log(JSON.stringify(result));
+}
+
+/** The live dependencies, resolved from config when the drain runs. */
+export const linearDrainDeps = (): LinearDrainDeps => ({
+  domainDir: path.join(getBasePathForLinear(), 'linear'),
+  maxHistory: integrations().linear.maxHistory,
+  readBody: readStdinJson,
+  now: nowIso,
+  log: (line) => {
+    console.log(line);
+  },
+});
 
 export default defineJob({
   id: 'linear-drain',
@@ -229,10 +167,5 @@ export default defineJob({
   description:
     "Persist one Linear webhook payload read from stdin (run by jeeves-server's webhook route).",
   name: 'linear/drain',
-  run: () => {
-    drainMain().catch((e: unknown) => {
-      console.error(e);
-      process.exit(1);
-    });
-  },
+  run: () => linearDrain(linearDrainDeps()),
 });

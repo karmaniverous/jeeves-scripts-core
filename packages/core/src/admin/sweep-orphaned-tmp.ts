@@ -26,11 +26,16 @@ export function sweepTargets(): string[] {
   return [p.contentDir, p.scriptsDir, ...extra];
 }
 
+/** Sweep {@link sweepTargets} as of `now`. */
+export function sweepOrphanedTmp(now: number = Date.now()): void {
+  sweepDirs(sweepTargets(), now);
+}
+
 export default defineJob({
   id: JOB_ID,
   domain: 'admin',
   name: 'admin/sweep-orphaned-tmp',
   run: () => {
-    sweepDirs(sweepTargets(), Date.now());
+    sweepOrphanedTmp();
   },
 });

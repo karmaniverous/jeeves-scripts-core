@@ -84,7 +84,7 @@ async function main(): Promise<void> {
         timeout: 300,
       }),
     );
-    process.exit(0);
+    return;
   }
 
   await processNotionInboxMeeting(pageId);
@@ -102,10 +102,5 @@ export default defineJob({
   id: 'meetings-ingest-notion',
   domain: 'meetings',
   name: 'meetings/ingest-notion',
-  run: () => {
-    main().catch((err: unknown) => {
-      console.error(err);
-      process.exit(1);
-    });
-  },
+  run: () => main(),
 });

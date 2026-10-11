@@ -242,10 +242,5 @@ export default defineJob({
   id: 'calendar-poll',
   domain: 'calendar',
   name: 'calendar/poll',
-  run: () => {
-    main().catch((err: unknown) => {
-      console.error('Fatal:', err);
-      process.exit(1);
-    });
-  },
+  run: () => main(),
 });

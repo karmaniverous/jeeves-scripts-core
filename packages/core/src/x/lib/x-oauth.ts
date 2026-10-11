@@ -2,9 +2,9 @@
  * @module x/lib/x-oauth
  *
  * X OAuth2 credential files and token refresh. Credentials live in
- * `{constants().X_OAUTH_DIR}/x-{handle}-oauth2.json` (server-managed);
- * `refreshOAuth2Token` exchanges the refresh token and writes the new
- * tokens back to the same file.
+ * `{oauthDir}/x-{handle}-oauth2.json` (server-managed; `oauthDir` is
+ * `integrations.x.oauthDir`); `refreshOAuth2Token` exchanges the refresh
+ * token and writes the new tokens back to the same file.
  */
 
 import fs from 'node:fs';
@@ -12,10 +12,7 @@ import path from 'node:path';
 
 import { OAuth2 } from '@xdevplatform/xdk';
 
-import { constants } from '../../lib/constants.js';
-
-// ── OAuth JSON helpers ─────────────────────────────────────────────
-
+/** The server-managed credential file. */
 export interface XOAuthCredentials {
   provider: string;
   account: string;
@@ -30,19 +27,17 @@ export interface XOAuthCredentials {
   clientSecret?: string;
 }
 
-/**
- * Resolve the path to the OAuth2 JSON credential file for a handle.
- * Format: `{constants().X_OAUTH_DIR}/x-{handle}-oauth2.json`
- */
-export function getOAuthPath(handle: string): string {
-  return path.join(constants().X_OAUTH_DIR, `x-${handle}-oauth2.json`);
+/** The credential file for a handle: `{oauthDir}/x-{handle}-oauth2.json`. */
+export function getOAuthPath(oauthDir: string, handle: string): string {
+  return path.join(oauthDir, `x-${handle}-oauth2.json`);
 }
 
-/**
- * Read OAuth2 credentials from the server-managed JSON file.
- */
-export function readOAuthCredentials(handle: string): XOAuthCredentials | null {
-  const filePath = getOAuthPath(handle);
+/** Read a handle's credentials; `null` when absent or unparseable (logged). */
+export function readOAuthCredentials(
+  oauthDir: string,
+  handle: string,
+): XOAuthCredentials | null {
+  const filePath = getOAuthPath(oauthDir, handle);
   if (!fs.existsSync(filePath)) return null;
   try {
     return JSON.parse(fs.readFileSync(filePath, 'utf8')) as XOAuthCredentials;
@@ -52,20 +47,18 @@ export function readOAuthCredentials(handle: string): XOAuthCredentials | null {
   }
 }
 
-/**
- * Write OAuth2 credentials back to the server-managed JSON file.
- */
+/** Write a handle's credentials back. */
 export function writeOAuthCredentials(
+  oauthDir: string,
   handle: string,
   creds: XOAuthCredentials,
 ): void {
-  const filePath = getOAuthPath(handle);
+  const filePath = getOAuthPath(oauthDir, handle);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, JSON.stringify(creds, null, 2) + '\n', 'utf8');
 }
 
-// ── Token refresh ──────────────────────────────────────────────────
-
+/** New tokens. */
 export interface TokenRefreshResult {
   accessToken: string;
   refreshToken: string;
@@ -74,20 +67,43 @@ export interface TokenRefreshResult {
   expiresIn?: number;
 }
 
+/** The token endpoint's answer. */
+export interface RefreshedTokens {
+  access_token: string;
+  refresh_token?: string;
+  token_type?: string;
+  scope?: string;
+  expires_in?: number;
+}
+
+/** Exchanges a refresh token with the client credentials. */
+export type TokenRefresher = (
+  client: { clientId: string; clientSecret: string },
+  refreshToken: string,
+) => Promise<RefreshedTokens>;
+
+/** The X SDK's OAuth2 refresh. */
+export const xdkRefresher: TokenRefresher = (client, refreshToken) =>
+  new OAuth2({ ...client, redirectUri: 'https://localhost' }).refreshToken(
+    refreshToken,
+  );
+
 /**
- * Refresh OAuth2 token for a handle using credentials from the JSON file.
- * Reads client ID/secret and refresh token from the same file,
- * refreshes via the X API, and writes the updated tokens back.
+ * Refresh a handle's token from its credential file and write the new
+ * tokens back. `null` (logged as a skip) when the file or the refresh
+ * token or client credentials are missing.
  */
 export async function refreshOAuth2Token(
+  oauthDir: string,
   handle: string,
+  refresher: TokenRefresher = xdkRefresher,
+  now: () => Date = () => new Date(),
 ): Promise<TokenRefreshResult | null> {
-  const creds = readOAuthCredentials(handle);
+  const creds = readOAuthCredentials(oauthDir, handle);
   if (!creds) {
     console.log(`[skip] OAuth2 credentials not found for @${handle}`);
     return null;
   }
-
   const { refresh_token: rt, clientId, clientSecret } = creds;
   if (!rt || !clientId || !clientSecret) {
     console.log(
@@ -96,29 +112,20 @@ export async function refreshOAuth2Token(
     return null;
   }
 
-  const oauth2 = new OAuth2({
-    clientId,
-    clientSecret,
-    redirectUri: 'https://localhost',
-  });
-
-  const tokens = await oauth2.refreshToken(rt);
-
-  // Write updated tokens back to the JSON file.
-  const updated: XOAuthCredentials = {
+  const tokens = await refresher({ clientId, clientSecret }, rt);
+  const refreshToken = tokens.refresh_token ?? rt;
+  writeOAuthCredentials(oauthDir, handle, {
     ...creds,
     access_token: tokens.access_token,
-    refresh_token: tokens.refresh_token ?? rt,
+    refresh_token: refreshToken,
     token_type: tokens.token_type,
     scope: tokens.scope,
     expires_in: tokens.expires_in,
-    obtained_at: new Date().toISOString(),
-  };
-  writeOAuthCredentials(handle, updated);
-
+    obtained_at: now().toISOString(),
+  });
   return {
     accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token ?? rt,
+    refreshToken,
     tokenType: tokens.token_type,
     scope: tokens.scope,
     expiresIn: tokens.expires_in,

@@ -88,7 +88,7 @@ async function main(): Promise<void> {
       console.log(
         `[${new Date().toISOString()}] No meetings need transcript fetching`,
       );
-    process.exit(0);
+    return;
   }
 
   console.log(
@@ -106,7 +106,7 @@ async function main(): Promise<void> {
           .map((c) => c.meetingId),
       }),
     );
-    process.exit(0);
+    return;
   }
 
   await runDocFetch();
@@ -127,10 +127,5 @@ export default defineJob({
   id: 'meetings-fetch-notes',
   domain: 'meetings',
   name: 'meetings/fetch-notes',
-  run: () => {
-    main().catch((err: unknown) => {
-      console.error(err);
-      process.exit(1);
-    });
-  },
+  run: () => main(),
 });

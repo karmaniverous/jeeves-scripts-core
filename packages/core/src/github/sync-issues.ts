@@ -281,10 +281,5 @@ export default defineJob({
   id: 'github-sync-issues',
   domain: 'github',
   name: 'github/sync-issues',
-  run: () => {
-    main().catch((e: unknown) => {
-      console.error(e);
-      process.exit(1);
-    });
-  },
+  run: () => main(),
 });

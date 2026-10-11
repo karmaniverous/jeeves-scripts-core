@@ -1,154 +1,129 @@
 /**
- * @module backfill
+ * @module jira/backfill
  *
- * One-time Jira backfill — populates the issue (and optionally other entity
- * type) archive from the full Jira project backlog via the REST API.
- *
- * Run manually when setting up a new instance or after a data loss event.
- * Existing entity files are skipped (webhook data is fresher). Dry-run
- * mode is the default; pass `--live` for actual writes.
+ * One-time Jira backfill: populates the issue archive (`{silo}/jira/issue`)
+ * from a project's full backlog through the REST API. Existing entity files
+ * are skipped (webhook data is fresher). Dry run unless `--live`.
  *
  * Usage:
- *   jeeves-scripts run jira-backfill --project WEB [--type issue] [--live]
+ *   jeeves-scripts run jira-backfill --project ACME [--type issue] [--live]
  *
- * CLI arguments:
- *   --project <key>  Jira project key, e.g. WEB (required)
- *   --type <type>    Entity type to backfill (default: issue)
- *   --live           Perform actual writes (default: dry-run)
+ * Arguments:
+ *   --project <key>  Jira project key, e.g. ACME (required)
+ *   --type <type>    Entity type to backfill (default: issue; the only one supported)
+ *   --live           Perform actual writes (default: dry run)
  */
 
-import path from 'node:path';
-
-import { getArg, nowIso } from '@karmaniverous/jeeves';
-
-import { getBasePathForJira } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
-import { constants } from '../lib/constants.js';
+import { flag, parseRunnableArgs, value } from '../lib/args.js';
 import { backfillEntity } from '../lib/entity-store.js';
 import {
-  makeAuthHeader,
-  readApiToken,
+  hasJiraCredentials,
+  type JiraConnection,
+  jiraConnection,
   searchIssues,
 } from './lib/jira-client.js';
+import { type JiraJobDeps, jiraJobDeps } from './lib/jira-deps.js';
 
-const DOMAIN_DIR = path.join(getBasePathForJira(), 'jira');
-const RATE_LIMIT_MS = 200;
+/** Delay between issues. */
+export const RATE_LIMIT_MS = 200;
 
-function hasFlag(args: string[], flag: string): boolean {
-  return args.includes(flag);
-}
+const argSpec = {
+  project: value('--project'),
+  type: value('--type', 'issue'),
+  live: flag('--live'),
+};
 
-function sleepMs(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+interface Tally {
+  created: number;
+  skipped: number;
+  failed: number;
 }
 
 async function backfillIssues(
+  conn: JiraConnection,
   projectKey: string,
-  authHeader: string,
-  now: string,
   live: boolean,
-): Promise<{ created: number; skipped: number; failed: number }> {
+  deps: JiraJobDeps,
+): Promise<Tally> {
+  const tally: Tally = { created: 0, skipped: 0, failed: 0 };
+  const now = deps.now();
   const jql = `project = ${projectKey} ORDER BY created ASC`;
-  let created = 0;
-  let skipped = 0;
-  let failed = 0;
-
-  for await (const issue of searchIssues(
-    constants().JIRA_SITE_URL,
-    authHeader,
-    jql,
-    '*all',
-    undefined,
-    50,
-  )) {
+  for await (const issue of searchIssues(conn, jql)) {
     try {
-      const current: Record<string, unknown> = {
-        id: issue.id,
-        key: issue.key,
-        fields: issue.fields,
-      };
-
       if (live) {
         const written = backfillEntity(
-          DOMAIN_DIR,
+          deps.domainDir,
           'issue',
           issue.key,
-          current,
+          { id: issue.id, key: issue.key, fields: issue.fields },
           now,
         );
         if (written) {
-          created++;
+          tally.created++;
           console.log(`[backfill] created ${issue.key}`);
         } else {
-          skipped++;
+          tally.skipped++;
           console.log(`[backfill] skip   ${issue.key} (exists)`);
         }
       } else {
         console.log(`[backfill] dry-run ${issue.key}`);
-        skipped++;
+        tally.skipped++;
       }
     } catch (e) {
-      failed++;
+      tally.failed++;
       console.error(
         `[backfill] error ${issue.key}: ${e instanceof Error ? e.message : String(e)}`,
       );
     }
-
-    await sleepMs(RATE_LIMIT_MS);
+    await deps.sleep(RATE_LIMIT_MS);
   }
-
-  return { created, skipped, failed };
+  return tally;
 }
 
-async function backfillMain(): Promise<void> {
-  if (
-    !constants().JIRA_SITE_URL ||
-    !constants().JIRA_EMAIL ||
-    !constants().JIRA_API_TOKEN_PATH
-  ) {
+/**
+ * Run the backfill. A missing credential skips (exit 0); a missing
+ * `--project`, an unsupported `--type` or any failed issue sets exit code 1.
+ */
+export async function jiraBackfill(
+  args: readonly string[],
+  deps: JiraJobDeps,
+): Promise<void> {
+  if (!hasJiraCredentials(deps.settings)) {
     console.log('[skip] Jira API credentials not configured');
     return;
   }
-
-  const argv = process.argv.slice(2);
-  const project = getArg(argv, '--project', '');
-  const entityType = getArg(argv, '--type', 'issue');
-  const live = hasFlag(argv, '--live');
-
+  const { project, type, live } = parseRunnableArgs(args, argSpec);
   if (!project) {
     console.error('[error] --project <key> is required');
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
-
-  if (entityType !== 'issue') {
+  if (type !== 'issue') {
     console.error(
-      `[error] --type "${entityType}" is not yet supported (only "issue")`,
+      `[error] --type "${type}" is not yet supported (only "issue")`,
     );
-    process.exit(1);
+    process.exitCode = 1;
+    return;
   }
 
   console.log(
-    `[backfill] project=${project} type=${entityType} live=${String(live)}`,
+    `[backfill] project=${project} type=${type} live=${String(live)}`,
   );
   if (!live)
-    console.log('[backfill] DRY-RUN mode — pass --live for actual writes');
+    console.log('[backfill] DRY-RUN mode \u2014 pass --live for actual writes');
 
-  const apiToken = readApiToken(constants().JIRA_API_TOKEN_PATH);
-  const authHeader = makeAuthHeader(constants().JIRA_EMAIL, apiToken);
-  const now = nowIso();
-
+  const conn = jiraConnection(deps.settings, deps.fetch);
   const { created, skipped, failed } = await backfillIssues(
+    conn,
     project,
-    authHeader,
-    now,
     live,
+    deps,
   );
-
   console.log(
-    `[backfill] done — created=${String(created)} skipped=${String(skipped)} failed=${String(failed)}`,
+    `[backfill] done \u2014 created=${String(created)} skipped=${String(skipped)} failed=${String(failed)}`,
   );
-
-  if (failed > 0) process.exit(1);
+  if (failed > 0) process.exitCode = 1;
 }
 
 export default defineJob({
@@ -157,10 +132,5 @@ export default defineJob({
   description:
     'Seed the Jira issue archive from a project backlog (dry run unless --live).',
   name: 'jira/backfill',
-  run: () => {
-    backfillMain().catch((e: unknown) => {
-      console.error(e);
-      process.exit(1);
-    });
-  },
+  run: ({ args }) => jiraBackfill(args, jiraJobDeps()),
 });
