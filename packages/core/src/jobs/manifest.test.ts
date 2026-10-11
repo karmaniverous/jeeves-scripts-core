@@ -157,13 +157,13 @@ describe('effectiveManifests', () => {
     ).toEqual([base]);
   });
 
-  it('fails on deltas for unknown job ids, listing them', () => {
+  it('fails on deltas for unknown runnable ids, listing them', () => {
     expect(() =>
       effectiveManifests({
         manifests: [base],
         deltas: { nope: { enabled: false }, gone: {}, 'acme-poll': {} },
         knownIds: new Set(['acme-poll']),
       }),
-    ).toThrow(/unknown job id\(s\): nope, gone/);
+    ).toThrow(/unknown runnable id\(s\): nope, gone/);
   });
 });

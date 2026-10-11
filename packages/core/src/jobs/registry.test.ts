@@ -24,7 +24,7 @@ import { scheduledJobs } from './registry-scheduled.js';
 
 const srcDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
-describe('core job registry', () => {
+describe('core runnable registry', () => {
   it('has unique ids, each module under its domain', () => {
     const ids = coreJobs.map((e) => e.id);
     expect(new Set(ids).size).toBe(ids.length);

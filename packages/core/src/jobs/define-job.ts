@@ -1,9 +1,10 @@
 /**
  * @module jobs/define-job
  *
- * `defineJob` (Decisions 4, 40): declares a job module without running it,
- * and `runJobModule`, which runs one the way every entry point used to run
- * itself. Importing a job module has no side effects; the CLI's `run`
+ * `defineJob` (Decisions 4, 40, 49): declares a runnable (a job module)
+ * without running it, and `runJobModule`, which runs one the way every
+ * entry point used to run itself. Importing a job module has no side
+ * effects; the CLI's `run`
  * resolves the id through the registry and calls {@link runJobModule}.
  *
  * Running a job sets `process.argv` to `[node, <id>, ...args]` (job code

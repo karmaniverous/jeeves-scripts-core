@@ -2,7 +2,7 @@
   "name": "@karmaniverous/jeeves-scripts-core",
   "version": "0.0.0",
   "author": "Jason Williscroft",
-  "description": "Shared Jeeves scripts domains, job registry and CLI for jeeves-scripts instance repos.",
+  "description": "Shared Jeeves scripts domains, runnable registry and CLI for jeeves-scripts instance repos.",
   "license": "BSD-3-Clause",
   "type": "module",
   "files": [
@@ -57,7 +57,7 @@
   },
   "homepage": "https://github.com/karmaniverous/jeeves-scripts-core#readme",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.18"
   },
   "dependencies": {
     "@commander-js/extra-typings": "^15.0.0",

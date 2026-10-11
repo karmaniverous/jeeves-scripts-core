@@ -18,15 +18,15 @@ import { isJobModule, type JobModule } from './define-job.js';
 import { onDemandJobs } from './registry-on-demand.js';
 import { scheduledJobs } from './registry-scheduled.js';
 
-/** One registered job. */
+/** One registered runnable. */
 export interface RegistryEntry {
-  /** Job id. */
+  /** Runnable id. */
   id: string;
-  /** Domain (matches the manifest file and the job's `domain`). */
+  /** Domain (matches the manifest file and the runnable's `domain`). */
   domain: string;
   /** Module path under `src/` (and `dist/`), without extension. */
   module: string;
-  /** Imports the job module. */
+  /** Imports the runnable's module. */
   load: () => Promise<{ default: unknown }>;
 }
 
@@ -59,17 +59,17 @@ export const coreJobs: readonly RegistryEntry[] = [
   ...onDemandJobs,
 ];
 
-/** The registry entry for `id`, if core has that job. */
+/** The registry entry for `id`, if core has that runnable. */
 export const findJob = (
   id: string,
   registry: readonly RegistryEntry[] = coreJobs,
 ): RegistryEntry | undefined => registry.find((e) => e.id === id);
 
 /**
- * Import a registered job and check it is a `defineJob` module with the
+ * Import a registered runnable and check it is a `defineJob` module with the
  * registered id and domain.
  *
- * @throws When the module's default export is not a job, or declares a
+ * @throws When the module's default export is not a `defineJob` module, or declares a
  *   different id or domain.
  */
 export const loadJob = async (entry: RegistryEntry): Promise<JobModule> => {

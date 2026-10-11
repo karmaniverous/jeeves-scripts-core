@@ -1,10 +1,11 @@
 /**
  * @module config/check
  *
- * `config check` (Architecture → CLI): validates `jeeves-scripts.json`
- * against the schema and silo references. Exported as a function for now
- * (core has no CLI entry point yet, Dev Plan row 6); `cli/config-check.ts`
- * is the minimal bin that calls it.
+ * `configCheck` (design §5, §6; R30): validates `jeeves-scripts.json`
+ * against the schema and its silo references. It is the root export's
+ * config check and checks core's schema only; the CLI's `config check`
+ * (`cli/config-check.ts`) runs it and then loads the instance plugin, so
+ * the plugin's `configSchema` also validates the `local` block.
  */
 
 import {

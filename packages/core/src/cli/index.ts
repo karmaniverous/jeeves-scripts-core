@@ -1,13 +1,13 @@
 /**
  * @module cli
  *
- * The `jeeves-scripts` CLI (Architecture → CLI). Built on
+ * The `jeeves-scripts` CLI (design §6). Built on
  * `@commander-js/extra-typings` (Decision 31): option and argument types
  * are inferred from the builder chain, never cast.
  *
  * The instance launcher (Decision 16) calls {@link main} with the instance
  * repo root, so config resolution never depends on the working directory
- * (Architecture → Config Resolution). The verbs are the framework's own
+ * (design §5). The verbs are the framework's own
  * (R46): `run`, `list`, `config check`, `doctor`, `init`, `skills`. Domain work is never a verb
  * (Decision 49): it is a runnable, run with `run <id>`.
  */
@@ -51,7 +51,7 @@ const fail = (verb: string, e: unknown): void => {
 
 const buildConfigCommand = (root: string) => {
   const config = new Command('config').description(
-    'Validate and manage jeeves-scripts.json.',
+    'Validate jeeves-scripts.json.',
   );
 
   config

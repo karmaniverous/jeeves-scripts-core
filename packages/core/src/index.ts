@@ -1,6 +1,6 @@
 ﻿/**
- * `@karmaniverous/jeeves-scripts-core`: shared Jeeves scripts domains, job
- * registry and CLI for `jeeves-scripts` instance repos.
+ * `@karmaniverous/jeeves-scripts-core`: shared Jeeves scripts domains,
+ * runnable registry and CLI for `jeeves-scripts` instance repos.
  *
  * The root export is the only API instance code builds on (Decision 7,
  * design §3): the config API, `constants()`, `defineJob` (Decisions 4, 40,

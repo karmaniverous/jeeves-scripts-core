@@ -1,16 +1,16 @@
 /**
  * @module jobs/manifest
  *
- * Core's job manifests (Decisions 5, 40): `jobs/<domain>.json` in the
- * package, each an object keyed by job id holding the runner fields for a
- * scheduled core job (no `script`: runner jobs run the instance launcher
- * with `run <id>`). Reads and validates them with Zod, and applies an
+ * Core's runnable manifests (Decisions 5, 40, 49): `jobs/<domain>.json`
+ * in the package, each an object keyed by runnable id holding the runner
+ * fields for a scheduled core runnable (no `script`: runner jobs run the
+ * instance launcher with `run <id>`). Reads and validates them with Zod, and applies an
  * instance's `jobs` deltas from `jeeves-scripts.json`.
  *
  * Delta rules: `enabled`, `timeout_seconds` and `schedule` replace the
  * manifest's; `env` merges key by key (the delta wins); `args` are
- * appended. A delta naming an id that is neither a core job nor an
- * instance job is an error.
+ * appended. A delta naming an id that is neither a core nor an
+ * instance runnable is an error.
  */
 
 import fs from 'node:fs';
@@ -135,7 +135,7 @@ export interface EffectiveManifestsInput {
 /**
  * Core manifests with the instance's deltas applied.
  *
- * @throws When a delta names an unknown job id (listing every such id).
+ * @throws When a delta names an unknown runnable id (listing every such id).
  */
 export const effectiveManifests = ({
   manifests,
@@ -145,7 +145,7 @@ export const effectiveManifests = ({
   const unknown = Object.keys(deltas).filter((id) => !knownIds.has(id));
   if (unknown.length > 0)
     throw new Error(
-      `jobs in jeeves-scripts.json names unknown job id(s): ${unknown.join(', ')}.`,
+      `jobs in jeeves-scripts.json names unknown runnable id(s): ${unknown.join(', ')}.`,
     );
   return manifests.map((m) => applyDelta(m, deltas[m.id]));
 };

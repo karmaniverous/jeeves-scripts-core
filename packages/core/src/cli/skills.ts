@@ -1,7 +1,7 @@
 /**
  * @module cli/skills
  *
- * `jeeves-scripts skills install | uninstall | status` (R30, Decision 39;
+ * `jeeves-scripts skills install | uninstall | status` (R31, Decision 37;
  * design §8): wires core's shipped skills into OpenClaw without copying
  * them. `install` adds `<root>/node_modules/@karmaniverous/jeeves-scripts-core/skills`
  * to `skills.load.extraDirs` (exact match, idempotent) and sets

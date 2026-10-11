@@ -1,7 +1,7 @@
 /**
  * @module cli/hand-off
  *
- * The package `bin` as a hand-off (R31, Decision 39; design §9). Installed
+ * The package `bin` as a hand-off (R27, Decision 39; design §9). Installed
  * globally (or run with `npx`), `jeeves-scripts` finds the scripts repo by
  * a leading `--dir <path>`, then `JEEVES_SCRIPTS_DIR`, then the nearest
  * `jeeves-scripts.json` at or above the working directory, and runs that

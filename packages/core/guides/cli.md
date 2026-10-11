@@ -151,5 +151,5 @@ JEEVES_SCRIPTS_CONFIG=/tmp/alt.json node bin/jeeves-scripts.js run admin-refresh
 | `src/cli/package-info.ts` | The running core's package directory and version |
 | `src/cli/load-plugin.ts` | `loadPlugin`: imports `jeeves-scripts.plugin.ts` with tsx |
 | `src/cli/run.ts` | `registerInstance`, `resolveRunnable`, `runJob` |
-| `src/jobs/` | `defineJob`, the job registry and manifests ([jobs](./jobs.md)) |
+| `src/jobs/` | `defineJob`, the runnable registry and manifests ([jobs](./jobs.md)) |
 | `src/cli/bin.ts` | Package `bin`: the global hand-off |
