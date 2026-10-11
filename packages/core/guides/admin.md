@@ -10,7 +10,7 @@ Token metrics collection, session cost management, and housekeeping (orphaned `.
 | `session-refresh.ts` | Rotates bloated gateway sessions by resetting idle sessions with high cacheRead values |
 | `token-metrics.ts` | Queries pre-rolled hourly buckets and aggregates into a cost report for a given time range (also a CLI module: `[--from ISO] [--to ISO]`) |
 | `refresh-token-rates.ts` | Seeds the rate card if missing, then refreshes every provider model's $/MTok rates from the public OpenRouter model endpoint (`openrouter.ai/api/v1/model/<id>`, base tier, no LLM). Also adds models the collector recorded as pending (`token-rates.pending.json`). Fetches 4 at a time (15 s per request, 60 s budget), writes changed rates atomically (advancing `updatedAt`), skips internal `openclaw/`/`clawdbot/` entries and entries marked `"manual": true`, and fails if any model can't be resolved (after applying the rest) or the card is missing or invalid. `--dry-run` reports changes without writing |
-| `sweep-orphaned-tmp.ts` | Runnable `admin-sweep-orphaned-tmp`. Removes orphaned `.tmp` files left behind by crashed atomic-write operations: scans `CONTENT_DIR` and `SCRIPTS_DIR` recursively (skipping `node_modules/` and `.git/`, and directories that don't exist) for `.tmp` files older than 1 hour, and reports how many it removed. |
+| `sweep-orphaned-tmp.ts` | Runnable `admin-sweep-orphaned-tmp`. Removes orphaned `.tmp` files left behind by crashed atomic-write operations: scans the content and scripts directories, plus any absolute directories in `jobs.admin-sweep-orphaned-tmp.extraDirs` (Decision 55), recursively (skipping `node_modules/` and `.git/`, and directories that don't exist) for `.tmp` files older than 1 hour, and reports how many it removed. Every directory gets the same rules (`lib/sweep-tmp.ts`). |
 | `qdrant-health-check.ts` | Runnable `admin-check-qdrant-health`. Checks Qdrant liveness (`/healthz`, plain-text body, judged by HTTP status) and each collection's status and optimizer state. Attempts a non-interactive restart when Qdrant is down or unhealthy ([below](#qdrant-restart-privileges)). |
 | `regenerate-token-metrics.ts` | Rebuilds hourly buckets for `[--from, --to)` from the agent DB plus Claude Code logs, and bootstraps the agent-DB cursor after the 2026.9 upgrade. Modes: `--out DIR` (scratch; refused when DIR is the live store, directly or through a symlink, or already holds buckets in range), live without `--to` (rebuild to the last closed hour, replaces cursors), live with `--to` (counted events only, cursors untouched); `--dry-run`. Live runs need the `OPENCLAW_UPGRADE_CUTOFF` environment variable (see [Regeneration settings](#regeneration-settings)) and refuse a `--from` before it without `--allow-pre-upgrade`; `--out` runs ignore it |
 
@@ -70,7 +70,11 @@ No external prerequisites — all jobs run against local filesystem and gateway 
 | `admin-sweep-orphaned-tmp`    | Every 59 min    |
 | `admin-check-qdrant-health`   | Every 4 h       |
 
-The sweep reads `paths().contentDir` and `paths().scriptsDir` (`constants().CONTENT_DIR`, `SCRIPTS_DIR`) from `jeeves-scripts.json`.
+The sweep reads `paths().contentDir`, `paths().scriptsDir` and `jobs.admin-sweep-orphaned-tmp.extraDirs` from `jeeves-scripts.json` when it runs. `extraDirs` lists other directories to sweep with the same rules, as absolute paths (for example a workspace where another tool writes atomically):
+
+```json
+{ "jobs": { "admin-sweep-orphaned-tmp": { "extraDirs": ["D:/workspace"] } } }
+```
 
 All five entries in core's manifest `jobs/admin.json` have `"prerequisite": null`. `admin-regenerate-token-metrics` is registered without a manifest (run it by hand, see the [runbook](./token-metrics-runbook.md)). `admin-refresh-token-rates` uses the RRStack schedule `{"freq":"daily","byhour":5,"byminute":37,"timezone":"UTC"}`.
 
@@ -95,6 +99,7 @@ All five entries in core's manifest `jobs/admin.json` have `"prerequisite": null
 | `lib/openclaw-db/schema-v23-meta.ts` | Loads schema-23 session keys and channel/peer/label names (read-only) |
 | `lib/regen-guard.ts` | Live regenerate guard: refuses when `OPENCLAW_UPGRADE_CUTOFF` is unset or invalid, and a `--from` before it without `--allow-pre-upgrade` |
 | `lib/regen-run.ts` | admin-regenerate-token-metrics orchestration: scratch / live / bounded (`--to`, counted-only, cursors untouched), backup → delete → flush → cursor replace; refuses a scratch `--out` that is the live store |
+| `lib/sweep-tmp.ts` | `sweepDir` / `sweepDirs`: removes `.tmp` files older than 1 hour under each directory, recursively (skipping `node_modules/` and `.git/`); admin-sweep-orphaned-tmp's body |
 | `lib/same-path.ts` | `isSamePath(a, b)`: same location after following symlinks (nearest existing ancestor for paths not created yet); keeps `--out` off the live store |
 | `lib/collect-run.ts` | admin-collect-token-metrics orchestration; loads the agent-DB collector (node:sqlite) lazily |
 | `lib/fresh-openclaw-history.ts` | Fresh-instance check: with no DB cursor, the collector starts it empty only when no legacy cursor entry and no bucket holding OpenClaw usage exist; otherwise it refuses until regenerate bootstraps it |

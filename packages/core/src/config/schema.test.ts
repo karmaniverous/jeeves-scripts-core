@@ -56,6 +56,22 @@ describe('configSchema', () => {
     expect(result.jobs['email-poll']?.enabled).toBe(true);
   });
 
+  it('accepts absolute jobs.<id>.extraDirs on Windows and POSIX and rejects relative ones', () => {
+    const withDirs = (extraDirs: string[]) => ({
+      ...MINIMAL_CONFIG,
+      jobs: { 'admin-sweep-orphaned-tmp': { extraDirs } },
+    });
+    const dirs = ['/srv/work', 'D:/work', 'D:\\work', '\\\\host\\share'];
+    expect(
+      configSchema.parse(withDirs(dirs)).jobs['admin-sweep-orphaned-tmp']
+        ?.extraDirs,
+    ).toEqual(dirs);
+    expect(() => configSchema.parse(withDirs(['work']))).toThrow(
+      /extraDirs entries must be absolute paths/,
+    );
+    expect(() => configSchema.parse(withDirs(['']))).toThrow();
+  });
+
   it('rejects a literal secret value anywhere in the tree', () => {
     expect(() =>
       configSchema.parse({

@@ -106,6 +106,7 @@ An instance never copies a core manifest. It adjusts a runnable's manifest (core
 | `env` | Merged key by key over the manifest's; the delta wins. |
 | `args` | Appended to the manifest's. |
 | `silo`, `taskFile` | Read by the job itself (task-file dispatchers); no runner effect. |
+| `extraDirs` | Read by `admin-sweep-orphaned-tmp`: absolute directories it sweeps besides the content and scripts directories ([admin](./admin.md#prerequisites)); no runner effect. |
 
 A delta for an id that is neither a core nor an instance runnable is an error. `src/jobs/manifest.ts` (`readCoreManifests`, `applyDelta`, `effectiveManifests`) and `src/jobs/runnables.ts` (`registeredManifests`) implement this; `jeeves-scripts list --json` prints the effective set ([cli](./cli.md#listing-runnables)). Deltas shape what registration uses; they do not change a runner job that already exists.
 

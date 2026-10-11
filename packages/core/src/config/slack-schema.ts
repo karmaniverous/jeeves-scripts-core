@@ -7,13 +7,9 @@
  * cached in the state folder, never configured here.
  */
 
-import path from 'node:path';
-
 import { z } from 'zod';
 
-/** An absolute path on Windows (`D:/x`, `D:\x`, `\\host\share`) or POSIX (`/x`). */
-const isAbsolutePath = (p: string): boolean =>
-  path.win32.isAbsolute(p) || path.posix.isAbsolute(p);
+import { isAbsolutePath } from './absolute-path.js';
 
 /** What we decide about one channel. */
 export const slackChannelConfigSchema = z.strictObject({

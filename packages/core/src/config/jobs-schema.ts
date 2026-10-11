@@ -5,11 +5,14 @@
  * deltas per job id (Decisions 5, 40). There is no `extensions` block
  * (Decision 50): a seam and its config arrive only on evidence (Decision
  * 8). The schedule is the runner's (`config/schedule-schema`), shared
- * with core's job manifests (`jobs/manifest`).
+ * with core's job manifests (`jobs/manifest`). Like `silo` and `taskFile`,
+ * `extraDirs` is read by the runnable itself (`admin-sweep-orphaned-tmp`,
+ * Decision 55) and has no runner effect.
  */
 
 import { z } from 'zod';
 
+import { isAbsolutePath } from './absolute-path.js';
 import { scheduleSchema } from './schedule-schema.js';
 
 /** An instance's changes to one core job (Decision 5). */
@@ -28,6 +31,18 @@ export const jobDeltaSchema = z.object({
   silo: z.string().optional(),
   /** Task file path, relative to the job's silo (Decisions 23, 28). */
   taskFile: z.string().optional(),
+  /**
+   * Directories `admin-sweep-orphaned-tmp` sweeps in addition to the
+   * content and scripts directories, with the same rules (Decision 55).
+   * Absolute paths.
+   */
+  extraDirs: z
+    .array(
+      z.string().min(1).refine(isAbsolutePath, {
+        message: 'extraDirs entries must be absolute paths',
+      }),
+    )
+    .optional(),
 });
 
 /** The `jobs` block: deltas keyed by job id. */
