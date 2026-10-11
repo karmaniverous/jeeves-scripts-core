@@ -192,6 +192,21 @@ describe('jeeves-scripts CLI', () => {
     expect(verbs).not.toContain('email');
   });
 
+  it('--help lists only the six verbs, with no help verb (R46)', () => {
+    const help = buildProgram({ root }).helpInformation();
+    const verbs = [...help.split('Commands:')[1]!.matchAll(/^ {2}(\S+)/gm)].map(
+      (m) => m[1],
+    );
+    expect(verbs).toEqual([
+      'config',
+      'run',
+      'list',
+      'doctor',
+      'init',
+      'skills',
+    ]);
+  });
+
   it('resolveRoot passes paths through and converts file URLs', () => {
     expect(resolveRoot(root)).toBe(root);
     expect(resolveRoot(pathToFileURL(root))).toBe(root);

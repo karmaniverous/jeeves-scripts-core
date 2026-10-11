@@ -182,20 +182,24 @@ const buildSkillsCommand = (root: string) => {
 /** Build the `jeeves-scripts` program for an instance repo root. */
 export const buildProgram = (options: CliOptions) => {
   const root = resolveRoot(options.root);
-  return new Command('jeeves-scripts')
-    .description('Run and list jeeves-scripts runnables for this instance.')
-    .version(coreVersion(), '-V, --version', 'print the core version')
-    .addHelpText(
-      'after',
-      '\nInstalled globally, jeeves-scripts finds the scripts repo by a leading --dir <path>, then JEEVES_SCRIPTS_DIR, then the nearest jeeves-scripts.json above the working directory, and runs its bin/jeeves-scripts.js.',
-    )
-    .enablePositionalOptions()
-    .addCommand(buildConfigCommand(root))
-    .addCommand(buildRunCommand(root))
-    .addCommand(buildListCommand(root))
-    .addCommand(buildDoctorCommand(root))
-    .addCommand(buildInitCommand(root))
-    .addCommand(buildSkillsCommand(root));
+  return (
+    new Command('jeeves-scripts')
+      .description('Run and list jeeves-scripts runnables for this instance.')
+      .version(coreVersion(), '-V, --version', 'print the core version')
+      .addHelpText(
+        'after',
+        '\nInstalled globally, jeeves-scripts finds the scripts repo by a leading --dir <path>, then JEEVES_SCRIPTS_DIR, then the nearest jeeves-scripts.json above the working directory, and runs its bin/jeeves-scripts.js.',
+      )
+      .enablePositionalOptions()
+      // `--help` is the help; no `help` verb (R46, design section 9).
+      .helpCommand(false)
+      .addCommand(buildConfigCommand(root))
+      .addCommand(buildRunCommand(root))
+      .addCommand(buildListCommand(root))
+      .addCommand(buildDoctorCommand(root))
+      .addCommand(buildInitCommand(root))
+      .addCommand(buildSkillsCommand(root))
+  );
 };
 
 /**
