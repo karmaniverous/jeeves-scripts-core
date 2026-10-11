@@ -11,7 +11,7 @@
   },
   "scripts": {
     "build": "npm run build --workspaces --if-present",
-    "docs": "typedoc",
+    "docs": "typedoc --options typedoc.config.ts",
     "knip": "knip",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",

@@ -17,6 +17,9 @@ const config: KnipConfig = {
     types: 'off',
   },
   workspaces: {
+    // TypeDoc finds only JSON and JS configs by itself; `npm run docs` passes
+    // the TypeScript one with `--options` (Decision 52).
+    '.': { typedoc: { config: ['typedoc.config.ts'] } },
     'packages/core': {
       entry: [
         'scripts/*.ts',

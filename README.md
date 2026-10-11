@@ -39,7 +39,7 @@ npm run docs         # TypeDoc; warnings are errors
 
 ### Code Quality Standard
 
-Every file in this repo — library code, CLI code, tests, and tool config files alike (`eslint.config.ts`, `rollup.config.ts`, `knip.ts`, `prettier.config.ts`, `tsconfig.json`) — is linted with strict, type-aware `typescript-eslint` (`strictTypeChecked` + `stylisticTypeChecked`) and type-checked with strict `tsc`. No file is excluded from type-aware linting and `eslint-disable` is never used; if a rule can't be satisfied the code is fixed instead.
+Every file in this repo — library code, CLI code, tests, and tool config files alike (`eslint.config.ts`, `prettier.config.ts`, `knip.ts`, `typedoc.config.ts`, `packages/core/rollup.config.ts`, `packages/core/vitest.config.ts`, `packages/core/.release-it.ts`, the template's `eslint.config.ts` and `vitest.config.ts`) — is linted with strict, type-aware `typescript-eslint` (`strictTypeChecked` + `stylisticTypeChecked`) and type-checked with strict `tsc`. No file is excluded from type-aware linting and `eslint-disable` is never used; if a rule can't be satisfied the code is fixed instead. Config files are TypeScript wherever the tool reads TypeScript (Decision 52); the exceptions are files whose tool reads only its own format: `tsconfig*.json` and the `presets/tsconfig.base.json` preset (TypeScript reads only JSON tsconfigs), `tsdoc.json` (TSDoc) and `lefthook.yml` (lefthook).
 
 ### Instance-Agnostic Additions
 
