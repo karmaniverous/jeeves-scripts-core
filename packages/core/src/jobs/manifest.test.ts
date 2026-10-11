@@ -69,6 +69,12 @@ describe('readCoreManifests (fixtures)', () => {
     expect(() => readCoreManifests(dir)).toThrow(/freq or rules/);
   });
 
+  it('accepts an entry without a timeout (none, as in the runner)', () => {
+    const { timeout_seconds: _timeout, ...untimed } = entry;
+    write('acme.json', { 'acme-poll': untimed });
+    expect(readCoreManifests(dir)[0]).not.toHaveProperty('timeout_seconds');
+  });
+
   it('fails on an id in two files', () => {
     write('acme.json', { 'acme-poll': entry });
     write('other.json', { 'acme-poll': entry });

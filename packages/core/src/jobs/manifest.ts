@@ -35,8 +35,8 @@ export const manifestEntrySchema = z.strictObject({
   env: z.record(z.string(), z.string()).optional(),
   /** Runner overlap policy (e.g. `skip`). */
   overlap_policy: z.string().min(1),
-  /** Run timeout in seconds. */
-  timeout_seconds: z.number().int().positive(),
+  /** Run timeout in seconds; omitted means none, as in the runner (Decision 54). */
+  timeout_seconds: z.number().int().positive().optional(),
   /** Enabled by default. */
   enabled: z.boolean(),
   /** What must be set up first; `null` when nothing (deploy registers only these). */

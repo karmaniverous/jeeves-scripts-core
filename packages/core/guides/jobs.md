@@ -70,7 +70,7 @@ Scheduled core jobs have a manifest in core, `jobs/<domain>.json`: an object key
 }
 ```
 
-`schedule` is any jeeves-runner schedule object (a recurrence with `freq`, `interval`, `byhour`, `byminute`, `timezone`, or a `rules` set). A non-null `prerequisite` says what must be set up first; deploy registers only jobs without one. Every manifest is validated with Zod; an invalid entry or an id in two files fails with the file name.
+`schedule` is any jeeves-runner schedule object (a recurrence with `freq`, `interval`, `byhour`, `byminute`, `timezone`, or a `rules` set). `timeout_seconds` is optional, as in the runner: without it the job has no timeout. A non-null `prerequisite` says what must be set up first; deploy registers only jobs without one. Every manifest is validated with Zod; an invalid entry or an id in two files fails with the file name.
 
 An instance's own manifests are `{root}/jobs/*.json` in the same format. Each id must be a registered runnable that has no core manifest: an instance runnable, or a core runnable that ships without one (for example `x-post`, Decision 50). A core manifest is changed only by a delta (below). `list` fails, naming the file, on an instance manifest that breaks these rules.
 
@@ -92,7 +92,7 @@ An instance never copies a core manifest. It adjusts a runnable's manifest (core
 
 | Field | Effect |
 | --- | --- |
-| `enabled`, `timeout_seconds`, `schedule` | Replace the manifest's value (a schedule wholesale). |
+| `enabled`, `timeout_seconds`, `schedule` | Replace the manifest's value (a schedule wholesale); a delta's `timeout_seconds` also sets one on a manifest that has none. |
 | `env` | Merged key by key over the manifest's; the delta wins. |
 | `args` | Appended to the manifest's. |
 | `silo`, `taskFile` | Read by the job itself (task-file dispatchers); no runner effect. |
