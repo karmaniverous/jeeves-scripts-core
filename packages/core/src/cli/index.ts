@@ -8,7 +8,7 @@
  * The instance launcher (Decision 16) calls {@link main} with the instance
  * repo root, so config resolution never depends on the working directory
  * (Architecture → Config Resolution). The verbs are the framework's own
- * (R46): `run`, `list`, `config check`. Domain work is never a verb
+ * (R46): `run`, `list`, `config check`, `doctor`. Domain work is never a verb
  * (Decision 49): it is a runnable, run with `run <id>`.
  */
 
@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { Command } from '@commander-js/extra-typings';
 
 import { configCheck } from '../config/check.js';
+import { doctorReport } from './doctor.js';
 import { formatList, listRunnables } from './list.js';
 import { runJob } from './run.js';
 
@@ -86,6 +87,15 @@ const buildListCommand = (root: string) =>
       else for (const line of formatList(entries)) console.log(line);
     });
 
+const buildDoctorCommand = (root: string) =>
+  new Command('doctor')
+    .description(
+      'Report the core version, config, plugin load, manifest prerequisites and override drift. Informational: always exits 0.',
+    )
+    .action(async () => {
+      for (const line of await doctorReport(root)) console.log(line);
+    });
+
 /** Build the `jeeves-scripts` program for an instance repo root. */
 export const buildProgram = (options: CliOptions) => {
   const root = resolveRoot(options.root);
@@ -94,7 +104,8 @@ export const buildProgram = (options: CliOptions) => {
     .enablePositionalOptions()
     .addCommand(buildConfigCommand(root))
     .addCommand(buildRunCommand(root))
-    .addCommand(buildListCommand(root));
+    .addCommand(buildListCommand(root))
+    .addCommand(buildDoctorCommand(root));
 };
 
 /**
