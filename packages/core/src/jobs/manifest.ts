@@ -66,8 +66,9 @@ export const coreManifestDir = (): string =>
  * Every core manifest entry, in file-name then file order.
  *
  * @param dir - Manifest directory. Default: core's shipped `jobs/`.
- * @throws When a file is not valid JSON, an entry is invalid, or an id
- *   appears twice; the message names the file.
+ * @throws When a file is not valid JSON (the message names the file and
+ *   the parser's position), an entry is invalid, or an id appears twice;
+ *   the message names the file by its path.
  */
 export const readCoreManifests = (
   dir: string = coreManifestDir(),
@@ -78,21 +79,27 @@ export const readCoreManifests = (
     .filter((name) => name.endsWith('.json'))
     .sort()
     .flatMap((name) => {
-      const result = manifestFileSchema.safeParse(
-        JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8')),
-      );
+      const file = path.join(dir, name);
+      let json: unknown;
+      try {
+        json = JSON.parse(fs.readFileSync(file, 'utf8'));
+      } catch (e) {
+        throw new Error(
+          `Invalid JSON in job manifest ${file}: ${e instanceof Error ? e.message : String(e)}`,
+          { cause: e },
+        );
+      }
+      const result = manifestFileSchema.safeParse(json);
       if (!result.success)
         throw new Error(
-          `Invalid job manifest jobs/${name}: ${z.prettifyError(result.error)}`,
+          `Invalid job manifest ${file}: ${z.prettifyError(result.error)}`,
         );
       const domain = name.slice(0, -'.json'.length);
       return Object.entries(result.data).map(([id, entry]) => {
         const other = seen.get(id);
         if (other)
-          throw new Error(
-            `Job "${id}" is in both jobs/${other} and jobs/${name}.`,
-          );
-        seen.set(id, name);
+          throw new Error(`Job "${id}" is in both ${other} and ${file}.`);
+        seen.set(id, file);
         return { id, domain, ...entry };
       });
     });

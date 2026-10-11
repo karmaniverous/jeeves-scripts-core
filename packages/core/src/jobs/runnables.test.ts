@@ -133,7 +133,7 @@ describe('readInstanceManifests', () => {
       path.join(root, 'jobs', 'old.json'),
       JSON.stringify([{ id: 'acme-x', script: 'src/acme/x.ts' }]),
     );
-    expect(() => readInstanceManifests(root)).toThrow(/jobs\/old\.json/);
+    expect(() => readInstanceManifests(root)).toThrow(/jobs[\\/]old\.json/);
     fs.rmSync(root, { recursive: true, force: true });
   });
 });

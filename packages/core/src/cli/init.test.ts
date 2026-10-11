@@ -106,7 +106,7 @@ describe('initRepo', () => {
     const target = path.join(root, 'Acme Scripts');
     fs.mkdirSync(target);
     expect(() => initRepo(target, { templateDir: fixture })).toThrow(
-      /valid npm package name/,
+      /--name, default: the folder name\) must be a valid npm package name: "Acme Scripts"/,
     );
   });
 

@@ -58,7 +58,7 @@ describe('readCoreManifests (fixtures)', () => {
       'acme-poll': { ...entry, script: 'src/acme/poll.ts' },
     });
     expect(() => readCoreManifests(dir)).toThrow(
-      /jobs\/acme\.json[\s\S]*script/,
+      /[\\/]acme\.json[\s\S]*script/,
     );
   });
 
@@ -67,7 +67,7 @@ describe('readCoreManifests (fixtures)', () => {
       'acme-poll': { ...entry, schedule: { freq: 'hourly', interval: 4 } },
     });
     expect(() => readCoreManifests(dir)).toThrow(
-      /jobs\/acme\.json[\s\S]*Invalid RRStack schedule[\s\S]*timezone/,
+      /[\\/]acme\.json[\s\S]*Invalid RRStack schedule[\s\S]*timezone/,
     );
   });
 
@@ -84,11 +84,18 @@ describe('readCoreManifests (fixtures)', () => {
     expect(readCoreManifests(dir)[0]).not.toHaveProperty('timeout_seconds');
   });
 
+  it('names the file and the position on a JSON syntax error', () => {
+    fs.writeFileSync(path.join(dir, 'acme.json'), '{ "acme-poll": { ,} }');
+    expect(() => readCoreManifests(dir)).toThrow(
+      /^Invalid JSON in job manifest .*[\\/]acme\.json: .*position \d+/,
+    );
+  });
+
   it('fails on an id in two files', () => {
     write('acme.json', { 'acme-poll': entry });
     write('other.json', { 'acme-poll': entry });
     expect(() => readCoreManifests(dir)).toThrow(
-      /"acme-poll" is in both jobs\/acme\.json and jobs\/other\.json/,
+      /"acme-poll" is in both .*acme\.json and .*other\.json\./,
     );
   });
 });

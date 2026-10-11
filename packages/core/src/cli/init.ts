@@ -17,6 +17,7 @@ import path from 'node:path';
 
 import { z } from 'zod';
 
+import { EXACT_SEMVER } from '../jobs/plugin.js';
 import { CORE_PACKAGE, corePackageDir, coreVersion } from './package-info.js';
 
 /** Template files stored under another name, so npm packs them (top level only). */
@@ -26,21 +27,18 @@ export const RENAMED_DOTFILES: Readonly<Record<string, string>> = {
   nvmrc: '.nvmrc',
 };
 
-/** An exact semver version (no range). */
-const exactVersionSchema = z
-  .string()
-  .regex(
-    /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/,
-    'must be an exact version, e.g. 0.1.0 (no range)',
-  );
-
 /** An npm package name. */
-const packageNameSchema = z
-  .string()
-  .regex(
-    /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/,
-    'must be a valid npm package name',
-  );
+const PACKAGE_NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
+
+/**
+ * `value` when it matches `pattern`.
+ *
+ * @throws Naming the option and the rejected value.
+ */
+const checked = (value: string, pattern: RegExp, problem: string): string => {
+  if (!pattern.test(value)) throw new Error(`${problem}: "${value}"`);
+  return value;
+};
 
 const packageJsonSchema = z.looseObject({
   name: z.string().optional(),
@@ -95,10 +93,16 @@ export const initRepo = (
   root: string,
   options: InitOptions = {},
 ): InitResult => {
-  const name = packageNameSchema.parse(
+  const name = checked(
     options.name ?? path.basename(path.resolve(root)),
+    PACKAGE_NAME,
+    `the package name (--name, default: the folder name) must be a valid npm package name`,
   );
-  const version = exactVersionSchema.parse(options.core ?? coreVersion());
+  const version = checked(
+    options.core ?? coreVersion(),
+    EXACT_SEMVER,
+    'the core version (--core) must be an exact version, e.g. 0.1.0 (no range)',
+  );
   const templateDir =
     options.templateDir ?? path.join(corePackageDir(), 'template');
   if (!fs.existsSync(templateDir))

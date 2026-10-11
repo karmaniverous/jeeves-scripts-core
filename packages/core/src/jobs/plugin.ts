@@ -28,6 +28,10 @@ import {
   slugSchema,
 } from './define-job.js';
 
+/** An exact semver version (no range), e.g. `0.1.0` or `1.0.0-rc.1`. */
+export const EXACT_SEMVER =
+  /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+
 const OVERRIDE = Symbol.for('@karmaniverous/jeeves-scripts-core/override');
 const PLUGIN = Symbol.for('@karmaniverous/jeeves-scripts-core/plugin');
 const LOCAL = Symbol.for('@karmaniverous/jeeves-scripts-core/local-config');
@@ -38,8 +42,13 @@ export const jobOverrideDeclarationSchema = z.strictObject({
   job: slugSchema('override job id'),
   /** The core issue it works around, e.g. `karmaniverous/jeeves-scripts-core#123`. */
   issue: z.string().min(1),
-  /** The exact core version it was written against (`doctor` reports drift). */
-  writtenFor: z.string().min(1),
+  /** The exact core version (semver, no range) it was written against (`doctor` reports drift). */
+  writtenFor: z
+    .string()
+    .regex(
+      EXACT_SEMVER,
+      'must be an exact semver version (e.g. 0.1.0), the core version the override was written against',
+    ),
   /** Checked before `run`; anything but `true` skips the run. */
   prerequisite: fn<JobPrerequisite>('prerequisite').optional(),
   /** The replacement body. */

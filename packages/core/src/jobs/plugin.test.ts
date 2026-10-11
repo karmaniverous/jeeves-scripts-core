@@ -31,6 +31,12 @@ describe('override', () => {
   it.each([
     ['a missing issue', { ...ov, issue: '' }, /issue/],
     ['a missing writtenFor', { ...ov, writtenFor: '' }, /writtenFor/],
+    [
+      'a writtenFor that is not a version',
+      { ...ov, writtenFor: 'banana' },
+      /exact semver[\s\S]*writtenFor/,
+    ],
+    ['a writtenFor range', { ...ov, writtenFor: '^0.1.0' }, /exact semver/],
     ['a bad job id', { ...ov, job: 'Email Poll' }, /override job id/],
     ['an unknown field', { ...ov, fixedIn: '0.2.0' }, /fixedIn/],
     [
@@ -40,6 +46,12 @@ describe('override', () => {
     ],
   ])('rejects %s', (_label, declaration, message) => {
     expect(() => override(declaration as never)).toThrow(message);
+  });
+
+  it('accepts a prerelease writtenFor', () => {
+    expect(override({ ...ov, writtenFor: '1.0.0-rc.2' }).writtenFor).toBe(
+      '1.0.0-rc.2',
+    );
   });
 });
 
