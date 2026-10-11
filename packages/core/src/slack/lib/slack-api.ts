@@ -9,46 +9,32 @@
  * constants or config.
  */
 
-import https from 'node:https';
+import { sleepAsync } from '@karmaniverous/jeeves';
 
 /** Pause between Slack API calls, shared with slack/poll. */
 export const RATE_LIMIT_MS = 1200;
 
-export function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
+/** The shared async sleep (`@karmaniverous/jeeves`). */
+export const sleep = sleepAsync;
 
-export function slackApi(
+/**
+ * Call a Slack Web API method (GET with query parameters).
+ *
+ * @throws When the response is not JSON or `ok` is false
+ * (`Slack API <method>: <error>`).
+ */
+export async function slackApi(
   method: string,
   params: Record<string, string>,
   token: string,
 ): Promise<Record<string, unknown>> {
-  return new Promise((resolve, reject) => {
-    const qs = new URLSearchParams(params).toString();
-    const opts = {
-      hostname: 'slack.com',
-      path: `/api/${method}?${qs}`,
-      headers: { Authorization: `Bearer ${token}` },
-    };
-    https
-      .get(opts, (res) => {
-        let d = '';
-        res.on('data', (c: Buffer) => (d += c.toString()));
-        res.on('end', () => {
-          try {
-            const j = JSON.parse(d) as Record<string, unknown>;
-            if (!j.ok) {
-              reject(new Error(`Slack API ${method}: ${j.error as string}`));
-            } else {
-              resolve(j);
-            }
-          } catch (e) {
-            reject(e instanceof Error ? e : new Error(String(e)));
-          }
-        });
-      })
-      .on('error', reject);
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`https://slack.com/api/${method}?${qs}`, {
+    headers: { Authorization: 'Bearer ' + token },
   });
+  const j = JSON.parse(await res.text()) as Record<string, unknown>;
+  if (!j.ok) throw new Error(`Slack API ${method}: ${j.error as string}`);
+  return j;
 }
 
 /** Structured metadata for a Slack file attachment. */

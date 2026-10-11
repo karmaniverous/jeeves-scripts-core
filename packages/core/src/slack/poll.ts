@@ -6,7 +6,7 @@
  * Called by jeeves-runner on a schedule. Discovers the channels each bot
  * can read, fetches history and thread replies via the Slack API, and
  * writes individual JSON files per message to silo-routed directories.
- * Depends on constants().SLACK_DOMAIN_DIR; each account's workspace
+ * Skips when `SLACK_DOMAIN_DIR` does not exist; each account's workspace
  * (lib/account-teams) and each channel's (lib/channel-workspace) are
  * cached in the Slack cache.
  *
@@ -105,8 +105,10 @@ async function pollChannel(
   return written;
 }
 
-async function pollAll(client: RunnerClient): Promise<void> {
-  const tokensByAccount = getTokens();
+async function pollAll(
+  client: RunnerClient,
+  tokensByAccount: Record<string, string>,
+): Promise<void> {
   const accountNames = Object.keys(tokensByAccount);
   console.log(
     `Loaded ${String(accountNames.length)} Slack account(s): ${accountNames.join(', ')}`,
@@ -164,16 +166,34 @@ async function pollAll(client: RunnerClient): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
-  if (!fs.existsSync(constants().SLACK_DOMAIN_DIR)) {
+/** What {@link pollSlack} reads and calls (Slack itself is reached over `fetch`). */
+export interface SlackPollDeps {
+  /** `SLACK_DOMAIN_DIR`; the job skips when it does not exist. */
+  slackDir: string;
+  /** Bot tokens by account. */
+  tokens: () => Record<string, string>;
+  /** Runner state (read positions). */
+  runner: () => RunnerClient;
+}
+
+/** The live collaborators, from config. */
+export const slackPollDeps = (): SlackPollDeps => ({
+  slackDir: constants().SLACK_DOMAIN_DIR,
+  tokens: getTokens,
+  runner: () => getRunnerClient(),
+});
+
+/** Poll every readable channel of every account. */
+export async function pollSlack(deps: SlackPollDeps): Promise<void> {
+  if (!fs.existsSync(deps.slackDir)) {
     console.log('[skip] Slack domain directory not configured');
     return;
   }
 
   // Throws if the runner state store is not configured (JR_DB_PATH).
-  const client = getRunnerClient();
+  const client = deps.runner();
   try {
-    await pollAll(client);
+    await pollAll(client, deps.tokens());
   } finally {
     client.close();
   }
@@ -183,5 +203,5 @@ export default defineJob({
   id: 'slack-poll',
   domain: 'slack',
   name: 'slack/poll',
-  run: () => main(),
+  run: () => pollSlack(slackPollDeps()),
 });

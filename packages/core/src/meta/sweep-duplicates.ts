@@ -21,7 +21,7 @@ import { readJson } from '@karmaniverous/jeeves';
 
 import { getEntityDirs } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
-import { ENTITY_TYPES } from '../lib/constants.js';
+import { ENTITY_TYPES, type EntityTypeConfig } from '../lib/constants.js';
 
 /** All case variants of "duplicateOf" that builders might emit. */
 const DUPLICATE_KEY_VARIANTS = new Set(['duplicateof', 'duplicate_of']);
@@ -89,7 +89,16 @@ function collectFiles(dir: string): string[] {
   return results;
 }
 
-function main(): void {
+/** What {@link sweepDuplicates} reads. */
+export interface SweepDuplicatesDeps {
+  /** Entity types with their rejection keys. */
+  entityTypes: readonly EntityTypeConfig[];
+  /** The entity root directories of a type (through the silos). */
+  entityDirs: (subdir: string) => string[];
+}
+
+/** Delete rejected entities and merge duplicates into their originals; prints a summary. */
+export function sweepDuplicates(deps: SweepDuplicatesDeps): void {
   let totalRejected = 0;
   let totalDuplicates = 0;
   let totalMerged = 0;
@@ -97,9 +106,9 @@ function main(): void {
   let totalFilesCopied = 0;
   const errors: string[] = [];
 
-  for (const entityType of ENTITY_TYPES) {
+  for (const entityType of deps.entityTypes) {
     const rejectionKeys = new Set(entityType.rejectionKeys);
-    const entityRoots = getEntityDirs(entityType.subdir);
+    const entityRoots = deps.entityDirs(entityType.subdir);
 
     console.log(`\n=== Entity type: ${entityType.subdir} ===`);
 
@@ -218,6 +227,6 @@ export default defineJob({
   domain: 'meta',
   name: 'meta/sweep-duplicates',
   run: () => {
-    main();
+    sweepDuplicates({ entityTypes: ENTITY_TYPES, entityDirs: getEntityDirs });
   },
 });

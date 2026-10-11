@@ -11,6 +11,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { sleepAsync } from '@karmaniverous/jeeves';
+
 import { gatewayInvoke } from './gateway-client.js';
 import { openclawStateDirs } from './openclaw-config.js';
 
@@ -204,13 +206,19 @@ function getSessionsDir(): string {
   return path.join(stateDirs[0], 'agents', 'main', 'sessions');
 }
 
-/** Resolve a session row's token count (transcript usage preferred). */
-function sessionTokens(session: GatewaySession): number {
+/**
+ * Resolve a session row's token count (transcript usage preferred; a
+ * relative transcript path is under `sessionsDir`).
+ */
+export function sessionTokens(
+  session: GatewaySession,
+  sessionsDir: () => string = getSessionsDir,
+): number {
   let totalTokens = session.totalTokens ?? 0;
   if (session.transcriptPath) {
     const fullPath = path.isAbsolute(session.transcriptPath)
       ? session.transcriptPath
-      : path.join(getSessionsDir(), session.transcriptPath);
+      : path.join(sessionsDir(), session.transcriptPath);
     const transcriptTokens = getTokensFromTranscript(fullPath);
     if (transcriptTokens > 0) totalTokens = transcriptTokens;
   }
@@ -218,10 +226,11 @@ function sessionTokens(session: GatewaySession): number {
 }
 
 /** Fetch one session's `sessions_list` row by exact key. */
-async function findSession(
+export async function findSession(
   sessionKey: string,
+  invoke: typeof invokeGateway = invokeGateway,
 ): Promise<GatewaySession | undefined> {
-  const result = await invokeGateway('sessions_list', {
+  const result = await invoke('sessions_list', {
     search: sessionKey,
     limit: 20,
   });
@@ -234,10 +243,10 @@ async function findSession(
 }
 
 const defaultWaitDeps: WaitDeps = {
-  findSession,
-  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
+  findSession: (key) => findSession(key),
+  sleep: sleepAsync,
   now: () => Date.now(),
-  tokensFor: sessionTokens,
+  tokensFor: (session) => sessionTokens(session),
 };
 
 /**
