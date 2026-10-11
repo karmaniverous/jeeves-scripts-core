@@ -58,7 +58,9 @@ export default [
       '**/diagrams/out/**/*',
       '**/dist/**',
       '**/docs/**/*',
-      '**/template/**/*',
+      // Core's build-output copy of packages/template. packages/template
+      // itself is linted like every other workspace (Decision 22).
+      'packages/core/template/**/*',
       'node_modules/**/*',
       '**/node_modules/**/*',
     ],

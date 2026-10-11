@@ -45,7 +45,10 @@ describe('generate-social-posts', () => {
     const { task, slack } = buildTask();
     expect(task).toContain('Write to Notion DB db1.');
     expect(task).toContain('blotter.md');
-    expect((slack.posts ?? []).map((p) => p.target)).toEqual(['C0SOCIAL', 'D0OPS']);
+    expect((slack.posts ?? []).map((p) => p.target)).toEqual([
+      'C0SOCIAL',
+      'D0OPS',
+    ]);
   });
 
   it('throws when a ref is missing', () => {
