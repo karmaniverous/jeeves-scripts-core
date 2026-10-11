@@ -9,9 +9,16 @@
  */
 
 import type { TypeDocOptions } from 'typedoc';
-import type {} from 'typedoc-plugin-replace-text';
+import type { Config as ReplaceTextConfig } from 'typedoc-plugin-replace-text';
 
-const config: Partial<TypeDocOptions> = {
+/**
+ * TypeDoc's options with the replace-text plugin's own `replaceText` type:
+ * the plugin's declaration merging maps it to an array in
+ * `TypeDocOptions`, which its documented object form doesn't match.
+ */
+type Options = Omit<Partial<TypeDocOptions>, 'replaceText'> & ReplaceTextConfig;
+
+const config: Options = {
   entryPoints: ['./packages/core/src/index.ts'],
   tsconfig: './packages/core/tsconfig.json',
   highlightLanguages: [
