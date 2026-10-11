@@ -101,7 +101,7 @@ A delta for an id that is neither a core nor an instance runnable is an error. `
 
 ## Instance runnables and overrides
 
-An instance adds to core through its plugin, `{root}/jeeves-scripts.plugin.ts`. The CLI imports it in its own process with tsx (no build step) before `run` and `list`; a repo without the file has no plugin.
+An instance adds to core through its plugin, `{root}/jeeves-scripts.plugin.ts`. The CLI imports it in its own process with tsx (no build step) before `run`, `list` and `doctor`; a repo without the file has no plugin.
 
 ```ts
 import { definePlugin, override } from '@karmaniverous/jeeves-scripts-core';
@@ -136,7 +136,7 @@ Registration (plugin load) fails, listing every problem with its id and domain, 
 
 `defineJob` itself already rejects an id that doesn't start with its domain and a dash. `definePlugin` and `override` validate their declarations with Zod and return them frozen; an unknown field (there is no `extensions` field, Decision 50) is an error.
 
-An override runs instead of core's runnable, under core's id and domain; `list` shows its source as `override`. It needs unit tests in the instance repo. `writtenFor` records the core version it was written for, so a core upgrade can review every override whose core has moved on (`doctor`, to build); it never fails a run.
+An override runs instead of core's runnable, under core's id and domain; `list` shows its source as `override`. It needs unit tests in the instance repo. `writtenFor` records the core version it was written for, so a core upgrade can review every override whose core has moved on: `doctor` marks each one whose `writtenFor` differs from the installed core as `DRIFT` ([cli](./cli.md#doctor)); it never fails a run.
 
 **Instance config.** Core never reads `local` in `jeeves-scripts.json`. When the plugin declares a `configSchema`, the CLI parses `local` with it at plugin load (an invalid block fails, naming the config file) and runnables read the result with `localConfig`:
 

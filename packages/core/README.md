@@ -14,6 +14,8 @@ Everything below ships in the npm package. From an instance repo, the package ro
 | `schema/jeeves-scripts.schema.json` | JSON Schema for `jeeves-scripts.json`, generated from the Zod config schema. |
 | `config/token-rates.seed.json` | The token rate card seed (`constants().TOKEN_RATES_SEED_PATH`). |
 | `jobs/<domain>.json` | Core's job manifests, keyed by job id ([`guides/jobs.md`](guides/jobs.md)). |
+| `presets/` | ESLint (`eslint.js`), TypeScript (`tsconfig.base.json`) and Vitest (`vitest.js`) presets that an instance repo's one-line tool configs extend. |
+| `template/` | The instance repo `jeeves-scripts init` writes ([`guides/cli.md`](guides/cli.md#init)). |
 | `CHANGELOG.md` | Release notes. |
 | `dist/**/*.d.ts` | TSDoc for every module, next to its type declarations. |
 
@@ -23,7 +25,7 @@ To locate the package root from code or a shell without assuming a layout:
 node -p "path.dirname(require.resolve('@karmaniverous/jeeves-scripts-core/package.json'))"
 ```
 
-The `exports` map publishes `./package.json`, `./guides/*`, `./skills/*`, `./schema/*` and `./config/*`, so `require.resolve('@karmaniverous/jeeves-scripts-core/guides/<domain>.md')` (or `import.meta.resolve`) returns a doc's absolute path from anywhere in the instance repo. `test/package-docs.test.ts` keeps this true: every doc and guide ships, resolves, and is indexed below.
+The `exports` map publishes `./package.json`, `./guides/*`, `./skills/*`, `./schema/*`, `./config/*` and `./presets/*`, so `require.resolve('@karmaniverous/jeeves-scripts-core/guides/<domain>.md')` (or `import.meta.resolve`) returns a doc's absolute path from anywhere in the instance repo. `test/package-docs.test.ts` keeps this true: every doc and guide ships, resolves, and is indexed below.
 
 Job ids named in the docs are core's registered ids ([`guides/jobs.md`](guides/jobs.md)): `jeeves-scripts run <id>` runs any of them. Scheduled jobs have a manifest in core (`jobs/<domain>.json`); an instance adjusts them with `jobs.<id>` deltas in `jeeves-scripts.json` and never copies them. `jeeves-scripts list` shows every registered runnable.
 
@@ -63,6 +65,17 @@ npm install --save-exact @karmaniverous/jeeves-scripts-core
 
 Node `>=22.13`. Instances pin an exact version; upgrading core is a commit to the instance repo's `package.json`.
 
+To start a new instance repo:
+
+```bash
+mkdir jeeves-scripts && cd jeeves-scripts
+npx @karmaniverous/jeeves-scripts-core init --name acme-scripts
+npm install
+node bin/jeeves-scripts.js doctor
+```
+
+`init` never overwrites a file, and wires core's skills into OpenClaw when it is on the host ([`guides/cli.md`](guides/cli.md#init)). Installed globally (`npm install -g @karmaniverous/jeeves-scripts-core`), `jeeves-scripts` only hands off to a repo's launcher ([`guides/cli.md`](guides/cli.md#the-global-hand-off)).
+
 ## Running jobs
 
 The instance repo carries a launcher, `bin/jeeves-scripts.js`:
@@ -78,6 +91,7 @@ Runner jobs execute it with `node`, so the CLI never needs to be on `PATH` and t
 node <scriptsDir>/bin/jeeves-scripts.js run <id> [args...]
 node <scriptsDir>/bin/jeeves-scripts.js list [glob] [--json]
 node <scriptsDir>/bin/jeeves-scripts.js config check
+node <scriptsDir>/bin/jeeves-scripts.js doctor
 ```
 
 See [`guides/cli.md`](guides/cli.md) for every command and how `run` resolves an id. An instance adds its own runnables, overrides of core runnables and the schema of its own `local` config block in `{root}/jeeves-scripts.plugin.ts`, which the CLI loads with tsx ([`guides/jobs.md`](guides/jobs.md#instance-runnables-and-overrides)).
@@ -99,7 +113,7 @@ See [`guides/config.md`](guides/config.md).
 
 | Import | What it is |
 | --- | --- |
-| `@karmaniverous/jeeves-scripts-core` | The config API (schemas, loader, getters `paths()`, `integrations()`, `pipeline()`, refs, silo resolver and routing, `configCheck`); `constants()`; `defineJob`; the plugin API (`definePlugin`, `override`, `localConfig`); the utilities: the task-file dispatcher (`taskFileDispatcher`, `dispatchTaskFile`, `resolveTaskFile`) with `digestTimeZone` and the date helpers (`withDateContext`, `requireTimeZone`, `dayOfWeek`, `formatDate`, `relativeDays`), `dispatchWithSlack` and the worker-slack config schemas, the readers for other components' config (OpenClaw, jeeves-runner, jeeves-meta, any `jeeves-<name>`), the `gh` helpers, `getTokenMetrics`, and `convertDocxToMd` / `convertPdfToMd`. |
+| `@karmaniverous/jeeves-scripts-core` | The config API (schemas, loader, getters `paths()`, `integrations()`, `pipeline()`, refs, silo resolver and routing, `configCheck`); `constants()`; `defineJob`; the plugin API (`definePlugin`, `override`, `localConfig`); the utilities: the task-file dispatcher (`taskFileDispatcher`, `dispatchTaskFile`, `resolveTaskFile`) with `digestTimeZone` and the date helpers (`withDateContext`, `requireTimeZone`, `dayOfWeek`, `formatDate`, `relativeDays`), `dispatchWithSlack` and the worker-slack config schemas, the readers for other components' config (OpenClaw, jeeves-runner, jeeves-meta, any `jeeves-<name>`), the `gh` helpers, `getTokenMetrics`, and `convertDocxToMd` / `convertPdfToMd` (also the runnables `convert-docx-to-md`, `convert-pdf-to-md`). |
 | `@karmaniverous/jeeves-scripts-core/cli` | `main`, `buildProgram`: the CLI the launcher runs. |
 
 No other module is exported: instance code imports only these (Decision 7). A core function instance code needs is added to the root export, with docs and tests.

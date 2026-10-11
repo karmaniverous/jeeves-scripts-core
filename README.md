@@ -13,11 +13,11 @@ This repository is a private workspace root. It holds two packages:
 | [`packages/core`](packages/core) | [`@karmaniverous/jeeves-scripts-core`](https://www.npmjs.com/package/@karmaniverous/jeeves-scripts-core) | Shared domains, config loader and the `jeeves-scripts` CLI (published, public npm) |
 | [`packages/template`](packages/template) | `jeeves-scripts-template` (private, never published alone) | Bundled scaffold `jeeves-scripts init` writes into a new instance repo |
 
-`packages/core`'s build copies `packages/template` (without `node_modules`) into `packages/core/template/`, which is listed in core's `files`. The template is linted, type-checked and tested in its own workspace against the core just built from source, exactly as an instance repo would consume it.
+`packages/core`'s build copies `packages/template` (without `node_modules`) into `packages/core/template/`, which is listed in core's `files`. The template is the instance repo exactly as `init` writes it: it extends core's presets (`./presets/*`) and is linted, type-checked and tested in its own workspace against core's **built** output (no path mapping into core's source), exactly as an instance repo consumes it. So build before linting or type-checking the template.
 
 ## Status
 
-Every shared domain from [`jeeves-scripts-template`](https://github.com/karmaniverous/jeeves-scripts-template) (`main` at `322054c`) is in `packages/core/src` and passes the strict gates below. The CLI has `run` and `config check`. The job registry, `init`, `doctor`, overrides and extension points are not built yet; `packages/template` is still a minimal sample.
+Every shared domain from [`jeeves-scripts-template`](https://github.com/karmaniverous/jeeves-scripts-template) (`main` at `322054c`) is in `packages/core/src` and passes the strict gates below, behind the job registry: `defineJob`, core's manifests, instance plugins with runnables and declared overrides, and the CLI verbs `run`, `list`, `config check`, `doctor`, `init` and `skills`, with the global hand-off ([`guides/cli.md`](packages/core/guides/cli.md)). CI also packs core, runs `init` from the tarball outside the repo and runs the new instance's `doctor`, sample runnable and gates on Ubuntu and Windows. Not released yet: the next release is v0.1.0.
 
 ## Documentation
 
@@ -28,7 +28,7 @@ Package documentation ships inside the npm package, so skills and the watcher re
 ```bash
 npm install
 npm run build        # builds packages/core, writes its JSON Schema, copies packages/template into it
-npm run lint
+npm run lint         # after build: the template lints against core's built types
 npm run typecheck
 npm test
 npm run knip
