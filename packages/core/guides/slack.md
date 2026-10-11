@@ -23,7 +23,7 @@ flowchart LR
 - Fetches paginated conversation history since the last read position per channel. Read positions are instance state in the jeeves-runner state store (see [Read Positions](#read-positions-state)).
 - For a channel with new messages, re-reads its members (`conversations.members`) when they are more than a day old; they are written as each message's `participants`.
 - Fetches thread replies for threaded messages.
-- Enriches text-extractable file attachments (`text`, `post`, `snippet`) by fetching content via `files.info` + `url_private_download` and inlining as `files[].markdown`.
+- Enriches text-extractable file attachments (`text`, `post`, `snippet`) by fetching content via `files.info` + `url_private_download` and inlining as `files[].markdown`. Inline cap: 256 KiB (`MAX_INLINE_BYTES` in `lib/file-content.ts`). A file whose Slack-reported size is over the cap is not downloaded; a download whose `Content-Length` is over it is abandoned; a body without a length is read only up to the cap. Such a file gets no `markdown`: `files[].markdownSkipped` says why (e.g. `too large to inline: size 300000 bytes > 262144-byte cap`) and the poll logs a `Skipped content for file` line.
 - Persists structured `files[]` metadata (id, name, filetype, mimetype, size) alongside `hasFiles` flag.
 - Captures voice memo transcripts from Slack's native transcription (`files[].transcript`).
 - Writes one JSON file per message, `{silo}/slack/{channelName} ({channelId})/{ts}.json`; a message whose file already exists is not rewritten.

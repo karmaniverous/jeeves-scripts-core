@@ -67,6 +67,8 @@ export interface SlackFileMetadata {
   transcript?: string;
   /** Markdown/text content for text-extractable attachments. */
   markdown?: string;
+  /** Why a text-extractable attachment's content was not inlined (e.g. over the size cap). */
+  markdownSkipped?: string;
 }
 
 export interface SlackMessage {

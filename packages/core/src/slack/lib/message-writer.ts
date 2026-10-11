@@ -88,6 +88,9 @@ export function writeMessage(
       if (f.markdown) {
         entry.markdown = f.markdown;
       }
+      if (f.markdownSkipped) {
+        entry.markdownSkipped = f.markdownSkipped;
+      }
 
       return entry;
     });
