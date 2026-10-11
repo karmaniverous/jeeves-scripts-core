@@ -86,7 +86,7 @@ Running a core module by path (`node dist/<domain>/<module>.js`) runs nothing: r
 
 ```bash
 mkdir jeeves-scripts && cd jeeves-scripts
-npx @karmaniverous/jeeves-scripts-core init --name acme-scripts
+npx @karmaniverous/jeeves-scripts-core init
 npm install
 node bin/jeeves-scripts.js config check
 node bin/jeeves-scripts.js doctor
@@ -95,7 +95,7 @@ node bin/jeeves-scripts.js doctor
 - It copies the template bundled in the package (`template/`, fewer than 15 files: the launcher, a sample `jeeves-scripts.json`, the plugin with the sample runnable `example-say-hello` and its manifest and test, one-line tool configs extending core's presets, and a README).
 - It **never overwrites** a file: every file that exists is reported as skipped, so running it again in a repo changes nothing.
 - `gitignore`, `npmrc` and `nvmrc` are stored renamed in the package (npm would drop or rename them) and written as `.gitignore`, `.npmrc` and `.nvmrc`.
-- `package.json` gets the package name (`--name`, default `jeeves-scripts`) and core pinned at an exact version (`--core`, default the running core's version); a range such as `^0.1.0` is refused.
+- `package.json` gets the package name (`--name`, default the name of the folder it writes into, which must then be a valid npm package name) and core pinned at an exact version (`--core`, default the running core's version); a range such as `^0.1.0` is refused.
 - At the end, when `openclaw` is on the host, it runs `skills install` (which shows the change and asks); otherwise it prints the command to run later.
 
 ## Skills

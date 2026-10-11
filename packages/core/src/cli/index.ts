@@ -105,7 +105,7 @@ const buildInitCommand = (root: string) =>
     .description(
       'Write an instance repo here from the template bundled in core. Never overwrites a file.',
     )
-    .option('--name <pkg>', 'package name (default: jeeves-scripts)')
+    .option('--name <pkg>', 'package name (default: the folder name)')
     .option(
       '--core <version>',
       'exact core version to pin (default: the running core version)',

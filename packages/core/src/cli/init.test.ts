@@ -15,6 +15,7 @@ const templateDir = path.resolve(
   '../../../template',
 );
 
+let tmp: string;
 let root: string;
 let fixture: string;
 
@@ -24,7 +25,11 @@ const write = (dir: string, rel: string, text: string) => {
 };
 
 beforeEach(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'jsc-init-'));
+  // The target folder's name is init's default package name, so give it a
+  // valid one (mkdtemp suffixes are mixed case).
+  tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'jsc-init-'));
+  root = path.join(tmp, 'instance');
+  fs.mkdirSync(root);
   fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'jsc-tpl-'));
   write(
     fixture,
@@ -44,7 +49,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   process.exitCode = undefined;
-  fs.rmSync(root, { recursive: true, force: true });
+  fs.rmSync(tmp, { recursive: true, force: true });
   fs.rmSync(fixture, { recursive: true, force: true });
 });
 
@@ -84,9 +89,29 @@ describe('initRepo', () => {
     expect(fs.existsSync(path.join(root, 'gitignore'))).toBe(false);
   });
 
-  it('defaults to the name jeeves-scripts and the running core version', () => {
-    initRepo(root, { templateDir: fixture });
-    expect(readPkg().name).toBe('jeeves-scripts');
+  it('defaults to the target folder name and the running core version', () => {
+    const target = path.join(root, 'acme-scripts');
+    fs.mkdirSync(target);
+    initRepo(target, { templateDir: fixture });
+    const pkg = JSON.parse(
+      fs.readFileSync(path.join(target, 'package.json'), 'utf8'),
+    ) as { name: string; dependencies: Record<string, string> };
+    expect(pkg.name).toBe('acme-scripts');
+    expect(pkg.dependencies['@karmaniverous/jeeves-scripts-core']).toBe(
+      coreVersion(),
+    );
+  });
+
+  it('refuses a folder name that is not a valid package name', () => {
+    const target = path.join(root, 'Acme Scripts');
+    fs.mkdirSync(target);
+    expect(() => initRepo(target, { templateDir: fixture })).toThrow(
+      /valid npm package name/,
+    );
+  });
+
+  it('pins the running core version by default', () => {
+    initRepo(root, { name: 'acme', templateDir: fixture });
     expect(readPkg().dependencies['@karmaniverous/jeeves-scripts-core']).toBe(
       coreVersion(),
     );

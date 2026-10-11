@@ -6,7 +6,8 @@
  * the template bundled in core (`template/`). It never overwrites a file:
  * every file that exists is skipped. The renamed dotfiles (`gitignore`,
  * `npmrc`, `nvmrc`) are restored, and `package.json` gets the package name
- * and core pinned at an exact version (default: the running core's).
+ * (default: the target folder's name, Decision 53) and core pinned at an
+ * exact version (default: the running core's).
  *
  * Reads the bundled template; writes files under the root.
  */
@@ -24,9 +25,6 @@ export const RENAMED_DOTFILES: Readonly<Record<string, string>> = {
   npmrc: '.npmrc',
   nvmrc: '.nvmrc',
 };
-
-/** The package name `init` writes when `--name` is not given. */
-export const DEFAULT_NAME = 'jeeves-scripts';
 
 /** An exact semver version (no range). */
 const exactVersionSchema = z
@@ -51,7 +49,7 @@ const packageJsonSchema = z.looseObject({
 
 /** Options for {@link initRepo}. */
 export interface InitOptions {
-  /** Package name. Default: {@link DEFAULT_NAME}. */
+  /** Package name. Default: the name of the folder `init` writes into. */
   name?: string;
   /** Exact core version to pin. Default: the running core's. */
   core?: string;
@@ -97,7 +95,9 @@ export const initRepo = (
   root: string,
   options: InitOptions = {},
 ): InitResult => {
-  const name = packageNameSchema.parse(options.name ?? DEFAULT_NAME);
+  const name = packageNameSchema.parse(
+    options.name ?? path.basename(path.resolve(root)),
+  );
   const version = exactVersionSchema.parse(options.core ?? coreVersion());
   const templateDir =
     options.templateDir ?? path.join(corePackageDir(), 'template');
