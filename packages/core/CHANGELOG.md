@@ -2,11 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.2] - 2026-10-12
+
+### 🐛 Bug Fixes
+
+- *(slack)* Keep a channel's existing directory when renaming it fails
+- *(slack)* Narrow a rename error's code before naming it in the warning
+
+### 💼 Other
+
+- Extended test timeouts
 ## [0.1.1] - 2026-10-12
 
 ### 💼 Other
 
 - Label the release's own commits with its version in CHANGELOG and release notes
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-scripts-core v0.1.1
 ## [0.1.0] - 2026-10-12
 
 ### 🚀 Features
