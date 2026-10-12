@@ -31,7 +31,7 @@ flowchart LR
 - Persists structured `files[]` metadata (id, name, filetype, mimetype, size) alongside `hasFiles` flag.
 - Captures voice memo transcripts from Slack's native transcription (`files[].transcript`).
 - Writes one JSON file per message, `{silo}/slack/{channelName} ({channelId})/{ts}.json`; a message whose file already exists is not rewritten.
-- Handles channel renames by detecting the directory ending in `({channelId})` under another name and renaming it.
+- Handles channel renames by detecting the directory ending in `({channelId})` under another name and renaming it. If that rename fails for any reason (e.g. `EPERM` on Windows while the watcher holds the directory open, or `EBUSY`, `EACCES`, `EXDEV`), the poll logs one `WARN <channelId>: could not rename "<old>" -> "<new>" (<code>); keeping "<old>"` line and keeps writing to the existing directory; the rename is retried on the next run. If a directory with the current name already exists it is used, and any other `({channelId})` directory is left as is.
 - Resolves workspace routing via `getBasePathForSlackWorkspace()` for multi-workspace setups.
 - Names message authors (`userName`: real name, else handle) from the Slack user cache, re-read from `users.list` when more than a day old. An author listed in `people` (`slack` / the channel's `_account`, `default` when unset / user id; [config.md](./config.md#people)) gets the configured name as `userName` and a `personId` field instead; unlisted authors have no `personId`.
 

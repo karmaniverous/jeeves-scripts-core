@@ -137,4 +137,76 @@ describe('channel-dir', () => {
     expect(target).toBe(path.join(dir, 'slack', 'new-name (C1)'));
     expect(fs.readdirSync(path.join(dir, 'slack'))).toEqual(['new-name (C1)']);
   });
+
+  it.each(['EPERM', 'EXDEV', 'EBUSY', 'EACCES'])(
+    'keeps the existing directory and warns when the rename fails with %s',
+    async (code) => {
+      const slack = path.join(dir, 'slack');
+      fs.mkdirSync(path.join(slack, 'old-name (C1)'), { recursive: true });
+      const rename = vi.spyOn(fs, 'renameSync').mockImplementation(() => {
+        throw Object.assign(new Error(`${code}: rename`), { code });
+      });
+      const warn = vi
+        .spyOn(console, 'warn')
+        .mockImplementation(() => undefined);
+      const target = await resolveChannelDir(
+        'C1',
+        channel({ name: 'new-name', teamId: 'T1' }),
+        't',
+        {},
+      );
+      expect(target).toBe(path.join(slack, 'old-name (C1)'));
+      expect(rename).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledExactlyOnceWith(
+        `WARN C1: could not rename "old-name (C1)" -> "new-name (C1)" (${code}); keeping "old-name (C1)"`,
+      );
+      expect(fs.readdirSync(slack)).toEqual(['old-name (C1)']);
+      rename.mockRestore();
+      warn.mockRestore();
+    },
+  );
+
+  it('names a failure without an error code by its message', async () => {
+    fs.mkdirSync(path.join(dir, 'slack', 'old-name (C1)'), { recursive: true });
+    const rename = vi.spyOn(fs, 'renameSync').mockImplementation(() => {
+      throw new Error('boom');
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await resolveChannelDir('C1', channel({ name: 'new-name' }), 't', {});
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('(boom)'));
+    rename.mockImplementation(() => {
+      throw Object.assign(new Error('odd'), { code: 13 });
+    });
+    await resolveChannelDir('C1', channel({ name: 'new-name' }), 't', {});
+    expect(warn).toHaveBeenLastCalledWith(expect.stringContaining('(odd)'));
+    rename.mockRestore();
+    warn.mockRestore();
+  });
+
+  it('is the target when no directory for the channel exists yet', async () => {
+    fs.mkdirSync(path.join(dir, 'slack', 'other (C2)'), { recursive: true });
+    const rename = vi.spyOn(fs, 'renameSync');
+    await expect(
+      resolveChannelDir('C1', channel({ teamId: 'T1' }), 't', {}),
+    ).resolves.toBe(path.join(dir, 'slack', 'general (C1)'));
+    expect(rename).not.toHaveBeenCalled();
+    expect(fs.readdirSync(path.join(dir, 'slack'))).toEqual(['other (C2)']);
+    rename.mockRestore();
+  });
+
+  it('prefers an existing target over an old directory, leaving both in place', async () => {
+    const slack = path.join(dir, 'slack');
+    fs.mkdirSync(path.join(slack, 'old-name (C1)'), { recursive: true });
+    fs.mkdirSync(path.join(slack, 'new-name (C1)'), { recursive: true });
+    const rename = vi.spyOn(fs, 'renameSync');
+    await expect(
+      resolveChannelDir('C1', channel({ name: 'new-name' }), 't', {}),
+    ).resolves.toBe(path.join(slack, 'new-name (C1)'));
+    expect(rename).not.toHaveBeenCalled();
+    expect(fs.readdirSync(slack).sort()).toEqual([
+      'new-name (C1)',
+      'old-name (C1)',
+    ]);
+    rename.mockRestore();
+  });
 });
