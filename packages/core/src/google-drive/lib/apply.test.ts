@@ -38,7 +38,8 @@ describe('apply', () => {
     expect(() => safeJoin(root, '')).toThrow(/escapes/);
     const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'gdrive-outside-'));
     fs.writeFileSync(path.join(outside, 'sentinel'), 'keep');
-    fs.symlinkSync(outside, path.join(root, 'link'));
+    // 'junction' needs no symlink privilege on Windows; ignored elsewhere.
+    fs.symlinkSync(outside, path.join(root, 'link'), 'junction');
     expect(() => safeJoin(root, 'link/sentinel')).toThrow(/symlink/);
     expect(() => {
       writeAtomic(root, 'link/new.md', 'x', path.join(root, 'tmp'));

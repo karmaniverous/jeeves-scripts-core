@@ -286,7 +286,8 @@ describe('syncOne end to end', () => {
     fs.mkdirSync(outside);
     fs.writeFileSync(path.join(outside, 'sentinel'), 'keep');
     fs.mkdirSync(path.join(dir, 'content'));
-    fs.symlinkSync(outside, target());
+    // 'junction' needs no symlink privilege on Windows; ignored elsewhere.
+    fs.symlinkSync(outside, target(), 'junction');
     await expect(
       syncOne(cfg, fakeRunner().client, opts(drive(false), true)),
     ).rejects.toThrow(/symlink/);
