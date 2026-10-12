@@ -136,3 +136,35 @@ describe('fetchThreadMetadata curation signals', () => {
     expect(queue.map((q) => q.name)).toEqual(['email-pending']);
   });
 });
+
+describe('fetchThreadMetadata state', () => {
+  it('keeps only the most recently seen message ids over the cap', () => {
+    const { client, items } = fakeClient();
+    const seen: Record<string, string> = {};
+    for (let i = 0; i < 2001; i++)
+      seen[`old${String(i)}`] = new Date(
+        Date.UTC(2026, 0, 1) + i * 1000,
+      ).toISOString();
+    items.set(
+      `email|${ACCOUNT}.seenThreadIds|t1`,
+      JSON.stringify({ seenMessageIds: seen }),
+    );
+    run(client, true);
+    const state = JSON.parse(
+      items.get(`email|${ACCOUNT}.seenThreadIds|t1`) ?? '{}',
+    ) as {
+      seenMessageIds: Record<string, string>;
+    };
+    const ids = Object.keys(state.seenMessageIds);
+    expect(ids).toHaveLength(2000);
+    expect(ids).toContain('m1');
+    expect(ids).not.toContain('old0');
+  });
+
+  it('treats an empty gog reply as a thread with no messages', () => {
+    vi.mocked(gogWithRetry).mockReturnValue('');
+    const { client, queue } = fakeClient();
+    expect(run(client, false).newMessages).toBe(0);
+    expect(queue).toEqual([]);
+  });
+});

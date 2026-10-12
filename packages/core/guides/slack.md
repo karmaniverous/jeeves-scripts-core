@@ -104,16 +104,73 @@ No config file, or no token in it, fails the run. Each channel is read with the 
 
 | Job          | Schedule     | Manifest          |
 | ------------ | ------------ | ----------------- |
-| `slack-poll` | Every 11 min | template `jobs/slack.json` |
+| `slack-poll` | Every 11 min | core `jobs/slack.json` |
 
 The manifest entry carries a non-null `prerequisite` naming the token sources in [Bot Tokens](#bot-tokens).
+
+## Slack Client
+
+`createSlackClient(options)` on the root export is the one Slack Web API client, for core (the poller reads through it) and for instance runnables that message Slack without an LLM worker (Decision 59). It holds no token, channel or workspace of its own: the caller passes the token, usually `slackBotToken(account?)` from the OpenClaw config.
+
+```ts
+import fs from 'node:fs';
+
+import {
+  createSlackClient,
+  SlackApiError,
+  slackBotToken,
+} from '@karmaniverous/jeeves-scripts-core';
+
+const slack = createSlackClient({ token: slackBotToken('acme') });
+
+const { ts } = await slack.postMessage('C000EXAMPLE1', 'Report ready.');
+await slack.postMessage('C000EXAMPLE1', 'Details in the thread.', { threadTs: ts });
+
+const dm = await slack.openDm('U000EXAMPLE1');
+await slack.uploadFile({
+  bytes: fs.readFileSync('/base/acme/report.xlsx'),
+  filename: 'report.xlsx',
+  channelId: dm,
+  title: 'Weekly report',
+  initialComment: 'This week in two sheets.',
+  contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+});
+
+try {
+  await slack.call('conversations.info', { channel: 'C000EXAMPLE1' });
+} catch (e) {
+  if (e instanceof SlackApiError && e.code === 'channel_not_found') {
+    // handle it
+  } else throw e;
+}
+```
+
+| Option | Meaning |
+| --- | --- |
+| `token` | The bot or user token. Required |
+| `fetch` | The `fetch` to use (tests inject one); default the global `fetch`, read at call time |
+| `rateLimitAttempts` | Tries per Web API call while Slack answers HTTP 429; default 3 |
+| `sleep` | The wait between 429 retries; default `sleepAsync` from `@karmaniverous/jeeves` |
+
+| Method | Slack call |
+| --- | --- |
+| `call(method, params?)` | GET `https://slack.com/api/<method>?<params>` with the bearer token (read methods such as `conversations.history`, `users.list`, `auth.test`) |
+| `post(method, body)` | POST `body` as JSON to `<method>` |
+| `postMessage(channel, text, { threadTs? })` | `chat.postMessage`; resolves `{ channel, ts }` |
+| `openDm(userId)` | `conversations.open`; resolves the DM's channel id |
+| `uploadFile({ bytes, filename, channelId, title?, initialComment?, contentType? })` | `files.getUploadURLExternal`, then POST the bytes to the returned URL, then `files.completeUploadExternal` sharing the file to `channelId` (title default the file name, content type default `application/octet-stream`); resolves the file id |
+| `download(url)` | GET a file URL (`url_private_download`) with the bearer token; resolves the raw `Response` |
+
+- **Errors.** A Web API call that Slack answers with `ok: false` throws a `SlackApiError` with `method`, `code` (Slack's `error`, or `unknown`) and the message `Slack <method> failed: <code>`. A body that is not JSON throws one with code `invalid_response` and the message `Slack <method> failed: HTTP <status>, body is not JSON: <first 200 characters>`. A failed byte upload throws `Slack file upload failed: HTTP <status> for <filename>` and the share is not completed. `download` returns the response whatever its status.
+- **Rate limits.** An HTTP 429 is retried after its `Retry-After` seconds (1 second when the header is missing or invalid), through `retryAsync`, up to `rateLimitAttempts` tries; then it throws `SlackApiError` with code `ratelimited`. Other errors are not retried. The poller still pauses `RATE_LIMIT_MS` (1.2 s) between pages.
 
 ## Key Files
 
 | File | Purpose |
 | --- | --- |
-| `lib/slack-api.ts` | Typed Slack Web API wrappers — `fetchHistory()`, `fetchReplies()`, `discoverChannels()`, `fetchMembers()`, `fetchUsers()`, `slackApi()`, `SlackFileMetadata` type, with pagination |
-| `../lib/constants.ts` | Workspace routing values from `constants()` |
+| `lib/slack-api.ts` | The poller's Slack reads over the [Slack client](#slack-client): `fetchHistory()`, `fetchReplies()`, `discoverChannels()`, `fetchMembers()`, `fetchUsers()`, `slackApi(method, params, token)`, `SlackFileMetadata` type, with pagination |
+| `../lib/slack-client.ts` | `createSlackClient()` and `SlackApiError` (root export) |
+| `../lib/constants.ts` | `constants()`: `SLACK_DOMAIN_DIR` under `paths.contentDir` in `jeeves-scripts.json` |
 | `../config/silo-router.ts` | `getBasePathForSlackWorkspace()` for output directory routing (see [silos](./config.md#silos)) |
 | `lib/channel-config.ts` | `getChannelConfig()` / `channelConfigs()`: the `slack.channels` config |
 | `lib/slack-cache.ts` | The Slack cache files in `{stateDir}/slack` (load, save, user display names) |

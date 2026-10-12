@@ -1,11 +1,12 @@
 ---
 name: jeeves-standing-meetings
 description: Automate standing meeting operations - post-meeting notes and next-day agenda generation. Use when asked to set up meeting automation for a recurring standup, sync, or review.
+metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
 ---
 
 # Standing Meetings
 
-Two task-file dispatcher jobs for a recurring meeting between known participants: a **notes** job (hourly in business hours on meeting days; finds today's meeting and transcript, writes structured notes, idempotent once today's notes exist) and an **agenda** job (once, early on meeting days; reads the last notes and agenda, reconciles checkboxes, writes the next agenda). Each returns a Slack summary, and both keep one pinned quick-links message current. Read [dispatchers.md](../../guides/dispatchers.md) for the framework, the TASK file anatomy and the Slack contract (posts, pins, edits); transcripts come from the meetings pipeline ([meetings.md](../../guides/meetings.md)).
+Two task-file dispatcher jobs for a recurring meeting between known participants: a **notes** job (hourly in business hours on meeting days; finds today's meeting and transcript, writes structured notes, idempotent once today's notes exist) and an **agenda** job (once, early on meeting days; reads the last notes and agenda, reconciles checkboxes, writes the next agenda). Each returns a Slack summary, and both keep one pinned quick-links message current. Read [dispatchers.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/dispatchers.md) for the framework, the TASK file anatomy and the Slack contract (posts, pins, edits); transcripts come from the meetings pipeline ([meetings.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/meetings.md)).
 
 ## Operator rules
 
@@ -22,5 +23,5 @@ Two task-file dispatcher jobs for a recurring meeting between known participants
 1. A content directory (in the right silo) with `standing-orders.md` (participants, zones, channel rules); seed `.meta/` with `meta_seed`.
 2. TASK files for both jobs, following the anatomy in dispatchers.md.
 3. The quick-links message: post, pin, record its timestamp.
-4. Two dispatcher jobs (core's task-file dispatcher, with `silo` and `taskFile`) in `jobs/*.json`, Slack reads of the channel and posts allowed to edit the quick-links message; commit and push (see `jeeves-scripts`).
-5. Register both with the runner, running the launcher (`run <job-id>`), in the meeting's time zone; test with the no-post mode before enabling.
+4. Two dispatcher runnables in the instance (`defineJob` calling core's `dispatchTaskFile`, with `silo` and `taskFile`), registered by the instance plugin with manifests in `jobs/*.json`, Slack reads of the channel and posts allowed to edit the quick-links message; commit and push (see `jeeves-scripts`).
+5. Register both with the runner, running the launcher (`run <id>`), in the meeting's time zone; test with the no-post mode before enabling.

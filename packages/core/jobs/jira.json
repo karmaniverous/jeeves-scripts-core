@@ -1,0 +1,31 @@
+{
+  "jira-refresh-fields": {
+    "name": "Jira Refresh Field Metadata",
+    "description": "Refresh Jira custom field metadata (_fields.json) from REST API. Used by the drain script for custom field name translation.",
+    "schedule": {
+      "freq": "daily",
+      "byhour": 3,
+      "byminute": 0,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 60,
+    "enabled": true,
+    "prerequisite": "Jira API credentials (integrations.jira siteUrl, email and apiTokenPath in jeeves-scripts.json)"
+  },
+  "jira-sort-backlog": {
+    "name": "Jira Backlog Priority Sort",
+    "description": "Stable-sort the Jira backlog by priority group (no-priority on top, then Highest → Lowest). Preserves relative order within each group. Skips epics.",
+    "schedule": {
+      "freq": "daily",
+      "byhour": 0,
+      "byminute": 0,
+      "timezone": "UTC"
+    },
+    "args": ["--live"],
+    "overlap_policy": "skip",
+    "timeout_seconds": 120,
+    "enabled": true,
+    "prerequisite": "Jira API credentials + integrations.jira.boardId in jeeves-scripts.json (or the JIRA_BOARD_ID environment variable)"
+  }
+}

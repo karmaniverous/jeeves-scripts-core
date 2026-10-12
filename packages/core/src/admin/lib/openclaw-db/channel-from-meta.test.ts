@@ -25,18 +25,18 @@ describe('channelFromMeta', () => {
       'Slack channel with a recorded name',
       {
         sessionKey: 'agent:main:slack:channel:c000example2',
-        channelName: '#ops-ceo',
+        channelName: '#acme-ops',
       },
-      'slack:channel:#ops-ceo',
+      'slack:channel:#acme-ops',
     ],
     [
       'Slack thread session (same channel)',
       {
         sessionKey:
-          'agent:main:slack:channel:c000example2:thread:1790362838.368049',
-        channelName: '#ops-ceo',
+          'agent:main:slack:channel:c000example2:thread:1790000000.000100',
+        channelName: '#acme-ops',
       },
-      'slack:channel:#ops-ceo',
+      'slack:channel:#acme-ops',
     ],
     [
       'Slack channel without a name (upper-case id, as pre-upgrade)',
@@ -83,10 +83,10 @@ describe('channelFromMeta', () => {
         sessionKey: 'agent:main:subagent:1',
         parent: {
           sessionKey: 'agent:main:slack:channel:c000example2',
-          channelName: '#ops-ceo',
+          channelName: '#acme-ops',
         },
       },
-      'slack:channel:#ops-ceo',
+      'slack:channel:#acme-ops',
     ],
     [
       'cron job',
@@ -99,10 +99,10 @@ describe('channelFromMeta', () => {
     [
       'Telegram group',
       {
-        sessionKey: 'agent:main:telegram:group:-1001640142674',
-        channelName: 'The Rabbit Hole',
+        sessionKey: 'agent:main:telegram:group:-1000000000001',
+        channelName: 'Example Group',
       },
-      'telegram:group:The Rabbit Hole',
+      'telegram:group:Example Group',
     ],
   ])('%s', (_name, meta, key) => {
     expect(channelFromMeta(meta)?.key).toBe(key);
@@ -147,10 +147,7 @@ describe('resolveChannel', () => {
   it('strips trailing punctuation from text-rule keys', () => {
     const head = [
       sessionHeader('s2'),
-      userMessage(
-        // instance-agnostic-allow: fixture for Windows drive-path repo detection
-        '[Subagent Task] Fix the build in X:\\repos\\acme\\widget.',
-      ),
+      userMessage('[Subagent Task] Fix the build in X:\\repos\\acme\\widget.'),
     ];
     expect(resolveChannel(undefined, head).key).toBe(
       'subagent:repo:acme/widget',

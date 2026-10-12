@@ -110,15 +110,15 @@ describe('normalizeMessage — threadRoot', () => {
 
 describe('normalizeMessage — Gmail extensions', () => {
   it('maps threadId to x-gm-thrid', () => {
-    const fetch = makeFetch({ threadId: '1854665568266641192' });
+    const fetch = makeFetch({ threadId: '1800000000000000001' });
     const msg = normalizeMessage(fetch, makeMail());
-    expect(msg.extensions['x-gm-thrid']).toBe('1854665568266641192');
+    expect(msg.extensions['x-gm-thrid']).toBe('1800000000000000001');
   });
 
   it('maps emailId to x-gm-msgid', () => {
-    const fetch = makeFetch({ emailId: '1854665568266641999' });
+    const fetch = makeFetch({ emailId: '1800000000000000002' });
     const msg = normalizeMessage(fetch, makeMail());
-    expect(msg.extensions['x-gm-msgid']).toBe('1854665568266641999');
+    expect(msg.extensions['x-gm-msgid']).toBe('1800000000000000002');
   });
 
   it('maps labels Set to x-gm-labels array', () => {

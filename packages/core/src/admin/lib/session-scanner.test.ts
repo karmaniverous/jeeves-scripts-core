@@ -8,27 +8,20 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import type { CursorState } from '../types/token-metrics.js';
 import {
-  createScannerFixture,
   ocLine,
-  type ScannerFixture,
   userLine,
+  useScannerFixture,
 } from './session-scanner.fixtures.js';
 
-let fx: ScannerFixture;
-beforeEach(() => {
-  fx = createScannerFixture();
-});
-afterEach(() => {
-  fx.cleanup();
-});
+const fixture = useScannerFixture();
 
 describe('scanAllSessions', () => {
   it('returns empty result when no session files exist', async () => {
-    const scan = await fx.loadScanner();
+    const scan = await fixture().loadScanner();
     const cursors: CursorState = {};
     const ccCursors: CursorState = {};
 
@@ -52,9 +45,12 @@ describe('scanAllSessions', () => {
       ocLine({ tsIso: ts, input: 200, output: 100 }),
     ].join('\n');
 
-    fs.writeFileSync(path.join(fx.sessionsDir, 'test-session.jsonl'), content);
+    fs.writeFileSync(
+      path.join(fixture().sessionsDir, 'test-session.jsonl'),
+      content,
+    );
 
-    const scan = await fx.loadScanner();
+    const scan = await fixture().loadScanner();
     const cursors: CursorState = {};
     const ccCursors: CursorState = {};
 
@@ -88,9 +84,12 @@ describe('scanAllSessions', () => {
       ocLine({ tsIso: lateTs, input: 300, output: 150 }),
     ].join('\n');
 
-    fs.writeFileSync(path.join(fx.sessionsDir, 'range-test.jsonl'), content);
+    fs.writeFileSync(
+      path.join(fixture().sessionsDir, 'range-test.jsonl'),
+      content,
+    );
 
-    const scan = await fx.loadScanner();
+    const scan = await fixture().loadScanner();
     const cursors: CursorState = {};
     const ccCursors: CursorState = {};
 
@@ -112,9 +111,9 @@ describe('scanAllSessions', () => {
     ].join('\n');
 
     const fileName = 'cursor-test.jsonl';
-    fs.writeFileSync(path.join(fx.sessionsDir, fileName), content);
+    fs.writeFileSync(path.join(fixture().sessionsDir, fileName), content);
 
-    const scan = await fx.loadScanner();
+    const scan = await fixture().loadScanner();
     const cursors: CursorState = {};
     const ccCursors: CursorState = {};
 
@@ -135,12 +134,12 @@ describe('scanAllSessions', () => {
     ].join('\n');
 
     const fileName = 'skip-test.jsonl';
-    const filePath = path.join(fx.sessionsDir, fileName);
+    const filePath = path.join(fixture().sessionsDir, fileName);
     fs.writeFileSync(filePath, content);
 
     const stat = fs.statSync(filePath);
 
-    const scan = await fx.loadScanner();
+    const scan = await fixture().loadScanner();
     const cursors: CursorState = {
       [fileName]: { byteOffset: stat.size, lastTimestamp: 0 },
     };
@@ -162,15 +161,15 @@ describe('scanAllSessions', () => {
     ].join('\n');
 
     fs.writeFileSync(
-      path.join(fx.sessionsDir, 'session.jsonl.deleted.2026-06-15'),
+      path.join(fixture().sessionsDir, 'session.jsonl.deleted.2026-06-15'),
       content,
     );
     fs.writeFileSync(
-      path.join(fx.sessionsDir, 'session.jsonl.reset.2026-06-15'),
+      path.join(fixture().sessionsDir, 'session.jsonl.reset.2026-06-15'),
       content,
     );
 
-    const scan = await fx.loadScanner();
+    const scan = await fixture().loadScanner();
     const cursors: CursorState = {};
     const ccCursors: CursorState = {};
 
@@ -180,10 +179,13 @@ describe('scanAllSessions', () => {
   });
 
   it('ignores non-JSONL files', async () => {
-    fs.writeFileSync(path.join(fx.sessionsDir, 'readme.txt'), 'not a session');
-    fs.writeFileSync(path.join(fx.sessionsDir, 'data.json'), '{}');
+    fs.writeFileSync(
+      path.join(fixture().sessionsDir, 'readme.txt'),
+      'not a session',
+    );
+    fs.writeFileSync(path.join(fixture().sessionsDir, 'data.json'), '{}');
 
-    const scan = await fx.loadScanner();
+    const scan = await fixture().loadScanner();
     const cursors: CursorState = {};
     const ccCursors: CursorState = {};
 
@@ -197,7 +199,7 @@ describe('scanAllSessions', () => {
     [
       'missing',
       () => {
-        fs.rmSync(fx.sessionsDir, { recursive: true, force: true });
+        fs.rmSync(fixture().sessionsDir, { recursive: true, force: true });
       },
     ],
     ['empty', () => undefined],
@@ -206,10 +208,10 @@ describe('scanAllSessions', () => {
     async (label, prepare) => {
       prepare();
       const ts = '2026-06-15T10:30:00Z';
-      fx.writeCCFixture(ts);
+      fixture().writeCCFixture(ts);
       const warn = vi.mocked(console.warn);
 
-      const scan = await fx.loadScanner();
+      const scan = await fixture().loadScanner();
       const result = scan(0, new Date(ts).getTime() + 3600_000, {}, {});
 
       expect(result.ocProcessed).toBe(0);
@@ -246,9 +248,12 @@ describe('scanAllSessions', () => {
       }),
     ].join('\n');
 
-    fs.writeFileSync(path.join(fx.sessionsDir, 'multi-model.jsonl'), content);
+    fs.writeFileSync(
+      path.join(fixture().sessionsDir, 'multi-model.jsonl'),
+      content,
+    );
 
-    const scan = await fx.loadScanner();
+    const scan = await fixture().loadScanner();
     const cursors: CursorState = {};
     const ccCursors: CursorState = {};
 

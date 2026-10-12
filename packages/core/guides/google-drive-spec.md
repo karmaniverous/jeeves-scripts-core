@@ -1,6 +1,6 @@
 # Google Drive Sync: Spec
 
-> **Historical design record.** Written against `jeeves-scripts-template`: `pipeline-config.json` is now the `pipeline` block of `jeeves-scripts.json` (`pipeline.googleDrive`), `src/lib/pipeline-config.ts` is `config/pipeline-schema.ts`, and jobs are registered through the instance's `jobs/*.json` and `bin/jeeves-scripts.js run <job-id>`, not `runner_create_job` with a script path. The operating doc is [google-drive.md](./google-drive.md).
+> **Historical design record.** Written against `jeeves-scripts-template`: `pipeline-config.json` is now the `pipeline` block of `jeeves-scripts.json` (`pipeline.googleDrive`), `src/lib/pipeline-config.ts` is `config/pipeline-schema.ts`, and jobs are core's registered jobs with core manifests ([jobs.md](./jobs.md)), run as `bin/jeeves-scripts.js run <job-id>`, not `runner_create_job` with a script path. The operating doc is [google-drive.md](./google-drive.md).
 
 **Status:** v0.17, implemented in `src/google-drive/` (hoisted by jeeves-scripts-template#97). This is the design record; [google-drive.md](./google-drive.md) is the operator reference. `§` references in the code point here.
 
@@ -261,7 +261,7 @@ Decided per file by MIME type, then extension. All tables are config with the de
 
 ### 6.1 State
 
-**Where it lives:** the jeeves-runner SQLite database (`JR_DB_PATH`, e.g. `/opt/jeeves/state/runner/runner.sqlite`), through the runner client's state API (`getRunnerClient()`). This is the same store the email, calendar and Linear scripts use. Nothing goes in the content tree, which the watcher indexes, and there are no sidecar files.
+**Where it lives:** the jeeves-runner SQLite database (`JR_DB_PATH`, e.g. `/base/state/runner/runner.sqlite`), through the runner client's state API (`getRunnerClient()`). This is the same store the email, calendar and Linear scripts use. Nothing goes in the content tree, which the watcher indexes, and there are no sidecar files.
 
 | Runner state | Namespace / key | Item key | Value |
 | --- | --- | --- | --- |
@@ -505,7 +505,7 @@ jobs/google-drive.json   job "google-drive-sync", every 13 min, overlap skip, ti
                          scopes (VCS exclusion deferred: jeeves-watcher#253)"
 ```
 
-Tests co-located for `naming`, `classify`, `plan` (including the §7 tree cases and the worked example), `resolve-path` (with a fake drive client), `config`. All files < 300 LOC, quality gates clean, instance-agnostic guard passing in the template PR.
+Tests co-located for `naming`, `classify`, `plan` (including the §7 tree cases and the worked example), `resolve-path` (with a fake drive client), `config`. All files < 300 LOC, quality gates clean.
 
 ### 9.1 `src/google-drive/README.md` (assistant-facing)
 

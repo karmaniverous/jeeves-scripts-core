@@ -1,26 +1,29 @@
 /**
  * @module cli
  *
- * The `jeeves-scripts` CLI (Architecture → CLI). Built on
+ * The `jeeves-scripts` CLI (design §6). Built on
  * `@commander-js/extra-typings` (Decision 31): option and argument types
  * are inferred from the builder chain, never cast.
  *
  * The instance launcher (Decision 16) calls {@link main} with the instance
  * repo root, so config resolution never depends on the working directory
- * (Architecture → Config Resolution). Commands land here as their domains
- * are ported: `config check`, `run`, `people propose`, `email apply-labels`.
+ * (design §5). The verbs are the framework's own
+ * (R46): `run`, `list`, `config check`, `doctor`, `init`, `skills`. Domain work is never a verb
+ * (Decision 49): it is a runnable, run with `run <id>`.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { Command } from '@commander-js/extra-typings';
 
-import { configCheck } from '../config/check.js';
-import { proposeFromSlack } from '../people/propose.js';
-import { buildEmailCommand } from './email.js';
+import { instanceConfigCheck } from './config-check.js';
+import { doctorReport } from './doctor.js';
+import { describeError, formatInit, initRepo } from './init.js';
+import { formatList, listRunnables } from './list.js';
+import { openclawPresent } from './openclaw.js';
+import { coreVersion } from './package-info.js';
 import { runJob } from './run.js';
+import { runSkills } from './skills.js';
 
 /** Options for {@link buildProgram} and {@link main}. */
 export interface CliOptions {
@@ -32,28 +35,44 @@ export interface CliOptions {
 export const resolveRoot = (root: string | URL): string =>
   typeof root === 'string' ? root : fileURLToPath(root);
 
+/** An error as one line: its message (a Zod error's issues joined), no stack. */
+export const errorLine = (e: unknown): string =>
+  describeError(e)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(' ');
+
+/** Print `<verb>: FAILED: <error>` to stderr and set the exit code to 1. */
+const fail = (verb: string, e: unknown): void => {
+  console.error(`${verb}: FAILED: ${errorLine(e)}`);
+  process.exitCode = 1;
+};
+
 const buildConfigCommand = (root: string) => {
-  const config = new Command('config').description(
-    'Validate and manage jeeves-scripts.json.',
-  );
+  const config = new Command('config')
+    .description('Validate jeeves-scripts.json.')
+    // No `help [command]` subcommand anywhere (Decision 57).
+    .helpCommand(false);
 
   config
     .command('check')
     .description(
-      'Validate jeeves-scripts.json against the core schema and its silo references.',
+      "Validate jeeves-scripts.json against the core schema and its silo references, its local block against the plugin's configSchema, and the plugin's runnables, the instance manifests and the jobs deltas as list registers them.",
     )
     .option(
       '--config <file>',
       'config file path (default: {root}/jeeves-scripts.json, or JEEVES_SCRIPTS_CONFIG)',
     )
-    .action((options) => {
-      const result = configCheck({ root, configPath: options.config });
-      const where = result.configPath ?? 'unresolved path';
+    .action(async (options) => {
+      const result = await instanceConfigCheck(root, options.config);
+      const where =
+        result.configPath === undefined ? '' : ` (${result.configPath})`;
       if (result.ok) {
-        console.log(`config check: OK (${where})`);
+        console.log(`config check: OK${where}`);
         return;
       }
-      console.error(`config check: FAILED (${where})`);
+      console.error(`config check: FAILED${where}`);
       for (const error of result.errors) console.error(error);
       process.exitCode = 1;
     });
@@ -64,63 +83,144 @@ const buildConfigCommand = (root: string) => {
 const buildRunCommand = (root: string) =>
   new Command('run')
     .description(
-      "Run a job by id (Decision 16): the instance script at its jobs/*.json path, else core's module for that path.",
+      'Run a runnable by id: a plugin override, else the core runnable, else the instance runnable.',
     )
-    .argument('<job-id>', 'job id from jobs/*.json')
-    .argument('[args...]', 'arguments passed to the job')
+    .argument('<id>', 'runnable id (see list)')
+    .argument('[args...]', 'arguments passed to the runnable unchanged')
     .allowUnknownOption()
     .passThroughOptions()
     .action(async (jobId, args) => {
-      const code = await runJob(root, jobId, args);
-      if (code !== 0) process.exitCode = code;
+      try {
+        const code = await runJob(root, jobId, args);
+        if (code !== 0) process.exitCode = code;
+      } catch (e) {
+        fail('run', e);
+      }
     });
 
-const buildPeopleCommand = () => {
-  const people = new Command('people').description(
-    'Work with the people registry (people in jeeves-scripts.json).',
-  );
-  people
-    .command('propose')
+const buildListCommand = (root: string) =>
+  new Command('list')
     .description(
-      'Read Slack users of every gateway bot account (read-only) and print a proposed people block. Never writes config.',
+      'List registered runnables (core and instance) whose id matches the glob, with source, effective schedule, enabled and description.',
     )
-    .option('--all', 'include people with a single account')
-    .option('--out <file>', 'also write the proposal (UTF-8 JSON) to this file')
-    .action(async (options) => {
-      // Case-insensitive: on Windows JEEVES-SCRIPTS.JSON is the same file.
-      if (
-        options.out &&
-        path.basename(options.out).toLowerCase() === 'jeeves-scripts.json'
-      )
-        throw new Error('people propose never writes jeeves-scripts.json');
-      const proposal = await proposeFromSlack({ all: options.all });
-      const json = `${JSON.stringify(proposal, null, 2)}\n`;
-      if (options.out) fs.writeFileSync(options.out, json, 'utf8');
-      process.stdout.write(json);
+    .argument('[glob]', 'shell-style glob matched against the id', '*')
+    .option('--json', 'print JSON, adding domain and the effective manifest')
+    .action(async (glob, options) => {
+      let entries;
+      try {
+        entries = await listRunnables(root, glob);
+      } catch (e) {
+        fail('list', e);
+        return;
+      }
+      if (options.json) console.log(JSON.stringify(entries, null, 2));
+      else for (const line of formatList(entries)) console.log(line);
     });
-  return people;
+
+const buildDoctorCommand = (root: string) =>
+  new Command('doctor')
+    .description(
+      'Report the core version, config, plugin load, manifest prerequisites and override drift. Informational: always exits 0.',
+    )
+    .action(async () => {
+      for (const line of await doctorReport(root)) console.log(line);
+    });
+
+const buildInitCommand = (root: string) =>
+  new Command('init')
+    .description(
+      'Write an instance repo here from the template bundled in core. Never overwrites a file.',
+    )
+    .option('--name <pkg>', 'package name (default: the folder name)')
+    .option(
+      '--core <version>',
+      'exact core version to pin (default: the running core version)',
+    )
+    .action(async (options) => {
+      try {
+        for (const line of formatInit(root, initRepo(root, options)))
+          console.log(line);
+      } catch (e) {
+        fail('init', e);
+        return;
+      }
+      if (await openclawPresent()) {
+        if ((await runSkills('install', { root })) !== 0) process.exitCode = 1;
+      } else
+        console.log(
+          'OpenClaw is not on this host. To wire core skills into it later: node bin/jeeves-scripts.js skills install',
+        );
+    });
+
+const SKILLS_ACTIONS = {
+  install:
+    'Add core skills to OpenClaw (skills.load.extraDirs, and JEEVES_SCRIPTS_DIR for each skill).',
+  uninstall: "Remove exactly this repo's core skills entries from OpenClaw.",
+  status: 'Report wired, missing, stale and shadowed core skills entries.',
+} as const;
+
+const buildSkillsCommand = (root: string) => {
+  const command = new Command('skills')
+    .description('Wire core skills into OpenClaw through openclaw config set.')
+    // No `help [command]` subcommand anywhere (Decision 57).
+    .helpCommand(false);
+  for (const [action, description] of Object.entries(SKILLS_ACTIONS) as [
+    keyof typeof SKILLS_ACTIONS,
+    string,
+  ][]) {
+    const sub = new Command(action).description(description);
+    if (action !== 'status')
+      sub.option('-y, --yes', 'apply without showing the change and asking');
+    command.addCommand(
+      sub.action(async (options: { yes?: boolean }) => {
+        const code = await runSkills(action, { root, yes: options.yes });
+        if (code !== 0) process.exitCode = code;
+      }),
+    );
+  }
+  return command;
 };
 
 /** Build the `jeeves-scripts` program for an instance repo root. */
 export const buildProgram = (options: CliOptions) => {
   const root = resolveRoot(options.root);
-  return new Command('jeeves-scripts')
-    .description('Run and manage jeeves-scripts jobs for this instance.')
-    .enablePositionalOptions()
-    .addCommand(buildConfigCommand(root))
-    .addCommand(buildRunCommand(root))
-    .addCommand(buildPeopleCommand())
-    .addCommand(buildEmailCommand(root));
+  return (
+    new Command('jeeves-scripts')
+      .description('Run and list jeeves-scripts runnables for this instance.')
+      .version(coreVersion(), '-V, --version', 'print the core version')
+      .addHelpText(
+        'after',
+        '\nInstalled globally, jeeves-scripts finds the scripts repo by a leading --dir <path>, then JEEVES_SCRIPTS_DIR, then the nearest jeeves-scripts.json above the working directory, and runs its bin/jeeves-scripts.js.',
+      )
+      .enablePositionalOptions()
+      // `--help` is the help; no `help` verb (R46, design section 9).
+      .helpCommand(false)
+      .addCommand(buildConfigCommand(root))
+      .addCommand(buildRunCommand(root))
+      .addCommand(buildListCommand(root))
+      .addCommand(buildDoctorCommand(root))
+      .addCommand(buildInitCommand(root))
+      .addCommand(buildSkillsCommand(root))
+  );
 };
 
 /**
  * CLI entry point. Parses `argv` (default `process.argv`) and resolves to
- * the exit code; it never calls `process.exit` itself.
+ * the exit code: a verb's failure (an unknown id, a registration, manifest
+ * or delta error) is one `<verb>: FAILED: ...` line on stderr and exit code
+ * 1, never a rejection or a stack trace. It never calls `process.exit`
+ * itself; Commander's own parse errors (an unknown verb or option, a
+ * missing argument) print Commander's message and exit 1 through
+ * Commander.
  */
 export const main = async (
   options: CliOptions & { argv?: readonly string[] },
 ): Promise<number> => {
   const program = buildProgram(options);
-  await program.parseAsync(options.argv ?? process.argv);
+  try {
+    await program.parseAsync(options.argv ?? process.argv);
+  } catch (e) {
+    fail('jeeves-scripts', e);
+  }
   return typeof process.exitCode === 'number' ? process.exitCode : 0;
 };

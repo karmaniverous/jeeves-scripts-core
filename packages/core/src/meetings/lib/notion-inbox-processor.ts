@@ -21,10 +21,28 @@ import {
 
 // ── Constants ──────────────────────────────────────────────────────────
 
-const MEETINGS_INDEX_PATH = path.join(
-  constants().DEFAULT_MEETINGS_DIR,
-  'index.json',
-);
+/** What {@link processNotionInboxMeeting} reads and calls. */
+export interface NotionInboxDeps {
+  /** Notion REST call. */
+  request: (method: string, path: string, body: unknown) => Promise<unknown>;
+  /** Read a published page's tabs. */
+  extract: (publicUrl: string) => Promise<ExtractedContent>;
+  /** The default meetings directory (holds `index.json`). */
+  meetingsDir: () => string;
+  /** The Archive database id (`notion.archiveDatabaseId` ref). */
+  archiveDatabaseId: () => string;
+  /** ISO timestamp. */
+  now: () => string;
+}
+
+/** The live collaborators, from config when used (never at import). */
+export const notionInboxDeps = (): NotionInboxDeps => ({
+  request: notionRequest,
+  extract: extractFromPublicPage,
+  meetingsDir: () => constants().DEFAULT_MEETINGS_DIR,
+  archiveDatabaseId: () => getRef('notion.archiveDatabaseId'),
+  now: () => new Date().toISOString(),
+});
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -120,11 +138,12 @@ function headingBlock(text: string, level: 1 | 2 | 3 = 2): NotionBlock {
 async function appendBlocks(
   blockId: string,
   blocks: NotionBlock[],
+  request: NotionInboxDeps['request'],
 ): Promise<void> {
   const batchSize = 50;
   for (let i = 0; i < blocks.length; i += batchSize) {
     const slice = blocks.slice(i, i + batchSize);
-    await notionRequest('PATCH', `/v1/blocks/${blockId}/children`, {
+    await request('PATCH', `/v1/blocks/${blockId}/children`, {
       children: slice,
     });
   }
@@ -135,27 +154,39 @@ async function appendBlocks(
 function upsertMeetingsIndex(
   meetingId: string,
   entry: MeetingIndexEntry,
+  deps: Pick<NotionInboxDeps, 'meetingsDir' | 'now'>,
 ): void {
+  const meetingsIndexPath = (): string =>
+    path.join(deps.meetingsDir(), 'index.json');
   let idx: MeetingsIndex = {
     meetings: {},
-    updatedAt: new Date().toISOString(),
+    updatedAt: deps.now(),
   };
   try {
     idx = JSON.parse(
-      fs.readFileSync(MEETINGS_INDEX_PATH, 'utf8'),
+      fs.readFileSync(meetingsIndexPath(), 'utf8'),
     ) as MeetingsIndex;
   } catch {
     // ignore
   }
   idx.meetings[meetingId] = { ...idx.meetings[meetingId], ...entry };
-  idx.updatedAt = new Date().toISOString();
-  fs.writeFileSync(MEETINGS_INDEX_PATH, JSON.stringify(idx, null, 2));
+  idx.updatedAt = deps.now();
+  fs.writeFileSync(meetingsIndexPath(), JSON.stringify(idx, null, 2));
 }
 
 // ── Main processor ─────────────────────────────────────────────────────
 
-export async function processNotionInboxMeeting(pageId: string): Promise<void> {
-  const page = (await notionRequest(
+/**
+ * Stage one published Inbox page as a meeting package, copy it to the
+ * Archive database and archive the Inbox page.
+ *
+ * @throws When the page is unpublished or yields no text (the page stays put).
+ */
+export async function processNotionInboxMeeting(
+  pageId: string,
+  deps: NotionInboxDeps = notionInboxDeps(),
+): Promise<void> {
+  const page = (await deps.request(
     'GET',
     `/v1/pages/${pageId}`,
     null,
@@ -168,7 +199,7 @@ export async function processNotionInboxMeeting(pageId: string): Promise<void> {
     );
   }
 
-  const extracted: ExtractedContent = await extractFromPublicPage(publicUrl);
+  const extracted: ExtractedContent = await deps.extract(publicUrl);
 
   const summaryText = extracted.tabs.summary;
   const notesText = extracted.tabs.notes;
@@ -198,7 +229,7 @@ export async function processNotionInboxMeeting(pageId: string): Promise<void> {
 
   const title = titleCandidate.slice(0, 80);
   const meetingId = sha1Prefix(pageId);
-  const meetingDir = path.join(constants().DEFAULT_MEETINGS_DIR, meetingId);
+  const meetingDir = path.join(deps.meetingsDir(), meetingId);
   fs.mkdirSync(meetingDir, { recursive: true });
 
   // Compute sort timestamp from Notion page creation time
@@ -217,7 +248,7 @@ export async function processNotionInboxMeeting(pageId: string): Promise<void> {
     participants: [],
     sources: [{ kind: 'notion-public', pageId, url: publicUrl }],
     createdAt: createdTime,
-    ingestedAt: new Date().toISOString(),
+    ingestedAt: deps.now(),
   };
 
   writeMeetingMeta(meetingDir, { ...manifest });
@@ -231,20 +262,24 @@ export async function processNotionInboxMeeting(pageId: string): Promise<void> {
     fs.writeFileSync(path.join(meetingDir, 'transcript.txt'), fallbackText);
   }
 
-  upsertMeetingsIndex(meetingId, {
-    title,
-    normalizedTitle: title.toLowerCase(),
-    date: createdTime.slice(0, 10),
-    participantCount: 0,
-    sourceCount: 1,
-    artifactCount: 3,
-    updatedAt: new Date().toISOString(),
-    hasTranscript,
-  });
+  upsertMeetingsIndex(
+    meetingId,
+    {
+      title,
+      normalizedTitle: title.toLowerCase(),
+      date: createdTime.slice(0, 10),
+      participantCount: 0,
+      sourceCount: 1,
+      artifactCount: 3,
+      updatedAt: deps.now(),
+      hasTranscript,
+    },
+    deps,
+  );
 
   // Archive copy + Inbox archive only after successful local staging
-  const archivePage = (await notionRequest('POST', '/v1/pages', {
-    parent: { database_id: getRef('notion.archiveDatabaseId') },
+  const archivePage = (await deps.request('POST', '/v1/pages', {
+    parent: { database_id: deps.archiveDatabaseId() },
     properties: {
       Meeting: {
         title: [{ type: 'text', text: { content: title } }],
@@ -278,8 +313,8 @@ export async function processNotionInboxMeeting(pageId: string): Promise<void> {
       : [paragraphBlock('(empty)')]),
   ];
 
-  await appendBlocks(archivePageId, blocks);
-  await notionRequest('PATCH', `/v1/pages/${pageId}`, { archived: true });
+  await appendBlocks(archivePageId, blocks, deps.request);
+  await deps.request('PATCH', `/v1/pages/${pageId}`, { archived: true });
 
   console.log(
     `Processed meeting ${meetingId} from Inbox page ${pageId} -> Archive copy ${archivePageId}; title="${title}"`,

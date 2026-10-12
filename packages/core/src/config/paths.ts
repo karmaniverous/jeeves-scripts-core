@@ -38,8 +38,7 @@ export interface ResolvedPaths {
 /**
  * Derive every path core resolves from a loaded config, honouring the
  * environment overrides that exist today (`GOG_HOME`,
- * `TOKEN_METRICS_DIR`), which win over the file (Architecture → Config
- * Resolution).
+ * `TOKEN_METRICS_DIR`), which win over the file (design §5).
  */
 export const derivePaths = (config: Config): ResolvedPaths => {
   const baseDir = config.instance.baseDir;

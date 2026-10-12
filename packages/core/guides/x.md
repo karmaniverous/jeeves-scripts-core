@@ -42,7 +42,7 @@ flowchart TD
 ## Prerequisites
 
 - `X_ACCOUNTS` from `constants()`, built from `integrations.x.accounts` (each handle's `silo` and `relativePath`, default `x/<handle>` in the default silo): a map of account handle → that account's output directory. Empty by default.
-- Per-account OAuth 2.0 PKCE credentials: one JSON file per handle under `X_OAUTH_DIR` (`{CREDENTIALS_DIR}/oauth`, i.e. `/opt/jeeves/config/credentials/oauth`), named `x-{handle}-oauth2.json`, containing `clientId`, `clientSecret`, `access_token` and `refresh_token`. These are secrets: keep them in that directory, never in the repo. Tokens come from the initial auth flow and are refreshed by `refresh-token.ts` (and automatically on a 401).
+- Per-account OAuth 2.0 PKCE credentials: one JSON file per handle under `X_OAUTH_DIR` (`{CREDENTIALS_DIR}/oauth`, i.e. `/base/config/credentials/oauth`), named `x-{handle}-oauth2.json`, containing `clientId`, `clientSecret`, `access_token` and `refresh_token`. These are secrets: keep them in that directory, never in the repo. Tokens come from the initial auth flow and are refreshed by `refresh-token.ts` (and automatically on a 401).
 
 ## Runner Jobs
 
@@ -55,11 +55,11 @@ flowchart TD
 | `x-poll-bookmarks` | `poll-bookmarks.ts` | Every 13 min |
 | `x-drain-queues`   | `drain-queues.ts`   | Every 11 min |
 
-All entries in the template manifest `jobs/x.json` carry a non-null `prerequisite` (`X_ACCOUNTS` plus each handle's OAuth file). `post.ts`, `like.ts`, `repost.ts` and `refresh-token.ts` are not in the manifest.
+All entries in core's manifest `jobs/x.json` carry a non-null `prerequisite` (`X_ACCOUNTS` plus each handle's OAuth file). `x-post`, `x-like`, `x-repost` and `x-refresh-token` are registered without a manifest (kept in core, Decision 50: an instance that wants to publish, like or repost schedules them in its own `jobs/*.json`, see [jobs](./jobs.md)); they take the handle as their first argument (`run x-post <handle>`).
 
 **Handles come from `X_ACCOUNTS`, the one list of the instance's X accounts.** The manifest entries pass no arguments, so as registered:
 
-- each poll script (`poll-posts`, `poll-mentions`, `poll-feed`, `poll-likes`, `poll-bookmarks`) polls every handle in `X_ACCOUNTS`, one after another (`lib/poll-handles.ts`). A handle argument (`node bin/jeeves-scripts.js run <poll job id> <handle>`) narrows a run to that handle. Only a first argument that is not an option is a handle: options (`--count N`, `--queue NAME`) follow the handle or stand alone, so `tsx src/x/poll-posts.ts --count 10` polls every handle. `--queue` replaces the queue name for every handle polled, so give it with a handle.
+- each poll script (`poll-posts`, `poll-mentions`, `poll-feed`, `poll-likes`, `poll-bookmarks`) polls every handle in `integrations.x.accounts`, one after another (`lib/poll-handles.ts`). A handle argument (`node bin/jeeves-scripts.js run <poll job id> <handle>`) narrows a run to that handle. Only a first argument that is not an option is a handle: options (`--count N`, `--queue NAME`) follow the handle or stand alone, so `run x-poll-posts --count 10` polls every handle. `--queue` replaces the queue name for every handle polled, so give it with a handle.
 - a handle is polled only if it is in `X_ACCOUNTS` (otherwise `drain-queues` would never drain its items) and its OAuth file exists; any other handle is logged as `[skip] @<handle>: <reason>`. With `X_ACCOUNTS` empty (the template default) the job logs `[skip]` and exits 0.
 - an API error for one handle is logged and the next handle is still polled. `poll-feed` then fails the run; the queue pollers log the error and exit 0.
 - `drain-queues` iterates over every handle in `X_ACCOUNTS`.
@@ -68,7 +68,8 @@ All entries in the template manifest `jobs/x.json` carry a non-null `prerequisit
 
 ## Key Dependencies
 
-- `src/x/lib/poll-handles.ts` — which handles a poll run covers (`X_ACCOUNTS`, or the handle argument)
-- `src/x/lib/` — X API client wrappers, OAuth token management, polling helpers
-- `lib/constants.ts` — `X_ACCOUNTS`, `X_OAUTH_DIR` from `constants()`
+- `src/x/lib/poll-handles.ts` — which handles a poll run covers (`integrations.x.accounts`, or the handle argument)
+- `src/x/lib/` - X API client wrappers, OAuth token management, polling helpers
+- `src/x/lib/x-client.ts` - `XClient`: the subset of the `@xdevplatform/xdk` client the jobs call (user lookup, the timeline reads, like/repost, post creation). The SDK camel-cases response keys and snake-cases request bodies, so the jobs read `createdAt`/`authorId` and post `reply.inReplyToTweetId`/`quoteTweetId`; timeline reads request `postFields: ['id', 'text', 'created_at']` with the `author_id` expansion
+- `lib/constants.ts` — `constants()`: `X_ACCOUNTS` from `integrations.x.accounts` and `X_OAUTH_DIR` (`{paths.credentialsDir}/oauth`) in `jeeves-scripts.json`
 - `config/integrations.ts` — `integrations.x.accounts`

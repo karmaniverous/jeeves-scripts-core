@@ -1,10 +1,9 @@
-#!/usr/bin/env tsx
 /**
  * @module disable-old-meta
  *
  * Disable stale meta entries for time-bounded entity types.
  *
- * Loops over ENTITY_TYPES from constants.ts, resolves root directories
+ * Loops over ENTITY_TYPES (fixed in lib/constants), resolves root directories
  * via silo-router, and scans each entity's .meta/meta.json. If the
  * entity date exceeds the type's maxAgeDays threshold and _content
  * already exists (synthesis complete), writes _disabled: true to
@@ -16,10 +15,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { runScript } from '@karmaniverous/jeeves';
-
 import { getEntityDirs } from '../config/index.js';
-import { ENTITY_TYPES } from '../lib/constants.js';
+import { defineJob } from '../jobs/define-job.js';
+import { ENTITY_TYPES, type EntityTypeConfig } from '../lib/constants.js';
 
 /** Extract a parseable date from meta fields or _content header. */
 function getEntityDate(meta: Record<string, unknown>): Date | null {
@@ -48,12 +46,23 @@ function getEntityDate(meta: Record<string, unknown>): Date | null {
   return null;
 }
 
-runScript('meta/disable-old-meta', () => {
-  for (const entityType of ENTITY_TYPES) {
+/** What {@link disableOldMeta} reads. */
+export interface DisableOldMetaDeps {
+  /** Entity types with their age limits. */
+  entityTypes: readonly EntityTypeConfig[];
+  /** The entity root directories of a type (through the silos). */
+  entityDirs: (subdir: string) => string[];
+  /** Clock (ms). */
+  now: () => number;
+}
+
+/** Disable every synthesised meta older than its type's limit; one JSON summary line per type. */
+export function disableOldMeta(deps: DisableOldMetaDeps): void {
+  for (const entityType of deps.entityTypes) {
     if (entityType.maxAgeDays == null) continue;
 
     const cutoff = new Date(
-      Date.now() - entityType.maxAgeDays * 24 * 60 * 60 * 1000,
+      deps.now() - entityType.maxAgeDays * 24 * 60 * 60 * 1000,
     );
     let scanned = 0;
     let disabled = 0;
@@ -62,7 +71,7 @@ runScript('meta/disable-old-meta', () => {
     let skippedNoDate = 0;
     let skippedRecent = 0;
 
-    const entityRoots = getEntityDirs(entityType.subdir);
+    const entityRoots = deps.entityDirs(entityType.subdir);
 
     for (const root of entityRoots) {
       if (!fs.existsSync(root)) continue;
@@ -127,4 +136,17 @@ runScript('meta/disable-old-meta', () => {
       }),
     );
   }
+}
+
+export default defineJob({
+  id: 'meta-disable-old',
+  domain: 'meta',
+  name: 'meta/disable-old-meta',
+  run: () => {
+    disableOldMeta({
+      entityTypes: ENTITY_TYPES,
+      entityDirs: getEntityDirs,
+      now: Date.now,
+    });
+  },
 });

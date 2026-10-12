@@ -19,5 +19,5 @@
     "types": ["node", "vitest/globals"]
   },
   "exclude": ["coverage", "dist", "docs", "node_modules"],
-  "include": ["**/*"]
+  "include": ["*.ts"]
 }

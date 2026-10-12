@@ -1,40 +1,38 @@
-#!/usr/bin/env tsx
 /**
- * @module sync-issues
+ * @module github/sync-issues
  *
- * Sync GitHub issues in round-robin batches via runner state_items.
- *
- * Called by the jeeves-runner scheduler. Reads the repo registry at
- * constants().GITHUB_REGISTRY_PATH, maintains a state_items queue, then fetches
- * issues for the oldest BATCH_SIZE repos using `gh search issues`.
- * Each issue is stored as a JSON file with diff history via
- * fast-json-patch. Requires constants().GH_ACCOUNT and constants().GH_BIN for auth.
+ * Syncs GitHub issues in round-robin batches through runner state items
+ * (`github` / `issues-sync`): for the {@link BATCH_SIZE} least recently
+ * synced repos in the registry, searches the issues updated since the last
+ * sync and stores each one under `{silo}/github/<owner>/<repo>/issues/` with
+ * reverse-diff history. Skips when the gh config directory does not exist.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-import {
-  ensureDir,
-  nowIso,
-  readJson,
-  run,
-  runScript,
-  sleepAsync,
-} from '@karmaniverous/jeeves';
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
+import { ensureDir, readJson } from '@karmaniverous/jeeves';
 import jsonpatch from 'fast-json-patch';
+
+import { defineJob } from '../jobs/define-job.js';
+import {
+  ghReady,
+  type GitHubJobDeps,
+  githubJobDeps,
+  NEVER,
+  oldestBatch,
+  type RepoRegistry,
+  seedRoundRobin,
+} from './lib/github-deps.js';
+
 const compare = jsonpatch.compare.bind(jsonpatch);
 
-import { getBasePathForGitHubOrg } from '../config/index.js';
-import { constants } from '../lib/constants.js';
-import { gh, setupGhConfig } from '../lib/gh.js';
-
-setupGhConfig();
-
-const MAX_HISTORY = 50;
-const SEARCH_DELAY_MS = 3000;
-const BATCH_SIZE = 10;
+/** History entries kept per issue. */
+export const MAX_HISTORY = 50;
+/** Delay between repo searches (search API rate limit). */
+export const SEARCH_DELAY_MS = 3000;
+/** Repos synced per run. */
+export const BATCH_SIZE = 10;
 const STATE_NS = 'github';
 const STATE_KEY = 'issues-sync';
 
@@ -51,7 +49,17 @@ interface Issue {
   url: string;
 }
 
-function fetchIssues(ownerRepo: string, sinceDate: string | null): Issue[] {
+interface StoredIssue {
+  current?: Record<string, unknown>;
+  history?: { ts: string; patch: unknown[] }[];
+  meta?: { firstSeen?: string; version?: number };
+}
+
+function fetchIssues(
+  ownerRepo: string,
+  sinceDate: string | null,
+  deps: Pick<GitHubJobDeps, 'gh'>,
+): Issue[] {
   const args = [
     'search',
     'issues',
@@ -67,16 +75,15 @@ function fetchIssues(ownerRepo: string, sinceDate: string | null): Issue[] {
     'number,title,state,body,labels,assignees,createdAt,updatedAt,commentsCount,url',
   ];
   if (sinceDate) args.push('--updated', `>=${sinceDate}`);
-  const result = gh(args);
+  const result = deps.gh(args);
   if (!result.out || result.out === '[]') return [];
   return JSON.parse(result.out) as Issue[];
 }
 
-function processIssue(issuesDir: string, issue: Issue): void {
-  const num = issue.number;
-  const filePath = path.join(issuesDir, `${String(num)}.json`);
-  const now = nowIso();
-
+/** Write the issue snapshot, adding a reverse patch to its history when it changed. */
+function processIssue(issuesDir: string, issue: Issue, now: string): void {
+  const num = String(issue.number);
+  const filePath = path.join(issuesDir, `${num}.json`);
   const current = {
     number: issue.number,
     title: issue.title,
@@ -93,157 +100,96 @@ function processIssue(issuesDir: string, issue: Issue): void {
     comments: issue.commentsCount ?? 0,
     url: issue.url,
   };
-
-  const existing = readJson<{
-    current?: Record<string, unknown>;
-    history?: { ts: string; patch: unknown[] }[];
-    meta?: { firstSeen?: string; version?: number };
-  } | null>(filePath, null);
-
+  const existing = readJson<StoredIssue | null>(filePath, null);
+  const history = existing?.current ? (existing.history ?? []) : [];
   if (existing?.current) {
     const patches = compare(
       current as Record<string, unknown>,
       existing.current,
     );
-    const history = existing.history ?? [];
     if (patches.length > 0) {
       history.unshift({ ts: now, patch: patches });
       if (history.length > MAX_HISTORY) history.length = MAX_HISTORY;
     }
-
-    fs.writeFileSync(
-      filePath,
-      JSON.stringify(
-        {
-          entityType: 'issue',
-          entityKey: String(num),
-          current,
-          history,
-          meta: {
-            firstSeen: existing.meta?.firstSeen ?? now,
-            lastSync: now,
-            version: (existing.meta?.version ?? 0) + 1,
-          },
-        },
-        null,
-        2,
-      ) + '\n',
-      'utf8',
-    );
-  } else {
-    fs.writeFileSync(
-      filePath,
-      JSON.stringify(
-        {
-          entityType: 'issue',
-          entityKey: String(num),
-          current,
-          history: [],
-          meta: { firstSeen: now, lastSync: now, version: 1 },
-        },
-        null,
-        2,
-      ) + '\n',
-      'utf8',
-    );
   }
+  const meta = existing?.current
+    ? {
+        firstSeen: existing.meta?.firstSeen ?? now,
+        lastSync: now,
+        version: (existing.meta?.version ?? 0) + 1,
+      }
+    : { firstSeen: now, lastSync: now, version: 1 };
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify(
+      { entityType: 'issue', entityKey: num, current, history, meta },
+      null,
+      2,
+    ) + '\n',
+    'utf8',
+  );
 }
 
-async function main(): Promise<void> {
-  if (!fs.existsSync(constants().GH_CONFIG_DIR)) {
-    console.log('[skip] GitHub CLI config not configured');
-    return;
-  }
-
-  const client = getRunnerClient();
-
+/** Sync the issues of the next batch of repos. */
+export async function syncIssues(deps: GitHubJobDeps): Promise<void> {
+  if (!ghReady(deps)) return;
+  const client = deps.runner();
   try {
     console.log(
-      `[issues-sync] start ${nowIso()} (batch=${String(BATCH_SIZE)})`,
+      `[issues-sync] start ${deps.now()} (batch=${String(BATCH_SIZE)})`,
     );
     try {
-      run(constants().GH_BIN, ['auth', 'switch', '-u', constants().GH_ACCOUNT]);
+      deps.run(deps.bin, ['auth', 'switch', '-u', deps.account]);
     } catch (e) {
       console.log(
         `[issues-sync] warning: account switch failed: ${e instanceof Error ? e.message : String(e)}`,
       );
     }
 
-    const registry = readJson<{
-      repos: Record<string, { isArchived?: boolean }>;
-    }>(constants().GITHUB_REGISTRY_PATH, { repos: {} });
-
-    const existingCount = client.countItems(STATE_NS, STATE_KEY);
-    if (existingCount === 0) {
-      const keys = Object.keys(registry.repos).filter(
-        (k) => !registry.repos[k]?.isArchived,
-      );
-      console.log(`[issues-sync] seeding ${String(keys.length)} repos`);
-      for (const key of keys) {
-        client.setItem(
-          STATE_NS,
-          STATE_KEY,
-          key,
-          JSON.stringify({ lastSyncedAt: null, issueCount: 0 }),
-        );
-      }
-    }
-
-    // Add new repos
-    const regKeys = new Set(
-      Object.keys(registry.repos).filter((k) => !registry.repos[k]?.isArchived),
+    const registry = readJson<RepoRegistry>(deps.registryPath, { repos: {} });
+    seedRoundRobin(
+      client,
+      STATE_NS,
+      STATE_KEY,
+      registry,
+      () => ({ lastSyncedAt: null, issueCount: 0 }),
+      {
+        seeding: (n) => `[issues-sync] seeding ${String(n)} repos`,
+        adding: (key) => `[issues-sync] adding: ${key}`,
+      },
     );
-    const exKeys = new Set(client.listItemKeys(STATE_NS, STATE_KEY));
-    for (const key of regKeys) {
-      if (!exKeys.has(key)) {
-        console.log(`[issues-sync] adding: ${key}`);
-        client.setItem(
-          STATE_NS,
-          STATE_KEY,
-          key,
-          JSON.stringify({ lastSyncedAt: null, issueCount: 0 }),
-        );
-      }
-    }
 
-    const allKeys = client.listItemKeys(STATE_NS, STATE_KEY);
-    const items = allKeys
-      .map((k) => {
-        const val = JSON.parse(
-          client.getItem(STATE_NS, STATE_KEY, k) ?? '{}',
-        ) as { lastSyncedAt?: string };
-        return {
-          key: k,
-          lastSyncedAt: val.lastSyncedAt ?? '1970-01-01T00:00:00Z',
-        };
-      })
-      .sort((a, b) => a.lastSyncedAt.localeCompare(b.lastSyncedAt))
-      .slice(0, BATCH_SIZE);
-
+    const items = oldestBatch(client, STATE_NS, STATE_KEY, BATCH_SIZE);
     let processed = 0,
       errors = 0,
       totalIssues = 0;
 
     for (const item of items) {
       const [owner = '', repo = ''] = item.key.split('/');
-      const basePath = getBasePathForGitHubOrg(owner);
-      const issuesDir = path.join(basePath, 'github', owner, repo, 'issues');
+      const issuesDir = path.join(
+        deps.orgBase(owner),
+        'github',
+        owner,
+        repo,
+        'issues',
+      );
       ensureDir(issuesDir);
-
       const sinceDate =
-        item.lastSyncedAt !== '1970-01-01T00:00:00Z'
+        item.lastSyncedAt !== NEVER
           ? new Date(item.lastSyncedAt).toISOString().slice(0, 10)
           : null;
 
       try {
-        const issues = fetchIssues(item.key, sinceDate);
-        for (const issue of issues) processIssue(issuesDir, issue);
-
+        const issues = fetchIssues(item.key, sinceDate, deps);
+        for (const issue of issues) processIssue(issuesDir, issue, deps.now());
         client.setItem(
           STATE_NS,
           STATE_KEY,
           item.key,
-          JSON.stringify({ lastSyncedAt: nowIso(), issueCount: issues.length }),
+          JSON.stringify({
+            lastSyncedAt: deps.now(),
+            issueCount: issues.length,
+          }),
         );
         processed++;
         totalIssues += issues.length;
@@ -260,27 +206,26 @@ async function main(): Promise<void> {
           STATE_KEY,
           item.key,
           JSON.stringify({
-            lastSyncedAt: nowIso(),
+            lastSyncedAt: deps.now(),
             issueCount: 0,
             lastError: msg,
           }),
         );
       }
-
-      await sleepAsync(SEARCH_DELAY_MS);
+      await deps.sleep(SEARCH_DELAY_MS);
     }
 
     console.log(
-      `[issues-sync] end ${nowIso()} - batch ${String(processed)}/${String(items.length)}, ${String(totalIssues)} issues, ${String(errors)} errors`,
+      `[issues-sync] end ${deps.now()} - batch ${String(processed)}/${String(items.length)}, ${String(totalIssues)} issues, ${String(errors)} errors`,
     );
   } finally {
     client.close();
   }
 }
 
-runScript('github/sync-issues', () => {
-  main().catch((e: unknown) => {
-    console.error(e);
-    process.exit(1);
-  });
+export default defineJob({
+  id: 'github-sync-issues',
+  domain: 'github',
+  name: 'github/sync-issues',
+  run: () => syncIssues(githubJobDeps()),
 });

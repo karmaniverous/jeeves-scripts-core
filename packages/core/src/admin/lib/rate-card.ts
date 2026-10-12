@@ -8,7 +8,8 @@
  * is the single source of truth for cost computation; OpenClaw's
  * per-message cost data is not used.
  *
- * Config dependencies: constants().TOKEN_RATES_PATH from constants.ts.
+ * Config dependencies: constants().TOKEN_RATES_PATH (`token-rates.json` under
+ * `paths.tokenMetricsDir` in jeeves-scripts.json (or `TOKEN_METRICS_DIR`)).
  */
 
 import { readJson } from '@karmaniverous/jeeves';

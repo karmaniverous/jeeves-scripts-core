@@ -1,18 +1,19 @@
 ---
 name: jeeves-email
 description: Email pipeline - Gmail (via gog CLI) and IMAP polling, download, triage, classification, and label management. Use when working with the email pipeline, debugging email jobs, setting up gog for Gmail, or understanding email curation signals.
+metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
 ---
 
 # Email Pipeline
 
-Read [email.md](../../guides/email.md) for how the pipeline works: transports, jobs, account configuration, classification and labels, state and queues, output layout.
+Read [email.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/email.md) for how the pipeline works: transports, jobs, account configuration, classification and labels, state and queues, output layout.
 
 ## Operator rules
 
-- **Per-instance settings are the operator's call.** Which accounts to poll, how far back to ingest, labels and forwarding destinations live in this instance's `jeeves-scripts.json` (`pipeline` block, [config.md](../../guides/config.md#the-pipeline-block)). Ask; don't guess or copy another instance's values.
+- **Per-instance settings are the operator's call.** Which accounts to poll, how far back to ingest, labels and forwarding destinations live in this instance's `jeeves-scripts.json` (`pipeline` block, [config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md#the-pipeline-block)). Ask; don't guess or copy another instance's values.
 - **Never commit secrets.** IMAP passwords are secret references resolved from the credentials folder, never values in `jeeves-scripts.json`. Ask the operator how to provision one before configuring an account that needs it.
-- **Report-only first.** A new instance starts with report-only on, so no Gmail labels change until the operator turns it off.
-- **After turning report-only off**, offer `email apply-labels` (dry run first) to apply the labels skipped meanwhile ([label catch-up](../../guides/email.md#label-catch-up)).
+- **Report-only first.** `emailConfig.reportOnly` has no default: set it to `true` when adding the `pipeline` block, so no Gmail labels change until the operator turns it off.
+- **After turning report-only off**, offer `run email-apply-labels` (dry run first) to apply the labels skipped meanwhile ([label catch-up]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/email.md#label-catch-up)).
 - Run `config check` after editing accounts (see `jeeves-scripts`).
 
 ## gog

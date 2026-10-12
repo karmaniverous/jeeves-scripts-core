@@ -13,7 +13,6 @@ const baseConfig = (
     integrations: {},
     siloRouting: { silos: {} },
     jobs: {},
-    extensions: {},
   }) as unknown as Config;
 
 describe('derivePaths', () => {

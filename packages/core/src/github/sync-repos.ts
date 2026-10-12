@@ -1,57 +1,48 @@
-#!/usr/bin/env tsx
 /**
- * @module sync-repos
+ * @module github/sync-repos
  *
- * Sync GitHub repo clones in round-robin batches via runner state_items.
- *
- * Called by the jeeves-runner scheduler. Reads the repo registry at
- * constants().GITHUB_REGISTRY_PATH, seeds or updates a state_items queue, then
- * shallow-clones or pulls the oldest BATCH_SIZE repos. Requires
- * constants().GH_ACCOUNT for auth switching and constants().GH_BIN for git-credential flow.
+ * Syncs GitHub repo clones in round-robin batches through runner state
+ * items (`github` / `repos-sync`): reads the repo registry, tracks every
+ * unarchived repo, then shallow-clones or hard-resets the
+ * {@link BATCH_SIZE} least recently synced. Skips when the gh config
+ * directory does not exist.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { ensureDir, readJson } from '@karmaniverous/jeeves';
+
+import { defineJob } from '../jobs/define-job.js';
 import {
-  ensureDir,
-  nowIso,
-  readJson,
-  run,
-  runScript,
-} from '@karmaniverous/jeeves';
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
+  ghReady,
+  type GitHubJobDeps,
+  githubJobDeps,
+  oldestBatch,
+  type RepoRegistry,
+  seedRoundRobin,
+} from './lib/github-deps.js';
 
-import { getBasePathForGitHubOrg } from '../config/index.js';
-import { constants } from '../lib/constants.js';
-import { setupGhConfig } from '../lib/gh.js';
-
-setupGhConfig();
-
-const BATCH_SIZE = 15;
+/** Repos synced per run. */
+export const BATCH_SIZE = 15;
 const STATE_NS = 'github';
 const STATE_KEY = 'repos-sync';
 
-interface RegistryEntry {
-  defaultBranch?: string;
-  isArchived?: boolean;
-}
-
-interface Registry {
-  repos: Record<string, RegistryEntry>;
-}
-
-function syncOne(ownerRepo: string, defaultBranch: string): void {
+/** Clone the repo, or reset an existing clone to the remote default branch. */
+function syncOne(
+  ownerRepo: string,
+  defaultBranch: string,
+  deps: Pick<GitHubJobDeps, 'orgBase' | 'run'>,
+): void {
   const [owner = '', repo = ''] = ownerRepo.split('/');
-  const basePath = getBasePathForGitHubOrg(owner);
-  const target = path.join(basePath, 'github', owner, repo);
+  const target = path.join(deps.orgBase(owner), 'github', owner, repo);
   const repoDir = path.join(target, 'repo');
   const url = `https://github.com/${ownerRepo}.git`;
 
   if (!fs.existsSync(repoDir)) {
     console.log(`CLONE ${ownerRepo} -> ${repoDir} (${defaultBranch})`);
     ensureDir(target);
-    run('git', [
+    deps.run('git', [
       'clone',
       '--depth',
       '1',
@@ -64,9 +55,17 @@ function syncOne(ownerRepo: string, defaultBranch: string): void {
   }
 
   console.log(`PULL  ${ownerRepo} -> ${repoDir} (${defaultBranch})`);
-  run('git', ['-C', repoDir, 'remote', 'set-url', 'origin', url]);
-  run('git', ['-C', repoDir, 'fetch', '--depth', '1', 'origin', defaultBranch]);
-  run('git', [
+  deps.run('git', ['-C', repoDir, 'remote', 'set-url', 'origin', url]);
+  deps.run('git', [
+    '-C',
+    repoDir,
+    'fetch',
+    '--depth',
+    '1',
+    'origin',
+    defaultBranch,
+  ]);
+  deps.run('git', [
     '-C',
     repoDir,
     'checkout',
@@ -74,99 +73,60 @@ function syncOne(ownerRepo: string, defaultBranch: string): void {
     defaultBranch,
     `origin/${defaultBranch}`,
   ]);
-  run('git', ['-C', repoDir, 'reset', '--hard', `origin/${defaultBranch}`]);
-  run('git', ['-C', repoDir, 'clean', '-fdx']);
+  deps.run('git', [
+    '-C',
+    repoDir,
+    'reset',
+    '--hard',
+    `origin/${defaultBranch}`,
+  ]);
+  deps.run('git', ['-C', repoDir, 'clean', '-fdx']);
 }
 
-function main(): void {
-  if (!fs.existsSync(constants().GH_CONFIG_DIR)) {
-    console.log('[skip] GitHub CLI config not configured');
-    return;
-  }
-
-  const client = getRunnerClient();
-
+/** Sync the next batch of repos. */
+export function syncRepos(deps: GitHubJobDeps): void {
+  if (!ghReady(deps)) return;
+  const client = deps.runner();
   try {
-    console.log(`[repo-sync] start ${nowIso()} (batch=${String(BATCH_SIZE)})`);
-    run(constants().GH_BIN, ['auth', 'switch', '-u', constants().GH_ACCOUNT]);
-
-    const existingCount = client.countItems(STATE_NS, STATE_KEY);
-    const registry = readJson<Registry>(constants().GITHUB_REGISTRY_PATH, {
-      repos: {},
-    });
-
-    if (existingCount === 0) {
-      const keys = Object.keys(registry.repos).filter(
-        (k) => !registry.repos[k]?.isArchived,
-      );
-      console.log(`[repo-sync] seeding ${String(keys.length)} repos`);
-      for (const key of keys) {
-        client.setItem(
-          STATE_NS,
-          STATE_KEY,
-          key,
-          JSON.stringify({
-            lastSyncedAt: null,
-            defaultBranch: registry.repos[key]?.defaultBranch ?? 'main',
-          }),
-        );
-      }
-    }
-
-    // Add new repos from registry
-    const registryKeys = new Set(
-      Object.keys(registry.repos).filter((k) => !registry.repos[k]?.isArchived),
+    console.log(
+      `[repo-sync] start ${deps.now()} (batch=${String(BATCH_SIZE)})`,
     );
-    const existingKeys = new Set(client.listItemKeys(STATE_NS, STATE_KEY));
-    for (const key of registryKeys) {
-      if (!existingKeys.has(key)) {
-        console.log(`[repo-sync] adding new repo: ${key}`);
-        client.setItem(
-          STATE_NS,
-          STATE_KEY,
-          key,
-          JSON.stringify({
-            lastSyncedAt: null,
-            defaultBranch: registry.repos[key]?.defaultBranch ?? 'main',
-          }),
-        );
-      }
-    }
+    deps.run(deps.bin, ['auth', 'switch', '-u', deps.account]);
 
-    // Get batch of oldest items
-    const allKeys = client.listItemKeys(STATE_NS, STATE_KEY);
-    const items = allKeys
-      .map((k) => {
-        const val = JSON.parse(
-          client.getItem(STATE_NS, STATE_KEY, k) ?? '{}',
-        ) as {
-          lastSyncedAt?: string;
-          defaultBranch?: string;
-        };
-        return {
-          key: k,
-          lastSyncedAt: val.lastSyncedAt ?? '1970-01-01T00:00:00Z',
-          defaultBranch: val.defaultBranch ?? 'main',
-        };
-      })
-      .sort((a, b) => a.lastSyncedAt.localeCompare(b.lastSyncedAt))
-      .slice(0, BATCH_SIZE);
+    const registry = readJson<RepoRegistry>(deps.registryPath, { repos: {} });
+    seedRoundRobin(
+      client,
+      STATE_NS,
+      STATE_KEY,
+      registry,
+      (key) => ({
+        lastSyncedAt: null,
+        defaultBranch: registry.repos[key]?.defaultBranch ?? 'main',
+      }),
+      {
+        seeding: (n) => `[repo-sync] seeding ${String(n)} repos`,
+        adding: (key) => `[repo-sync] adding new repo: ${key}`,
+      },
+    );
 
+    const items = oldestBatch(client, STATE_NS, STATE_KEY, BATCH_SIZE);
     console.log(`[repo-sync] processing batch of ${String(items.length)}`);
     let processed = 0,
       errors = 0;
 
     for (const item of items) {
+      const stored = item.value.defaultBranch;
+      const defaultBranch = typeof stored === 'string' ? stored : 'main';
       try {
-        syncOne(item.key, item.defaultBranch);
-        const r = registry.repos[item.key];
+        syncOne(item.key, defaultBranch, deps);
         client.setItem(
           STATE_NS,
           STATE_KEY,
           item.key,
           JSON.stringify({
-            lastSyncedAt: nowIso(),
-            defaultBranch: r?.defaultBranch ?? item.defaultBranch,
+            lastSyncedAt: deps.now(),
+            defaultBranch:
+              registry.repos[item.key]?.defaultBranch ?? defaultBranch,
           }),
         );
         processed++;
@@ -179,8 +139,8 @@ function main(): void {
           STATE_KEY,
           item.key,
           JSON.stringify({
-            lastSyncedAt: nowIso(),
-            defaultBranch: item.defaultBranch,
+            lastSyncedAt: deps.now(),
+            defaultBranch,
             lastError: msg,
           }),
         );
@@ -188,11 +148,18 @@ function main(): void {
     }
 
     console.log(
-      `[repo-sync] end ${nowIso()} - batch ${String(processed)}/${String(items.length)}, ${String(errors)} errors`,
+      `[repo-sync] end ${deps.now()} - batch ${String(processed)}/${String(items.length)}, ${String(errors)} errors`,
     );
   } finally {
     client.close();
   }
 }
 
-runScript('github/sync-repos', main);
+export default defineJob({
+  id: 'github-sync-repos',
+  domain: 'github',
+  name: 'github/sync-repos',
+  run: () => {
+    syncRepos(githubJobDeps());
+  },
+});

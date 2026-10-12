@@ -7,7 +7,8 @@
  * Called by collect-token-metrics (write) and token-metrics (read).
  * Each bucket file is an immutable JSON snapshot of one UTC hour.
  *
- * Config dependencies: constants().TOKEN_METRICS_DIR from constants.ts.
+ * Config dependencies: constants().TOKEN_METRICS_DIR, from
+ * `paths.tokenMetricsDir` in jeeves-scripts.json (or `TOKEN_METRICS_DIR`).
  */
 
 import path from 'node:path';
@@ -37,12 +38,13 @@ export function tsToHour(tsMs: number): string {
 }
 
 /**
- * Compute the start-of-current-UTC-hour as Unix-millisecond timestamp.
+ * The start of the UTC hour containing `now` (default: the current time),
+ * in Unix milliseconds.
  */
-export function currentHourBoundaryMs(): number {
-  const now = new Date();
-  now.setUTCMinutes(0, 0, 0);
-  return now.getTime();
+export function currentHourBoundaryMs(now: number = Date.now()): number {
+  const d = new Date(now);
+  d.setUTCMinutes(0, 0, 0);
+  return d.getTime();
 }
 
 /**

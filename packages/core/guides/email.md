@@ -53,7 +53,7 @@ flowchart TD
 | `email-drain-updates` | `google-workspace/drain-updates.ts` | Every 17 min |
 | `email-backfill-historical` | `google-workspace/backfill-historical.ts --live` | Hourly; needs `emailConfig.backfill` |
 
-The template manifest (`jobs/email.json`, carried in the instance repo) is authoritative. All four entries carry a non-null `prerequisite` (gog credentials or IMAP, plus `emailConfig.backfill` for the backfill).
+Core's manifest (`jobs/email.json`) is authoritative; an instance adjusts it with `jobs.<id>` deltas. `email-inventory` is registered without a manifest. All four entries carry a non-null `prerequisite` (gog credentials or IMAP, plus `emailConfig.backfill` for the backfill).
 
 ### Historical backfill
 
@@ -67,8 +67,8 @@ The template manifest (`jobs/email.json`, carried in the instance repo) is autho
 `poll` enqueues a thread's classification labels only when its classification changes, so labels skipped while `emailConfig.reportOnly` was on are never applied by the regular jobs. Run the catch-up once after turning `reportOnly` off (or whenever `labelApplied` lags the stored classification):
 
 ```bash
-node bin/jeeves-scripts.js email apply-labels --dry-run
-node bin/jeeves-scripts.js email apply-labels [--since <date>] [--account <id>] [--max <n>]
+node bin/jeeves-scripts.js run email-apply-labels --dry-run
+node bin/jeeves-scripts.js run email-apply-labels [--since <date>] [--account <id>] [--max <n>]
 ```
 
 - It reads each Gmail account's thread state (runner state `email` / `<email>.seenThreadIds`) and, for every thread whose stored classification (`receipt`, `junk`, a currently configured bucket) has labels missing from `labelApplied`, enqueues them on `email-updates` through `enqueueLabelActions()` and records them in `labelApplied`, exactly as `poll` does. It never calls Gmail itself: `drain-updates` applies the queue at its usual rate limit.
@@ -86,7 +86,7 @@ node bin/jeeves-scripts.js email apply-labels [--since <date>] [--account <id>] 
 | Runner state `email-backfill`, key `cursor-<email>` | Historical backfill cursor |
 | Queue `email-pending` | Threads whose bodies `download` fetches |
 | Queue `email-updates` | Label actions `drain-updates` applies to Gmail |
-| `EMAIL_EVENTS_DIR` (`/opt/jeeves/state/runner/email-events`) | Event logs: `<account>.jsonl` (thread seen/updated) and `_runs-*.jsonl` (per-run summaries); `trim-jsonl.ts` drops event lines older than 7 days after each poll |
+| `EMAIL_EVENTS_DIR` (`/base/state/runner/email-events`) | Event logs: `<account>.jsonl` (thread seen/updated) and `_runs-*.jsonl` (per-run summaries); `trim-jsonl.ts` drops event lines older than 7 days after each poll |
 
 ## Shared Modules
 
@@ -99,13 +99,13 @@ node bin/jeeves-scripts.js email apply-labels [--since <date>] [--account <id>] 
 
 ## Prerequisites
 
-- **gog accounts**: gog credentials under `GOG_CONFIG_DIR` (`GOG_HOME`, default `/opt/jeeves/config/gogcli`), either or both of:
+- **gog accounts**: gog credentials under `GOG_CONFIG_DIR` (`GOG_HOME`, default `/base/config/gogcli`), either or both of:
   - an OAuth client at `GOG_CLIENT_PATH` (`<GOG_CONFIG_DIR>/credentials.json`) plus per-account tokens; or
   - service-account mailboxes (domain-wide delegation) registered by gog at `<GOG_CONFIG_DIR>/data/sa-<base64(email)>.json` (padding stripped; checked first, then the `<GOG_CONFIG_DIR>` root for older gog builds without `data/`). jeeves-tools deploy writes the key to `<GOG_CONFIG_DIR>/service-account.json`.
 
   Detection lives in one place, `lib/gog-credentials.ts`. If gog accounts are configured but neither credential type exists, `poll`, `download`, `drain-updates` and `backfill-historical` **fail** (non-zero exit, clear message) instead of skipping; `drain-updates` fails even when `reportOnly` is set. With no gog accounts configured they skip quietly. For `download` and `drain-updates`, "gog accounts" means `getGmailAccounts()`: polled accounts without an `imap` block plus `emailConfig.backfill.accounts`, so items queued by a backfill-only account are still consumed.
 
-- **`emailConfig.reportOnly: true`**: mail is still ingested and archived, but nothing is written back to Gmail. Every `email-updates` write goes through `google-workspace/label-actions.ts`, so `poll` and `backfill-historical` enqueue neither classification labels nor curation-signal actions (`watch` added/removed by `email-fetch.ts`), `meetings/extract.ts` enqueues no `meeting` label or archive (`meetings/lib/email-actions.ts`), and `drain-updates` dequeues and applies nothing (any items already queued are left pending until `reportOnly` is turned off). Actions skipped in `reportOnly` are dropped, not deferred: turning it off does not replay them. Classification labels can be caught up afterwards with `email apply-labels` ([Label catch-up](#label-catch-up)): `labelApplied` records only labels actually enqueued, so the threads classified while `reportOnly` was on are exactly the ones still missing labels. Curation-signal actions are not replayed either. The `meeting` label and archive of a meeting packaged while `reportOnly` was on are the exception: `meetings/extract.ts` records them as pending and catches them up once `reportOnly` is off (see [meetings/](./meetings.md#reportonly-catch-up)).
+- **`emailConfig.reportOnly: true`**: mail is still ingested and archived, but nothing is written back to Gmail. Every `email-updates` write goes through `google-workspace/label-actions.ts`, so `poll` and `backfill-historical` enqueue neither classification labels nor curation-signal actions (`watch` added/removed by `email-fetch.ts`), `meetings/extract.ts` enqueues no `meeting` label or archive (`meetings/lib/email-actions.ts`), and `drain-updates` dequeues and applies nothing (any items already queued are left pending until `reportOnly` is turned off). Actions skipped in `reportOnly` are dropped, not deferred: turning it off does not replay them. Classification labels can be caught up afterwards with the `email-apply-labels` runnable ([Label catch-up](#label-catch-up)): `labelApplied` records only labels actually enqueued, so the threads classified while `reportOnly` was on are exactly the ones still missing labels. Curation-signal actions are not replayed either. The `meeting` label and archive of a meeting packaged while `reportOnly` was on are the exception: `meetings/extract.ts` records them as pending and catches them up once `reportOnly` is off (see [meetings/](./meetings.md#reportonly-catch-up)).
 - **IMAP accounts**: `imap` connection block in pipeline config with host/port/user/password, the password normally a `secretRef` to a file in `IMAP_SECRETS_DIR` (see [IMAP passwords](#imap-passwords)).
 - All accounts: listed in `pipeline.accounts` with `emailPolling: true` and a `type` field (`gmail` or `imap`).
 
@@ -137,7 +137,7 @@ Accounts are the entries of `pipeline.accounts` in `jeeves-scripts.json` (schema
 
 `imap.password` takes one form (schema: `config/pipeline-schema.ts`; resolver: `config/imap-secrets.ts`):
 
-- **`{ "secretRef": "<name>" }`**. The password lives in the file `IMAP_SECRETS_DIR/<name>`, i.e. `<CREDENTIALS_DIR>/imap/<name>` (`/opt/jeeves/config/credentials/imap/<name>` on a standard instance). `<name>` follows the jeeves-tools secret-name rule: 1-64 characters, letters, digits, `_` and `-`, starting with a letter or digit (no dots, no path separators); anything else fails config validation. The poller reads the file each time it connects, so a rotated password needs no restart; trailing newlines are removed. A missing, unreadable or empty file fails that account's poll with an error naming the ref and the path (never the value); the other accounts are still polled.
+- **`{ "secretRef": "<name>" }`**. The password lives in the file `IMAP_SECRETS_DIR/<name>`, i.e. `<CREDENTIALS_DIR>/imap/<name>` (`/base/config/credentials/imap/<name>` on a standard instance). `<name>` follows the jeeves-tools secret-name rule: 1-64 characters, letters, digits, `_` and `-`, starting with a letter or digit (no dots, no path separators); anything else fails config validation. The poller reads the file each time it connects, so a rotated password needs no restart; trailing newlines are removed. A missing, unreadable or empty file fails that account's poll with an error naming the ref and the path (never the value); the other accounts are still polled.
 - A literal string is a config error (core carries no deprecated aliases, Decision 29): put the password in a file in `IMAP_SECRETS_DIR` and set `imap.password` to `{ "secretRef": "<file name>" }`.
 
 Provisioning: on a jeeves-tools-managed instance, put each password in the instance config's `secrets` map under the same name as the `secretRef`; deploy writes it to `IMAP_SECRETS_DIR/<name>` (owner jeeves, mode 0600) and never logs it (see [jeeves-tools#178](https://github.com/karmaniverous/jeeves-tools/issues/178)). On a standalone instance, create the file yourself with the same owner and mode. The password is never logged, written to runner state or included in an error.
@@ -197,7 +197,7 @@ Gmail polling via the `gog` CLI (OAuth client or service-account mailboxes). Han
 | `backfill-settings.ts` | `resolveBackfillSettings()`: CLI args over `emailConfig.backfill`, per field; throws when any field is missing |
 | `backfill-window.ts` | Cursor and window arithmetic and `backfillAccount()`: processes the window one search page at a time and advances the cursor (live only) after the last page |
 | `label-actions.ts` | Every `email-updates` write, gated on `reportOnly` (`enqueueEmailUpdates`, `enqueueLabelActions`, `curationSignalActions`; meetings/extract.ts also enqueues through `enqueueEmailUpdates`); the drain-updates go/no-go (`planDrain`); action-to-label mapping for drain-updates (`labelChangesFor`, `threadModifyArgs`) |
-| `apply-labels.ts` | `applyPendingLabels()`: the label catch-up behind `email apply-labels` ([Label catch-up](#label-catch-up)); `pendingLabels()` is `computeLabelsToApply()` over stored thread state |
+| `apply-labels.ts` | `applyPendingLabels()`: the label catch-up behind the runnable `email-apply-labels` (`email-apply-labels.ts`) ([Label catch-up](#label-catch-up)); `pendingLabels()` is `computeLabelsToApply()` over stored thread state |
 | `inventory.ts` | Prints a summary table of thread directories, message files, and state counts per account |
 
 ### Classification

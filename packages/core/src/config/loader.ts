@@ -1,8 +1,7 @@
 /**
  * @module config/loader
  *
- * Resolves and loads `jeeves-scripts.json` (Architecture → Config
- * Resolution). The caller (the CLI launcher, or a test) passes the
+ * Resolves and loads `jeeves-scripts.json` (design §5). The caller (the CLI launcher, or a test) passes the
  * instance repo root explicitly; resolution never depends on the working
  * directory. `--config` / `JEEVES_SCRIPTS_CONFIG` replace the file
  * location only. The loader is lazy and cached with a reset, matching
@@ -14,7 +13,7 @@ import path from 'node:path';
 
 import { type Config, configSchema } from './schema.js';
 
-/** Env var that overrides the config file location (Architecture). */
+/** Env var that overrides the config file location (design §5). */
 export const CONFIG_PATH_ENV = 'JEEVES_SCRIPTS_CONFIG';
 
 /** Where to find `jeeves-scripts.json`. */

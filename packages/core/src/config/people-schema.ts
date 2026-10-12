@@ -9,6 +9,8 @@
 
 import { z } from 'zod';
 
+import { accountKey } from './account-key.js';
+
 /** A person id: a lowercase slug (`jane-doe`). */
 export const personIdSchema = z
   .string()
@@ -42,10 +44,6 @@ export const personSchema = z.strictObject({
 
 /** One person. */
 export type Person = z.infer<typeof personSchema>;
-
-/** The key an account is matched on. */
-export const accountKey = (a: PersonAccount): string =>
-  JSON.stringify([a.channel, a.account, a.id]);
 
 /** The `people` block: person id → person. No account or email belongs to two people. */
 export const peopleSchema = z

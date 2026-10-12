@@ -1,0 +1,15 @@
+{
+  "slack-poll": {
+    "name": "Slack Poll",
+    "description": "Poll Slack channels for new messages, auto-discover new channels, and write per-message JSON archives.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 11,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": true,
+    "prerequisite": "Slack bot token: SLACK_BOT_TOKEN in the job environment, else channels.slack.accounts.<name>.botToken (or channels.slack.botToken) in ~/.openclaw/openclaw.json (see guides/slack.md)"
+  }
+}

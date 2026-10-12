@@ -13,7 +13,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONFIG_PATH_ENV, resetConfig } from '../../config/loader.js';
 import { UnknownSiloError } from '../../config/silo-router.js';
 import type { TaskFileDispatcherDeps } from './task-file-dispatcher.js';
-import { dispatchTaskFile, resolveTaskFile } from './task-file-dispatcher.js';
+import {
+  dispatchTaskFile,
+  resolveTaskFile,
+  taskFileDispatcher,
+} from './task-file-dispatcher.js';
 
 let dir: string;
 let savedEnv: string | undefined;
@@ -138,6 +142,7 @@ describe('dispatchTaskFile', () => {
         silo: 'acme',
         taskFile: 'ops/TASK.md',
         slack: () => slack,
+        args: ['--dry-run'],
       },
       deps,
     );
@@ -145,8 +150,47 @@ describe('dispatchTaskFile', () => {
       'Do the thing.',
       { jobId: 'j' },
       slack,
+      ['--dry-run'],
     );
     expect(deps.runDispatcher).not.toHaveBeenCalled();
+  });
+
+  it('previews without Slack: --print-task prints the task, --dry-run reports, neither dispatches', async () => {
+    writeTask('content/digest/TASK.md');
+    const deps = makeDeps();
+    const base = {
+      scriptName: 'acme/digest',
+      jobId: 'j',
+      taskFile: 'digest/TASK.md',
+    };
+    await expect(
+      dispatchTaskFile({ ...base, args: ['--print-task'] }, deps),
+    ).resolves.toBe('previewed');
+    expect(deps.log).toHaveBeenCalledWith('Do the thing.');
+    await expect(
+      dispatchTaskFile({ ...base, args: ['--dry-run'] }, deps),
+    ).resolves.toBe('previewed');
+    expect(deps.log).toHaveBeenCalledWith(
+      '[dry-run] acme/digest: would dispatch job j with a 13-character task',
+    );
+    expect(deps.runDispatcher).not.toHaveBeenCalled();
+  });
+
+  it('reports a Slack --print-task as previewed', async () => {
+    writeTask('content/digest/TASK.md');
+    const deps = makeDeps();
+    await expect(
+      dispatchTaskFile(
+        {
+          scriptName: 's',
+          jobId: 'j',
+          taskFile: 'digest/TASK.md',
+          slack: { accountId: 'a' },
+          args: ['--print-task'],
+        },
+        deps,
+      ),
+    ).resolves.toBe('previewed');
   });
 
   it('prefixes the date in the given zone', async () => {
@@ -214,5 +258,21 @@ describe('dispatchTaskFile', () => {
         deps,
       ),
     ).rejects.toThrow('bad posts');
+  });
+});
+
+describe('taskFileDispatcher', () => {
+  it('returns a run function and runs nothing until it is called', async () => {
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const run = taskFileDispatcher({
+      scriptName: 'acme/digest',
+      jobId: 'acme-digest',
+      taskFile: 'digest/TASK.md',
+    });
+    expect(log).not.toHaveBeenCalled();
+    await expect(run()).resolves.toBeUndefined();
+    expect(log).toHaveBeenCalledWith(
+      expect.stringMatching(/^\[skip\] acme\/digest: no task file at /),
+    );
   });
 });

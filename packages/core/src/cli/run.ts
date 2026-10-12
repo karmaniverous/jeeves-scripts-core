@@ -1,131 +1,86 @@
 /**
  * @module cli/run
  *
- * `jeeves-scripts run <job-id> [args...]` (Decision 16): the command runner
- * jobs execute through the instance launcher.
+ * `jeeves-scripts run <id> [args...]` (Decisions 16, 49; design §4): the
+ * command runner jobs, webhooks and people run through the instance
+ * launcher.
  *
- * Transitional job registry (Decision 32): the job is looked up by id in the
- * instance's `jobs/*.json`, whose `script` is a template-style path
- * (`src/<domain>/<name>.ts`). An instance-local script at that path wins
- * (JGS-only code, overrides); otherwise the same path is resolved to core's
- * built module (`dist/<domain>/<name>.js`). Core modules are imported in
- * this process, after the config location is pinned to the instance root,
- * so they read the instance's `jeeves-scripts.json`. Instance scripts are
- * TypeScript and run in a child `node --import tsx` process with the same
- * environment.
+ * Before resolving anything, the config location is pinned to
+ * `{root}/jeeves-scripts.json` (unless `JEEVES_SCRIPTS_CONFIG` is set) and
+ * the instance plugin is loaded and registered (`jobs/runnables`).
+ * Resolution:
  *
- * Job files are validated with Zod (Decision 31): a malformed entry fails
- * the run, naming its file and position, rather than being skipped.
+ * 1. a plugin override for `<id>` runs instead of core's runnable;
+ * 2. else a core id runs core's runnable from the registry;
+ * 3. else a plugin runnable id runs the instance runnable;
+ * 4. else `run` fails: unknown id.
+ *
+ * Every runnable runs in this process through `runJobModule`, with the
+ * arguments after the id passed unchanged.
  */
 
-import { spawnSync } from 'node:child_process';
-import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
-
-import { z } from 'zod';
 
 import { CONFIG_PATH_ENV } from '../config/loader.js';
+import { runJobModule } from '../jobs/define-job.js';
+import type { RegistryEntry } from '../jobs/registry.js';
+import { buildRunnables, type Runnable } from '../jobs/runnables.js';
+import { loadPlugin } from './load-plugin.js';
+
+/** Seams for tests. */
+export interface RegisterOptions {
+  /** Core's registry. Default: core's. */
+  registry?: readonly RegistryEntry[];
+  /** Loads the plugin. Default: {@link loadPlugin}. */
+  loadPlugin?: typeof loadPlugin;
+}
 
 /**
- * A runner job definition, as far as `run` needs it. Other runner fields
- * (`schedule`, `enabled`, `env`, ...) are allowed and ignored here.
- */
-export const jobDefinitionSchema = z.looseObject({
-  /** Job id (`jeeves-scripts run <id>`). */
-  id: z.string().min(1),
-  /** Script path relative to the instance root, e.g. `src/email/poll.ts`. */
-  script: z.string().min(1),
-});
-
-/** A `jobs/*.json` file: an array of job definitions. */
-export const jobFileSchema = z.array(jobDefinitionSchema);
-
-/** A validated runner job definition. */
-export type JobDefinition = z.infer<typeof jobDefinitionSchema>;
-
-/** Where a job's code lives. */
-export type ResolvedJob =
-  | { kind: 'instance'; job: JobDefinition; file: string }
-  | { kind: 'core'; job: JobDefinition; file: string };
-
-/**
- * Every job defined in `{root}/jobs/*.json`, in file-name order.
+ * Pin the config location to the instance, load its plugin and register
+ * every runnable.
  *
- * @throws When a file is not valid JSON or not an array of job
- *   definitions; the message names the file and the failing entry.
+ * @throws When the plugin fails to load or breaks a registration rule.
  */
-export const readJobs = (root: string): JobDefinition[] => {
-  const dir = path.join(root, 'jobs');
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((name) => name.endsWith('.json'))
-    .sort()
-    .flatMap((name) => {
-      const file = path.join(dir, name);
-      const result = jobFileSchema.safeParse(
-        JSON.parse(fs.readFileSync(file, 'utf8')),
-      );
-      if (!result.success)
-        throw new Error(
-          `Invalid job file jobs/${name}: ${z.prettifyError(result.error)}`,
-        );
-      return result.data;
-    });
-};
-
-/** Core's built output directory (`dist/`), next to this module's parent. */
-const coreDistDir = (): string =>
-  path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-
-/**
- * Resolve a job id to the file that runs it.
- *
- * @param distDir - Core's module root. Default: this package's `dist/`.
- * @throws When the id is unknown or no file exists for its script.
- */
-export const resolveJob = (
+export const registerInstance = async (
   root: string,
-  jobId: string,
-  distDir: string = coreDistDir(),
-): ResolvedJob => {
-  const job = readJobs(root).find((j) => j.id === jobId);
-  if (!job)
-    throw new Error(`Unknown job "${jobId}" (no entry in jobs/*.json).`);
-  const local = path.join(root, job.script);
-  if (fs.existsSync(local)) return { kind: 'instance', job, file: local };
-  const rel = job.script.replace(/^src[\\/]/, '').replace(/\.ts$/, '.js');
-  const built = path.join(distDir, rel);
-  if (fs.existsSync(built)) return { kind: 'core', job, file: built };
-  throw new Error(
-    `Job "${jobId}": script ${job.script} is neither in the instance repo nor in core (${built}).`,
-  );
+  options: RegisterOptions = {},
+): Promise<Runnable[]> => {
+  process.env[CONFIG_PATH_ENV] ??= path.join(root, 'jeeves-scripts.json');
+  const plugin = await (options.loadPlugin ?? loadPlugin)(root);
+  return buildRunnables({ plugin, registry: options.registry });
 };
 
 /**
- * Run a job. Core modules run in this process; instance scripts run in a
- * child process. Resolves to the exit code for instance scripts; for core
- * modules, to 0 once the module has loaded (the job's own `runScript`
- * sets `process.exitCode` on failure).
+ * The registered runnable with this id.
+ *
+ * @throws When no runnable has it.
+ */
+export const resolveRunnable = (
+  runnables: readonly Runnable[],
+  id: string,
+): Runnable => {
+  const runnable = runnables.find((r) => r.id === id);
+  if (!runnable)
+    throw new Error(
+      `Unknown runnable "${id}": not a core runnable and not registered by jeeves-scripts.plugin.ts (see jeeves-scripts list).`,
+    );
+  return runnable;
+};
+
+/**
+ * Run a runnable in this process. Resolves to 0 when its body has finished
+ * or it skipped (a crash exits 1 through `runScript`; a runnable may set
+ * `process.exitCode`).
+ *
+ * @throws On a registration error or an unknown id, before anything runs.
  */
 export const runJob = async (
   root: string,
-  jobId: string,
+  id: string,
   args: readonly string[],
-  distDir?: string,
+  options: RegisterOptions = {},
 ): Promise<number> => {
-  const resolved = resolveJob(root, jobId, distDir);
-  process.env[CONFIG_PATH_ENV] ??= path.join(root, 'jeeves-scripts.json');
-  if (resolved.kind === 'instance') {
-    const result = spawnSync(
-      process.execPath,
-      ['--import', 'tsx', resolved.file, ...args],
-      { cwd: root, stdio: 'inherit', env: process.env },
-    );
-    return result.status ?? 1;
-  }
-  process.argv = [process.argv[0] ?? process.execPath, resolved.file, ...args];
-  await import(pathToFileURL(resolved.file).href);
+  const runnable = resolveRunnable(await registerInstance(root, options), id);
+  await runJobModule(await runnable.load(), args);
   return 0;
 };

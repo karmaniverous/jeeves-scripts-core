@@ -6,7 +6,10 @@
  * with an in-memory fake.
  */
 
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
+import {
+  getRunnerClient,
+  type RunnerClient,
+} from '@karmaniverous/jeeves-runner';
 
 import { TOKEN_METRICS_NAMESPACE } from '../../lib/constants.js';
 
@@ -17,9 +20,13 @@ export interface TokenMetricsState {
   close: () => void;
 }
 
-/** Open the runner client for the token-metrics namespace. */
-export function openTokenMetricsState(): TokenMetricsState {
-  const client = getRunnerClient();
+/** The token-metrics namespace over a runner client (default: a new live client). */
+export function openTokenMetricsState(
+  client: Pick<
+    RunnerClient,
+    'getState' | 'setState' | 'close'
+  > = getRunnerClient(),
+): TokenMetricsState {
   return {
     get: (key) => client.getState(TOKEN_METRICS_NAMESPACE, key),
     set: (key, value) => {

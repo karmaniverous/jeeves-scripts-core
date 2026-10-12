@@ -1,0 +1,42 @@
+{
+  "linear-sync-issues": {
+    "name": "Linear Sync Issues",
+    "description": "Poll Linear GraphQL API for issue changes since last sync cursor.",
+    "schedule": {
+      "timezone": "UTC",
+      "rules": [
+        {
+          "effect": "event",
+          "options": {
+            "freq": "minutely",
+            "interval": 23
+          }
+        }
+      ]
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 600,
+    "enabled": true,
+    "prerequisite": "Linear API key in the Linear config file (integrations.linear.configPath)"
+  },
+  "linear-sync-comments": {
+    "name": "Linear Sync Comments",
+    "description": "Poll Linear GraphQL API for comment changes since last sync cursor.",
+    "schedule": {
+      "timezone": "UTC",
+      "rules": [
+        {
+          "effect": "event",
+          "options": {
+            "freq": "minutely",
+            "interval": 29
+          }
+        }
+      ]
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 600,
+    "enabled": true,
+    "prerequisite": "Linear API key in the Linear config file (integrations.linear.configPath)"
+  }
+}

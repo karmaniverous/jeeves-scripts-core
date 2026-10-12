@@ -1,17 +1,16 @@
-#!/usr/bin/env tsx
 /**
  * @module token-metrics
  *
- * Token metrics query — reads pre-rolled hourly buckets and aggregates
- * into a `Costs` report for a given time range.
+ * `getTokenMetrics` (root export): reads the pre-rolled hourly token-metrics
+ * buckets and the rate card, and aggregates them into a `Costs` report for
+ * a time range. A utility: importing it runs nothing. The runnable
+ * `admin-report-token-metrics` prints the same report.
  *
- * Serves as both an importable function and a CLI entry point:
- * `jeeves-scripts run <job-id> [--from ISO] [--to ISO]` (a manifest entry in the instance's jobs/*.json with script src/admin/token-metrics.ts)
- *
- * Config dependencies: TOKEN_METRICS_DIR, TOKEN_RATES_PATH from constants.ts.
+ * Reads the buckets and the rate card under `constants().TOKEN_METRICS_DIR`
+ * (`paths.tokenMetricsDir` in jeeves-scripts.json, or `TOKEN_METRICS_DIR`).
  */
 
-import { getArg, readJson } from '@karmaniverous/jeeves';
+import { readJson } from '@karmaniverous/jeeves';
 
 import { bucketPath, tsToHour } from './lib/bucket-io.js';
 import { loadRateCard } from './lib/rate-card.js';
@@ -96,18 +95,49 @@ function getOrCreateTokens(map: Map<string, Tokens>, key: string): Tokens {
   return entry;
 }
 
+/** A report bound: a `Date`, or a string `Date` parses (ISO 8601 date or timestamp). */
+export type TokenMetricsBound = Date | string;
+
+/** Options for {@link getTokenMetrics}. */
+export interface TokenMetricsOptions {
+  /** Start of the range; the hour containing it is included. Default: the beginning of the data. */
+  from?: TokenMetricsBound;
+  /** End of the range; the hour containing it is included. Default: now. */
+  to?: TokenMetricsBound;
+}
+
+/** A bound in epoch milliseconds, or `fallback` when absent. */
+const boundMs = (
+  name: 'from' | 'to',
+  value: TokenMetricsBound | undefined,
+  fallback: number,
+): number => {
+  if (value === undefined) return fallback;
+  const ms = value instanceof Date ? value.getTime() : Date.parse(value);
+  if (Number.isNaN(ms))
+    throw new Error(
+      `getTokenMetrics: ${name} is not a valid date: ${String(value)}`,
+    );
+  return ms;
+};
+
 /**
  * Query token metrics over a time range.
  *
- * Reads hourly bucket files from disk and aggregates into
- * the Costs return type with per-channel and per-model breakdowns.
+ * Reads hourly bucket files from disk and aggregates them into the `Costs`
+ * report with per-channel and per-model breakdowns. Every hour from the
+ * one containing `from` to the one containing `to` is included.
+ *
+ * @example
+ * ```ts
+ * const june = getTokenMetrics({ from: '2026-06-01', to: '2026-06-30T23:59:59Z' });
+ * const lastWeek = getTokenMetrics({ from: new Date(Date.now() - 7 * 86_400_000) });
+ * ```
+ * @throws When `from` or `to` is not a valid date.
  */
-export function getTokenMetrics(options?: {
-  fromTs?: number;
-  toTs?: number;
-}): Costs {
-  const fromMs = (options?.fromTs ?? 0) * 1000;
-  const toMs = (options?.toTs ?? Date.now() / 1000) * 1000;
+export function getTokenMetrics(options: TokenMetricsOptions = {}): Costs {
+  const fromMs = boundMs('from', options.from, 0);
+  const toMs = boundMs('to', options.to, Date.now());
 
   const hours = enumHours(fromMs, toMs);
 
@@ -195,22 +225,4 @@ export function getTokenMetrics(options?: {
   }
 
   return { channels, cost: grandTotal, models, ref };
-}
-
-// ---- CLI mode ----
-
-// `.ts` under tsx, `.js` when run as core's built module (`jeeves-scripts run`).
-const isMain = /token-metrics\.[jt]s$/.test(process.argv[1] ?? '');
-
-if (isMain) {
-  const fromArg = getArg(process.argv, '--from', '');
-  const toArg = getArg(process.argv, '--to', '');
-
-  const fromTs = fromArg
-    ? Math.floor(new Date(fromArg).getTime() / 1000)
-    : undefined;
-  const toTs = toArg ? Math.floor(new Date(toArg).getTime() / 1000) : undefined;
-
-  const costs = getTokenMetrics({ fromTs, toTs });
-  console.log(JSON.stringify(costs, null, 2));
 }

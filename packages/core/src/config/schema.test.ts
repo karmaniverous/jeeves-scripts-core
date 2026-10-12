@@ -13,7 +13,7 @@ describe('configSchema', () => {
     expect(result.paths).toEqual({});
     expect(result.siloRouting).toEqual({ silos: {} });
     expect(result.jobs).toEqual({});
-    expect(result.extensions).toEqual({});
+    expect(result).not.toHaveProperty('extensions');
     expect(result.pipeline).toBeUndefined();
   });
 
@@ -25,7 +25,7 @@ describe('configSchema', () => {
     const result = configSchema.parse({
       instance: { name: 'acme', baseDir: '/base' },
       paths: { contentDir: '/base/domains' },
-      integrations: { gh: { account: 'karmaniverous' } },
+      integrations: { gh: { account: 'acme' } },
       pipeline: {
         accounts: [
           {
@@ -44,7 +44,7 @@ describe('configSchema', () => {
       siloRouting: {
         defaultBasePath: '/base/domains',
         silos: {
-          tcs: { basePath: '/base/tcs' },
+          initech: { basePath: '/base/initech' },
         },
       },
       jobs: {
@@ -52,8 +52,24 @@ describe('configSchema', () => {
       },
     });
     expect(result.pipeline?.accounts).toHaveLength(1);
-    expect(result.siloRouting.silos.tcs?.basePath).toBe('/base/tcs');
+    expect(result.siloRouting.silos.initech?.basePath).toBe('/base/initech');
     expect(result.jobs['email-poll']?.enabled).toBe(true);
+  });
+
+  it('accepts absolute jobs.<id>.extraDirs on Windows and POSIX and rejects relative ones', () => {
+    const withDirs = (extraDirs: string[]) => ({
+      ...MINIMAL_CONFIG,
+      jobs: { 'admin-sweep-orphaned-tmp': { extraDirs } },
+    });
+    const dirs = ['/srv/work', 'D:/work', 'D:\\work', '\\\\host\\share'];
+    expect(
+      configSchema.parse(withDirs(dirs)).jobs['admin-sweep-orphaned-tmp']
+        ?.extraDirs,
+    ).toEqual(dirs);
+    expect(() => configSchema.parse(withDirs(['work']))).toThrow(
+      /extraDirs entries must be absolute paths/,
+    );
+    expect(() => configSchema.parse(withDirs(['']))).toThrow();
   });
 
   it('rejects a literal secret value anywhere in the tree', () => {

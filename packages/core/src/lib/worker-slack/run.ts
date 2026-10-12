@@ -13,7 +13,7 @@
  * The job's Slack config is validated here (the dispatch boundary) before
  * any gateway call; an invalid config fails the job.
  *
- * Config dependencies: constants().SPAWN_WORKER_PATH (constants.ts); gateway host/port
+ * Config dependencies: constants().SPAWN_WORKER_PATH (core's spawn-worker); gateway host/port
  * via gateway-client.ts; the openclaw CLI via gateway-rpc.ts.
  */
 

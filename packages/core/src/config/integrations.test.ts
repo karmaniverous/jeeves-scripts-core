@@ -43,7 +43,6 @@ const baseConfig = (
   slack: { channels: {} },
   people: {},
   jobs: {},
-  extensions: {},
 });
 
 describe('deriveIntegrations', () => {
@@ -62,16 +61,16 @@ describe('deriveIntegrations', () => {
     expect(result.linear.maxHistory).toBe(50);
   });
 
-  it('honours configured values (JGS-shaped)', () => {
+  it('honours configured values', () => {
     const result = deriveIntegrations(
       baseConfig({
-        gh: { account: 'karmaniverous', botUser: 'jgs-jeeves' },
+        gh: { account: 'acme', botUser: 'acme-bot' },
         qdrant: { serviceName: 'Qdrant' },
         jira: { siteUrl: 'https://x.atlassian.net', boardId: 6 },
       }),
     );
-    expect(result.gh.account).toBe('karmaniverous');
-    expect(result.gh.botUser).toBe('jgs-jeeves');
+    expect(result.gh.account).toBe('acme');
+    expect(result.gh.botUser).toBe('acme-bot');
     expect(result.qdrant.serviceName).toBe('Qdrant');
     expect(result.jira.boardId).toBe(6);
   });
@@ -129,6 +128,19 @@ describe('deriveIntegrations', () => {
     vi.stubEnv('JIRA_BOARD_ID', '6');
     const result = deriveIntegrations(baseConfig());
     expect(result.jira.boardId).toBe(6);
+  });
+
+  it('JIRA_BOARD_ID env wins over the configured boardId', () => {
+    vi.stubEnv('JIRA_BOARD_ID', '7');
+    const result = deriveIntegrations(baseConfig({ jira: { boardId: 6 } }));
+    expect(result.jira.boardId).toBe(7);
+  });
+
+  it('rejects a JIRA_BOARD_ID that is not a whole number, naming it', () => {
+    vi.stubEnv('JIRA_BOARD_ID', 'six');
+    expect(() => deriveIntegrations(baseConfig())).toThrow(
+      'JIRA_BOARD_ID must be a Jira board id (a whole number), got "six"',
+    );
   });
 
   it('derives jira.apiTokenPath and linear.configPath from credentialsDir', () => {

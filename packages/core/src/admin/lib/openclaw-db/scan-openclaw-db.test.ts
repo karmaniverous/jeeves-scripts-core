@@ -6,72 +6,31 @@
  */
 
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import type * as ConstantsModule from '../../../lib/constants.js';
 import type { HourlyBucket } from '../../types/token-metrics.js';
 import type { DbCursorState } from './db-cursor.js';
+import {
+  header,
+  inputCount,
+  ms,
+  T10,
+  T11,
+  usage,
+  useOpenClawDbRoot,
+  user,
+} from './openclaw-db.fixtures.js';
 import { createV23Fixture } from './v23.fixtures.js';
 
-const header = (id: string) =>
-  JSON.stringify({ type: 'session', version: 3, id });
-const user = (text: string) =>
-  JSON.stringify({
-    type: 'message',
-    message: { role: 'user', content: [{ type: 'text', text }] },
-  });
-const usage = (tsIso: string, input = 100, output = 50) =>
-  JSON.stringify({
-    type: 'message',
-    timestamp: tsIso,
-    message: {
-      role: 'assistant',
-      model: 'claude-sonnet-4-6',
-      provider: 'anthropic',
-      usage: {
-        input,
-        output,
-        cacheRead: 0,
-        cacheWrite: 0,
-        totalTokens: input + output,
-      },
-    },
-  });
+// Each test re-imports the collector's module graph (vi.resetModules) and
+// builds a SQLite fixture: well under a second locally, over the 5 s default
+// on a loaded Windows CI runner.
+vi.setConfig({ testTimeout: 30_000 });
 
-const T10 = '2026-06-15T10:30:00Z';
-const T11 = '2026-06-15T11:30:00Z';
-const ms = (iso: string) => new Date(iso).getTime();
-
-let root: string;
-
-beforeEach(() => {
-  root = fs.mkdtempSync(path.join(os.tmpdir(), 'oc-db-scan-'));
-  fs.writeFileSync(
-    path.join(root, 'token-rates.json'),
-    JSON.stringify({
-      models: {
-        'anthropic/claude-sonnet-4-6': {
-          input: 3,
-          output: 15,
-          cacheRead: 0.3,
-          cacheWrite: 3.75,
-        },
-      },
-      updatedAt: '2026-06-15T00:00:00Z',
-    }),
-  );
-  vi.spyOn(console, 'log').mockImplementation(() => undefined);
-  vi.spyOn(console, 'error').mockImplementation(() => undefined);
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-  process.exitCode = undefined;
-  fs.rmSync(root, { recursive: true, force: true });
-});
+const root = useOpenClawDbRoot();
 
 async function load() {
   vi.resetModules();
@@ -83,7 +42,7 @@ async function load() {
         ...actual,
         constants: () => ({
           ...actual.constants(),
-          TOKEN_RATES_PATH: path.join(root, 'token-rates.json'),
+          TOKEN_RATES_PATH: path.join(root(), 'token-rates.json'),
         }),
       };
     },
@@ -94,20 +53,9 @@ async function load() {
   };
 }
 
-function inputCount(
-  buckets: Map<string, HourlyBucket>,
-  hour: string,
-  channel: string,
-): number {
-  return (
-    buckets.get(hour)?.channels[channel]?.models['anthropic/claude-sonnet-4-6']
-      ?.input.count ?? 0
-  );
-}
-
 describe('scanOpenClawDb', () => {
   it('attributes usage with the JSONL collector channel names and bucket format', async () => {
-    const fx = createV23Fixture(root);
+    const fx = createV23Fixture(root());
     fx.addHotSession(
       's1',
       [
@@ -166,7 +114,7 @@ describe('scanOpenClawDb', () => {
   });
 
   it('never double counts across incremental runs and keeps open-hour usage for later', async () => {
-    const fx = createV23Fixture(root);
+    const fx = createV23Fixture(root());
     fx.addHotSession('s1', [
       header('s1'),
       user('Slack message in #ops from B: x'),
@@ -202,7 +150,7 @@ describe('scanOpenClawDb', () => {
   });
 
   it('skips usage before fromMs, reads legacy archives, and rebuilds countedOnly ranges', async () => {
-    const fx = createV23Fixture(root);
+    const fx = createV23Fixture(root());
     fx.addHotSession('s1', [
       header('s1'),
       user('Slack message in #ops from B: x'),

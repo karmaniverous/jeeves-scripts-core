@@ -94,9 +94,7 @@ export const findInOpenclawConfig = <T>(
 };
 
 /** Every Slack bot token by account id (`channels.slack.accounts`, else the flat `channels.slack.botToken` as `default`). */
-export const slackBotTokensOf = (
-  config: OpenclawConfig,
-): Record<string, string> => {
+const slackBotTokensOf = (config: OpenclawConfig): Record<string, string> => {
   const slack = config.channels?.slack;
   const tokens: Record<string, string> = {};
   for (const [id, account] of Object.entries(slack?.accounts ?? {}))

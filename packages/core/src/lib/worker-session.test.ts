@@ -1,10 +1,16 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
+  findSession,
   type GatewaySession,
   getTokensFromTranscript,
   isSessionCompleted,
   parseResultLine,
+  sessionTokens,
   type WaitDeps,
   waitForWorkerCompletion,
 } from './worker-session.js';
@@ -136,5 +142,81 @@ describe('parseResultLine', () => {
 describe('getTokensFromTranscript', () => {
   it('returns 0 for non-existent file', () => {
     expect(getTokensFromTranscript('/nonexistent/path.jsonl')).toBe(0);
+  });
+});
+
+describe('transcript tokens and session lookup', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-session-'));
+  const transcript = path.join(dir, 't.jsonl');
+  fs.writeFileSync(
+    transcript,
+    [
+      JSON.stringify({ message: { usage: { totalTokens: 10 } } }),
+      'not json',
+      JSON.stringify({ message: { usage: {} } }),
+      JSON.stringify({ message: { usage: { totalTokens: 5 } } }),
+      '',
+    ].join('\n'),
+  );
+
+  it('sums totalTokens over the JSON lines of a transcript', () => {
+    expect(getTokensFromTranscript(transcript)).toBe(15);
+  });
+
+  it('prefers transcript usage, resolving a relative path under the sessions dir', () => {
+    expect(
+      sessionTokens({ key: 'k', totalTokens: 3, transcriptPath: transcript }),
+    ).toBe(15);
+    expect(
+      sessionTokens(
+        { key: 'k', totalTokens: 3, transcriptPath: 't.jsonl' },
+        () => dir,
+      ),
+    ).toBe(15);
+    expect(
+      sessionTokens(
+        { key: 'k', totalTokens: 3, transcriptPath: 'missing.jsonl' },
+        () => dir,
+      ),
+    ).toBe(3);
+    expect(sessionTokens({ key: 'k' })).toBe(0);
+  });
+
+  it('logs and counts nothing when the transcript cannot be read', () => {
+    const error = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    expect(getTokensFromTranscript(dir)).toBe(0);
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to read transcript'),
+    );
+    error.mockRestore();
+  });
+
+  it.each([
+    [
+      {
+        ok: true,
+        result: { details: { sessions: [{ key: 'a' }, { key: 'b' }] } },
+      },
+    ],
+    [{ ok: true, result: { sessions: [{ key: 'b' }] } }],
+    [{ ok: true, sessions: [{ key: 'b' }] }],
+  ])(
+    'finds the row with the exact key in any response shape (%#)',
+    async (response) => {
+      const invoke = vi.fn(() => Promise.resolve(response));
+      await expect(findSession('b', invoke)).resolves.toEqual({ key: 'b' });
+      expect(invoke).toHaveBeenCalledWith('sessions_list', {
+        search: 'b',
+        limit: 20,
+      });
+    },
+  );
+
+  it('finds nothing in an empty response', async () => {
+    await expect(
+      findSession('b', () => Promise.resolve({ ok: true })),
+    ).resolves.toBeUndefined();
   });
 });

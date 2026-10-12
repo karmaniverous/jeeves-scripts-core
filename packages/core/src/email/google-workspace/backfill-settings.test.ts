@@ -69,13 +69,13 @@ describe('resolveBackfillSettings', () => {
     ).toThrow(/missing accounts \(--accounts\)\./);
   });
 
-  it('ignores a trailing flag with no value', () => {
-    expect(resolveBackfillSettings(SETTINGS, ['--window-days'])).toEqual(
-      SETTINGS,
+  it('rejects an option given without a value', () => {
+    expect(() => resolveBackfillSettings(SETTINGS, ['--window-days'])).toThrow(
+      '--window-days requires a value',
     );
-    expect(() => resolveBackfillSettings(undefined, ['--accounts'])).toThrow(
-      /missing accounts/,
-    );
+    expect(() =>
+      resolveBackfillSettings(SETTINGS, ['--accounts', '--window-days', '3']),
+    ).toThrow('--accounts requires a value');
   });
 
   it('rejects non-positive or non-integer day counts', () => {

@@ -7,6 +7,8 @@ import {
   type SpawnArgs,
   type SpawnDeps,
   spawnWithRetry,
+  workerMain,
+  type WorkerMainDeps,
 } from './spawn-worker.js';
 import type { GatewayResponse } from './worker-session.js';
 
@@ -121,5 +123,85 @@ describe('spawnWithRetry', () => {
       'gateway timeout in response body',
     );
     expect(deps.sleep).toHaveBeenCalledTimes(SPAWN_MAX_RETRIES - 1);
+  });
+});
+
+describe('workerMain', () => {
+  const run = async (
+    argv: string[],
+    over: Partial<WorkerMainDeps> = {},
+  ): Promise<{ code: number; out: string[]; err: string[] }> => {
+    const out: string[] = [];
+    const err: string[] = [];
+    const log = vi.spyOn(console, 'log').mockImplementation((m: string) => {
+      out.push(m);
+    });
+    const error = vi.spyOn(console, 'error').mockImplementation((m: string) => {
+      err.push(m);
+    });
+    const deps: WorkerMainDeps = {
+      readTask: () => Promise.resolve('do it'),
+      spawn: () =>
+        Promise.resolve({
+          result: { ok: true },
+          sessionKey: 'agent:main:subagent:9',
+        }),
+      wait: () =>
+        Promise.resolve({
+          success: true,
+          durationMs: 1500,
+          tokens: 42,
+          model: 'm',
+        }),
+      now: () => 0,
+      ...over,
+    };
+    try {
+      return { code: await workerMain(argv, deps), out, err };
+    } finally {
+      log.mockRestore();
+      error.mockRestore();
+    }
+  };
+
+  it('needs --job-id and a task', async () => {
+    expect((await run([])).code).toBe(1);
+    const noTask = await run(['--job-id=abc'], {
+      readTask: () => Promise.resolve(''),
+    });
+    expect(noTask.code).toBe(1);
+    expect(noTask.err).toEqual(['Error: No task provided on stdin']);
+  });
+
+  it('spawns with the label and thinking level, waits and prints WORKER_RESULT', async () => {
+    const spawn = vi.fn<WorkerMainDeps['spawn']>(() =>
+      Promise.resolve({ result: {}, sessionKey: 'k' }),
+    );
+    const { code, out } = await run(
+      ['--job-id=0123456789', '--thinking=high'],
+      { spawn },
+    );
+    expect(code).toBe(0);
+    expect(spawn).toHaveBeenCalledWith({
+      task: 'do it',
+      label: 'worker-01234567',
+      thread: false,
+      thinking: 'high',
+    });
+    expect(out.at(-1)).toBe(
+      'WORKER_RESULT:{"sessionKey":"k","tokens":42,"durationMs":1500,"model":"m"}',
+    );
+  });
+
+  it('exits 1 when the run fails or the spawn throws', async () => {
+    const failed = await run(['--job-id=a', '--label=l'], {
+      wait: () => Promise.resolve({ success: false, durationMs: 0, tokens: 0 }),
+    });
+    expect(failed.code).toBe(1);
+    const thrown = await run(['--job-id=a'], {
+      spawn: () => Promise.reject(new Error('gateway down')),
+    });
+    expect(thrown.code).toBe(1);
+    expect(thrown.err[0]).toMatch(/Worker failed: gateway down$/);
   });
 });

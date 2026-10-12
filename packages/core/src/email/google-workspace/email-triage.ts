@@ -14,7 +14,6 @@
 
 import {
   getBucketForDomain,
-  getBucketNames,
   getBucketPriority,
   pipeline,
 } from '../../config/index.js';
@@ -190,26 +189,6 @@ export function computeLabelsToApply(params: {
   if (params.junkCandidate && !applied.junk) labels.push('junk');
   if (params.bucket && !applied[params.bucket]) labels.push(params.bucket);
   return labels;
-}
-
-/**
- * `bucket` if it is a currently configured bucket, else null (e.g. a
- * bucket stored in thread state under an older config).
- */
-export function configuredBucket(
-  bucket: string | null | undefined,
-): string | null {
-  return bucket && getBucketNames().includes(bucket) ? bucket : null;
-}
-
-/**
- * Zeroed per-label counters for the classification labels: `receipt`,
- * `junk`, then each configured bucket.
- */
-export function newLabelCounts(): Record<string, number> {
-  return Object.fromEntries(
-    ['receipt', 'junk', ...getBucketNames()].map((l) => [l, 0]),
-  );
 }
 
 /** Build the store key for a pending follow-up entry. */

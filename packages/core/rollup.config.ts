@@ -1,9 +1,12 @@
 /**
  * @module rollup.config
- * Rollup configuration for `@karmaniverous/jeeves-scripts-core`.
- * Entry points: `index` (library), `cli` (the `./cli` export the instance
- * launcher imports) and `bin` (the package `bin`, given a shebang banner);
- * ESM output with declarations.
+ * Rollup configuration for `@karmaniverous/jeeves-scripts-core`. Every
+ * non-test module under `src/` is an entry (see `input`), output one file
+ * per module (ESM, with declarations). Among them are the package's
+ * exports: `index` (library), `cli` (the `./cli` export the instance
+ * launcher imports), `bin` (the package `bin`, given a shebang banner) and
+ * the instance presets `presets/eslint` and `presets/vitest` (the
+ * `./presets/*.js` export, Decision 52).
  *
  * Builds against `tsconfig.build.json`, a build-only project scoped to
  * `src/**` with `rootDir` set, instead of the repo-wide `tsconfig.json`
@@ -50,9 +53,25 @@ const cacheDir = fileURLToPath(
   ),
 );
 
+/**
+ * The tools the instance presets (`src/presets/`) import. They are the
+ * instance's devDependencies, not core's (Decision 53), so the build leaves
+ * them external instead of bundling them.
+ */
+const presetToolExternals = [
+  '@eslint/js',
+  'eslint',
+  'eslint-config-prettier',
+  'eslint-plugin-prettier',
+  'eslint-plugin-simple-import-sort',
+  'typescript-eslint',
+  'vitest',
+];
+
 const dependencyExternals = [
   ...Object.keys(pkg.dependencies ?? {}),
   ...Object.keys(pkg.peerDependencies ?? {}),
+  ...presetToolExternals,
 ];
 
 /**
@@ -71,8 +90,10 @@ function onwarn(warning: RollupLog, defaultHandler: (w: RollupLog) => void) {
 }
 
 /**
- * Every non-test module under src is an entry (Decision 32): jobs copied from
- * the template are run by path, so each keeps its own output file.
+ * Every non-test module under src is an entry (Decision 32), so each keeps
+ * its own output file: the registry loads each runnable module lazily by
+ * dynamic import (`jobs/registry-*.ts`), and nothing imports a runnable
+ * module it doesn't run.
  */
 const input = readdirSync('src', { recursive: true, encoding: 'utf8' })
   .map((f) => f.split('\\').join('/'))

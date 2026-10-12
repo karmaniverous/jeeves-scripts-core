@@ -8,11 +8,11 @@ describe('gateway-client', () => {
     vi.resetModules();
   });
 
-  describe('loadGatewayToken', () => {
+  describe('gatewayToken (the bearer gatewayInvoke sends)', () => {
     it('returns env var when CLAWDBOT_GATEWAY_TOKEN is set', async () => {
       process.env.CLAWDBOT_GATEWAY_TOKEN = 'test-token-123';
-      const { loadGatewayToken } = await import('./gateway-client.js');
-      expect(loadGatewayToken()).toBe('test-token-123');
+      const { gatewayToken } = await import('./openclaw-config.js');
+      expect(gatewayToken()).toBe('test-token-123');
     });
 
     it('returns null when no token source is available', async () => {
@@ -24,8 +24,8 @@ describe('gateway-client', () => {
           },
         },
       }));
-      const { loadGatewayToken } = await import('./gateway-client.js');
-      expect(loadGatewayToken()).toBeNull();
+      const { gatewayToken } = await import('./openclaw-config.js');
+      expect(gatewayToken()).toBeNull();
     });
 
     it('reads token from config file when env var is unset', async () => {
@@ -38,8 +38,8 @@ describe('gateway-client', () => {
           readFileSync: () => configContent,
         },
       }));
-      const { loadGatewayToken } = await import('./gateway-client.js');
-      expect(loadGatewayToken()).toBe('file-token-456');
+      const { gatewayToken } = await import('./openclaw-config.js');
+      expect(gatewayToken()).toBe('file-token-456');
     });
   });
 

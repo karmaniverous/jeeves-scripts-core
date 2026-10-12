@@ -8,7 +8,8 @@
  * cache_read_input_tokens, cache_creation_input_tokens) and bare model names
  * (claude-opus-4-6) without a provider prefix.
  *
- * Config dependencies: constants().CLAUDE_CODE_PROJECTS_DIR from constants.ts.
+ * Config dependencies: constants().CLAUDE_CODE_PROJECTS_DIR (`~/.claude/projects`;
+ * not configurable).
  */
 
 import fs from 'node:fs';

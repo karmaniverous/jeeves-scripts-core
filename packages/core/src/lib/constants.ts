@@ -87,37 +87,63 @@ const derive = () => {
   const configPath = getLoadedConfigPath() ?? '';
   const tokenMetricsDir = p.tokenMetricsDir;
   return {
+    /** `instance.name`. */
     INSTANCE_NAME: config.instance.name,
+    /** `instance.baseDir`: the root every default path derives from. */
     JEEVES_BASE_DIR: p.baseDir,
+    /** `paths.configDir`. */
     CONFIG_DIR: p.configDir,
+    /** `paths.contentDir`. */
     CONTENT_DIR: p.contentDir,
+    /** `paths.scriptsDir`: the instance repo. */
     SCRIPTS_DIR: p.scriptsDir,
     /** Pipeline config now lives in `jeeves-scripts.json`. */
     PIPELINE_CONFIG_PATH: configPath,
     /** Silo routing now lives in `jeeves-scripts.json`. */
     SILO_ROUTING_CONFIG_PATH: configPath,
+    /** `paths.credentialsDir`. */
     CREDENTIALS_DIR: p.credentialsDir,
+    /** Qdrant URL (`integrations.qdrant.apiUrl`). */
     QDRANT_API_URL: i.qdrant.apiUrl,
+    /** Qdrant service name (`integrations.qdrant.serviceName`). */
     QDRANT_SERVICE_NAME: i.qdrant.serviceName,
     /** The gateway listens on loopback; its port is OpenClaw's own setting. */
     GATEWAY_HOST: '127.0.0.1',
+    /** The OpenClaw gateway's port, from `openclaw.json`. */
     GATEWAY_PORT: gatewayPort(),
+    /** Core's `spawn-worker` script, run by path to dispatch worker sessions. */
     SPAWN_WORKER_PATH: spawnWorkerPath(),
+    /** GitHub CLI binary (`integrations.gh.bin`). */
     GH_BIN: i.gh.bin,
+    /** GitHub CLI config directory (`integrations.gh.configDir`). */
     GH_CONFIG_DIR: i.gh.configDir,
+    /** GitHub account synced (`integrations.gh.account`). */
     GH_ACCOUNT: i.gh.account,
+    /** GitHub bot user (`integrations.gh.botUser`). */
     GH_BOT_USER: i.gh.botUser,
+    /** GitHub content directory (`{contentDir}/github`). */
     GITHUB_DIR: path.join(p.contentDir, 'github'),
+    /** GitHub repo registry (`{contentDir}/github/registry.json`). */
     GITHUB_REGISTRY_PATH: path.join(p.contentDir, 'github', 'registry.json'),
+    /** Email event files (`{stateDir}/runner/email-events`). */
     EMAIL_EVENTS_DIR: path.join(p.stateDir, 'runner', 'email-events'),
+    /** IMAP secret files (`{credentialsDir}/imap`). */
     IMAP_SECRETS_DIR: p.imapSecretsDir,
+    /** gog binary (`integrations.gog.bin`). */
     GOG_BIN: i.gog.bin,
+    /** gog home (`paths.gogHome`). */
     GOG_CONFIG_DIR: p.gogHome,
+    /** gog's OAuth client file (`{gogHome}/credentials.json`). */
     GOG_CLIENT_PATH: path.join(p.gogHome, 'credentials.json'),
+    /** Meetings content directory (`{contentDir}/meetings`). */
     DEFAULT_MEETINGS_DIR: path.join(p.contentDir, 'meetings'),
+    /** Slack archive directory (`{contentDir}/slack`). */
     SLACK_DOMAIN_DIR: path.join(p.contentDir, 'slack'),
+    /** `Notion-Version` header (`integrations.notion.version`). */
     NOTION_VERSION: i.notion.version,
+    /** Notion API key file (`{credentialsDir}/notion-api-key`). */
     NOTION_API_KEY_PATH: path.join(p.credentialsDir, 'notion-api-key'),
+    /** X OAuth token files (`{credentialsDir}/oauth`). */
     X_OAUTH_DIR: path.join(p.credentialsDir, 'oauth'),
     /** Handle → content directory, through each account's silo (Decision 28). */
     X_ACCOUNTS: Object.fromEntries(
@@ -126,32 +152,47 @@ const derive = () => {
         siloPath(account.silo, [account.relativePath ?? `x/${handle}`]),
       ]),
     ) as Record<string, string>,
+    /** OpenClaw's legacy session transcripts directory. */
     SESSIONS_DIR: path.join(openclawStateDirs()[0], 'agents/main/sessions'),
+    /** OpenClaw's agent SQLite database (2026.9+). */
     OPENCLAW_AGENT_DB_PATH: path.join(
       openclawStateDirs()[0],
       'agents/main/agent/openclaw-agent.sqlite',
     ),
+    /** First UTC hour on OpenClaw 2026.9+ (`OPENCLAW_UPGRADE_CUTOFF`); no default. */
     OPENCLAW_UPGRADE_CUTOFF:
       process.env[OPENCLAW_UPGRADE_CUTOFF_ENV] ?? undefined,
+    /** Token-metrics buckets directory (`paths.tokenMetricsDir`). */
     TOKEN_METRICS_DIR: tokenMetricsDir,
+    /** The rate card (`{tokenMetricsDir}/token-rates.json`). */
     TOKEN_RATES_PATH: path.join(tokenMetricsDir, 'token-rates.json'),
+    /** Models pending a rate (`{tokenMetricsDir}/token-rates.pending.json`). */
     TOKEN_RATES_PENDING_PATH: path.join(
       tokenMetricsDir,
       'token-rates.pending.json',
     ),
+    /** Slack DM name cache (`{tokenMetricsDir}/slack-dm-names.json`). */
     SLACK_DM_NAMES_CACHE_PATH: path.join(
       tokenMetricsDir,
       'slack-dm-names.json',
     ),
     /** The rate card seed core ships (`config/token-rates.seed.json` in the package). */
     TOKEN_RATES_SEED_PATH: tokenRatesSeedPath(),
+    /** Claude Code session logs (`~/.claude/projects`). */
     CLAUDE_CODE_PROJECTS_DIR: path.join(os.homedir(), '.claude/projects'),
+    /** `integrations.jira.siteUrl`. */
     JIRA_SITE_URL: i.jira.siteUrl,
+    /** `integrations.jira.email`. */
     JIRA_EMAIL: i.jira.email,
+    /** Jira API token file (`integrations.jira.apiTokenPath`). */
     JIRA_API_TOKEN_PATH: i.jira.apiTokenPath,
+    /** Jira field cache file name (`integrations.jira.fieldsFilename`). */
     JIRA_FIELDS_FILENAME: i.jira.fieldsFilename,
+    /** `integrations.jira.maxHistory`. */
     JIRA_MAX_HISTORY: i.jira.maxHistory,
+    /** Linear credentials file (`integrations.linear.configPath`). */
     LINEAR_CONFIG_PATH: i.linear.configPath,
+    /** `integrations.linear.maxHistory`. */
     LINEAR_MAX_HISTORY: i.linear.maxHistory,
   };
 };

@@ -1,24 +1,22 @@
 /**
- * @module run-x-queue-action
+ * @module x/lib/run-x-queue-action
  *
- * Shared entry-point wrapper for X queue-action scripts (like, repost).
- *
- * Handles handle parsing, credential check, client creation and runScript
- * boilerplate; drain-x-queue runs the action per item and settles it.
+ * Shared job declaration for the X queue-action jobs (like, repost): the
+ * handle prerequisite (`<handle>` given and an OAuth file) and the body,
+ * which drains `x-<action>-<handle>` (`--queue` overrides, `--maxItems`
+ * caps; default 50) through `drain-x-queue`.
  */
 
-import fs from 'node:fs';
-
-import { getArg, runScript } from '@karmaniverous/jeeves';
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
-import type { Client } from '@xdevplatform/xdk';
-
+import type { JobContext, JobPrerequisite } from '../../jobs/define-job.js';
+import { argValue, parseRunnableArgs } from '../../lib/args.js';
 import { drainXQueue } from './drain-x-queue.js';
-import { withAutoRefresh } from './x-api.js';
-import { getOAuthPath } from './x-oauth.js';
+import { xHandlePrerequisite } from './x-api.js';
+import type { XClient } from './x-client.js';
+import { xConfig, type XJobDeps, xJobDeps } from './x-deps.js';
 
+/** A queue action's labels and API call. */
 export interface XQueueActionOptions {
-  /** Script name for runScript wrapper */
+  /** Script name shown in the usage line (the job's crash label) */
   scriptName: string;
   /** Queue name prefix, e.g. 'x-like' or 'x-repost' */
   queuePrefix: string;
@@ -28,63 +26,51 @@ export interface XQueueActionOptions {
   successLabel: string;
   /** The action to perform on each tweet; false fails the queue item. */
   actionFn: (
-    client: Client,
+    client: XClient,
     handle: string,
     tweetId: string,
   ) => Promise<boolean>;
 }
 
-/**
- * Entry-point wrapper for X queue-action scripts.
- */
-export function runXQueueAction(options: XQueueActionOptions): void {
-  async function main(handle: string): Promise<void> {
-    const argv = process.argv.slice(2);
-    const maxItems = Number(getArg(argv, '--maxItems', '50'));
-    const queueName = getArg(
-      argv,
-      '--queue',
-      `${options.queuePrefix}-${handle}`,
-    );
-
-    const runnerClient = getRunnerClient();
-    try {
-      await drainXQueue(
-        runnerClient,
-        queueName,
-        maxItems,
-        (tweetId) =>
-          withAutoRefresh(handle, (client) =>
-            options.actionFn(client, handle, tweetId),
-          ),
-        options,
-        handle,
-      );
-    } finally {
-      runnerClient.close();
-    }
-  }
-
-  runScript(options.scriptName, () => {
-    const handle = process.argv[2];
-    if (!handle) {
-      console.log(
-        `[skip] No X account handle provided. Usage: jeeves-scripts run <job-id> <handle> (${options.scriptName})`,
-      );
-      return;
-    }
-
-    if (!fs.existsSync(getOAuthPath(handle))) {
-      console.log('[skip] X OAuth2 credentials not configured');
-      return;
-    }
-
-    main(handle).catch((err: unknown) => {
-      console.error(
-        `${options.actionLabel}: FATAL`,
-        err instanceof Error ? err.message : String(err),
-      );
-      process.exit(1);
-    });
+/** Drain the handle's action queue. */
+export async function runXQueueAction(
+  args: readonly string[],
+  options: XQueueActionOptions,
+  deps: Pick<XJobDeps, 'runner' | 'withClient'>,
+): Promise<void> {
+  const handle = args[0] ?? '';
+  const parsed = parseRunnableArgs(args, {
+    maxItems: argValue('--maxItems', '50'),
+    queue: argValue('--queue', `${options.queuePrefix}-${handle}`),
   });
+  const runnerClient = deps.runner();
+  try {
+    await drainXQueue(
+      runnerClient,
+      parsed.queue,
+      Number(parsed.maxItems),
+      (tweetId) =>
+        deps.withClient(handle, (client) =>
+          options.actionFn(client, handle, tweetId),
+        ),
+      options,
+      handle,
+    );
+  } finally {
+    runnerClient.close();
+  }
+}
+
+/** The `prerequisite` and `run` of a queue-action job. */
+export function xQueueAction(options: XQueueActionOptions): {
+  prerequisite: JobPrerequisite;
+  run: (ctx: JobContext) => Promise<void>;
+} {
+  return {
+    prerequisite: xHandlePrerequisite({
+      scriptName: options.scriptName,
+      ...xConfig,
+    }),
+    run: ({ args }) => runXQueueAction(args, options, xJobDeps()),
+  };
 }

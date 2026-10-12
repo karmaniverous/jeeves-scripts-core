@@ -17,6 +17,11 @@ import type { HourlyBucket } from '../../types/token-metrics.js';
 import type { DbCursorState } from './db-cursor.js';
 import { createV23Fixture, type V23Fixture } from './v23.fixtures.js';
 
+// Each test re-imports the collector's module graph (vi.resetModules) and
+// builds a SQLite fixture: well under a second locally, over the 5 s default
+// on a loaded Windows CI runner.
+vi.setConfig({ testTimeout: 30_000 });
+
 const header = (id: string) =>
   JSON.stringify({ type: 'session', version: 3, id });
 const usage = (tsIso: string, input: number) =>

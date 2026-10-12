@@ -12,15 +12,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { sleepMs } from '@karmaniverous/jeeves';
+
+import { exponentialBackoff, retrySync } from '../../lib/retry.js';
+
 const META = '.meta';
 
 /** Error codes Windows raises while another process (an indexer, AV) holds a file open. */
 const TRANSIENT_RENAME_CODES = new Set(['EPERM', 'EACCES', 'EBUSY']);
-
-/** Block the thread for `ms` (the sync's file operations are synchronous). */
-function sleepSync(ms: number): void {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-}
 
 /**
  * `fs.renameSync`, retried with backoff on Windows' transient sharing
@@ -34,22 +33,22 @@ export function renameWithRetry(
   opts: { retry?: boolean; attempts?: number; baseMs?: number } = {},
 ): void {
   const retry = opts.retry ?? process.platform === 'win32';
-  const attempts = opts.attempts ?? 6;
-  const baseMs = opts.baseMs ?? 50;
-  for (let i = 1; ; i++) {
-    try {
+  retrySync(
+    () => {
       fs.renameSync(from, to);
-      return;
-    } catch (err) {
-      const code =
-        err instanceof Error && 'code' in err && typeof err.code === 'string'
-          ? err.code
-          : '';
-      if (!retry || i >= attempts || !TRANSIENT_RENAME_CODES.has(code))
-        throw err;
-      sleepSync(baseMs * 2 ** (i - 1));
-    }
-  }
+    },
+    {
+      attempts: retry ? (opts.attempts ?? 6) : 1,
+      delayMs: exponentialBackoff(opts.baseMs ?? 50),
+      isRetryable: (err) =>
+        err instanceof Error &&
+        'code' in err &&
+        typeof err.code === 'string' &&
+        TRANSIENT_RENAME_CODES.has(err.code),
+      // The sync's file operations are synchronous.
+      sleep: sleepMs,
+    },
+  );
 }
 
 /**

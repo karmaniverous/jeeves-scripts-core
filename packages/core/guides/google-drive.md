@@ -23,10 +23,10 @@ Do these in order on a new instance. Each step has a check.
    Check: `gog auth service-account status assistant@example.com`, then `gog --readonly -a assistant@example.com drive ls --all --query "sharedWithMe" --max 5 --json` returns without an auth error.
 2. **Confirm the DWD grant.** In the Admin console (Security → Access and data control → API controls → Manage Domain Wide Delegation), the service account's client ID must be granted the scopes **gog requests**: `https://www.googleapis.com/auth/drive` and `https://www.googleapis.com/auth/spreadsheets`. These are _full_ scopes because gog has no read-only variants (`gog auth services`). Docs and Slides are exported through the Drive API, so they need no `documents`/`presentations` scope. Check: a `gog --readonly -a <account> sheets metadata <some shared sheet id> --json` call succeeds.
 3. **Sharing settings.** For external shares: Apps → Google Workspace → Drive and Docs → Sharing settings → _"Allow users … to receive files from users or shared drives outside of …"_ must be on for the assistant's org unit. For shared drives: each drive whose items should reach the assistant needs _"Allow people who aren't shared drive members to access files"_ switched on (otherwise items can only be shared with members).
-4. **Add the `googleDrive` block** as `pipeline.googleDrive` in `jeeves-scripts.json` ([Configuration](#configuration)). The seeded config carries it as `_googleDriveExample` (ignored at runtime): rename the key and fill in `account` and `pathResolution.domains`.
+4. **Add the `googleDrive` block** as `pipeline.googleDrive` in `jeeves-scripts.json` ([Configuration](#configuration)). Start from the example under [Configuration](#configuration) and fill in `account` and `pathResolution.domains`.
 5. **Do not exclude the mirror from watcher version tracking yet.** The intent is to exclude it (Drive is the system of record, and versioning the mirror duplicates its history), but `watcher_vcs_exclude` works by writing a `.gitignore`, and with `watch.respectGitignore` on, that **also removes the files from the search index**. Wait for [jeeves-watcher#253](https://github.com/karmaniverous/jeeves-watcher/issues/253) (VCS-only exclusion).
 6. **Dry run** and review the plan ([Running](#running)).
-7. **Register the job**: the `google-drive-sync` manifest entry in the instance's `jobs/google-drive.json`, run as `bin/jeeves-scripts.js run google-drive-sync` (see [cli](./cli.md)). Deploy skips manifests that carry a `prerequisite`.
+7. **Register the job**: core's `google-drive-sync` manifest (`jobs/google-drive.json`), run as `bin/jeeves-scripts.js run google-drive-sync` (see [cli](./cli.md)); adjust it with a `jobs.google-drive-sync` delta. Deploy skips manifests that carry a `prerequisite`.
 8. **Ask people to share** files, folders and shared drives with the assistant's address. Sharing is the whole interface; no acceptance step is needed.
 
 ## Configuration
@@ -102,7 +102,7 @@ flowchart TD
 
 ```
 <targetDir>/
-  mike.blaney@example.com/                 identity root (owner email, verbatim, lowercased)   ← meta
+  jane.doe@example.com/                    identity root (owner email, verbatim, lowercased)   ← meta
     a - k3v7q2xm/b - p5zr2a7d/              folders, each tagged                                 ← meta (share point)
       c - m2xq7b4n.txt                       native text keeps its extension
       Plan - q7d2kz4a.md                     Google Doc (Sheets, Slides alike)
@@ -154,7 +154,7 @@ The **tree is canonical**, not any individual share. Shares just populate it, an
 - A directory exists while something written or queued lives beneath it. A directory that falls out of the tree is removed **with its `.meta/`**.
 - `.meta/` is seeded at each share's **root** and **share point** (a shared file's folder, or the shared folder itself) once its subtree holds a written file. A meta whose seeding share is gone **stays** while another share still keeps its directory in the tree.
 
-Worked example: Mike shares folder `a/b` and, separately, file `a/b/c/d.txt` (metas at `<mike>`, `a/b`, `a/b/c`). Un-share the file → nothing changes (the folder still covers it). Un-share the folder too → `a/…` and all three of its metas go. Un-share only the folder → the other files under `a/b` go, but `a/b`, `a/b/c` and their metas stay.
+Worked example: Jane shares folder `a/b` and, separately, file `a/b/c/d.txt` (metas at `<jane>`, `a/b`, `a/b/c`). Un-share the file → nothing changes (the folder still covers it). Un-share the folder too → `a/…` and all three of its metas go. Un-share only the folder → the other files under `a/b` go, but `a/b`, `a/b/c` and their metas stay.
 
 Do not "helpfully" keep an orphaned meta or delete a live one: the planner (`lib/plan.ts`) is the authority.
 
@@ -176,7 +176,7 @@ jeeves-runner state (`JR_DB_PATH`), namespace `google-drive`:
 
 ```bash
 # Dry run (default): prints MOVE / HOLD / DELETE / NEW / UPDATE / SKIP / META-CANDIDATE lines, writes nothing
-JR_DB_PATH=/opt/jeeves/state/runner/runner.sqlite node bin/jeeves-scripts.js run google-drive-sync
+JR_DB_PATH=/base/state/runner/runner.sqlite node bin/jeeves-scripts.js run google-drive-sync
 # Before a googleDrive block exists: synthesize an entry for one account
 JR_DB_PATH=… node bin/jeeves-scripts.js run google-drive-sync --account assistant@example.com --domains example.com
 # Live (what the job runs)
@@ -204,7 +204,7 @@ JR_DB_PATH=… node bin/jeeves-scripts.js run google-drive-sync --live
 - **Read-only Drive:** every gog call is built by `buildGogArgs()` in `lib/drive-client.ts`, which hard-codes `--readonly`. A unit test asserts it. This is the _only_ write guard: gog's tokens carry full scopes, and sharers routinely grant the account Editor.
 - **Owned tree:** all filesystem paths go through `safeJoin()`, which refuses lexical escapes **and symlinks** at any component; a run also refuses a `targetDir` that is (or sits under) a symlink below `CONTENT_DIR`. `targetDir` itself is never removed. Overlapping `targetDir`s and duplicate accounts fail at startup.
 - **Unseen items:** ledger records for items missing from the snapshot are dropped only when their deletions actually run. After a blocked run (enumeration error or guard), returning items find their records, so their copies aren't mistaken for strays.
-- **Staging:** downloads go to `<JEEVES_BASE_DIR>/state/google-drive/tmp/<account>/` (outside the content tree, so the watcher never sees partial files), then are renamed into place. Startup verifies staging and `targetDir` share a filesystem and clears leftovers.
+- **Staging:** downloads go to `{stateDir}/google-drive/tmp/<account>/` (`paths.stateDir`, default `{baseDir}/state`) (outside the content tree, so the watcher never sees partial files), then are renamed into place. Startup verifies staging and `targetDir` share a filesystem and clears leftovers.
 - **Mass-deletion guard:** deletions (files and `.meta/` directories) are skipped when enumeration had errors, or when they exceed both `deletion.maxFraction` of the files on disk and `deletion.minCount`.
 - **Enumeration errors hold moves:** a run with any enumeration error (a failed folder listing, or a failed path or drive-name lookup) also moves nothing. A copy whose desired path changed stays put and its pending update waits (`HOLD` line, `heldMoves` in the summary); the next clean run moves it. Without this, a failed lookup would make every item in a share look relocated.
 
@@ -212,7 +212,7 @@ JR_DB_PATH=… node bin/jeeves-scripts.js run google-drive-sync --live
 
 | Job                 | Schedule     | Manifest                 |
 | ------------------- | ------------ | ------------------------ |
-| `google-drive-sync` | Every 13 min | template `jobs/google-drive.json` |
+| `google-drive-sync` | Every 13 min | core `jobs/google-drive.json` |
 
 `overlap_policy: skip`, `timeout_seconds: 720`, `args: ["--live"]`. The manifest carries a non-null `prerequisite`, so deploy does not auto-register it.
 

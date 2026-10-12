@@ -1,31 +1,26 @@
-#!/usr/bin/env tsx
 /**
  * @module watch
  *
  * Poll GitHub notifications and escalate important items.
  *
- * Called by the jeeves-runner scheduler. Iterates over constants().GH_ACCOUNT and
- * constants().GH_BOT_USER, fetches participating notifications via the GitHub API,
+ * Called by the jeeves-runner scheduler. Iterates over the gh account and
+ * the bot user, fetches participating notifications via the GitHub API,
  * tracks seen/changed state, and enqueues escalations for review
- * requests, mentions, and stale items. Logs runs to constants().GITHUB_DIR/watch/.
+ * requests, mentions, and stale items. Logs runs to `{githubDir}/watch/`.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { nowIso, runScript } from '@karmaniverous/jeeves';
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
+import { defineJob } from '../jobs/define-job.js';
+import {
+  ghReady,
+  type GitHubJobDeps,
+  githubJobDeps,
+} from './lib/github-deps.js';
 
-import { constants } from '../lib/constants.js';
-import { gh, setupGhConfig } from '../lib/gh.js';
-
-setupGhConfig();
-
-const WORKDIR = path.join(constants().GITHUB_DIR, 'watch');
-const LOG_PATH = path.join(WORKDIR, 'log.md');
 const STATE_NS = 'github';
 const STATE_KEY_PREFIX = 'watch-';
-const USERS = [constants().GH_BOT_USER, constants().GH_ACCOUNT];
 
 const IMPORTANT_REASONS = new Set([
   'review_requested',
@@ -53,10 +48,10 @@ interface WatchState {
   lastImportantNew?: number;
 }
 
-function hoursSince(iso: string): number | null {
+function hoursSince(iso: string, nowIso: string): number | null {
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return null;
-  return (Date.now() - t) / 36e5;
+  return (Date.parse(nowIso) - t) / 36e5;
 }
 
 function parseNumberFromApiUrl(apiUrl: string | undefined): number | null {
@@ -86,13 +81,13 @@ function formatLine(n: Notification, extra = ''): string {
   return `\u2022 ${repo} \u2014 ${title} (${reason})${extra}${url ? `\n  ${url}` : ''}`;
 }
 
-function main(): void {
-  if (!fs.existsSync(constants().GH_CONFIG_DIR)) {
-    console.log('[skip] GitHub CLI config not configured');
-    return;
-  }
+/** Run the job. */
+export function watchNotifications(deps: GitHubJobDeps): void {
+  if (!ghReady(deps)) return;
+  const LOG_PATH = path.join(deps.githubDir, 'watch', 'log.md');
+  const USERS = [deps.botUser, deps.account];
 
-  const client = getRunnerClient();
+  const client = deps.runner();
   const alerts: {
     user: string;
     type: string;
@@ -106,8 +101,8 @@ function main(): void {
 
   try {
     for (const user of USERS) {
-      gh(['auth', 'switch', '-u', user]);
-      const res = gh(
+      deps.gh(['auth', 'switch', '-u', user]);
+      const res = deps.gh(
         [
           'api',
           '-X',
@@ -125,7 +120,7 @@ function main(): void {
       if (!res.ok) {
         const msg = (res.err || res.out || '').trim();
         const hrsSincePrev = prev.lastErrorAt
-          ? hoursSince(prev.lastErrorAt)
+          ? hoursSince(prev.lastErrorAt, deps.now())
           : null;
         const shouldAlert =
           msg !== prev.lastError || hrsSincePrev == null || hrsSincePrev >= 6;
@@ -142,9 +137,9 @@ function main(): void {
           STATE_KEY_PREFIX + user,
           JSON.stringify({
             ...prev,
-            lastRun: nowIso(),
+            lastRun: deps.now(),
             lastError: msg,
-            lastErrorAt: nowIso(),
+            lastErrorAt: deps.now(),
             lastFetched: 0,
             lastImportantNew: 0,
           }),
@@ -171,7 +166,7 @@ function main(): void {
         seenOut[id] = updatedAt;
 
         const isImportant = IMPORTANT_REASONS.has(n.reason);
-        const hrs = hoursSince(updatedAt);
+        const hrs = hoursSince(updatedAt, deps.now());
 
         if (n.unread && isImportant && isChanged) {
           importantNew++;
@@ -183,7 +178,7 @@ function main(): void {
             line: alertLine,
           });
           client.enqueue('github-escalations', {
-            ts: nowIso(),
+            ts: deps.now(),
             jobId: 'github-watch',
             account: user,
             threadId: id,
@@ -199,7 +194,7 @@ function main(): void {
               id
             ] ?? {};
           if (hrs >= 48 && !a['48h']) {
-            a['48h'] = nowIso();
+            a['48h'] = deps.now();
             alertsOut[id] = a;
             alerts.push({
               user,
@@ -211,7 +206,7 @@ function main(): void {
               ),
             });
           } else if (hrs >= 96 && !a['96h']) {
-            a['96h'] = nowIso();
+            a['96h'] = deps.now();
             alertsOut[id] = a;
             alerts.push({
               user,
@@ -232,7 +227,7 @@ function main(): void {
         JSON.stringify({
           seen: seenOut,
           alerts: alertsOut,
-          lastRun: nowIso(),
+          lastRun: deps.now(),
           lastFetched: fetched,
           lastImportantNew: importantNew,
         }),
@@ -242,14 +237,21 @@ function main(): void {
 
     fs.appendFileSync(
       LOG_PATH,
-      `- ${nowIso()} \u2014 fetched: ${USERS.map((u) => `${u}=${String(perUser[u]?.fetched ?? 0)}`).join(', ')}; alerts: ${String(alerts.length)}\n`,
+      `- ${deps.now()} \u2014 fetched: ${USERS.map((u) => `${u}=${String(perUser[u]?.fetched ?? 0)}`).join(', ')}; alerts: ${String(alerts.length)}\n`,
     );
     process.stdout.write(
-      JSON.stringify({ at: nowIso(), perUser, alerts }, null, 2),
+      JSON.stringify({ at: deps.now(), perUser, alerts }, null, 2),
     );
   } finally {
     client.close();
   }
 }
 
-runScript('github/watch', main);
+export default defineJob({
+  id: 'github-watch',
+  domain: 'github',
+  name: 'github/watch',
+  run: () => {
+    watchNotifications(githubJobDeps());
+  },
+});

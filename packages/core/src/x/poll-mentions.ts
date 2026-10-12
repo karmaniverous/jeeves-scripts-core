@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module poll-mentions
  *
@@ -10,11 +9,23 @@
  * into the x-mentions-\{handle\} runner queue for drain-queues to flush to disk.
  */
 
+import { defineJob } from '../jobs/define-job.js';
 import { runXPoller } from './lib/poll-x-items.js';
+import { xJobDeps } from './lib/x-deps.js';
 import { pollUserMentions } from './lib/x-timelines.js';
 
-runXPoller('x/poll-mentions', {
-  pollFn: pollUserMentions,
-  queuePrefix: 'x-mentions',
-  typeLabel: 'mentions',
+export default defineJob({
+  id: 'x-poll-mentions',
+  domain: 'x',
+  name: 'x/poll-mentions',
+  run: ({ args }) =>
+    runXPoller(
+      args,
+      {
+        pollFn: pollUserMentions,
+        queuePrefix: 'x-mentions',
+        typeLabel: 'mentions',
+      },
+      xJobDeps(),
+    ),
 });

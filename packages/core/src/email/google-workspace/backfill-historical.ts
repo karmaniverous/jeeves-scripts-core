@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module backfill-historical
  *
@@ -22,20 +21,55 @@
  * window processing) and gmail-search.ts (validated paging).
  */
 
-import { ensureDir, runScript } from '@karmaniverous/jeeves';
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
+import { ensureDir } from '@karmaniverous/jeeves';
+import {
+  getRunnerClient,
+  type RunnerClient,
+} from '@karmaniverous/jeeves-runner';
 
-import { pipeline } from '../../config/index.js';
+import { pipeline, type PipelineConfig } from '../../config/index.js';
+import { defineJob } from '../../jobs/define-job.js';
+import { argFlag, parseRunnableArgs } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
-import { gogWithRetry } from '../../lib/gog.js';
+import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
 import { requireGogCredentials } from '../../lib/gog-credentials.js';
 import { resolveBackfillSettings } from './backfill-settings.js';
 import { backfillAccount } from './backfill-window.js';
 
-function main(): void {
-  const live = process.argv.includes('--live');
-  const { emailConfig } = pipeline();
-  const settings = resolveBackfillSettings(emailConfig.backfill, process.argv);
+/** What {@link backfillHistorical} reads and calls. */
+export interface BackfillHistoricalDeps {
+  /** `pipeline.emailConfig`. */
+  emailConfig: () => PipelineConfig['emailConfig'];
+  /** Throws when accounts exist and gog has no credential. */
+  requireGog: (accounts: number) => boolean;
+  /** gog. */
+  gog: GogRunner;
+  /** Runner state and queues. */
+  runner: () => RunnerClient;
+  /** `EMAIL_EVENTS_DIR`. */
+  eventsDir: string;
+  /** Clock. */
+  now: () => Date;
+}
+
+/** The live collaborators, from config. */
+export const backfillHistoricalDeps = (): BackfillHistoricalDeps => ({
+  emailConfig: () => pipeline().emailConfig,
+  requireGog: (n) => requireGogCredentials('email/backfill-historical', n),
+  gog: gogWithRetry,
+  runner: () => getRunnerClient(),
+  eventsDir: constants().EMAIL_EVENTS_DIR,
+  now: () => new Date(),
+});
+
+/** Backfill one window per account (dry run unless `--live`). */
+export function backfillHistorical(
+  args: readonly string[],
+  deps: BackfillHistoricalDeps,
+): void {
+  const { live } = parseRunnableArgs(args, { live: argFlag('--live') });
+  const emailConfig = deps.emailConfig();
+  const settings = resolveBackfillSettings(emailConfig.backfill, [...args]);
   const reportOnly = emailConfig.reportOnly;
 
   console.log(`Mode: ${live ? 'LIVE' : 'DRY-RUN'}`);
@@ -45,18 +79,18 @@ function main(): void {
   );
   if (reportOnly) console.log('reportOnly: no Gmail label actions enqueued');
 
-  requireGogCredentials('email/backfill-historical', settings.accounts.length);
+  deps.requireGog(settings.accounts.length);
 
-  const client = getRunnerClient();
+  const client = deps.runner();
   try {
-    ensureDir(constants().EMAIL_EVENTS_DIR);
-    const now = new Date();
+    ensureDir(deps.eventsDir);
+    const now = deps.now();
 
     for (const account of settings.accounts) {
       console.log(`--- ${account} ---`);
       const r = backfillAccount(account, settings, {
         client,
-        gog: (args) => gogWithRetry(args, { retries: 2, backoffMs: 5000 }),
+        gog: (gogArgs) => deps.gog(gogArgs, { retries: 2, backoffMs: 5000 }),
         now,
         live,
         reportOnly,
@@ -84,4 +118,12 @@ function main(): void {
   }
 }
 
-runScript('email/backfill-historical', main, constants().EMAIL_EVENTS_DIR);
+export default defineJob({
+  id: 'email-backfill-historical',
+  domain: 'email',
+  name: 'email/backfill-historical',
+  crashDir: () => constants().EMAIL_EVENTS_DIR,
+  run: ({ args }) => {
+    backfillHistorical(args, backfillHistoricalDeps());
+  },
+});

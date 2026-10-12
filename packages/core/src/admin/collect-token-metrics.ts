@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module collect-token-metrics
  *
@@ -28,20 +27,19 @@
  * TOKEN_METRICS_CURSOR_KEY, TOKEN_METRICS_DB_CURSOR_KEY,
  * TOKEN_METRICS_CC_CURSOR_KEY, constants().TOKEN_RATES_PATH, constants().TOKEN_RATES_PENDING_PATH,
  * constants().TOKEN_RATES_SEED_PATH,
- * constants().SLACK_DM_NAMES_CACHE_PATH from constants.ts, and the Slack user
+ * constants().SLACK_DM_NAMES_CACHE_PATH (files under `paths.tokenMetricsDir` in jeeves-scripts.json (or `TOKEN_METRICS_DIR`)), and the Slack user
  * cache (slack/lib/slack-cache).
  */
 
 import fs from 'node:fs';
 
-import { runScript } from '@karmaniverous/jeeves';
-
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { triggerRunnerJob } from '../lib/runner-config.js';
 import { userCacheFile } from '../slack/lib/slack-cache.js';
 import { currentHourBoundaryMs, flushBuckets } from './lib/bucket-io.js';
 import { scanClaudeCodeSessions } from './lib/claude-code-session-scan.js';
-import { runCollect } from './lib/collect-run.js';
+import { type CollectDeps, runCollect } from './lib/collect-run.js';
 import { applyDmNames, gatewayMemberName } from './lib/dm-name-sources.js';
 import { hasOpenClawBuckets } from './lib/fresh-openclaw-history.js';
 import { loadRateCard } from './lib/rate-card.js';
@@ -68,11 +66,11 @@ function triggerRateCardRefresh(unknownModels: string[]): void {
     );
   }
   try {
-    triggerRunnerJob('refresh-token-rates')
+    triggerRunnerJob('admin-refresh-token-rates')
       .then(({ status, body }) => {
         if (status >= 300)
           console.error(
-            `[collect-token-metrics] Runner refused refresh-token-rates (${String(status)}): ${body.slice(0, 200)}`,
+            `[collect-token-metrics] Runner refused admin-refresh-token-rates (${String(status)}): ${body.slice(0, 200)}`,
           );
       })
       .catch(() => {
@@ -83,36 +81,47 @@ function triggerRateCardRefresh(unknownModels: string[]): void {
   }
 }
 
-async function collect(): Promise<void> {
-  const code = await runCollect({
-    agentDbPath: constants().OPENCLAW_AGENT_DB_PATH,
-    sessionsDir: constants().SESSIONS_DIR,
-    useDb: fs.existsSync(constants().OPENCLAW_AGENT_DB_PATH),
-    cutoffMs: currentHourBoundaryMs(),
-    loadOpenClawCollector: () =>
-      import('./lib/openclaw-db/collect-openclaw.js'),
-    scanLegacy: scanAllSessions,
-    scanClaudeCode: scanClaudeCodeSessions,
-    ensureRateCard: () => {
-      ensureRateCard(
-        constants().TOKEN_RATES_PATH,
-        constants().TOKEN_RATES_SEED_PATH,
-      );
-    },
-    knownModels: () => loadRateCard().models,
-    triggerRateCardRefresh,
-    nameDms: async (buckets) => {
-      await applyDmNames(buckets, {
-        cachePath: constants().SLACK_DM_NAMES_CACHE_PATH,
-        usersPath: userCacheFile(),
-        lookup: (id) => gatewayMemberName(id),
-      });
-    },
-    flush: flushBuckets,
-    hasOpenClawBuckets: () => hasOpenClawBuckets(),
-    openState: openTokenMetricsState,
-  });
+/** The live collaborators, from config when the job runs. */
+export const collectDeps = (): CollectDeps => ({
+  agentDbPath: constants().OPENCLAW_AGENT_DB_PATH,
+  sessionsDir: constants().SESSIONS_DIR,
+  useDb: fs.existsSync(constants().OPENCLAW_AGENT_DB_PATH),
+  cutoffMs: currentHourBoundaryMs(),
+  loadOpenClawCollector: () => import('./lib/openclaw-db/collect-openclaw.js'),
+  scanLegacy: scanAllSessions,
+  scanClaudeCode: scanClaudeCodeSessions,
+  ensureRateCard: () => {
+    ensureRateCard(
+      constants().TOKEN_RATES_PATH,
+      constants().TOKEN_RATES_SEED_PATH,
+    );
+  },
+  knownModels: () => loadRateCard().models,
+  triggerRateCardRefresh,
+  nameDms: async (buckets) => {
+    await applyDmNames(buckets, {
+      cachePath: constants().SLACK_DM_NAMES_CACHE_PATH,
+      usersPath: userCacheFile(),
+      lookup: (id) => gatewayMemberName(id),
+    });
+  },
+  flush: flushBuckets,
+  hasOpenClawBuckets: () => hasOpenClawBuckets(),
+  openState: openTokenMetricsState,
+});
+
+/** Collect the closed hours; a non-zero result sets the exit code. */
+export async function collect(
+  deps: CollectDeps,
+  run: typeof runCollect = runCollect,
+): Promise<void> {
+  const code = await run(deps);
   if (code !== 0) process.exitCode = code;
 }
 
-runScript('collect-token-metrics', collect);
+export default defineJob({
+  id: 'admin-collect-token-metrics',
+  domain: 'admin',
+  name: 'collect-token-metrics',
+  run: () => collect(collectDeps()),
+});

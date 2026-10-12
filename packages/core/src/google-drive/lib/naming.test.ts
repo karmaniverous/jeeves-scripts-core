@@ -4,7 +4,6 @@ import {
   buildSegmentName,
   hashId,
   identityRootSegment,
-  parseTag,
   resolveSiblingTags,
   sanitizeSegment,
   splitStemExt,
@@ -14,15 +13,15 @@ import {
 } from './naming.js';
 
 describe('naming: tag hashing', () => {
-  // Golden value from a real Drive id (it appears as `… - r2nhreg6.md` in the
-  // live tree) and matches the README's standalone one-liner. If this fails,
+  // Golden value for a neutral id; real Drive ids hash the same way (the
+  // tag is what appears as `… - <tag>.md` in the mirror). If this fails,
   // every synced path would be renamed: bump TAG_SCHEME deliberately instead.
   it('is pinned: sha256 → RFC 4648 base32 (lowercase) → prefix', () => {
     expect(TAG_SCHEME).toBe('sha256-b32-8');
-    const id = '1xEbiQypfxFstQGGHw-D9FI5Z7XwJooUndbwskJlikMA';
-    expect(tagFor(id, 8)).toBe('r2nhreg6');
-    expect(tagFor(id, 12)).toBe('r2nhreg6mhq6');
-    expect(hashId(id)).toMatch(/^r2nhreg6mhq6[a-z2-7]{40}$/);
+    const id = 'example-drive-file-id-0001';
+    expect(tagFor(id, 8)).toBe('z42msjmz');
+    expect(tagFor(id, 12)).toBe('z42msjmzlrfq');
+    expect(hashId(id)).toMatch(/^z42msjmzlrfq[a-z2-7]{40}$/);
   });
 });
 
@@ -61,23 +60,6 @@ describe('naming: sibling collision lengthening', () => {
   it('dedupes repeated ids', () => {
     const tags = resolveSiblingTags(['x', 'x', 'y']);
     expect(tags.size).toBe(2);
-  });
-});
-
-describe('naming: tag parsing', () => {
-  it('recovers the tag after the last " - "', () => {
-    expect(parseTag('report - k3v7q2xm.docx.md')).toBe('k3v7q2xm');
-    expect(parseTag('Engineering - p5zr2a7d')).toBe('p5zr2a7d');
-    expect(parseTag('notes - k3v7q2xm.md')).toBe('k3v7q2xm');
-  });
-
-  it('is not confused by " - " inside the stem', () => {
-    expect(parseTag('Q3 Plan - Draft - k3v7q2xm.md')).toBe('k3v7q2xm');
-  });
-
-  it('returns null when there is no tag-shaped suffix', () => {
-    expect(parseTag('mike.blaney@example.com')).toBeNull();
-    expect(parseTag('plain-file.txt')).toBeNull();
   });
 });
 

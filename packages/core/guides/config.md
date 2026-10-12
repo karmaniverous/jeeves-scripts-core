@@ -21,8 +21,8 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
 ```json
 {
   "$schema": "./node_modules/@karmaniverous/jeeves-scripts-core/schema/jeeves-scripts.schema.json",
-  "instance": { "name": "acme", "baseDir": "/opt/jeeves" },
-  "paths": { "contentDir": "/opt/jeeves/content" },
+  "instance": { "name": "acme", "baseDir": "/base" },
+  "paths": { "contentDir": "/base/content" },
   "integrations": {
     "gh": { "account": "acme-org" },
     "x": { "accounts": { "acme": { "relativePath": "x/acme" } } }
@@ -39,14 +39,19 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
   "siloRouting": {
     "silos": {
       "client": {
-        "basePath": "/opt/jeeves/client",
-        "emailDomains": ["client.com"]
+        "basePath": "/base/client",
+        "emailDomains": ["client.example.com"]
       }
     }
   },
-  "jobs": { "generate-daily-digest": { "silo": "client", "taskFile": "digest/TASK.md" } }
+  "jobs": {
+    "meetings-extract": { "enabled": false },
+    "admin-sweep-orphaned-tmp": { "extraDirs": ["/base/scratch"] }
+  }
 }
 ```
+
+This example passes `config check` as it stands. A `jobs` key must be the id of a registered runnable (core's, or one the instance plugin registers), so a task-file dispatcher's delta such as `"acme-generate-digest": { "silo": "client", "taskFile": "digest/TASK.md" }` belongs in an instance whose plugin registers `acme-generate-digest`.
 
 | Block | Schema | Contents |
 | --- | --- | --- |
@@ -57,8 +62,8 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
 | `siloRouting` | `siloRoutingSchema` | `defaultBasePath` (default: `paths().contentDir`) and named `silos.<name>`: `basePath`, `emailDomains`, `githubOrgs`, `slackWorkspaces`, `jira`, `linear`. |
 | `slack` | `slackConfigSchema` | `channels.<channelId>`: `project`, `homeDir` (absolute path). What this instance decides about a channel; see [Slack channels](#slack-channels). |
 | `people` | `peopleSchema` | `<personId>` (slug): `name`, `emails?`, `accounts?: { channel, account, id }[]`. Which accounts and addresses belong to one person; see [People](#people). |
-| `jobs` | `jobsSchema` | Per-job deltas by job id: `enabled`, `schedule`, `env`, `args`, `timeout_seconds`, `silo`, `taskFile`. Today `silo` and `taskFile` are read by the task-file dispatcher (see [dispatchers](./dispatchers.md)) and `silo` is checked by `config check`; the rest are validated and wait for the job registry (Decision 32). |
-| `extensions` | `extensionsSchema` | Named seam → `local:<module>` (reserved for the extension-point registry). |
+| `jobs` | `jobsSchema` | Per-job deltas by job id: `enabled`, `schedule`, `env`, `args`, `timeout_seconds`, `silo`, `taskFile`, `extraDirs`. `silo` and `taskFile` are read by the task-file dispatcher (see [dispatchers](./dispatchers.md)) and `silo` is checked by `config check`; `extraDirs` (absolute paths) is read by `admin-sweep-orphaned-tmp`, which sweeps those directories with the same rules as the content and scripts directories ([admin](./admin.md#prerequisites)); the rest shape the effective manifest `list --json` prints ([jobs](./jobs.md#instance-deltas)). |
+| `local` | none (any JSON) | The instance's own block. Core never reads it; the instance plugin's `configSchema` validates it at plugin load and runnables read it with `localConfig` ([jobs](./jobs.md#instance-runnables-and-overrides)). |
 
 Every schema is exported (Zod 4), with its `z.infer` type (`Config`, `PathsConfigInput`, `IntegrationsConfig`, `PipelineConfig`, `SiloRoutingConfig`, `JobDelta`, ...).
 
@@ -87,7 +92,7 @@ Every schema is exported (Zod 4), with its `z.infer` type (`Config`, `PathsConfi
 - No account (`channel` + `account` + `id`) and no email (compared case-insensitively) may belong to two people; `config check` reports the clash.
 - Code resolves with `lib/people`: `personForAccount(channel, account, id)`, `personForEmail(email)` (accepts `Name <addr>`), `personForChannelId(channel, id)` (the one owner of an id across accounts), `peopleForEmails`, `emailPeopleFields`. Unlisted accounts and addresses resolve to `undefined`.
 - Where it is used: Slack message authors ([slack.md](./slack.md)), token-metrics DM names ([admin.md](./admin.md)), meeting packages ([meetings.md](./meetings.md)), email messages ([email.md](./email.md#output-format)) and calendar events ([calendar.md](./calendar.md)). A listed person gets the configured `name` and their person id; anyone unlisted is recorded as before.
-- Facts about each account (name, email, bot flag) still come from the channel, e.g. the Slack cache. To draft the block, run `jeeves-scripts people propose` ([cli.md](./cli.md)), check it, and copy what is right.
+- Facts about each account (name, email, bot flag) still come from the channel, e.g. the Slack cache. To draft the block, run `jeeves-scripts run people-propose` ([cli.md](./cli.md#commands)), check it, and copy what is right.
 
 ### Other components' settings
 
@@ -163,23 +168,23 @@ Library code reads config-derived values through `constants()` (`lib/constants`)
 
 ### Environment overrides
 
-These win over the file: `GOG_HOME` (`paths().gogHome`), `TOKEN_METRICS_DIR` (`paths().tokenMetricsDir`), `GH_CONFIG_DIR`, `QDRANT_API_URL`, `LINEAR_CONFIG_PATH`. One works the other way round: `JIRA_BOARD_ID` fills `integrations().jira.boardId` only when the file sets no `boardId`.
+These win over the file: `GOG_HOME` (`paths().gogHome`), `TOKEN_METRICS_DIR` (`paths().tokenMetricsDir`), `GH_CONFIG_DIR`, `QDRANT_API_URL`, `LINEAR_CONFIG_PATH`, `JIRA_BOARD_ID` (`integrations().jira.boardId`). Set a value in one place only.
 
 ## Silos
 
 Every content path core resolves goes through a silo. The default silo's base path is `siloRouting.defaultBasePath`, else `paths().contentDir`; named silos are `siloRouting.silos.<name>.basePath`. A single-tenant instance can omit `siloRouting`.
 
-Each silo: `basePath` (required, absolute); `emailDomains` (mail domains), `githubOrgs` (org names, or `{ "githubOrg", "relativePath" }` to route an org to a subdirectory), `slackWorkspaces` (team ids), `jira` / `linear` (`true`: that integration's content routes here), all optional.
+Each silo: `basePath` (required; give an absolute path, since a relative one resolves against the working directory); `emailDomains` (mail domains), `githubOrgs` (org names, or `{ "githubOrg", "relativePath" }` to route an org to a subdirectory), `slackWorkspaces` (team ids), `jira` / `linear` (`true`: that integration's content routes here), all optional.
 
 - `siloPath(silo, segments)` joins `segments` onto the silo's base path (`undefined` = the default silo). Throws `UnknownSiloError` for an unconfigured name.
-- `isKnownSilo(silo)` checks a name.
+- `isKnownSilo(silo)` checks a name; `siloRouting()` returns the resolved `siloRouting` block (the default silo's base path filled in).
 - Routing: `getBasePathForEmailDomain`, `getBasePathForGitHubOrg`, `getBasePathForSlackWorkspace`, `getBasePathForMeeting` (majority vote over attendee domains), `getBasePathForJira`, `getBasePathForLinear`, `getEmailBaseForAccount`, `getCalendarBaseForAccount`, `getEntityDirs`. Each falls back to the default silo.
 
 Instance and plugin code never joins absolute content roots itself; it calls `siloPath`.
 
 ## Validation: `config check`
 
-`configCheck({ root?, configPath? })` (and `jeeves-scripts config check`) loads the file fresh, validates it, and checks that every `jobs.<id>.silo` names a configured silo. It returns `{ ok, configPath, errors }`; the CLI prints one line per error and exits 1 on failure.
+`configCheck({ root?, configPath? })` (and `jeeves-scripts config check`) loads the file fresh, validates it, and checks that every `jobs.<id>.silo` and every `integrations.x.accounts.<handle>.silo` names a configured silo. It returns `{ ok, configPath, errors }`; the CLI prints one line per error and exits 1 on failure. When those checks pass, `jeeves-scripts config check` also loads the instance plugin, as `list` and `run` do, so the plugin's `configSchema` validates the `local` block; a plugin that fails to load or rejects `local` adds its message to `errors` (`instanceConfigCheck` in `src/cli/config-check.ts`). Registration then checks the manifests and the `jobs` deltas as `list` does: a delta for an id no runnable has fails, and so does a delta that sets `enabled`, `schedule`, `timeout_seconds`, `env` or `args` on a runnable with no manifest, where those fields would have no effect (Decision 58).
 
 ## Key files
 
@@ -189,7 +194,7 @@ Instance and plugin code never joins absolute content roots itself; it calls `si
 | `src/config/loader.ts` | `loadConfig`, `resolveConfigPath`, `resetConfig`, `CONFIG_PATH_ENV` |
 | `src/config/paths.ts`, `integrations.ts` | `paths()`, `integrations()` and their pure `derive*` forms |
 | `src/config/pipeline-accessors.ts` | `pipeline()`, refs, account and bucket accessors |
-| `src/config/silo-router.ts` | `siloPath`, routing functions, `UnknownSiloError` |
+| `src/config/silo-router.ts` | `siloPath`, `siloRouting()`, routing functions, `UnknownSiloError` |
 | `src/config/secret-guard.ts`, `imap-secrets.ts` | Secret-literal scan; IMAP `secretRef` resolution |
 | `src/config/json-schema.ts` | `generateJsonSchema()` |
 | `src/config/check.ts` | `configCheck()` |

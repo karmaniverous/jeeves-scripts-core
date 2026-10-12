@@ -24,8 +24,8 @@ function makeMsg(
       date: 'Mon, 1 Jan 2024 00:00:00 +0000',
     },
     extensions: {
-      'x-gm-thrid': '1854665568266641192',
-      'x-gm-msgid': '1854665568266641999',
+      'x-gm-thrid': '1800000000000000001',
+      'x-gm-msgid': '1800000000000000002',
     },
     internalDate: new Date('2024-01-01T00:00:00Z'),
     body: { text: 'Hello world', html: '' },
@@ -42,8 +42,8 @@ function makeMsg(
 
 describe('autoTransform', () => {
   it('converts a decimal integer string to lowercase hex', () => {
-    const result = autoTransform('1854665568266641192');
-    expect(result).toBe(BigInt('1854665568266641192').toString(16));
+    const result = autoTransform('1800000000000000001');
+    expect(result).toBe(BigInt('1800000000000000001').toString(16));
     expect(/^[0-9a-f]+$/.test(result)).toBe(true);
   });
 
@@ -82,7 +82,7 @@ describe('resolveKey', () => {
   it('resolves a single path and transforms decimal to hex', () => {
     const msg = makeMsg();
     const result = resolveKey(['$.extensions.x-gm-thrid'], msg);
-    expect(result).toBe(BigInt('1854665568266641192').toString(16));
+    expect(result).toBe(BigInt('1800000000000000001').toString(16));
   });
 
   it('resolves a single path and applies sha256-16 for non-decimal', () => {

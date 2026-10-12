@@ -1,10 +1,9 @@
-#!/usr/bin/env tsx
 /**
  * @module sweep-duplicates
  *
  * Generalized duplicate and rejection sweep for all entity types.
  *
- * Loops over ENTITY_TYPES from constants.ts, resolves root directories
+ * Loops over ENTITY_TYPES (fixed in lib/constants), resolves root directories
  * via silo-router, then scans each entity directory's .meta/meta.json
  * for two cases:
  *   1. Rejection — a type-specific rejection key is true (e.g. nonMeeting
@@ -18,10 +17,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { readJson, runScript } from '@karmaniverous/jeeves';
+import { readJson } from '@karmaniverous/jeeves';
 
 import { getEntityDirs } from '../config/index.js';
-import { ENTITY_TYPES } from '../lib/constants.js';
+import { defineJob } from '../jobs/define-job.js';
+import { ENTITY_TYPES, type EntityTypeConfig } from '../lib/constants.js';
 
 /** All case variants of "duplicateOf" that builders might emit. */
 const DUPLICATE_KEY_VARIANTS = new Set(['duplicateof', 'duplicate_of']);
@@ -89,7 +89,16 @@ function collectFiles(dir: string): string[] {
   return results;
 }
 
-function main(): void {
+/** What {@link sweepDuplicates} reads. */
+export interface SweepDuplicatesDeps {
+  /** Entity types with their rejection keys. */
+  entityTypes: readonly EntityTypeConfig[];
+  /** The entity root directories of a type (through the silos). */
+  entityDirs: (subdir: string) => string[];
+}
+
+/** Delete rejected entities and merge duplicates into their originals; prints a summary. */
+export function sweepDuplicates(deps: SweepDuplicatesDeps): void {
   let totalRejected = 0;
   let totalDuplicates = 0;
   let totalMerged = 0;
@@ -97,9 +106,9 @@ function main(): void {
   let totalFilesCopied = 0;
   const errors: string[] = [];
 
-  for (const entityType of ENTITY_TYPES) {
+  for (const entityType of deps.entityTypes) {
     const rejectionKeys = new Set(entityType.rejectionKeys);
-    const entityRoots = getEntityDirs(entityType.subdir);
+    const entityRoots = deps.entityDirs(entityType.subdir);
 
     console.log(`\n=== Entity type: ${entityType.subdir} ===`);
 
@@ -213,4 +222,11 @@ function main(): void {
   }
 }
 
-runScript('meta/sweep-duplicates', main);
+export default defineJob({
+  id: 'meta-sweep-duplicates',
+  domain: 'meta',
+  name: 'meta/sweep-duplicates',
+  run: () => {
+    sweepDuplicates({ entityTypes: ENTITY_TYPES, entityDirs: getEntityDirs });
+  },
+});

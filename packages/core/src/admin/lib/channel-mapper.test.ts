@@ -40,7 +40,7 @@ describe('detectChannel', () => {
   it('detects meta architect phase from H1 header', () => {
     const lines = [
       '{"type":"session","id":"abc"}',
-      '{"type":"message","message":{"role":"user","content":[{"type":"text","text":"[Subagent Context]\\n[Subagent Task]: # jeeves-meta \u00b7 ARCHITECT \u00b7 j:/domains/contacts/john"}]}}',
+      '{"type":"message","message":{"role":"user","content":[{"type":"text","text":"[Subagent Context]\\n[Subagent Task]: # jeeves-meta \u00b7 ARCHITECT \u00b7 /base/domains/contacts/john"}]}}',
     ];
     const result = detectChannel(lines);
     expect(result.key).toBe('meta-architect');
@@ -50,7 +50,7 @@ describe('detectChannel', () => {
   it('detects meta builder phase from H1 header', () => {
     const lines = [
       '{"type":"session","id":"abc"}',
-      '{"type":"message","message":{"role":"user","content":[{"type":"text","text":"[Subagent Context]\\n[Subagent Task]: # jeeves-meta \u00b7 BUILDER \u00b7 j:/domains/contacts/john"}]}}',
+      '{"type":"message","message":{"role":"user","content":[{"type":"text","text":"[Subagent Context]\\n[Subagent Task]: # jeeves-meta \u00b7 BUILDER \u00b7 /base/domains/contacts/john"}]}}',
     ];
     const result = detectChannel(lines);
     expect(result.key).toBe('meta-builder');
@@ -60,7 +60,7 @@ describe('detectChannel', () => {
   it('detects meta critic phase from H1 header', () => {
     const lines = [
       '{"type":"session","id":"abc"}',
-      '{"type":"message","message":{"role":"user","content":[{"type":"text","text":"[Subagent Context]\\n[Subagent Task]: # jeeves-meta \u00b7 CRITIC \u00b7 j:/domains/contacts/john"}]}}',
+      '{"type":"message","message":{"role":"user","content":[{"type":"text","text":"[Subagent Context]\\n[Subagent Task]: # jeeves-meta \u00b7 CRITIC \u00b7 /base/domains/contacts/john"}]}}',
     ];
     const result = detectChannel(lines);
     expect(result.key).toBe('meta-critic');
@@ -100,7 +100,7 @@ describe('detectChannel', () => {
   it('detects Slack channel from message pattern', () => {
     const lines = [
       '{"type":"session","id":"abc"}',
-      '{"type":"message","message":{"role":"user","content":[{"type":"text","text":"System: Slack message in #project-jeeves-runner from Jason: test"}]}}',
+      '{"type":"message","message":{"role":"user","content":[{"type":"text","text":"System: Slack message in #project-jeeves-runner from Jane: test"}]}}',
     ];
     const result = detectChannel(lines);
     expect(result.key).toBe('slack:channel:#project-jeeves-runner');

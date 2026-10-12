@@ -7,12 +7,9 @@
  * keep their channel-derived names for them.
  */
 
+import { accountKey } from '../config/account-key.js';
 import { loadConfig } from '../config/loader.js';
-import {
-  accountKey,
-  type People,
-  type Person,
-} from '../config/people-schema.js';
+import type { People, Person } from '../config/people-schema.js';
 
 /** A resolved person: their id and their configured record. */
 export interface ResolvedPerson extends Person {

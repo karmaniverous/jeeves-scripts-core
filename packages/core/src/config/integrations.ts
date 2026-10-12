@@ -5,7 +5,8 @@
  * the template's `constants/integrations.ts` and `constants/trackers.ts` as a
  * function of the loaded config, with the environment overrides that
  * exist today (`QDRANT_API_URL`, `GH_CONFIG_DIR`, `LINEAR_CONFIG_PATH`,
- * `JIRA_BOARD_ID`) honoured and derived defaults applied. Settings that
+ * `JIRA_BOARD_ID`) winning over the file (Decision 53) and derived defaults
+ * applied. Settings that
  * belong to another component are read from that component's own config
  * (Qdrant's URL from the watcher's); the gateway port comes from the
  * OpenClaw config (`lib/openclaw-config`).
@@ -39,6 +40,19 @@ export type ResolvedIntegrations = {
   /** Jira, with `boardId` left optional (no default board). */
   jira: Resolved<Omit<IntegrationsConfig['jira'], 'boardId'>> &
     Pick<IntegrationsConfig['jira'], 'boardId'>;
+};
+
+/**
+ * `JIRA_BOARD_ID` as a board id.
+ *
+ * @throws When it is not a whole number, naming the variable and the value.
+ */
+const envBoardId = (value: string): number => {
+  if (!/^\d+$/.test(value.trim()))
+    throw new Error(
+      `JIRA_BOARD_ID must be a Jira board id (a whole number), got "${value}"`,
+    );
+  return Number(value);
 };
 
 /** The parts of the watcher's config read here. */
@@ -95,11 +109,9 @@ export const deriveIntegrations = (config: Config): ResolvedIntegrations => {
       apiTokenPath:
         i.jira.apiTokenPath ??
         path.join(resolvedPaths.credentialsDir, 'atlassian/acli-token.txt'),
-      boardId:
-        i.jira.boardId ??
-        (process.env.JIRA_BOARD_ID
-          ? Number(process.env.JIRA_BOARD_ID)
-          : undefined),
+      boardId: process.env.JIRA_BOARD_ID
+        ? envBoardId(process.env.JIRA_BOARD_ID)
+        : i.jira.boardId,
       fieldsFilename: i.jira.fieldsFilename ?? '_fields.json',
       maxHistory: i.jira.maxHistory ?? 50,
     },

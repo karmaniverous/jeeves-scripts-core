@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module like
  *
@@ -9,13 +8,21 @@
  * for each one, reporting success and failure counts.
  */
 
-import { runXQueueAction } from './lib/run-x-queue-action.js';
+import { defineJob } from '../jobs/define-job.js';
+import { xQueueAction } from './lib/run-x-queue-action.js';
 import { likePost } from './lib/x-actions.js';
 
-runXQueueAction({
-  scriptName: 'x/like',
-  queuePrefix: 'x-like',
-  actionLabel: 'like',
-  successLabel: 'liked',
-  actionFn: likePost,
+export default defineJob({
+  id: 'x-like',
+  domain: 'x',
+  description:
+    "Like the tweets queued in the account's x-like-<handle> runner queue.",
+  name: 'x/like',
+  ...xQueueAction({
+    scriptName: 'x/like',
+    queuePrefix: 'x-like',
+    actionLabel: 'like',
+    successLabel: 'liked',
+    actionFn: likePost,
+  }),
 });

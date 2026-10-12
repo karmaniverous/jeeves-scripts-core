@@ -1,54 +1,35 @@
 /**
  * @module slack/lib/slack-api
  *
- * Typed wrappers over the Slack Web API REST endpoints.
- *
- * Pure HTTP helpers consumed by slack/poll. Provides paginated fetching
- * for conversation history, thread replies, and channel discovery.
- * Includes a rate-limit sleep utility. No dependency on project
- * constants or config.
+ * The poller's Slack reads over core's one Slack client (lib/slack-client):
+ * paginated conversation history, thread replies, channel discovery,
+ * members and users, each with the token of the account reading. Includes
+ * the pause between pages. No dependency on project constants or config.
  */
 
-import https from 'node:https';
+import { sleepAsync } from '@karmaniverous/jeeves';
+
+import { createSlackClient } from '../../lib/slack-client.js';
 
 /** Pause between Slack API calls, shared with slack/poll. */
 export const RATE_LIMIT_MS = 1200;
 
-export function sleep(ms: number): Promise<void> {
-  return new Promise((r) => setTimeout(r, ms));
-}
+/** The shared async sleep (`@karmaniverous/jeeves`). */
+export const sleep = sleepAsync;
 
+/**
+ * Call a Slack Web API read method with `token` (the client's `call`: GET
+ * with query parameters, a 429 retried after its `Retry-After`).
+ *
+ * @throws SlackApiError when the response is not JSON or `ok` is false
+ * (`Slack <method> failed: <error>`).
+ */
 export function slackApi(
   method: string,
   params: Record<string, string>,
   token: string,
 ): Promise<Record<string, unknown>> {
-  return new Promise((resolve, reject) => {
-    const qs = new URLSearchParams(params).toString();
-    const opts = {
-      hostname: 'slack.com',
-      path: `/api/${method}?${qs}`,
-      headers: { Authorization: `Bearer ${token}` },
-    };
-    https
-      .get(opts, (res) => {
-        let d = '';
-        res.on('data', (c: Buffer) => (d += c.toString()));
-        res.on('end', () => {
-          try {
-            const j = JSON.parse(d) as Record<string, unknown>;
-            if (!j.ok) {
-              reject(new Error(`Slack API ${method}: ${j.error as string}`));
-            } else {
-              resolve(j);
-            }
-          } catch (e) {
-            reject(e instanceof Error ? e : new Error(String(e)));
-          }
-        });
-      })
-      .on('error', reject);
-  });
+  return createSlackClient({ token }).call(method, params);
 }
 
 /** Structured metadata for a Slack file attachment. */

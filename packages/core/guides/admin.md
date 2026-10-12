@@ -1,72 +1,89 @@
 # admin/
 
-Token metrics collection and session cost management. OpenClaw post-install dist patches are not here: they live in `jeeves` (Decision 36).
+Token metrics collection, session cost management, and housekeeping (orphaned `.tmp` files, Qdrant health). OpenClaw post-install dist patches are not here: they live in `jeeves` (Decision 36).
 
-## Scripts
+## Runnables and modules
 
-| Script | Description |
+| Runnable (module) | Description |
 | --- | --- |
-| `collect-token-metrics.ts` | Reads OpenClaw usage up to the last closed hour (from the agent SQLite DB on OpenClaw 2026.9+, else the legacy session transcripts), then Claude Code session logs, and writes immutable hourly rollup buckets to disk. Refuses to write when a model is missing from the rate card (records the id in `token-rates.pending.json` and triggers refresh-token-rates, which adds it from OpenRouter) |
-| `session-refresh.ts` | Rotates bloated gateway sessions by resetting idle sessions with high cacheRead values |
-| `token-metrics.ts` | Queries pre-rolled hourly buckets and aggregates into a cost report for a given time range (also a CLI module: `[--from ISO] [--to ISO]`) |
-| `refresh-token-rates.ts` | Seeds the rate card if missing, then refreshes every provider model's $/MTok rates from the public OpenRouter model endpoint (`openrouter.ai/api/v1/model/<id>`, base tier, no LLM). Also adds models the collector recorded as pending (`token-rates.pending.json`). Fetches 4 at a time (15 s per request, 60 s budget), writes changed rates atomically (advancing `updatedAt`), skips internal `openclaw/`/`clawdbot/` entries and entries marked `"manual": true`, and fails if any model can't be resolved (after applying the rest) or the card is missing or invalid. `--dry-run` reports changes without writing |
-| `regenerate-token-metrics.ts` | Rebuilds hourly buckets for `[--from, --to)` from the agent DB plus Claude Code logs, and bootstraps the agent-DB cursor after the 2026.9 upgrade. Modes: `--out DIR` (scratch; refused when DIR is the live store, directly or through a symlink, or already holds buckets in range), live without `--to` (rebuild to the last closed hour, replaces cursors), live with `--to` (counted events only, cursors untouched); `--dry-run`. Live runs need the `OPENCLAW_UPGRADE_CUTOFF` environment variable (see [Regeneration settings](#regeneration-settings)) and refuse a `--from` before it without `--allow-pre-upgrade`; `--out` runs ignore it |
+| `admin-collect-token-metrics` (`collect-token-metrics.ts`) | Reads OpenClaw usage up to the last closed hour (from the agent SQLite DB on OpenClaw 2026.9+, else the legacy session transcripts), then Claude Code session logs, and writes immutable hourly rollup buckets to disk. Refuses to write when a model is missing from the rate card (records the id in `token-rates.pending.json` and triggers admin-refresh-token-rates, which adds it from OpenRouter) |
+| `admin-refresh-sessions` (`session-refresh.ts`) | Rotates bloated gateway sessions by resetting idle sessions with high cacheRead values |
+| `admin-report-token-metrics` (`report-token-metrics.ts`) | Prints the cost report for `[--from <date>] [--to <date>]` as JSON ([Querying Costs](#querying-costs)); no manifest, run on demand |
+| utility `getTokenMetrics` (`token-metrics.ts`) | Queries pre-rolled hourly buckets and aggregates them into a cost report for a time range; on the root export, never registered |
+| `admin-refresh-token-rates` (`refresh-token-rates.ts`) | Seeds the rate card if missing, then refreshes every provider model's $/MTok rates from the public OpenRouter model endpoint (`openrouter.ai/api/v1/model/<id>`, base tier, no LLM). Also adds models the collector recorded as pending (`token-rates.pending.json`). Fetches 4 at a time (15 s per request, 60 s budget), writes changed rates atomically (advancing `updatedAt`), skips internal `openclaw/`/`clawdbot/` entries and entries marked `"manual": true`, and fails if any model can't be resolved (after applying the rest) or the card is missing or invalid. `--dry-run` reports changes without writing |
+| `admin-sweep-orphaned-tmp` (`sweep-orphaned-tmp.ts`) | Removes orphaned `.tmp` files left behind by crashed atomic-write operations: scans the content and scripts directories, plus any absolute directories in `jobs.admin-sweep-orphaned-tmp.extraDirs` (Decision 55), recursively (skipping `node_modules/` and `.git/`, and directories that don't exist) for `.tmp` files older than 1 hour, and reports how many it removed. Every directory gets the same rules (`lib/sweep-tmp.ts`). |
+| `admin-check-qdrant-health` (`qdrant-health-check.ts`) | Checks Qdrant liveness (`/healthz`, plain-text body, judged by HTTP status) and each collection's status and optimizer state. Attempts a non-interactive restart when Qdrant is down or unhealthy ([below](#qdrant-restart-privileges)). |
+| `admin-regenerate-token-metrics` (`regenerate-token-metrics.ts`) | Rebuilds hourly buckets for `[--from, --to)` from the agent DB plus Claude Code logs, and bootstraps the agent-DB cursor after the 2026.9 upgrade. Modes: `--out DIR` (scratch; refused when DIR is the live store, directly or through a symlink, or already holds buckets in range), live without `--to` (rebuild to the last closed hour, replaces cursors), live with `--to` (counted events only, cursors untouched); `--dry-run`. Live runs need the `OPENCLAW_UPGRADE_CUTOFF` environment variable (see [Regeneration settings](#regeneration-settings)) and refuse a `--from` before it without `--allow-pre-upgrade`; `--out` runs ignore it |
 
 ## Data Flow
 
 ```mermaid
 flowchart LR
-  collect["collect-token-metrics"] --> buckets["hourly bucket\nJSON files"]
-  buckets --> metrics["token-metrics\n(query/aggregate)"]
+  collect["admin-collect-token-metrics"] --> buckets["hourly bucket\nJSON files"]
+  buckets --> metrics["getTokenMetrics /\nadmin-report-token-metrics"]
   seed["config/token-rates.seed.json"] -. "seed if missing" .-> card["token-rates.json\n(rate card)"]
-  rates["refresh-token-rates"] --> card
+  rates["admin-refresh-token-rates"] --> card
   card --> collect
 
-  refresh["session-refresh"] --> gateway["gateway API\n(refresh idle/oversized sessions)"]
+  refresh["admin-refresh-sessions"] --> gateway["gateway API\n(refresh idle/oversized sessions)"]
 ```
 
-- **collect-token-metrics** incrementally reads OpenClaw usage (agent DB `~/.openclaw/agents/main/agent/openclaw-agent.sqlite`, read-only, on 2026.9+; legacy JSONL transcripts in `SESSIONS_DIR` otherwise) and Claude Code logs (`~/.claude/projects`), and rolls usage into per-hour bucket files partitioned by channel and model. A fresh instance (no counted OpenClaw usage) starts the DB cursor empty; an upgraded host refuses until `regenerate-token-metrics` bootstraps it.
-- **token-metrics** reads those buckets and the rate card to produce aggregated cost reports.
+- **admin-collect-token-metrics** incrementally reads OpenClaw usage (agent DB `~/.openclaw/agents/main/agent/openclaw-agent.sqlite`, read-only, on 2026.9+; legacy JSONL transcripts in `SESSIONS_DIR` otherwise) and Claude Code logs (`~/.claude/projects`), and rolls usage into per-hour bucket files partitioned by channel and model. A fresh instance (no counted OpenClaw usage) starts the DB cursor empty; an upgraded host refuses until `admin-regenerate-token-metrics` bootstraps it.
+- **getTokenMetrics** (and the runnable `admin-report-token-metrics`) reads those buckets and the rate card to produce aggregated cost reports.
 
 ### Storage
 
-- Buckets: `TOKEN_METRICS_DIR` (`/opt/jeeves/state/jeeves-runner/token-metrics`, override with the `TOKEN_METRICS_DIR` environment variable), one file per UTC hour at `<yyyy>/<mm>/<hour>.json`.
-- Rate card: `token-rates.json` in that directory ($/MTok per model per token category), seeded from `config/token-rates.seed.json` when missing (never overwritten). `refresh-token-rates` refreshes it from OpenRouter (base tier; prompt-length overrides and 1-hour cache writes ignored) and fails if a model can't be resolved or the card is missing or invalid. Token metrics are estimates; they are normalized against provider billing before invoicing.
+- Buckets: `TOKEN_METRICS_DIR` (`paths.tokenMetricsDir` in `jeeves-scripts.json`, default `{stateDir}/jeeves-runner/token-metrics`; the `TOKEN_METRICS_DIR` environment variable wins), one file per UTC hour at `<yyyy>/<mm>/<hour>.json`.
+- Rate card: `token-rates.json` in that directory ($/MTok per model per token category), seeded from `config/token-rates.seed.json` when missing (never overwritten). `admin-refresh-token-rates` refreshes it from OpenRouter (base tier; prompt-length overrides and 1-hour cache writes ignored) and fails if a model can't be resolved or the card is missing or invalid. Token metrics are estimates; they are normalized against provider billing before invoicing.
 - Cursors: runner state namespace `token-metrics`, keys `cursors` (legacy transcripts), `cursors-openclaw-db` (agent DB) and `cursors-claude-code`. A file cursor stops at the first record in the current (still-open) UTC hour, so the next run counts it once the hour closes; without one it stops at the end of the last complete line (an unterminated last line counts only once it parses). Each record is counted exactly once.
 
 ### Regeneration settings
 
-`OPENCLAW_UPGRADE_CUTOFF` (environment variable, per instance, **no default**) is the first UTC hour this instance ran OpenClaw 2026.9+, in ISO 8601 (`YYYY-MM-DDTHH:00:00Z`); an instance that never ran an earlier OpenClaw uses its first hour of usage. Hours before it were counted by the legacy JSONL collector and are never rewritten. Only `regenerate-token-metrics` reads it, and only for live runs:
+`OPENCLAW_UPGRADE_CUTOFF` (environment variable, per instance, **no default**) is the first UTC hour this instance ran OpenClaw 2026.9+, in ISO 8601 (`YYYY-MM-DDTHH:00:00Z`); an instance that never ran an earlier OpenClaw uses its first hour of usage. Hours before it were counted by the legacy JSONL collector and are never rewritten. Only `admin-regenerate-token-metrics` reads it, and only for live runs:
 
 - unset, empty or not a date: a live run (including `--dry-run`) is refused with a message naming the variable, even with `--allow-pre-upgrade`;
 - a live `--from` earlier than it is refused unless `--allow-pre-upgrade` is given (owner-approved only);
 - `--out` scratch runs never touch the live store (an `--out` that resolves to `TOKEN_METRICS_DIR`, directly or through a symlink, is refused), so they ignore it: no variable or flag is needed to scan pre-upgrade hours into a scratch directory.
 
-It is an environment variable (like `TOKEN_METRICS_DIR`) rather than a `jeeves-scripts.json` key because it is a one-off operator setting for a manually run CLI: a constant would need a per-instance template edit with a default, and `pipeline-config.json` requires the email configuration, which token metrics does not. `collect-token-metrics`, `token-metrics` and the other jobs never read it.
+It is an environment variable rather than a `jeeves-scripts.json` key because it is a one-off operator setting for a manually run CLI, with no sensible default to ship. `admin-collect-token-metrics`, `admin-report-token-metrics` and the other runnables never read it.
 
 ## Querying Costs
 
-Run from the repo root:
+Run the runnable `admin-report-token-metrics` through the instance launcher (from any directory):
 
 ```bash
-node --input-type=module -e "import '@karmaniverous/jeeves-scripts-core/admin/token-metrics'" -- --from 2026-06-01 --to 2026-06-02
+node "$JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js" run admin-report-token-metrics --from 2026-06-01 --to 2026-06-02
 ```
 
-`--from` / `--to` take ISO dates or timestamps. Without `--from` the report covers everything collected so far, and without `--to` it runs to now, so pass a range when the question is about a period. It prints a JSON `Costs` report (`types/token-metrics.ts`): total `cost`; `models`, keyed `provider/model`, each with `cost`, `costPct` and `tokens`, which holds per category (`input`, `output`, `cacheRead`, `cacheWrite`) `count` / `cost` / `costPct`; `channels` (Slack channels, DMs, heartbeat, subagent, meta-synthesis), each with its name, cost, share and per-model breakdown; and `ref`, the rate card the costs were computed with: per model, the rate for each category in dollars per million tokens, for every model in the card whether or not it was used in the range. `ref` holds prices, not usage; token counts are `models[model].tokens[category].count`. `getTokenMetrics({ fromTs, toTs })` is the importable form.
+`--from` / `--to` take ISO 8601 dates or timestamps (`--from <date>` or `--from=<date>`); anything else prints a usage error and exits 1. Without `--from` the report covers everything collected so far, and without `--to` it runs to now, so pass a range when the question is about a period. It prints a JSON `Costs` report (`types/token-metrics.ts`): total `cost`; `models`, keyed `provider/model`, each with `cost`, `costPct` and `tokens`, which holds per category (`input`, `output`, `cacheRead`, `cacheWrite`) `count` / `cost` / `costPct`; `channels` (Slack channels, DMs, heartbeat, subagent, meta-synthesis), each with its name, cost, share and per-model breakdown; and `ref`, the rate card the costs were computed with: per model, the rate for each category in dollars per million tokens, for every model in the card whether or not it was used in the range. `ref` holds prices, not usage; token counts are `models[model].tokens[category].count`. `getTokenMetrics({ from, to })` is the importable form (root export): each bound is a `Date` or an ISO 8601 string, both optional, and the hours containing them are included.
 
-- **session-refresh** polls active sessions and refreshes any that exceed the cacheRead threshold after being idle long enough.
+- **admin-refresh-sessions** polls active sessions and refreshes any that exceed the cacheRead threshold after being idle long enough.
 
 ## Prerequisites
 
-No external prerequisites — all jobs run against local filesystem and gateway API.
+Most jobs need only the local filesystem and the gateway. `admin-check-qdrant-health` needs the Qdrant service (`integrations.qdrant`); `admin-refresh-token-rates` (and the refresh `admin-collect-token-metrics` triggers for unknown models) reaches OpenRouter over HTTPS.
 
-| Job                     | Schedule        |
-| ----------------------- | --------------- |
-| `collect-token-metrics` | Every 97 min    |
-| `session-refresh`       | Every 23 min    |
-| `refresh-token-rates`   | Daily 05:37 UTC |
+`admin-refresh-sessions` reads three environment variables, all optional: `CACHE_READ_THRESHOLD` (last-turn cache-read tokens before a session counts as large; default 150000), `IDLE_MINUTES` (minutes since the last message; default 60) and `EXCLUDED_SESSION_KEYS` (comma-separated session keys never refreshed). Set them in the runner job's `env` (a `jobs.admin-refresh-sessions.env` delta). It writes `sessions.json` once per run; when that write fails it renames every rotated transcript back and fails the run, and it notifies the sessions only after the write.
 
-All three entries in the template manifest `jobs/admin.json` (carried in the instance repo until the job registry, Decision 32) have `"prerequisite": null`. `refresh-token-rates` uses the RRStack schedule `{"freq":"daily","byhour":5,"byminute":37,"timezone":"UTC"}`.
+| Runnable                      | Schedule        |
+| ----------------------------- | --------------- |
+| `admin-collect-token-metrics` | Every 97 min    |
+| `admin-refresh-sessions`      | Every 23 min    |
+| `admin-refresh-token-rates`   | Daily 05:37 UTC |
+| `admin-sweep-orphaned-tmp`    | Every 59 min    |
+| `admin-check-qdrant-health`   | Every 4 h       |
+
+The sweep reads `paths().contentDir`, `paths().scriptsDir` and `jobs.admin-sweep-orphaned-tmp.extraDirs` from `jeeves-scripts.json` when it runs. `extraDirs` lists other directories to sweep with the same rules, as absolute paths (for example a workspace where another tool writes atomically):
+
+```json
+{ "jobs": { "admin-sweep-orphaned-tmp": { "extraDirs": ["D:/workspace"] } } }
+```
+
+All five entries in core's manifest `jobs/admin.json` have `"prerequisite": null`. `admin-regenerate-token-metrics` is registered without a manifest (run it by hand, see the [runbook](./token-metrics-runbook.md)). `admin-refresh-token-rates` uses the RRStack schedule `{"freq":"daily","byhour":5,"byminute":37,"timezone":"UTC"}`.
+
+## Qdrant restart privileges
+
+`admin-check-qdrant-health` runs as the unprivileged runner user. On Linux it restarts the unit named by `integrations.qdrant.serviceName` with `systemctl --no-ask-password restart <unit>` (on Windows, `Restart-Service <name>`), so it never waits on a polkit prompt. No sudoers or polkit rule for the Qdrant unit is assumed (the jeeves-tools polkit rule covers only `jeeves-*.service`). When the restart is denied, the job logs `qdrant down; restart requires operator` (or `qdrant unhealthy; …`) and exits non-zero, so the runner records an error for an operator to act on. Any other restart failure also exits non-zero.
 
 ## Documentation
 
@@ -84,9 +101,10 @@ All three entries in the template manifest `jobs/admin.json` (carried in the ins
 | `lib/openclaw-db/channel-from-meta.ts` | 2026.9+ channel keys from recorded session metadata; text rules only as fallback; sanitized |
 | `lib/openclaw-db/schema-v23-meta.ts` | Loads schema-23 session keys and channel/peer/label names (read-only) |
 | `lib/regen-guard.ts` | Live regenerate guard: refuses when `OPENCLAW_UPGRADE_CUTOFF` is unset or invalid, and a `--from` before it without `--allow-pre-upgrade` |
-| `lib/regen-run.ts` | regenerate-token-metrics orchestration: scratch / live / bounded (`--to`, counted-only, cursors untouched), backup → delete → flush → cursor replace; refuses a scratch `--out` that is the live store |
+| `lib/regen-run.ts` | admin-regenerate-token-metrics orchestration: scratch / live / bounded (`--to`, counted-only, cursors untouched), backup → delete → flush → cursor replace; refuses a scratch `--out` that is the live store |
+| `lib/sweep-tmp.ts` | `sweepDir` / `sweepDirs`: removes `.tmp` files older than 1 hour under each directory, recursively (skipping `node_modules/` and `.git/`); admin-sweep-orphaned-tmp's body |
 | `lib/same-path.ts` | `isSamePath(a, b)`: same location after following symlinks (nearest existing ancestor for paths not created yet); keeps `--out` off the live store |
-| `lib/collect-run.ts` | collect-token-metrics orchestration; loads the agent-DB collector (node:sqlite) lazily |
+| `lib/collect-run.ts` | admin-collect-token-metrics orchestration; loads the agent-DB collector (node:sqlite) lazily |
 | `lib/fresh-openclaw-history.ts` | Fresh-instance check: with no DB cursor, the collector starts it empty only when no legacy cursor entry and no bucket holding OpenClaw usage exist; otherwise it refuses until regenerate bootstraps it |
 | `lib/token-metrics-state.ts` | Runner-state port for the token-metrics namespace |
 | `lib/bucket-maintenance.ts` | Bucket backup (`.backup-<ts>.json`, never overwritten) and deletion for rebuilds |
@@ -98,10 +116,10 @@ All three entries in the template manifest `jobs/admin.json` (carried in the ins
 | `lib/rate-card.ts` | Token rate card loader and cost calculator ($/MTok) |
 | `lib/rate-card-schema.ts` | Zod schema and validating file reader for the rate card (optional per-entry `manual` flag) |
 | `lib/rate-card-seed.ts` | Seed-if-missing: copies `config/token-rates.seed.json` into place, never overwrites |
-| `lib/refresh-rates-run.ts` | refresh-token-rates orchestration: read card, fetch rates (skipping `manual` entries), apply changes, write, re-validate, prune the pending file; decides job success |
+| `lib/refresh-rates-run.ts` | admin-refresh-token-rates orchestration: read card, fetch rates (skipping `manual` entries), apply changes, write, re-validate, prune the pending file; decides job success |
 | `lib/refresh-rates-fetch.ts` | Bounded OpenRouter fetching: concurrency limit and overall time budget |
 | `lib/openrouter-pricing.ts` | OpenRouter single-model price fetch and per-token → $/MTok conversion |
-| `lib/rate-card-pending.ts` | Pending-models file (`token-rates.pending.json`): ids the collector found missing from the card, handed to refresh-token-rates to add |
+| `lib/rate-card-pending.ts` | Pending-models file (`token-rates.pending.json`): ids the collector found missing from the card, handed to admin-refresh-token-rates to add |
 | `lib/hour-range.ts` | Hour enumeration and cursor reset for a regeneration range (regen-run) |
 | `lib/resolve-openclaw-dist.ts` | Resolves the global npm openclaw install (its `openclaw.mjs`, for gateway RPC in `lib/gateway-rpc.ts`) |
 | `lib/session-scanner.ts` | Session file scanning with cursor management (stop at the open hour) and range filtering (collector and regeneration) |

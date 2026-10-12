@@ -26,7 +26,8 @@
  * calendar/poll.ts (per-account checks in calendar/lib/
  * calendar-accounts.ts).
  *
- * Config dependencies: constants().GOG_CLIENT_PATH, constants().GOG_CONFIG_DIR from constants.ts.
+ * Config dependencies: `paths.gogHome` in jeeves-scripts.json (`GOG_HOME` wins),
+ * through constants().GOG_CONFIG_DIR and GOG_CLIENT_PATH.
  */
 
 import fs from 'node:fs';
@@ -55,17 +56,6 @@ export function gogServiceAccountDirs(
 export function serviceAccountFileName(email: string): string {
   const encoded = Buffer.from(email).toString('base64').replace(/=/g, '');
   return `sa-${encoded}.json`;
-}
-
-/** Full path where current gog registers `email` as a service-account mailbox. */
-export function serviceAccountKeyPath(
-  email: string,
-  configDir = constants().GOG_CONFIG_DIR,
-): string {
-  return path.join(
-    gogServiceAccountDir(configDir),
-    serviceAccountFileName(email),
-  );
 }
 
 /**

@@ -20,7 +20,7 @@ import path from 'node:path';
 import { appendJsonl, ensureDir, nowIso } from '@karmaniverous/jeeves';
 
 import { constants } from '../../lib/constants.js';
-import { gogWithRetry } from '../../lib/gog.js';
+import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
 import { emailPeopleFields } from '../../lib/people.js';
 import {
   type CacheMessage,
@@ -67,6 +67,8 @@ export interface FetchThreadParams {
   client: EmailStoreClient;
   /** When true, curation signals are detected but not enqueued. */
   reportOnly: boolean;
+  /** gog (default: the live runner with retry). */
+  gog?: GogRunner;
 }
 
 /** Append a `message` event to `{EMAIL_EVENTS_DIR}/{account}.jsonl`. */
@@ -136,7 +138,7 @@ export function fetchThreadMetadata(params: FetchThreadParams): {
       ? prevObj.seenMessageIds
       : {};
 
-  const raw = gogWithRetry(
+  const raw = (params.gog ?? gogWithRetry)(
     ['gmail', 'thread', 'get', threadId, '--json', '--account', account],
     { retries: 2, backoffMs: 5000 },
   );

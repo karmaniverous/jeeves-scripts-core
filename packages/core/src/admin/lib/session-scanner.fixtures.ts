@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { vi } from 'vitest';
+import { afterEach, beforeEach, vi } from 'vitest';
 
 import type * as ConstantsModule from '../../lib/constants.js';
 import type { scanAllSessions } from './session-scanner.js';
@@ -143,5 +143,21 @@ export function createScannerFixture(): ScannerFixture {
       vi.restoreAllMocks();
       fs.rmSync(tmpDir, { recursive: true, force: true });
     },
+  };
+}
+
+/** Suite hooks: a fresh fixture per test, cleaned up after; returns a getter. */
+export function useScannerFixture(): () => ScannerFixture {
+  let fixture: ScannerFixture | undefined;
+  beforeEach(() => {
+    fixture = createScannerFixture();
+  });
+  afterEach(() => {
+    fixture?.cleanup();
+  });
+  return () => {
+    if (!fixture)
+      throw new Error('useScannerFixture: no fixture outside a test');
+    return fixture;
   };
 }

@@ -1,35 +1,31 @@
-#!/usr/bin/env tsx
 /**
  * @module poll-collabs
  *
  * Poll GitHub repos and invitations, enqueuing items that need bot access.
  *
  * Called by the jeeves-runner scheduler. Lists repos owned by
- * constants().GH_ACCOUNT and pending invitations for constants().GH_BOT_USER, then enqueues
+ * the gh account and pending invitations for the bot user, then enqueues
  * new or updated repos into the gh-collabs queue for drain-collabs
  * to process.
  */
 
-import fs from 'node:fs';
+import { defineJob } from '../jobs/define-job.js';
+import {
+  collabArgs,
+  ghReady,
+  type GitHubJobDeps,
+  githubJobDeps,
+} from './lib/github-deps.js';
 
-import { getArg, nowIso, runScript } from '@karmaniverous/jeeves';
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
+/** Run the job. */
+export function pollCollabs(
+  args: readonly string[],
+  deps: GitHubJobDeps,
+): void {
+  if (!ghReady(deps)) return;
 
-import { constants } from '../lib/constants.js';
-import { gh, setupGhConfig } from '../lib/gh.js';
-
-setupGhConfig();
-
-function main(): void {
-  if (!fs.existsSync(constants().GH_CONFIG_DIR)) {
-    console.log('[skip] GitHub CLI config not configured');
-    return;
-  }
-
-  const argv = process.argv.slice(2);
-  const owner = getArg(argv, '--owner', constants().GH_ACCOUNT);
-  const botUser = getArg(argv, '--botUser', constants().GH_BOT_USER);
-  const client = getRunnerClient();
+  const { owner, botUser } = collabArgs(args, deps);
+  const client = deps.runner();
   const stateJson = client.getState('gh-collabs', 'poll-state');
   const state = stateJson
     ? (JSON.parse(stateJson) as { lastRepoUpdatedAt: string | null })
@@ -38,7 +34,7 @@ function main(): void {
   let queued = 0;
 
   try {
-    gh(['auth', 'switch', '-u', owner]);
+    deps.gh(['auth', 'switch', '-u', owner]);
     let page = 1;
     const repos: {
       full_name: string;
@@ -46,15 +42,12 @@ function main(): void {
       archived: boolean;
     }[] = [];
     for (;;) {
-      const result = gh(
-        [
-          'api',
-          '-X',
-          'GET',
-          `/user/repos?per_page=100&page=${String(page)}&type=owner&sort=updated&direction=desc`,
-        ],
-        { json: true },
-      );
+      const result = deps.gh([
+        'api',
+        '-X',
+        'GET',
+        `/user/repos?per_page=100&page=${String(page)}&type=owner&sort=updated&direction=desc`,
+      ]);
       const batch =
         result.out.length > 0
           ? (JSON.parse(result.out) as {
@@ -77,7 +70,7 @@ function main(): void {
         kind: 'repo',
         full_name: r.full_name,
         permission: 'push',
-        ts: nowIso(),
+        ts: deps.now(),
       });
       if (itemId !== -1) queued++;
     }
@@ -89,18 +82,15 @@ function main(): void {
     }
 
     // Poll invitations as bot
-    gh(['auth', 'switch', '-u', botUser]);
+    deps.gh(['auth', 'switch', '-u', botUser]);
     page = 1;
     for (;;) {
-      const result = gh(
-        [
-          'api',
-          '-X',
-          'GET',
-          `/user/repository_invitations?per_page=100&page=${String(page)}`,
-        ],
-        { json: true },
-      );
+      const result = deps.gh([
+        'api',
+        '-X',
+        'GET',
+        `/user/repository_invitations?per_page=100&page=${String(page)}`,
+      ]);
       const inv =
         result.out.length > 0
           ? (JSON.parse(result.out) as {
@@ -115,7 +105,7 @@ function main(): void {
             kind: 'invite',
             id: i.id,
             repo: i.repository?.full_name,
-            ts: nowIso(),
+            ts: deps.now(),
           });
           if (itemId !== -1) queued++;
         }
@@ -129,4 +119,11 @@ function main(): void {
   }
 }
 
-runScript('github/poll-collabs', main);
+export default defineJob({
+  id: 'github-poll-collabs',
+  domain: 'github',
+  name: 'github/poll-collabs',
+  run: ({ args }) => {
+    pollCollabs(args, githubJobDeps());
+  },
+});

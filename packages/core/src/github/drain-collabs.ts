@@ -1,23 +1,21 @@
-#!/usr/bin/env tsx
 /**
  * @module drain-collabs
  *
  * Drain the gh-collabs queue, adding bot as collaborator and accepting invitations.
  *
  * Called by the jeeves-runner scheduler. Dequeues items enqueued by
- * poll-collabs, switches between constants().GH_ACCOUNT (to add collaborators)
- * and constants().GH_BOT_USER (to accept invitations) as needed.
+ * poll-collabs, switches between the gh account (to add collaborators)
+ * and the bot user (to accept invitations) as needed.
  */
 
-import fs from 'node:fs';
-
-import { getArg, runScript } from '@karmaniverous/jeeves';
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
-
-import { constants } from '../lib/constants.js';
-import { gh, setupGhConfig } from '../lib/gh.js';
-
-setupGhConfig();
+import { defineJob } from '../jobs/define-job.js';
+import { argValue, parseRunnableArgs } from '../lib/args.js';
+import {
+  collabArgs,
+  ghReady,
+  type GitHubJobDeps,
+  githubJobDeps,
+} from './lib/github-deps.js';
 
 interface CollabItem {
   kind: 'repo' | 'invite';
@@ -26,17 +24,19 @@ interface CollabItem {
   id?: number;
 }
 
-function main(): void {
-  if (!fs.existsSync(constants().GH_CONFIG_DIR)) {
-    console.log('[skip] GitHub CLI config not configured');
-    return;
-  }
+/** Run the job. */
+export function drainCollabs(
+  args: readonly string[],
+  deps: GitHubJobDeps,
+): void {
+  if (!ghReady(deps)) return;
 
-  const argv = process.argv.slice(2);
-  const owner = getArg(argv, '--owner', constants().GH_ACCOUNT);
-  const botUser = getArg(argv, '--botUser', constants().GH_BOT_USER);
-  const maxItems = Number(getArg(argv, '--maxItems', '50'));
-  const client = getRunnerClient();
+  const { owner, botUser } = collabArgs(args, deps);
+  const maxItems = Number(
+    parseRunnableArgs(args, { maxItems: argValue('--maxItems', '50') })
+      .maxItems,
+  );
+  const client = deps.runner();
 
   try {
     const items = client.dequeue('gh-collabs', maxItems);
@@ -46,10 +46,10 @@ function main(): void {
       const item = payload as CollabItem;
       try {
         if (item.kind === 'repo') {
-          gh(['auth', 'switch', '-u', owner]);
+          deps.gh(['auth', 'switch', '-u', owner]);
           const repo = item.full_name!;
           const perm = item.permission ?? 'push';
-          const res = gh(
+          const res = deps.gh(
             [
               'api',
               '-X',
@@ -67,9 +67,9 @@ function main(): void {
         }
 
         if ((item.kind as string) === 'invite') {
-          gh(['auth', 'switch', '-u', botUser]);
+          deps.gh(['auth', 'switch', '-u', botUser]);
           const inviteId = item.id!;
-          const res = gh(
+          const res = deps.gh(
             [
               'api',
               '-X',
@@ -98,4 +98,11 @@ function main(): void {
   }
 }
 
-runScript('github/drain-collabs', main);
+export default defineJob({
+  id: 'github-drain-collabs',
+  domain: 'github',
+  name: 'github/drain-collabs',
+  run: ({ args }) => {
+    drainCollabs(args, githubJobDeps());
+  },
+});

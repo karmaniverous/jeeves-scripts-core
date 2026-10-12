@@ -1,7 +1,7 @@
 /**
  * @module imap/poll
  *
- * IMAP account polling — connects to a single configured IMAP account,
+ * IMAP account polling: connects to a single configured IMAP account,
  * fetches new messages since the UID watermark, parses MIME, and writes
  * thread.json plus per-message JSON files in the same format as the gog
  * pipeline. Called by email/poll.ts for accounts with an `imap` block.
@@ -14,13 +14,17 @@
 
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';
 import type { MailboxLockObject, MailboxObject } from 'imapflow';
-import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 
 import type { AccountConfig } from '../../config/index.js';
 import { resolveImapPassword } from '../../config/index.js';
 import type { AccountTypeDefinition } from './account-types.js';
 import { getAccountType } from './account-types.js';
+import {
+  type ImapConnection,
+  type ImapConnector,
+  imapFlowConnector,
+} from './connection.js';
 import { resolveKey } from './key-resolver.js';
 import { messageExists, writeMessage } from './message-store.js';
 import { normalizeMessage } from './normalize.js';
@@ -46,7 +50,7 @@ interface FolderStats {
 const MAX_INITIAL_FETCH = 100;
 
 async function pollFolder(
-  conn: ImapFlow,
+  conn: ImapConnection,
   folder: string,
   account: AccountConfig,
   typeDef: AccountTypeDefinition,
@@ -159,6 +163,7 @@ export interface ImapAccountStats {
 export async function pollImapAccount(
   account: AccountConfig,
   client: RunnerClient,
+  connector: ImapConnector = imapFlowConnector,
 ): Promise<ImapAccountStats> {
   const totals: ImapAccountStats = {
     fetched: 0,
@@ -172,13 +177,7 @@ export async function pollImapAccount(
   // Throws (naming the ref and path, never the value) when a secretRef
   // file is missing or unreadable; poll.ts logs it and moves on.
   const pass = resolveImapPassword(account.imap.password);
-  const conn = new ImapFlow({
-    host: account.imap.host,
-    port: account.imap.port,
-    secure: account.imap.tls,
-    auth: { user: account.imap.user, pass },
-    logger: false,
-  });
+  const conn = connector(account.imap, pass);
 
   try {
     await conn.connect();

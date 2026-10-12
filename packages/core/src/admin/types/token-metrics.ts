@@ -17,8 +17,11 @@ export const TOKEN_CATEGORIES: TokenCategory[] = [
 
 /** Aggregated count + cost for a single token category. */
 export interface TokenBucket {
+  /** Tokens counted. */
   count: number;
+  /** Cost in dollars. */
   cost: number;
+  /** Share of the enclosing model's cost (0-1). */
   costPct: number;
 }
 
@@ -27,8 +30,11 @@ export type Tokens = Record<TokenCategory, TokenBucket>;
 
 /** Aggregated metrics for a single model. */
 export interface ModelBucket {
+  /** Cost in dollars. */
   cost: number;
+  /** Share of the enclosing total (report or channel) (0-1). */
   costPct: number;
+  /** Per-category breakdown. */
   tokens: Tokens;
 }
 
@@ -37,9 +43,13 @@ export type Models = Record<string, ModelBucket>;
 
 /** Aggregated metrics for a single channel. */
 export interface ChannelBucket {
+  /** Channel name (the channel key). */
   channelName: string;
+  /** Cost in dollars. */
   cost: number;
+  /** Share of the report's total cost (0-1). */
   costPct: number;
+  /** Per-model breakdown within the channel. */
   models: Models;
 }
 
@@ -56,9 +66,13 @@ export type Ref = Record<string, Record<TokenCategory, number>>;
 
 /** Top-level cost report returned by `getTokenMetrics`. */
 export interface Costs {
+  /** Per-channel breakdown. */
   channels: Channels;
+  /** Total cost in dollars. */
   cost: number;
+  /** Per-model breakdown. */
   models: Models;
+  /** The rate card the costs were computed with. */
   ref: Ref;
 }
 

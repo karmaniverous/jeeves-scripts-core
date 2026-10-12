@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { writeJsonAtomic } from '@karmaniverous/jeeves';
 import { z } from 'zod';
 
 // ── Sort-source values ──────────────────────────────────────────────
@@ -75,21 +76,6 @@ export type MeetingMeta = z.infer<typeof meetingMetaSchema>;
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-/** Parse and validate an existing meeting.json, returning null on failure. */
-export function parseMeetingMeta(raw: unknown): MeetingMeta | null {
-  const result = meetingMetaSchema.safeParse(raw);
-  return result.success ? result.data : null;
-}
-
-/** Validate that an object satisfies the required minimum fields. */
-export function validateRequiredFields(meta: Record<string, unknown>): {
-  success: boolean;
-  data?: z.infer<typeof meetingMetaRequiredSchema>;
-  error?: z.ZodError;
-} {
-  return meetingMetaRequiredSchema.safeParse(meta);
-}
-
 /**
  * Compute sortTimestampMs using the precedence rule (spec section 3.3).
  *
@@ -146,41 +132,6 @@ export function checkHasTranscript(meetingDir: string): boolean {
 }
 
 /**
- * Build computeSortTimestamp input from existing meeting metadata.
- *
- * Extracts the relevant fields from a raw metadata record and a meetingId,
- * applying the canonical precedence rules (spec section 3.3). Shared by
- * migration scripts that need to recompute sort timestamps.
- */
-export function buildSortTimestampInput(
-  meta: Record<string, unknown>,
-  meetingId: string,
-): Parameters<typeof computeSortTimestamp>[0] {
-  // Fallback: older meetings predate meetingTimestampMs as a first-class field.
-  // When sortSource === 'meeting-timestamp', sortTimestampMs IS the original
-  // meeting timestamp, so it's safe to recover the value from there.
-  const meetingTimestampMs =
-    typeof meta.meetingTimestampMs === 'number'
-      ? meta.meetingTimestampMs
-      : typeof meta.sortTimestampMs === 'number' &&
-          meta.sortSource === 'meeting-timestamp'
-        ? meta.sortTimestampMs
-        : null;
-  const emailInternalDateMs =
-    typeof meta.internalDateMs === 'number' ? meta.internalDateMs : null;
-  const filenameDateMatch = /^(\d{4}-\d{2}-\d{2})/.exec(meetingId);
-  const filenameDateStr = filenameDateMatch ? filenameDateMatch[1] : null;
-  const packageCreatedAt =
-    typeof meta.createdAt === 'string' ? meta.createdAt : null;
-  return {
-    meetingTimestampMs,
-    emailInternalDateMs,
-    filenameDateStr,
-    packageCreatedAt,
-  };
-}
-
-/**
  * Write meeting.json — the single canonical write path for meeting metadata.
  *
  * Merges `updates` into existing metadata (if any), validates the required
@@ -222,10 +173,7 @@ export function writeMeetingMeta(
     );
   }
 
-  // Write atomically (write to temp, rename)
-  const tmpPath = metaPath + '.tmp';
-  fs.writeFileSync(tmpPath, JSON.stringify(merged, null, 2) + '\n', 'utf8');
-  fs.renameSync(tmpPath, metaPath);
+  writeJsonAtomic(metaPath, merged);
 
   return validation.data;
 }

@@ -1,6 +1,6 @@
 # lib/
 
-Shared infrastructure consumed by every domain: config-derived constants, CLI wrappers (`gh`, `gog`), the gateway client, worker dispatch and job-side Slack I/O, and the entity store. Configuration itself (schema, loader, getters, refs, silos, IMAP secrets) is in [config.md](./config.md). Every module is importable as `@karmaniverous/jeeves-scripts-core/lib/<module>`.
+Shared infrastructure consumed by every domain: config-derived constants, CLI wrappers (`gh`, `gog`), the gateway client, worker dispatch and job-side Slack I/O, and the entity store. Configuration itself (schema, loader, getters, refs, silos, IMAP secrets) is in [config.md](./config.md). These modules are internal; the ones instance code may use are on the root export (`constants`, the date helpers, `dispatchWithSlack`, the component config readers, the `gh` helpers; see the package README).
 
 ## Modules
 
@@ -27,13 +27,13 @@ Thin wrappers around date-fns. No config dependencies.
 - `formatDate(dateStr, fmt)` — format a date using date-fns pattern
 - `relativeDays(dateStr, referenceStr?)` — human-friendly relative description ("3 days ago", "today")
 - `requireTimeZone(value, source)` — validates a time zone read from instance config; throws (naming `source`) when it is empty or not a valid IANA zone. No default zone
-- `withDateContext(task, now, timeZone)` — prepends `> **Today is <weekday>, <YYYY-MM-DD> (<zone>).** …` to a worker task (used by `dispatchers/daily-digest.ts`)
+- `withDateContext(task, now, timeZone)` — prepends `> **Today is <weekday>, <YYYY-MM-DD> (<zone>).** …` to a worker task (used by `taskFileDispatcher` when given `dateTimeZone`)
 - Re-exports `format` and `parseISO` from date-fns
 
 From a shell in an instance repo:
 
 ```bash
-node --input-type=module -e "import { dayOfWeek } from '@karmaniverous/jeeves-scripts-core/lib/dates'; console.log(dayOfWeek('2026-06-01'));"
+node --input-type=module -e "import { dayOfWeek } from '@karmaniverous/jeeves-scripts-core'; console.log(dayOfWeek('2026-06-01'));"
 ```
 
 ### email.ts
@@ -64,7 +64,7 @@ Google Workspace CLI wrapper with retry. Depends on `GOG_BIN`, `GOG_CONFIG_DIR`.
 Single source of truth for which gog credentials exist. Depends on `GOG_CLIENT_PATH`, `GOG_CONFIG_DIR`.
 
 - `gogServiceAccountDirs(configDir?)` — directories searched for service-account mailboxes, in order: `<configDir>/data` (current gog), then `<configDir>` (older gog without `data/`); `gogServiceAccountDir(configDir?)` is the first
-- `serviceAccountFileName(email)` / `serviceAccountKeyPath(email, configDir?)` — `sa-<base64(email), padding stripped>.json`, and its path under `data/`
+- `serviceAccountFileName(email)` — `sa-<base64(email), padding stripped>.json`, the file name `findServiceAccountFile` looks for in each directory
 - `findServiceAccountFile(email, configDir?)` — that mailbox's registration in the first directory that has it, or `null`
 - `detectGogCredentials(configDir?)` — `{ oauthClient, serviceAccount, any }`: OAuth client file present, any `sa-*.json` present
 - `requireGogCredentials(job, accountCount, creds?)` — `false` when `accountCount` is 0 (caller skips), `true` when any credential exists, otherwise throws so the run fails
@@ -73,8 +73,7 @@ Single source of truth for which gog credentials exist. Depends on `GOG_CLIENT_P
 
 Gateway HTTP client for OpenClaw tool invocation. Depends on `GATEWAY_HOST` (loopback) and `GATEWAY_PORT` (OpenClaw's own `gateway.port`, via `gatewayPort()`).
 
-- `loadGatewayToken()` — the bearer token from `CLAWDBOT_GATEWAY_TOKEN` or the OpenClaw config (`gatewayToken()`, below)
-- `gatewayInvoke(tool, args, options?)` — invoke an OpenClaw gateway HTTP API tool
+- `gatewayInvoke(tool, args, options?)` — invoke an OpenClaw gateway HTTP API tool; the bearer token is `gatewayToken()` from [openclaw-config.ts](#openclaw-configts) (`CLAWDBOT_GATEWAY_TOKEN`, else the OpenClaw config), and the call throws when there is none
 - `unwrapResult(r)` — unwrap result from gateway response
 
 ### gateway-rpc.ts
@@ -113,7 +112,7 @@ The jeeves-runner's HTTP API address, from the runner's own config (validated wi
 - `runnerUrl(file?)` — `http://127.0.0.1:<port>`
 - `triggerRunnerJob(jobId, file?)` — `POST /jobs/<id>/run`; resolves `{ status, body }`, rejects when the runner is unreachable
 
-Used by `admin/collect-token-metrics` (to start `refresh-token-rates`) and instance code that chains jobs.
+Used by `admin/collect-token-metrics` (to start `admin-refresh-token-rates`) and instance code that chains jobs.
 
 ### meta-config.ts
 
@@ -151,6 +150,30 @@ Usage: `echo "task" | node <core>/dist/lib/spawn-worker.js --job-id=<id> [--labe
 - Outputs `WORKER_RESULT:{"sessionKey":"...","tokens":12345,"durationMs":123000}` on last stdout line
 - Implements retry with exponential backoff (3 retries, 30s base)
 
+### frontmatter.ts
+
+YAML frontmatter for generated Markdown: builds the `---` block (every value JSON-quoted, so no value can break it) that the converters and the Google Drive sync put at the top of a file.
+
+### worker-session.ts
+
+Waits for a spawned worker: polls the gateway's `sessions_list` for the child session until its run ends, then reads token usage from the transcript (`waitForWorkerCompletion`, `findSession`, `sessionTokens`, `getTokensFromTranscript`). `spawn-worker.ts` uses it.
+
+### retry.ts
+
+The one retry helper, on the root export: `retryAsync(fn, policy)` and `retrySync(fn, policy)` try up to `policy.attempts` times, waiting `policy.delayMs(attempt)` (`exponentialBackoff(baseMs)` for doubling waits) after a failure `policy.isRetryable` accepts, and rethrow the last error. The worker spawn, the Drive rename, the Fathom share fetch and the Notion page reader use it.
+
+### json-file.ts
+
+Validated JSON file I/O, on the root export: `readJsonFile(file, schema)` parses and Zod-validates (throwing), `readJsonFileIfExists(file, schema, fallback)` returns `fallback` for a missing file, and `writeJsonFile(file, data, indent = 2)` writes atomically (temp file, rename), creating parent directories. (`@karmaniverous/jeeves`'s `readJson` / `writeJsonAtomic` remain for fallback reads and fixed-indent writes.)
+
+### args.ts
+
+The one argument parser for runnables, core's and instances', on the root export (Decision 59): `parseRunnableArgs(ctx.args, spec)` with `argFlag(name)`, `argValue(name, fallback?, { alias? })` and `argOptional(name, { alias? })`, plus `positionalArgs(ctx.args, spec?)`. The convention (bare flags, `--name value` and `--name=value`, positionals) is in [jobs.md](./jobs.md#arguments). `admin-report-token-metrics` keeps its own strict parser, which rejects unknown arguments.
+
+### slack-client.ts
+
+The one Slack Web API client, on the root export (Decision 59): `createSlackClient({ token, fetch?, rateLimitAttempts?, sleep? })`. Core's Slack poller reads through it (`slack/lib/slack-api.ts`, `slack/lib/file-content.ts`). Usage, errors and rate limits are in [slack.md](./slack.md#slack-client).
+
 ### entity-store.ts
 
 Shared entity persistence — upsert, backfill, and delete entity files with reverse-diff history using `fast-json-patch`. Used by any domain that persists structured entities (Jira, Linear, etc.).
@@ -166,7 +189,7 @@ Entity file structure:
 ```json
 {
   "entityType": "issue",
-  "entityKey": "CRE-1",
+  "entityKey": "ACME-1",
   "current": { ... },
   "history": [{ "ts": "...", "patch": [...] }],
   "meta": { "firstSeen": "...", "lastWebhook": "...", "lastBackfill": null, "version": 7 }

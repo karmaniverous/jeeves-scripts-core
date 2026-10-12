@@ -2,16 +2,18 @@
   "name": "@karmaniverous/jeeves-scripts-core",
   "version": "0.0.0",
   "author": "Jason Williscroft",
-  "description": "Shared Jeeves scripts domains, job registry and CLI for jeeves-scripts instance repos.",
+  "description": "Shared Jeeves scripts domains, runnable registry and CLI for jeeves-scripts instance repos.",
   "license": "BSD-3-Clause",
   "type": "module",
   "files": [
     "dist",
     "template",
     "config",
+    "jobs",
     "guides",
     "skills",
     "schema",
+    "presets",
     "CHANGELOG.md"
   ],
   "publishConfig": {
@@ -35,12 +37,11 @@
     "./schema/*": "./schema/*",
     "./config/*": "./config/*",
     "./skills/*": "./skills/*",
-    "./*": {
-      "import": {
-        "types": "./dist/*.d.ts",
-        "default": "./dist/*.js"
-      }
-    }
+    "./presets/*.js": {
+      "types": "./dist/presets/*.d.ts",
+      "default": "./dist/presets/*.js"
+    },
+    "./presets/*": "./presets/*"
   },
   "types": "dist/index.d.ts",
   "bin": {
@@ -56,7 +57,7 @@
   },
   "homepage": "https://github.com/karmaniverous/jeeves-scripts-core#readme",
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.18"
   },
   "dependencies": {
     "@commander-js/extra-typings": "^15.0.0",
@@ -64,77 +65,45 @@
     "@karmaniverous/jeeves-runner": "^0.11.0",
     "@xdevplatform/xdk": "^0.6.6",
     "commander": "^15.0.0",
+    "cross-spawn": "^7.0.6",
     "date-fns": "^4.4.0",
     "fast-json-patch": "^3.1.1",
-    "imapflow": "^2.3.0",
+    "imapflow": "^2.4.0",
     "jsonpath-plus": "^11.2.0",
-    "mailparser": "^3.9.37",
+    "mailparser": "^3.9.38",
     "mammoth": "^1.13.0",
     "officeparser": "^8.1.1",
     "pdf-parse": "^2.4.5",
     "puppeteer-core": "^25.13.0",
     "read-excel-file": "^9.3.12",
+    "tsx": "^4.23.15",
     "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@dotenvx/dotenvx": "^2.33.0",
+    "@dotenvx/dotenvx": "^2.34.2",
     "@rollup/plugin-commonjs": "^29.0.3",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "@rollup/plugin-typescript": "^12.3.0",
+    "@types/cross-spawn": "^6.0.6",
     "@types/fs-extra": "^11.0.4",
     "@types/mailparser": "^3.9.0",
-    "@types/node": "^26.6.4",
+    "@types/node": "^26.6.5",
     "cross-env": "^10.1.0",
     "fs-extra": "^11.4.1",
-    "release-it": "^21.1.0",
-    "rollup": "^4.64.1",
+    "release-it": "^21.1.1",
+    "rollup": "^4.64.5",
     "tslib": "^2.8.1",
-    "tsx": "^4.23.15",
     "vitest": "^5.0.3"
   },
   "scripts": {
     "build": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts && tsx scripts/write-schema.ts && tsx scripts/copy-template.ts",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
-    "test": "vitest run",
+    "test": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "changelog": "git-cliff -o CHANGELOG.md",
     "release": "dotenvx run -f .env.local -- release-it",
     "release:pre": "dotenvx run -f .env.local -- release-it --no-git.requireBranch --github.preRelease --preRelease"
-  },
-  "release-it": {
-    "git": {
-      "changelog": "npx git-cliff --unreleased --strip header",
-      "commitMessage": "chore: release @karmaniverous/jeeves-scripts-core v${version}",
-      "tagName": "core/${version}",
-      "requireBranch": "main"
-    },
-    "github": {
-      "release": true
-    },
-    "hooks": {
-      "after:init": [
-        "npm run lint",
-        "npm run typecheck",
-        "npm run test",
-        "npm run build"
-      ],
-      "after:bump": [
-        "npm install --package-lock-only --ignore-scripts"
-      ],
-      "before:npm:release": [
-        "npx git-cliff -o CHANGELOG.md",
-        "git add -A"
-      ],
-      "after:release": [
-        "git switch -c release/core/${version}",
-        "git push -u origin release/core/${version}",
-        "git switch ${branchName}"
-      ]
-    },
-    "npm": {
-      "publish": true
-    }
   }
 }

@@ -13,16 +13,12 @@ import path from 'node:path';
 
 import { nowIso, readJson } from '@karmaniverous/jeeves';
 
+import { parseDocFetchArgs } from './doc-fetch-scan.js';
 import { extractHiddenDivInnerHtml, htmlToText } from './fathom-html.js';
 import { writeMeetingMeta } from './meeting-schema.js';
-import { getMeetingsDirs } from './meetings-dirs.js';
+import { getMeetingsDirs, meetingPackages } from './meetings-dirs.js';
 
 // ── Types ──────────────────────────────────────────────────────────────
-
-interface FathomArgs {
-  dryRun: boolean;
-  max: number | null;
-}
 
 interface FathomMeeting {
   meetingId: string;
@@ -42,20 +38,6 @@ interface MeetingManifest {
 }
 
 // ── Pure helpers ───────────────────────────────────────────────────────
-
-export function parseFathomArgs(argv: string[]): FathomArgs {
-  const out: FathomArgs = {
-    dryRun: argv.includes('--dry-run'),
-    max: null,
-  };
-
-  for (const arg of argv) {
-    const m = /^--max=(\d+)$/.exec(arg);
-    if (m) out.max = Number(m[1]);
-  }
-
-  return out;
-}
 
 export function isFathomShareManifest(manifest: MeetingManifest): boolean {
   return (
@@ -103,44 +85,31 @@ function pickBestFathomHtml(
 function findMeetingsNeedingFathom(meetingsDirs: string[]): FathomMeeting[] {
   const out: FathomMeeting[] = [];
 
-  for (const meetingsDir of meetingsDirs) {
-    if (!fs.existsSync(meetingsDir)) continue;
-
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(meetingsDir, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-
-      const meetingId = entry.name;
-      const meetingPath = path.join(meetingsDir, meetingId);
-      const transcriptPath = path.join(meetingPath, 'transcript.txt');
-      if (fs.existsSync(transcriptPath)) continue;
-      if (
-        isFathomShareManifest(
-          readJson<MeetingManifest>(path.join(meetingPath, 'meeting.json'), {}),
-        )
+  for (const { meetingsDir, meetingId, meetingPath } of meetingPackages(
+    meetingsDirs,
+  )) {
+    const transcriptPath = path.join(meetingPath, 'transcript.txt');
+    if (fs.existsSync(transcriptPath)) continue;
+    if (
+      isFathomShareManifest(
+        readJson<MeetingManifest>(path.join(meetingPath, 'meeting.json'), {}),
       )
-        continue;
+    )
+      continue;
 
-      const fathomFiles = listFathomHtmlFiles(meetingPath);
-      if (fathomFiles.length === 0) continue;
+    const fathomFiles = listFathomHtmlFiles(meetingPath);
+    if (fathomFiles.length === 0) continue;
 
-      const best = pickBestFathomHtml(meetingPath, fathomFiles);
-      if (!best) continue;
+    const best = pickBestFathomHtml(meetingPath, fathomFiles);
+    if (!best) continue;
 
-      out.push({
-        meetingId,
-        meetingPath,
-        meetingsDir,
-        fathomHtmlFile: best,
-        manifestPath: path.join(meetingPath, 'meeting.json'),
-      });
-    }
+    out.push({
+      meetingId,
+      meetingPath,
+      meetingsDir,
+      fathomHtmlFile: best,
+      manifestPath: path.join(meetingPath, 'meeting.json'),
+    });
   }
 
   return out;
@@ -148,9 +117,12 @@ function findMeetingsNeedingFathom(meetingsDirs: string[]): FathomMeeting[] {
 
 // ── Main entry point ──────────────────────────────────────────────────
 
-export function runFathomExtract(argv: string[] = []): void {
-  const args = parseFathomArgs(argv);
-  const meetingsDirs = getMeetingsDirs();
+export function runFathomExtract(
+  argv: string[] = [],
+  meetingsDirs: string[] = getMeetingsDirs(),
+  now: () => string = nowIso,
+): void {
+  const args = parseDocFetchArgs(argv);
   let meetings = findMeetingsNeedingFathom(meetingsDirs);
 
   if (
@@ -201,7 +173,7 @@ export function runFathomExtract(argv: string[] = []): void {
       }
       writeMeetingMeta(m.meetingPath, {
         artifacts,
-        transcriptExtractedAt: nowIso(),
+        transcriptExtractedAt: now(),
         hasTranscript: true,
       });
 
@@ -219,5 +191,5 @@ export function runFathomExtract(argv: string[] = []): void {
   console.log(
     `[fathom-extract] Done: ${String(ok)} OK, ${String(failed)} failed`,
   );
-  if (failed > 0) process.exit(1);
+  if (failed > 0) process.exitCode = 1;
 }

@@ -5,7 +5,8 @@
  * `stylisticTypeChecked`) to every TypeScript file in the repo, including
  * config files, scripts and tests in every workspace. No file is excluded
  * from type-aware linting and no `eslint-disable` is permitted anywhere in
- * the repo (Decision 22).
+ * the repo (Decision 22). `max-lines` enforces R34's 300-line limit
+ * in code lines (blank lines and comments not counted).
  *
  * @module eslint.config
  */
@@ -58,14 +59,16 @@ export default [
       '**/diagrams/out/**/*',
       '**/dist/**',
       '**/docs/**/*',
-      '**/template/**/*',
+      // Core's build-output copy of packages/template. packages/template
+      // itself is linted like every other workspace (Decision 22).
+      'packages/core/template/**/*',
       'node_modules/**/*',
       '**/node_modules/**/*',
     ],
   },
   eslint.configs.recommended,
   {
-    files: ['**/*.{ts,tsx}'],
+    files: ['**/*.{js,ts,tsx}'],
     languageOptions: {
       parser: tseslint.parser,
       parserOptions: {
@@ -93,6 +96,29 @@ export default [
       'simple-import-sort/exports': 'error',
       'tsdoc/syntax': 'warn',
       'prettier/prettier': 'error',
+      // R34: no file over 300 lines, counting code lines (blank lines and
+      // comments excluded). Core's own gate; the instance presets don't set it.
+      'max-lines': [
+        'error',
+        { max: 300, skipBlankLines: true, skipComments: true },
+      ],
+    },
+  },
+  {
+    // Core code never ends the process itself (Decision 58): a failure
+    // throws (runScript exits 1 and writes the crash log), a clean skip is
+    // a prerequisite or a return, and a partial failure sets exitCode.
+    files: ['packages/core/src/**/*.ts'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        {
+          object: 'process',
+          property: 'exit',
+          message:
+            'Throw, skip through a prerequisite, or set process.exitCode (Decision 58).',
+        },
+      ],
     },
   },
   {

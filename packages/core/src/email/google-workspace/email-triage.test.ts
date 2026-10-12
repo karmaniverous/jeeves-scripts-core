@@ -2,18 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../config/index.js', () => ({
   getBucketForDomain: vi.fn(() => null),
-  getBucketNames: vi.fn(() => ['Alpha', 'Beta']),
   getBucketPriority: vi.fn(() => ({ Alpha: 0, Beta: 1 })),
   pipeline: vi.fn(() => ({ buckets: { domains: [] } })),
 }));
 
-import { getBucketNames } from '../../config/index.js';
-import {
-  classifyCandidates,
-  computeLabelsToApply,
-  configuredBucket,
-  newLabelCounts,
-} from './email-triage.js';
+import { classifyCandidates, computeLabelsToApply } from './email-triage.js';
 
 describe('classifyCandidates', () => {
   const ACCOUNT = 'me@example.com';
@@ -59,35 +52,6 @@ describe('classifyCandidates', () => {
     expect(
       classifyCandidates({ ...both, from: ACCOUNT }, ACCOUNT).receiptCandidate,
     ).toBe(false);
-  });
-});
-
-describe('configuredBucket', () => {
-  it('keeps a configured bucket', () => {
-    expect(configuredBucket('Beta')).toBe('Beta');
-  });
-
-  it('drops unknown, empty and missing buckets', () => {
-    expect(configuredBucket('Retired')).toBeNull();
-    expect(configuredBucket('')).toBeNull();
-    expect(configuredBucket(null)).toBeNull();
-    expect(configuredBucket(undefined)).toBeNull();
-  });
-});
-
-describe('newLabelCounts', () => {
-  it('has a zero counter for receipt, junk and each configured bucket', () => {
-    expect(newLabelCounts()).toEqual({
-      receipt: 0,
-      junk: 0,
-      Alpha: 0,
-      Beta: 0,
-    });
-  });
-
-  it('follows the config, with no built-in bucket names', () => {
-    vi.mocked(getBucketNames).mockReturnValueOnce([]);
-    expect(newLabelCounts()).toEqual({ receipt: 0, junk: 0 });
   });
 });
 

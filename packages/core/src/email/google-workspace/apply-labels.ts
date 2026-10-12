@@ -6,7 +6,8 @@
  * threads classified while `emailConfig.reportOnly` was on. Reads thread
  * state from the runner store; writes `email-updates` items and
  * `labelApplied` through label-actions.ts, so drain-updates applies them
- * at its own rate limit. Called by the CLI's `email apply-labels`.
+ * at its own rate limit. Called by the `email-apply-labels` runnable
+ * (`jeeves-scripts run email-apply-labels`).
  */
 
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';

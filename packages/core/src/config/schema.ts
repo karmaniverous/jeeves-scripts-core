@@ -4,8 +4,8 @@
  * The single `jeeves-scripts.json` schema (Decision 3, Decision 19):
  * instance settings (the template's constants), `paths` overrides,
  * `integrations`, `pipeline` (the template's `pipeline-config.json`, same keys),
- * `siloRouting` (silo routing), `jobs` deltas and
- * `extensions`.
+ * `siloRouting` (silo routing), `jobs` deltas and the instance's own
+ * `local` block (validated by the instance plugin).
  *
  * Rejects any literal secret value anywhere in the raw tree (Decision
  * 19; see `config/secret-guard.ts`), checked against the *raw* parsed
@@ -16,11 +16,8 @@
 
 import { z } from 'zod';
 
-import {
-  defaultXIntegration,
-  integrationsSchema,
-} from './integrations-schema.js';
-import { extensionsSchema, jobsSchema } from './jobs-schema.js';
+import { integrationsSchema } from './integrations-schema.js';
+import { jobsSchema } from './jobs-schema.js';
 import { pathsSchema } from './paths-schema.js';
 import { peopleSchema } from './people-schema.js';
 import { pipelineSchema } from './pipeline-schema.js';
@@ -30,7 +27,7 @@ import { slackConfigSchema } from './slack-schema.js';
 
 /** The `instance` block: who this instance is and where it lives. */
 export const instanceSchema = z.object({
-  /** Instance name (e.g. `jgs`). */
+  /** Instance name (e.g. `acme`). */
   name: z.string().min(1),
   /** Base directory every default path derives from. */
   baseDir: z.string().min(1),
@@ -57,7 +54,7 @@ export const configObjectSchema = z.object({
     notion: {},
     jira: {},
     linear: {},
-    x: defaultXIntegration,
+    x: { accounts: {} },
   }),
   /** Mail, calendar and refs (the template's `pipeline-config.json`). */
   pipeline: pipelineSchema.optional(),
@@ -69,8 +66,11 @@ export const configObjectSchema = z.object({
   people: peopleSchema.default({}),
   /** Per-job deltas. */
   jobs: jobsSchema,
-  /** Seam implementations. */
-  extensions: extensionsSchema,
+  /**
+   * The instance's own block: core never reads it; the instance plugin's
+   * `configSchema` validates it and `localConfig()` returns it.
+   */
+  local: z.unknown().optional(),
 });
 
 /**
@@ -101,11 +101,7 @@ export {
   type IntegrationsConfig,
   type XAccountConfig,
 } from './integrations-schema.js';
-export {
-  type ExtensionsConfig,
-  type JobDelta,
-  type JobsConfig,
-} from './jobs-schema.js';
+export { type JobDelta, type JobsConfig } from './jobs-schema.js';
 export { type PathsConfigInput } from './paths-schema.js';
 export {
   type AccountConfig,

@@ -1,0 +1,16 @@
+{
+  "example-say-hello": {
+    "name": "Say hello",
+    "description": "Print a greeting from this instance (the template sample).",
+    "schedule": {
+      "freq": "daily",
+      "byhour": [9],
+      "byminute": [0],
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 60,
+    "enabled": false,
+    "prerequisite": "A sample: replace it with this instance's own runnables, or delete it."
+  }
+}

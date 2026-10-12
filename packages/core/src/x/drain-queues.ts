@@ -1,11 +1,10 @@
-#!/usr/bin/env tsx
 /**
  * @module drain-queues
  *
  * Drains all X runner queues to disk as JSON files.
  *
- * Entry-point script invoked by the runner scheduler. Iterates over every
- * handle in `constants().X_ACCOUNTS`, dequeues items from each category queue
+ * Scheduled runner job. Iterates over every handle in `X_ACCOUNTS`,
+ * dequeues items from each category queue
  * (posts, mentions, feed, likes, bookmarks), and writes them to the
  * corresponding subdirectory under the account's base path.
  */
@@ -13,61 +12,56 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { getArg, runScript } from '@karmaniverous/jeeves';
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
+import { defineJob } from '../jobs/define-job.js';
+import { argValue, parseRunnableArgs } from '../lib/args.js';
+import { type XJobDeps, xJobDeps } from './lib/x-deps.js';
 
-import { constants } from '../lib/constants.js';
+/** The queues each account drains, with the subdirectory they flush to. */
+export const DRAIN_SUBDIRS = [
+  'posts',
+  'mentions',
+  'feed',
+  'likes',
+  'bookmarks',
+] as const;
 
-function main(): void {
-  const argv = process.argv.slice(2);
-  const maxItems = Number(getArg(argv, '--maxItems', '50'));
-  const client = getRunnerClient();
-
-  const queues: { queue: string; subdir: string; handle: string }[] = [];
-  for (const handle of Object.keys(constants().X_ACCOUNTS)) {
-    queues.push({ queue: `x-posts-${handle}`, subdir: 'posts', handle });
-    queues.push({
-      queue: `x-mentions-${handle}`,
-      subdir: 'mentions',
-      handle,
-    });
-    queues.push({ queue: `x-feed-${handle}`, subdir: 'feed', handle });
-    queues.push({ queue: `x-likes-${handle}`, subdir: 'likes', handle });
-    queues.push({
-      queue: `x-bookmarks-${handle}`,
-      subdir: 'bookmarks',
-      handle,
-    });
-  }
-
+/**
+ * Flush up to `--maxItems` (default 50) items from each of every account's
+ * poll queues to `{account}/<subdir>/<id>.json`.
+ */
+export function drainXQueues(
+  args: readonly string[],
+  deps: Pick<XJobDeps, 'accounts' | 'runner'>,
+): void {
+  const maxItems = Number(
+    parseRunnableArgs(args, { maxItems: argValue('--maxItems', '50') })
+      .maxItems,
+  );
+  const client = deps.runner();
   try {
     let totalProcessed = 0;
-    for (const { queue, subdir, handle } of queues) {
-      const baseDir = constants().X_ACCOUNTS[handle];
-      if (!baseDir) throw new Error(`X account ${handle} is not configured.`);
-      const outDir = path.join(baseDir, subdir);
-      fs.mkdirSync(outDir, { recursive: true });
-      const items = client.dequeue(queue, maxItems);
-
-      for (const { id: queueItemId, payload } of items) {
-        const item = payload as { id?: string; raw?: unknown };
-        const id = item.id ?? '';
-        if (!id) {
+    for (const [handle, baseDir] of Object.entries(deps.accounts)) {
+      for (const subdir of DRAIN_SUBDIRS) {
+        const queue = `x-${subdir}-${handle}`;
+        const outDir = path.join(baseDir, subdir);
+        fs.mkdirSync(outDir, { recursive: true });
+        const items = client.dequeue(queue, maxItems);
+        for (const { id: queueItemId, payload } of items) {
+          const item = payload as { id?: string; raw?: unknown };
+          const id = item.id ?? '';
+          if (id) {
+            fs.writeFileSync(
+              path.join(outDir, `${id}.json`),
+              JSON.stringify(item.raw ?? item, null, 2) + '\n',
+              'utf8',
+            );
+            totalProcessed++;
+          }
           client.done(queueItemId);
-          continue;
         }
-        const filePath = path.join(outDir, `${id}.json`);
-        fs.writeFileSync(
-          filePath,
-          JSON.stringify(item.raw ?? item, null, 2) + '\n',
-          'utf8',
-        );
-        client.done(queueItemId);
-        totalProcessed++;
+        if (items.length)
+          console.log(`${queue}: processed=${String(items.length)}`);
       }
-
-      if (items.length)
-        console.log(`${queue}: processed=${String(items.length)}`);
     }
     console.log(`drain: total processed=${String(totalProcessed)}`);
   } finally {
@@ -75,4 +69,11 @@ function main(): void {
   }
 }
 
-runScript('x/drain-queues', main);
+export default defineJob({
+  id: 'x-drain-queues',
+  domain: 'x',
+  name: 'x/drain-queues',
+  run: ({ args }) => {
+    drainXQueues(args, xJobDeps());
+  },
+});

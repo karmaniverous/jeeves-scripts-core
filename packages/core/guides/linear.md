@@ -19,7 +19,7 @@ flowchart TD
   linear["Linear"] -->|webhook POST| gw["jeeves-server\nEvent Gateway"]
   gw -->|stdin pipe| drain["drain.ts\n(routes by action + type)"]
 
-  drain -->|"Issue create/update"| issue["issue/CRE-123.json"]
+  drain -->|"Issue create/update"| issue["issue/ACME-123.json"]
   drain -->|Issue remove| del["delete file"]
   drain -->|"Comment create/update"| comment["comment/{uuid}.json"]
   drain -->|Comment remove| del
@@ -49,7 +49,7 @@ Supporting modules in `lib/`:
 
 | Module | Description |
 | --- | --- |
-| `lib/linear-client.ts` | `loadConfig`, `linearQuery`, `paginateIssues`, `paginateComments`, `enrichComment`, `sleepMs` — typed GraphQL client and helpers |
+| `lib/linear-client.ts` | `loadConfig`, `linearQuery`, `paginateIssues`, `paginateComments`, `enrichComment`, `linearConfigSchema` — typed GraphQL client and helpers |
 | `../lib/entity-store.ts` | `upsertEntity`, `backfillEntity`, `deleteEntity`, `writeUnmatched`, `readStdinJson` — shared file I/O with diff history (see [entity-store docs](./lib.md#entity-storets)) |
 
 ## Archive Structure
@@ -57,7 +57,7 @@ Supporting modules in `lib/`:
 ```
 {CONTENT_DIR}/linear/          ← or silo basePath/linear/ in multi-tenant
   issue/
-    CRE-1.json
+    ACME-1.json
     CRE-2.json
     ...
   comment/
@@ -81,7 +81,7 @@ Supporting modules in `lib/`:
 
 | Entity Type | Payload Object | Key Field    | Example File          |
 | ----------- | -------------- | ------------ | --------------------- |
-| `issue`     | `body.data`    | `identifier` | `issue/CRE-1.json`    |
+| `issue`     | `body.data`    | `identifier` | `issue/ACME-1.json`    |
 | `comment`   | `body.data`    | `id`         | `comment/{uuid}.json` |
 | `cycle`     | `body.data`    | `number`     | `cycle/1.json`        |
 | `project`   | `body.data`    | `id`         | `project/{uuid}.json` |
@@ -94,10 +94,10 @@ Each entity file is a JSON object with the following structure:
 ```json
 {
   "entityType": "issue",
-  "entityKey": "CRE-1",
+  "entityKey": "ACME-1",
   "current": {
     "id": "abc123",
-    "identifier": "CRE-1",
+    "identifier": "ACME-1",
     "title": "Fix login bug",
     "state": { "id": "...", "name": "In Progress", "type": "started" },
     "assignee": {
@@ -136,11 +136,11 @@ Linear delivers payloads with an `action` + `type` discriminator (unlike Jira's 
   "type": "Issue",
   "data": {
     "id": "abc123",
-    "identifier": "CRE-1",
+    "identifier": "ACME-1",
     "title": "Fix login bug",
     "...": "..."
   },
-  "url": "https://linear.app/team/issue/CRE-1",
+  "url": "https://linear.app/team/issue/ACME-1",
   "createdAt": "2026-06-29T11:00:00.000Z"
 }
 ```
@@ -176,15 +176,15 @@ Add this block to your jeeves-server Event Gateway configuration:
           "type": { "type": "string" },
         },
       },
-      "cmd": "node {SCRIPTS_DIR}/bin/jeeves-scripts.js run linear-drain",
+      "cmd": "node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js run linear-drain",
       "timeoutMs": 10000,
     },
   },
 }
 ```
 
-- `{SCRIPTS_DIR}` — absolute path to the instance repo (`paths().scriptsDir`)
-- `linear-drain` — a manifest entry in the instance's `jobs/*.json` with `script: "src/linear/drain.ts"` and no schedule (`run` resolves job ids only from manifests until the job registry, Decision 32)
+- `$JEEVES_SCRIPTS_DIR` — absolute path to the instance repo (`paths().scriptsDir`)
+- `linear-drain`: a registered core job with no manifest (event-driven: the event gateway runs `run linear-drain`)
 - `schema` — JSON Schema validated against the POST body (ajv, first match wins across all configured events)
 - `cmd` — the server spawns this command and pipes the request body JSON to stdin
 - `timeoutMs` — kill timeout for the drain process (falls back to global `eventTimeoutMs`)
@@ -204,7 +204,7 @@ On first run (no cursor), all issues/comments are fetched from the beginning. On
 
 ## Backfill
 
-Run the backfill once after setting up the webhook to populate historical data: add a manifest entry with `script: "src/linear/backfill.ts"` and no schedule to the instance's `jobs/*.json` (here `linear-backfill`; `run` resolves job ids only from manifests until the job registry, Decision 32), then:
+Run the backfill once after setting up the webhook to populate historical data: run the registered core job `linear-backfill` (no manifest needed):
 
 ```bash
 # Dry run (preview — no writes)
@@ -266,7 +266,7 @@ Tracked as [jeeves-tools #99](https://github.com/karmaniverous/jeeves-tools/issu
 | Prerequisite | Where to configure |
 | --- | --- |
 | Linear API key | [Linear Settings → API → Personal API keys](https://linear.app/settings/api) |
-| `LINEAR_CONFIG_PATH` | `LINEAR_CONFIG_PATH` env, else `integrations.linear.configPath`, else `{configDir}/linear/config.json` |
+| `LINEAR_CONFIG_PATH` | `LINEAR_CONFIG_PATH` env, else `integrations.linear.configPath`, else `{credentialsDir}/linear.json` |
 | Config file format | `{ "apiKey": "lin_api_...", "apiUrl": "https://api.linear.app/graphql" }` |
 | Linear webhook configured to POST to jeeves-server | Linear Settings → API → Webhooks |
 | jeeves-server Event Gateway configured with `linear` schema | `jeeves-server` config (see Event Gateway Config above) |
@@ -283,5 +283,5 @@ Tracked as [jeeves-tools #99](https://github.com/karmaniverous/jeeves-tools/issu
 | `backfill.ts` | One-time historical backfill via GraphQL API |
 | `lib/linear-client.ts` | Typed Linear GraphQL client (fetch, paginate) |
 | `../lib/entity-store.ts` | File I/O helpers with reverse-diff history (shared with Jira) |
-| template `jobs/linear.json` | Runner job manifest (sync-issues, sync-comments schedules), carried in the instance repo |
-| `../lib/constants.ts` | Linear values from `constants()` (`LINEAR_CONFIG_PATH`, `LINEAR_MAX_HISTORY`) |
+| core `jobs/linear.json` | Runner job manifests (sync-issues, sync-comments schedules) |
+| `../lib/constants.ts` | `constants()`: `LINEAR_CONFIG_PATH`, `LINEAR_MAX_HISTORY` from `integrations.linear` in `jeeves-scripts.json` |

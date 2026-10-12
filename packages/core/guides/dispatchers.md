@@ -6,17 +6,17 @@ Framework for autonomous LLM task dispatchers that read Markdown task files and 
 
 | Script | Description |
 | --- | --- |
-| `daily-digest.ts` | Job `generate-daily-digest`. The reference task-file dispatcher: reads `digest/TASK.md` in the default silo and dispatches a gateway session to generate and publish a daily digest, through `taskFileDispatcher` (below). Injects authoritative date context in the zone set by the `digest.timezone` ref (IANA name, e.g. `America/Chicago`, or `UTC`). The worker may post to the optional `slack.digestChannel` / `slack.operatorDm` refs (no Slack reads; `lib/digest-targets.ts`). No TASK file: `[skip]`; once it exists, `digest.timezone` is required (missing or invalid fails the run; there is no default). |
+| `lib/digest-timezone.ts` | `digestTimeZone()` / `DIGEST_TIMEZONE_REF`: reads and validates the `digest.timezone` ref (IANA name, e.g. `America/Chicago`, or `UTC`); a missing or invalid zone throws (there is no default). For an instance's own digest. |
 | `lib/task-file-dispatcher.ts` | `taskFileDispatcher` / `dispatchTaskFile` / `resolveTaskFile`: the generic task-file dispatcher, exported from the package root (below). |
 
 ## Activation
 
-Dispatchers are not in the template's `jobs/` manifests, because each instance's dispatcher configuration (task content, schedule, channels) is unique. To activate one:
+Core ships no dispatcher runnable: a daily digest or briefing is an instance's choice of what to summarise and where to post it, so it is instance code (Decision 44). Core provides the machinery below. To add a dispatcher to an instance:
 
-1. Meet its prerequisites (see each script's module-level TSDoc).
-2. Task-file dispatchers (`daily-digest`): write the TASK file with your standing orders. Dynamic dispatchers (like the template's example `src/dispatchers/social-posts.ts`, which an instance copies into its own `src/dispatchers/`): set the required `pipeline.refs` in `jeeves-scripts.json`.
-3. Add a manifest entry to the instance's `jobs/*.json`: `{ "id": "generate-daily-digest", "script": "src/dispatchers/daily-digest.ts", "schedule": "...", ... }`, with the schedule as an RRStack JSON string (e.g. `{"freq":"daily","byhour":6,"byminute":30,"timezone":"America/Chicago"}`) or a cron expression. The runner job runs `bin/jeeves-scripts.js` with args `["run", "<job-id>"]` (see [cli](./cli.md)); `run` maps the script path into core's build unless the instance repo has its own file there.
-4. Test with `--print-task`, then `--dry-run` (below), before enabling the job: `node bin/jeeves-scripts.js run generate-daily-digest --print-task`.
+1. Write it as an instance runnable with `defineJob`, in an instance domain, registered by the instance plugin ([jobs](./jobs.md#instance-runnables-and-overrides)), calling `dispatchTaskFile` (below) or building its task at runtime.
+2. Task-file dispatchers: write the TASK file with your standing orders. Dynamic dispatchers: set the `pipeline.refs` they read in `jeeves-scripts.json`.
+3. Give it a manifest in the instance's `jobs/*.json` (see [jobs](./jobs.md#manifests)) so the runner can schedule it as `["run", "<id>"]`, on a jeeves-runner schedule (e.g. `{"freq":"daily","byhour":6,"byminute":30,"timezone":"America/Chicago"}`).
+4. Test with `--print-task`, then `--dry-run`, before enabling it: `node bin/jeeves-scripts.js run acme-generate-digest --print-task`. Both flags work for every `dispatchTaskFile` dispatcher: `--print-task` prints the full TASK and dispatches nothing; `--dry-run` with `slack` dispatches the worker and prints its posts instead of sending them (below), and without `slack` (nothing to post) reports what it would dispatch and dispatches nothing. Either way `dispatchTaskFile` resolves `'previewed'`. It reads the flags from `options.args` (`taskFileDispatcher` passes `ctx.args`); a caller that passes no `args` falls back to `process.argv`.
 
 ## Slack: the job script does it, not the worker
 
@@ -33,7 +33,7 @@ await dispatchWithSlack(
   task,
   { jobId: 'my-job', thinking: 'low', timeout: 600 },
   {
-    reads: [{ target: 'C000EXAMPLE1', label: '#ops-ceo', limit: 30 }],
+    reads: [{ target: 'C000EXAMPLE1', label: '#acme-ops', limit: 30 }],
     posts: [
       {
         target: 'C000EXAMPLE1',
@@ -50,21 +50,32 @@ await dispatchWithSlack(
 
 ### Task-file dispatcher (reads a TASK.md file)
 
-Use `taskFileDispatcher` (exported from `@karmaniverous/jeeves-scripts-core`). It reads `<silo>/<taskFile>` (`siloPath`, Decision 28; `silo` omitted = the default silo), `[skip]`s with exit 0 when the file is missing, optionally prefixes the date, and dispatches through `dispatchWithSlack` (with `slack`) or jeeves-runner's `runDispatcher` and core's `spawn-worker` (without). `jobs.<jobId>.silo` / `.taskFile` in `jeeves-scripts.json` override the values in code, so an instance can move a TASK without code.
+Use `dispatchTaskFile` inside a runnable, or pass `taskFileDispatcher(options)` (a `run` function that calls it) to `defineJob`, both exported from `@karmaniverous/jeeves-scripts-core`. It reads `<silo>/<taskFile>` (`siloPath`, Decision 28; `silo` omitted = the default silo), `[skip]`s with exit 0 when the file is missing, optionally prefixes the date, and dispatches through `dispatchWithSlack` (with `slack`) or jeeves-runner's `runDispatcher` and core's `spawn-worker` (without). `jobs.<jobId>.silo` / `.taskFile` in `jeeves-scripts.json` override the values in code, so an instance can move a TASK without code.
 
 ```typescript
-import { getRef, taskFileDispatcher } from '@karmaniverous/jeeves-scripts-core';
+import {
+  defineJob,
+  dispatchTaskFile,
+  getRef,
+} from '@karmaniverous/jeeves-scripts-core';
 
-taskFileDispatcher({
-  scriptName: 'my-domain/briefing', // runScript crash-handler name
-  jobId: 'my-briefing',
-  thinking: 'low',
-  silo: 'client', // optional; a configured silo name
-  taskFile: 'briefing/TASK.md', // relative to the silo
-  dateTimeZone: 'America/New_York', // optional; string or () => string
-  slack: () => ({
-    posts: [{ target: getRef('slack.briefingChannel'), purpose: 'the briefing' }],
-  }), // optional; value or () => value, evaluated inside the run
+export default defineJob({
+  id: 'acme-generate-briefing',
+  domain: 'acme',
+  description: 'Dispatch the daily briefing task.',
+  run: async () => {
+    await dispatchTaskFile({
+      scriptName: 'acme/briefing', // label in the [skip] line
+      jobId: 'acme-generate-briefing',
+      thinking: 'low',
+      silo: 'client', // optional; a configured silo name
+      taskFile: 'briefing/TASK.md', // relative to the silo
+      dateTimeZone: 'America/New_York', // optional; string or () => string
+      slack: () => ({
+        posts: [{ target: getRef('slack.briefingChannel'), purpose: 'the briefing' }],
+      }), // optional; value or () => value, evaluated inside the run
+    });
+  },
 });
 ```
 
@@ -72,29 +83,32 @@ taskFileDispatcher({
 
 ### Dynamic Task Dispatcher (builds task at runtime)
 
-Pattern from the template's example `src/dispatchers/social-posts.ts` (instance code, not shipped in core): build task text from `pipeline.refs`:
+An instance runnable that builds its task text at runtime from `pipeline.refs` (instance code, registered by the plugin):
 
 ```typescript
-import { runScript } from '@karmaniverous/jeeves';
-import { tryGetRef } from '@karmaniverous/jeeves-scripts-core';
-import { dispatchWithSlack } from '@karmaniverous/jeeves-scripts-core/lib/worker-slack/run';
+import {
+  defineJob,
+  dispatchWithSlack,
+  tryGetRef,
+} from '@karmaniverous/jeeves-scripts-core';
 
-runScript('dispatchers/my-dispatcher', async () => {
-  const channel = tryGetRef('slack.myChannel');
-  if (!channel) {
-    console.log(
-      '[skip] Not configured: set pipeline.refs["slack.myChannel"] in jeeves-scripts.json',
+export default defineJob({
+  id: 'acme-generate-summary',
+  domain: 'acme',
+  description: 'Dispatch a worker to write the results summary.',
+  // tryGetRef returns '' (never undefined) for a missing ref.
+  prerequisite: () =>
+    tryGetRef('slack.myChannel') !== '' ||
+    'set pipeline.refs["slack.myChannel"] in jeeves-scripts.json',
+  run: async () => {
+    const channel = tryGetRef('slack.myChannel');
+    const task = 'Do the work, then return a results summary as a Slack post.';
+    await dispatchWithSlack(
+      task,
+      { jobId: 'acme-generate-summary', thinking: 'low' },
+      { posts: [{ target: channel, purpose: 'the results summary' }] },
     );
-    return;
-  }
-
-  const task = 'Do the work, then return a results summary as a Slack post.';
-
-  await dispatchWithSlack(
-    task,
-    { jobId: 'my-job', thinking: 'low' },
-    { posts: [{ target: channel, purpose: 'the results summary' }] },
-  );
+  },
 });
 ```
 
@@ -110,11 +124,14 @@ To read manual overrides or feedback from the same channel, add it to `reads`.
 
 ### Date Context Injection
 
-When a dispatcher needs an authoritative date reference (e.g. daily digests), inject it as a quoted block at the top of the task, so the worker never guesses the date. Use the stakeholder's time zone from instance config, never a hard-coded default: `daily-digest.ts` reads the `digest.timezone` ref (`lib/digest-timezone.ts`). With `taskFileDispatcher`, pass `dateTimeZone`; otherwise `requireTimeZone` (`lib/dates`) throws when the value is missing or not a valid zone, and `withDateContext` prepends the date line:
+When a dispatcher needs an authoritative date reference (e.g. daily digests), inject it as a quoted block at the top of the task, so the worker never guesses the date. Use the stakeholder's time zone from instance config, never a hard-coded default: `digestTimeZone()` reads the `digest.timezone` ref (`lib/digest-timezone.ts`). With `taskFileDispatcher`, pass `dateTimeZone`; otherwise `requireTimeZone` (`lib/dates`) throws when the value is missing or not a valid zone, and `withDateContext` prepends the date line:
 
 ```typescript
-import { tryGetRef } from '@karmaniverous/jeeves-scripts-core';
-import { requireTimeZone, withDateContext } from '@karmaniverous/jeeves-scripts-core/lib/dates';
+import {
+  requireTimeZone,
+  tryGetRef,
+  withDateContext,
+} from '@karmaniverous/jeeves-scripts-core';
 
 const tz = requireTimeZone(
   tryGetRef('myDomain.timezone'),
@@ -145,8 +162,7 @@ TASK files are instance content, in a silo (Decision 23), e.g. `{contentDir}/dig
 | File | Purpose |
 | --- | --- |
 | `lib/task-file-dispatcher.ts` | `taskFileDispatcher`, `dispatchTaskFile`, `resolveTaskFile` |
-| `lib/digest-timezone.ts` | Reads and validates the daily digest's `digest.timezone` ref |
-| `lib/digest-targets.ts` | The daily digest's allowed Slack targets |
+| `lib/digest-timezone.ts` | Reads and validates the `digest.timezone` ref |
 | `../config/pipeline-accessors.ts` | `getRef()` / `tryGetRef()` for refs |
 | `../config/silo-router.ts` | `siloPath()` for task file locations |
 | `../lib/dates.ts` | `requireTimeZone()` / `withDateContext()` for date context injection |

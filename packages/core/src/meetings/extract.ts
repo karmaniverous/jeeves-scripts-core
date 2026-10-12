@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module extract
  *
@@ -21,10 +20,14 @@
  * (see lib/pending-actions.ts).
  */
 
-import { nowIso, runScript } from '@karmaniverous/jeeves';
-import { getRunnerClient } from '@karmaniverous/jeeves-runner';
+import { nowIso } from '@karmaniverous/jeeves';
+import {
+  getRunnerClient,
+  type RunnerClient,
+} from '@karmaniverous/jeeves-runner';
 
 import { getEmailAccounts, pipeline } from '../config/index.js';
+import { defineJob } from '../jobs/define-job.js';
 import {
   detectFathomFromBodies,
   detectMeetingSource,
@@ -42,15 +45,47 @@ import {
   messageKey,
 } from './lib/pending-actions.js';
 
-function main(): void {
+/** The settings extraction reads. */
+export interface ExtractSettings {
+  /** Email accounts with polling on. */
+  accounts: string[];
+  /** `emailConfig.reportOnly`. */
+  reportOnly: boolean;
+  /** `emailConfig.meetings.archive` (default true). */
+  archive: boolean;
+}
+
+/** What {@link extractMeetings} reads and calls. */
+export interface ExtractDeps {
+  /** The settings; throws when the pipeline block is invalid. */
+  settings: () => ExtractSettings;
+  /** Runner state and items. */
+  runner: () => RunnerClient;
+  /** ISO timestamp. */
+  now: () => string;
+}
+
+/** The live collaborators, from config. */
+export const extractDeps = (): ExtractDeps => ({
+  settings: () => {
+    const { emailConfig } = pipeline();
+    return {
+      accounts: getEmailAccounts(),
+      reportOnly: emailConfig.reportOnly,
+      archive: emailConfig.meetings?.archive ?? true,
+    };
+  },
+  runner: () => getRunnerClient(),
+  now: nowIso,
+});
+
+/** Scan every account's cache and record new meetings. */
+export function extractMeetings(deps: ExtractDeps): void {
   let accounts: string[];
   let reportOnly: boolean;
   let archiveMeetingEmails: boolean;
   try {
-    accounts = getEmailAccounts();
-    const { emailConfig } = pipeline();
-    reportOnly = emailConfig.reportOnly;
-    archiveMeetingEmails = emailConfig.meetings?.archive ?? true;
+    ({ accounts, reportOnly, archive: archiveMeetingEmails } = deps.settings());
   } catch {
     console.log(
       '[skip] Meeting extraction not configured \u2014 no valid pipeline block in jeeves-scripts.json',
@@ -72,7 +107,7 @@ function main(): void {
   else if (!archiveMeetingEmails)
     console.log('[meetings] emailConfig.meetings.archive is false: label only');
 
-  const client = getRunnerClient();
+  const client = deps.runner();
 
   let scanned = 0,
     discovered = 0,
@@ -127,7 +162,7 @@ function main(): void {
             'meetings',
             'processedThreads',
             `not-meeting:${c.threadId}:${c.messageId}`,
-            nowIso(),
+            deps.now(),
           );
           continue;
         }
@@ -162,7 +197,7 @@ function main(): void {
           geminiLink,
           bodyText,
           bodyHtml,
-          extractedAt: nowIso(),
+          extractedAt: deps.now(),
           internalDateMs: c.internalDateMs,
           ...(fathomDetection
             ? {
@@ -193,7 +228,7 @@ function main(): void {
         }
 
         // Mark processed regardless
-        client.setItem('meetings', 'processedThreads', sourceKey, nowIso());
+        client.setItem('meetings', 'processedThreads', sourceKey, deps.now());
       }
     }
 
@@ -216,7 +251,7 @@ function main(): void {
     client.setState(
       'meetings',
       'extract-state',
-      JSON.stringify({ lastRunAt: nowIso() }),
+      JSON.stringify({ lastRunAt: deps.now() }),
     );
 
     const totalMeetings = client.countItems('meetings', 'index');
@@ -231,4 +266,11 @@ function main(): void {
   }
 }
 
-runScript('meetings/extract', main);
+export default defineJob({
+  id: 'meetings-extract',
+  domain: 'meetings',
+  name: 'meetings/extract',
+  run: () => {
+    extractMeetings(extractDeps());
+  },
+});

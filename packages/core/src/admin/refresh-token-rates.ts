@@ -1,4 +1,3 @@
-#!/usr/bin/env tsx
 /**
  * @module refresh-token-rates
  *
@@ -12,13 +11,14 @@
  *
  * `--dry-run` fetches and prints the changes without writing.
  *
- * Config dependencies: constants().TOKEN_RATES_PATH, constants().TOKEN_RATES_PENDING_PATH,
- * constants().TOKEN_RATES_SEED_PATH from
- * constants.ts.
+ * Config dependencies: constants().TOKEN_RATES_PATH and TOKEN_RATES_PENDING_PATH
+ * (under `paths.tokenMetricsDir` in jeeves-scripts.json (or `TOKEN_METRICS_DIR`)), and
+ * constants().TOKEN_RATES_SEED_PATH (core's `config/token-rates.seed.json`).
  */
 
-import { atomicWrite, runScript } from '@karmaniverous/jeeves';
+import { atomicWrite } from '@karmaniverous/jeeves';
 
+import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { fetchOpenRouterRates, httpGetJson } from './lib/openrouter-pricing.js';
 import {
@@ -27,10 +27,25 @@ import {
 } from './lib/rate-card-pending.js';
 import { readRateCardFile } from './lib/rate-card-schema.js';
 import { ensureRateCard } from './lib/rate-card-seed.js';
-import { refreshTokenRatesMain } from './lib/refresh-rates-run.js';
+import {
+  type RefreshRatesDeps,
+  refreshTokenRatesMain,
+} from './lib/refresh-rates-run.js';
 
-runScript('admin/refresh-token-rates', async () => {
-  await refreshTokenRatesMain(process.argv, {
+export default defineJob({
+  id: 'admin-refresh-token-rates',
+  domain: 'admin',
+  name: 'admin/refresh-token-rates',
+  run: async ({ args }) => {
+    await refreshTokenRatesMain([...args], refreshRatesDeps());
+  },
+});
+
+/** The live collaborators, from config when the job runs. */
+export function refreshRatesDeps(
+  httpGet: typeof httpGetJson = httpGetJson,
+): RefreshRatesDeps {
+  return {
     ensure: () => {
       ensureRateCard(
         constants().TOKEN_RATES_PATH,
@@ -39,7 +54,7 @@ runScript('admin/refresh-token-rates', async () => {
     },
     read: () => readRateCardFile(constants().TOKEN_RATES_PATH),
     fetchRates: async (id) =>
-      (await fetchOpenRouterRates(id, httpGetJson))?.rates ?? null,
+      (await fetchOpenRouterRates(id, httpGet))?.rates ?? null,
     write: (card) => {
       atomicWrite(
         constants().TOKEN_RATES_PATH,
@@ -51,5 +66,5 @@ runScript('admin/refresh-token-rates', async () => {
       writePendingModels(constants().TOKEN_RATES_PENDING_PATH, ids);
     },
     now: () => new Date().toISOString(),
-  });
-});
+  };
+}

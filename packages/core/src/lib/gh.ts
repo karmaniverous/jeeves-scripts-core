@@ -8,7 +8,8 @@
  * and admin scripts. Sets constants().GH_CONFIG_DIR from constants so gh finds
  * the correct auth tokens regardless of working directory.
  *
- * Config dependencies: constants().GH_BIN, constants().GH_CONFIG_DIR from constants.ts.
+ * Config dependencies: `integrations.gh.bin` and `integrations.gh.configDir`
+ * (`GH_CONFIG_DIR` wins) in jeeves-scripts.json, through constants().
  */
 
 import cp from 'node:child_process';
@@ -26,11 +27,17 @@ export function setupGhConfig(): void {
   process.env.GH_CONFIG_DIR = constants().GH_CONFIG_DIR;
 }
 
+/** The outcome of one `gh` invocation. */
 export interface GhResult {
+  /** Whether `gh` exited 0. */
   ok: boolean;
+  /** Exit status (`null` when the process was killed or failed to start). */
   status: number | null;
+  /** Trimmed stdout. */
   out: string;
+  /** Trimmed stderr. */
   err: string;
+  /** Spawn error message, when `gh` could not be started. */
   error?: string;
 }
 

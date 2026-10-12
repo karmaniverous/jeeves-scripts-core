@@ -10,7 +10,6 @@ import {
   findServiceAccountFile,
   requireGogCredentials,
   serviceAccountFileName,
-  serviceAccountKeyPath,
 } from './gog-credentials.js';
 
 let dir: string;
@@ -22,6 +21,10 @@ beforeEach(() => {
 afterEach(() => {
   fs.rmSync(dir, { recursive: true, force: true });
 });
+
+/** Where current gog registers a service-account mailbox: `{dir}/data/sa-<b64>.json`. */
+const serviceAccountKeyPath = (email: string, configDir: string): string =>
+  path.join(configDir, 'data', serviceAccountFileName(email));
 
 function writeSa(email: string): string {
   const p = serviceAccountKeyPath(email, dir);
@@ -35,14 +38,6 @@ describe('serviceAccountFileName', () => {
     // "ab@x.test" -> YWJAeC50ZXN0 (no padding); "a@x.test" -> YUB4LnRlc3Q= (padded)
     expect(serviceAccountFileName('ab@x.test')).toBe('sa-YWJAeC50ZXN0.json');
     expect(serviceAccountFileName('a@x.test')).toBe('sa-YUB4LnRlc3Q.json');
-  });
-});
-
-describe('serviceAccountKeyPath', () => {
-  it('lives under <config>/data, not the config root', () => {
-    expect(serviceAccountKeyPath('ab@x.test', '/x/gogcli')).toBe(
-      path.join('/x/gogcli', 'data', 'sa-YWJAeC50ZXN0.json'),
-    );
   });
 });
 

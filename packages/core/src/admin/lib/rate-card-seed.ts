@@ -16,8 +16,8 @@
  * An interrupted run leaves at most a stray temp file, never a partial
  * live card.
  *
- * Config dependencies: TOKEN_RATES_PATH, TOKEN_RATES_SEED_PATH from
- * constants.ts (passed in by callers).
+ * Config dependencies: none; callers pass constants().TOKEN_RATES_PATH (under
+ * `paths.tokenMetricsDir` in jeeves-scripts.json (or `TOKEN_METRICS_DIR`)) and the seed path in core's package.
  */
 
 import { randomUUID } from 'node:crypto';

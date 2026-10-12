@@ -29,17 +29,85 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # The template compiles against core's built types (design §7), so
+      # build before lint and typecheck.
+      - name: Build
+        run: npm run build
+
       - name: Lint
         run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Build
-        run: npm run build
-
       - name: Test
         run: npm test
 
       - name: Knip
         run: npm run knip
+
+  # R33, design section 11: pack core, init an instance from the tarball in a
+  # directory outside the repo, install the tarball there, and run doctor,
+  # the sample runnable and the instance's own gates.
+  init:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Pack core
+        run: |
+          mkdir -p ../pkg
+          npm pack -w @karmaniverous/jeeves-scripts-core --pack-destination ../pkg
+
+      - name: Init an instance from the tarball
+        run: |
+          mkdir -p ../ci-instance
+          cd ../ci-instance
+          tgz="../pkg/$(ls ../pkg)"
+          npx --yes --package="$tgz" jeeves-scripts init --name ci-instance
+          npm install "$tgz"
+
+      - name: Doctor
+        working-directory: ../ci-instance
+        run: node bin/jeeves-scripts.js doctor
+
+      - name: Run the sample runnable
+        working-directory: ../ci-instance
+        run: node bin/jeeves-scripts.js run example-say-hello
+
+      - name: Instance gates
+        working-directory: ../ci-instance
+        run: |
+          npm run check
+          npm run lint
+          npm run typecheck
+          npm test
+
+      # npm test runs with coverage and writes coverage/ (with .js report
+      # files); the tsconfig preset must keep it out of the instance's
+      # typecheck (Decision 58).
+      - name: Typecheck after the coverage run
+        working-directory: ../ci-instance
+        run: |
+          test -f coverage/lcov-report/index.html
+          npm run typecheck

@@ -35,13 +35,42 @@ describe('configCheck', () => {
     );
   });
 
-  it('fails with the schema error when the config is invalid', () => {
+  it('fails with the schema error when the config is invalid, naming the file', () => {
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
       JSON.stringify({ instance: { name: 'test' } }),
     );
     const result = configCheck(options);
     expect(result.ok).toBe(false);
     expect(result.errors[0]).toMatch(/failed validation/);
+    expect(result.configPath?.replace(/\\/g, '/')).toBe(
+      '/root/jeeves-scripts.json',
+    );
+  });
+
+  it('leaves configPath unset when the location cannot be resolved', () => {
+    const result = configCheck({});
+    expect(result.ok).toBe(false);
+    expect(result.configPath).toBeUndefined();
+    expect(result.errors[0]).toMatch(/Cannot resolve the config file location/);
+  });
+
+  it('fails when an X account names an unknown silo (R10)', () => {
+    vi.spyOn(fs, 'readFileSync').mockReturnValue(
+      JSON.stringify({
+        instance: { name: 'test', baseDir: '/base' },
+        siloRouting: { silos: { acme: { basePath: '/srv/acme' } } },
+        integrations: {
+          x: {
+            accounts: { known: { silo: 'acme' }, lost: { silo: 'initech' } },
+          },
+        },
+      }),
+    );
+    const result = configCheck(options);
+    expect(result.ok).toBe(false);
+    expect(result.errors).toEqual([
+      'integrations.x.accounts.lost.silo: unknown silo "initech". Configured silos: acme.',
+    ]);
   });
 
   it('fails when a job names an unknown silo', () => {
@@ -51,12 +80,12 @@ describe('configCheck', () => {
         siloRouting: {
           silos: { acme: { basePath: '/srv/acme' } },
         },
-        jobs: { 'vc-daily-briefing': { silo: 'tcs' } },
+        jobs: { 'daily-briefing': { silo: 'initech' } },
       }),
     );
     const result = configCheck(options);
     expect(result.ok).toBe(false);
-    expect(result.errors[0]).toMatch(/unknown silo "tcs"/);
+    expect(result.errors[0]).toMatch(/unknown silo "initech"/);
   });
 
   it('passes when a job names a known silo', () => {
