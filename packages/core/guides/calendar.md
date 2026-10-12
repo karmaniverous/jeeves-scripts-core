@@ -1,3 +1,7 @@
+---
+title: Calendar
+---
+
 # calendar/
 
 Polls Google Calendar events for configured accounts and writes individual JSON files with SHA-256 hash-based change detection.
@@ -40,8 +44,8 @@ Calendar accounts are the entries of `pipeline.accounts` in `jeeves-scripts.json
 - Each account must have its own credential (checked by `lib/calendar-accounts.ts` before polling): a `tokenFile` account needs the OAuth client, and a `serviceAccount: "auto"` account needs that mailbox's own `sa-*.json`; an unrelated credential does not count. An instance with only service-account mailboxes and no OAuth client works for its `serviceAccount` accounts.
 - Accounts missing their credential are logged as `[credentials]` errors, the other accounts are still polled, and then the run fails (non-zero exit). So a run with calendar accounts configured but neither an OAuth client nor any matching service-account registration fails rather than skipping. With no calendar accounts configured the run skips (exit 0).
 
-| Job             | Schedule     | Manifest             |
-| --------------- | ------------ | -------------------- |
+| Job             | Schedule     | Manifest                  |
+| --------------- | ------------ | ------------------------- |
 | `calendar-poll` | Every 17 min | core `jobs/calendar.json` |
 
 The manifest entry carries a non-null `prerequisite`.

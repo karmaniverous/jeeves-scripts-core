@@ -1,3 +1,7 @@
+---
+title: Meta
+---
+
 # meta/
 
 Entity lifecycle maintenance — sweeps duplicate entities and disables stale metadata entries.

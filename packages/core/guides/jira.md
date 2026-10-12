@@ -1,3 +1,7 @@
+---
+title: Jira
+---
+
 # jira/
 
 Jira Cloud webhook drain, one-time backfill, and custom field metadata refresh.
@@ -79,7 +83,7 @@ Supporting modules in `lib/`:
 
 | Entity Type | Payload Object | Key Field | Example File         |
 | ----------- | -------------- | --------- | -------------------- |
-| `issue`     | `body.issue`   | `key`     | `issue/ACME-1.json`   |
+| `issue`     | `body.issue`   | `key`     | `issue/ACME-1.json`  |
 | `comment`   | `body.comment` | `id`      | `comment/12345.json` |
 | `version`   | `body.version` | `id`      | `version/67890.json` |
 | `sprint`    | `body.sprint`  | `id`      | `sprint/1001.json`   |

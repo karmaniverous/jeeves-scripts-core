@@ -1,3 +1,7 @@
+---
+title: Meetings
+---
+
 # meetings/
 
 Meeting extraction from three independent sources — Google Meet (via email), Fathom recordings, and Notion inbox — writing to a shared entity store. This domain is the exemplar for the entity pipeline pattern.

@@ -1,3 +1,7 @@
+---
+title: Email
+---
+
 # email/
 
 Unified email pipeline. Dispatches by account type: accounts with an `imap` block are polled via direct IMAP connection; accounts without are polled via the `gog` CLI (Gmail, via an OAuth client or service-account mailboxes).

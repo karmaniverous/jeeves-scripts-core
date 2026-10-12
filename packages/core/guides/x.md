@@ -1,3 +1,7 @@
+---
+title: X
+---
+
 # X (Twitter) Domain
 
 Polls, posts, and engages on X/Twitter via API v2. Supports multiple accounts with OAuth 2.0 PKCE.

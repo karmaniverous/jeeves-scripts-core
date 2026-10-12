@@ -1,3 +1,7 @@
+---
+title: CLI
+---
+
 # cli/
 
 The `jeeves-scripts` CLI. Built on `@commander-js/extra-typings`; the instance launcher calls `main()` from `@karmaniverous/jeeves-scripts-core/cli` with the instance repo root, so nothing depends on the working directory or `PATH`.

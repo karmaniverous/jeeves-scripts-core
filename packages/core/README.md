@@ -9,7 +9,7 @@ Everything below ships in the npm package. From an instance repo, the package ro
 | Path in the package | What it is |
 | --- | --- |
 | `README.md` | This file: overview, CLI, config, docs index. |
-| `guides/<domain>.md` | One hand-written reference per domain (table below), plus design records and runbooks. TypeDoc renders them with the API reference; its output goes to the repo's root `docs/`, which is never shipped or authored. |
+| `guides/<domain>.md` | One hand-written reference per domain (table below), plus design records and runbooks, all listed in [`guides/index.md`](guides/index.md). TypeDoc renders them as one Guides section (that index's `children`) alongside the API reference; its output goes to the repo's root `docs/`, which is never shipped or authored. |
 | `skills/<name>/SKILL.md` | The assistant skills core ships ([Skills](#skills)). |
 | `schema/jeeves-scripts.schema.json` | JSON Schema for `jeeves-scripts.json`, generated from the Zod config schema. |
 | `config/token-rates.seed.json` | The token rate card seed (`constants().TOKEN_RATES_SEED_PATH`). |

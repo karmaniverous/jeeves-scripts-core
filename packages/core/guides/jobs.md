@@ -1,3 +1,7 @@
+---
+title: Runnables
+---
+
 # jobs/
 
 The runnable registry (Decisions 4, 5, 40, 49, 50): core's runnables, their ids, their manifests, and how an instance adds to and adjusts them through its plugin, its manifests and its deltas.

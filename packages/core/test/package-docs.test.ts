@@ -105,6 +105,32 @@ describe('package documentation', () => {
     expect(missing).toEqual([]);
   });
 
+  it('guides/index.md lists every guide and the changelog as children, in its own order', () => {
+    const index = fs.readFileSync(
+      path.join(pkgRoot, 'guides/index.md'),
+      'utf8',
+    );
+    const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(index)?.[1] ?? '';
+    const children = [...frontmatter.matchAll(/^\s+-\s+(\S+)$/gm)].map(
+      (m) => m[1] ?? '',
+    );
+    const guides = docs
+      .filter((doc) => doc !== 'guides/index.md')
+      .map((doc) => `./${path.basename(doc)}`);
+    expect([...children].sort()).toEqual([...guides, '../CHANGELOG.md'].sort());
+    expect(new Set(children).size).toBe(children.length);
+    for (const child of children)
+      expect(fs.existsSync(path.resolve(pkgRoot, 'guides', child))).toBe(true);
+  });
+
+  it.each(docs.filter((doc) => doc !== 'guides/index.md'))(
+    '%s has a title in its frontmatter, for the rendered Guides section',
+    (doc) => {
+      const text = fs.readFileSync(path.join(pkgRoot, doc), 'utf8');
+      expect(text).toMatch(/^---\r?\ntitle: \S.*\r?\n---\r?\n/);
+    },
+  );
+
   it.each(['README.md', ...docs])(
     '%s has no broken relative links or anchors',
     (doc) => {

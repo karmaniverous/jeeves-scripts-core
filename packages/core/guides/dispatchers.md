@@ -1,3 +1,7 @@
+---
+title: Dispatchers
+---
+
 # dispatchers/
 
 Framework for autonomous LLM task dispatchers that read Markdown task files and spawn gateway sessions to execute them. This is the mechanism behind daily briefings, social media content generation, and other standing-order operations.
@@ -72,7 +76,9 @@ export default defineJob({
       taskFile: 'briefing/TASK.md', // relative to the silo
       dateTimeZone: 'America/New_York', // optional; string or () => string
       slack: () => ({
-        posts: [{ target: getRef('slack.briefingChannel'), purpose: 'the briefing' }],
+        posts: [
+          { target: getRef('slack.briefingChannel'), purpose: 'the briefing' },
+        ],
       }), // optional; value or () => value, evaluated inside the run
     });
   },
