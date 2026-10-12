@@ -25,7 +25,7 @@ export interface SessionMeta {
   sessionKey: string;
   /** Session label (subagents, cron jobs). */
   label?: string;
-  /** Channel/group display name, e.g. `#ops-ceo`. */
+  /** Channel/group display name, e.g. `#acme-ops`. */
   channelName?: string;
   /** Direct-message counterpart's display name. */
   peerName?: string;

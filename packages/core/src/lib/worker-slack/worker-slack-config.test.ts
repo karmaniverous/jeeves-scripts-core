@@ -5,7 +5,7 @@ import { parseWorkerSlackConfig } from './worker-slack-config.js';
 const VALID = {
   accountId: 'acct-b',
   reads: [
-    { target: 'C000EXAMPLE1', label: '#ops-ceo', limit: 50 },
+    { target: 'C000EXAMPLE1', label: '#acme-ops', limit: 50 },
     { target: 'channel:D0ABCDEFGH', label: 'DM', threadTs: '1790.1' },
   ],
   posts: [

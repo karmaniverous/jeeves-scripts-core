@@ -97,7 +97,7 @@ describe('parseWorkerPosts', () => {
     ],
     [
       'channel name',
-      block('[{"channel":"#ops-ceo","text":"x"}]'),
+      block('[{"channel":"#acme-ops","text":"x"}]'),
       /not an allowed target/,
     ],
   ])('rejects %s', (_name, text, error) => {
@@ -178,7 +178,7 @@ describe('formatSlackContext', () => {
   it('formats reads with timestamps, ts and thread ts', () => {
     const text = formatSlackContext([
       {
-        label: '#ops-ceo [channel:C000EXAMPLE1]',
+        label: '#acme-ops [channel:C000EXAMPLE1]',
         messages: [
           { ts: '1790590000.000100', user: 'U1', text: 'line 1\nline 2' },
           {

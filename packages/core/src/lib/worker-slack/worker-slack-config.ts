@@ -28,7 +28,7 @@ export const slackReadSpecSchema = z
   .object({
     /** Channel/user id or prefixed target. */
     target: slackTargetSchema,
-    /** Label shown to the worker, e.g. `#ops-ceo`. */
+    /** Label shown to the worker, e.g. `#acme-ops`. */
     label: z.string().trim().min(1).max(200),
     /** Messages to read (default 20). */
     limit: z.number().int().min(1).max(200).optional(),

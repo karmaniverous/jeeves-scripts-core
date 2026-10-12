@@ -34,7 +34,7 @@ function str(v: unknown): string | undefined {
   return typeof v === 'string' && v.trim() ? v.trim() : undefined;
 }
 
-/** `#name` from a display label like `slack:t0abc#ops-ceo`, else undefined. */
+/** `#name` from a display label like `slack:t0abc#acme-ops`, else undefined. */
 export function channelNameFromLabel(
   label: string | undefined,
 ): string | undefined {

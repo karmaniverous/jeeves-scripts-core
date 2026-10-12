@@ -52,7 +52,7 @@ const FENCE =
 
 /** A labelled Slack read made before dispatch. */
 export interface SlackContextBlock {
-  /** Human label, e.g. `#ops-ceo (C000EXAMPLE1)`. */
+  /** Human label, e.g. `#acme-ops (C000EXAMPLE1)`. */
   label: string;
   /** Messages, oldest first. */
   messages: SlackMessage[];

@@ -108,10 +108,10 @@ describe('triggerRunnerJob', () => {
       const { port } = server.address() as AddressInfo;
       const file = writeComponentConfig('runner', JSON.stringify({ port }));
       await expect(
-        triggerRunnerJob('vc daily/briefing', file),
+        triggerRunnerJob('daily/briefing job', file),
       ).resolves.toEqual({ status: 202, body: '{"ok":true}' });
       expect(requests).toEqual([
-        { method: 'POST', url: '/jobs/vc%20daily%2Fbriefing/run' },
+        { method: 'POST', url: '/jobs/daily%2Fbriefing%20job/run' },
       ]);
     } finally {
       await new Promise((resolve) => server.close(resolve));

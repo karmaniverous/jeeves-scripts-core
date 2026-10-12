@@ -5,7 +5,7 @@ import type { WorkerSlackConfig } from './worker-slack-config.js';
 import { runWorkerSlackJob } from './worker-slack-job.js';
 
 const CONFIG: WorkerSlackConfig = {
-  reads: [{ target: 'C000EXAMPLE1', label: '#ops-ceo', limit: 10 }],
+  reads: [{ target: 'C000EXAMPLE1', label: '#acme-ops', limit: 10 }],
   posts: [
     {
       target: 'C000EXAMPLE1',
@@ -243,7 +243,7 @@ describe('runWorkerSlackJob', () => {
     await expect(
       runWorkerSlackJob(
         'T',
-        { reads: [{ target: '#ops-ceo', label: 'ops' }] },
+        { reads: [{ target: '#acme-ops', label: 'ops' }] },
         { slack: mockSlack(), dispatch, print: vi.fn() },
       ),
     ).rejects.toThrow(/Invalid Slack target/);

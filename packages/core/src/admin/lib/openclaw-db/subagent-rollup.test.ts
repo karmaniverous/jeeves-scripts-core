@@ -6,7 +6,7 @@ import type { SessionMeta } from './types.js';
 
 const OPS_CEO: SessionMeta = {
   sessionKey: 'agent:main:slack:channel:c000example2',
-  channelName: '#ops-ceo',
+  channelName: '#acme-ops',
 };
 const MAIN: SessionMeta = { sessionKey: 'agent:main:main' };
 
@@ -23,14 +23,14 @@ const keyOf = (meta: SessionMeta) => channelFromMeta(meta)?.key;
 describe('subagent rollup', () => {
   it('rolls a labelled subagent up to its Slack channel (1 level)', () => {
     expect(keyOf(sub('a', OPS_CEO, 'jeeves-tools e2e #5: rerun'))).toBe(
-      'slack:channel:#ops-ceo',
+      'slack:channel:#acme-ops',
     );
   });
 
   it('rolls nested subagents up to the root channel', () => {
     const child = sub('b', OPS_CEO, 'orchestrator');
     const grandchild = sub('c', child, 'fix lint');
-    expect(keyOf(sub('d', grandchild))).toBe('slack:channel:#ops-ceo');
+    expect(keyOf(sub('d', grandchild))).toBe('slack:channel:#acme-ops');
   });
 
   it('rolls up to a Slack DM, Telegram group or cron root', () => {
@@ -49,10 +49,10 @@ describe('subagent rollup', () => {
   it('resolves a deleted Slack parent from its session key alone', () => {
     const deleted: SessionMeta = {
       sessionKey: 'agent:main:slack:channel:c000example2:thread:1.2',
-      channelName: '#ops-ceo',
+      channelName: '#acme-ops',
       missing: true,
     };
-    expect(keyOf(sub('h', deleted, 'z'))).toBe('slack:channel:#ops-ceo');
+    expect(keyOf(sub('h', deleted, 'z'))).toBe('slack:channel:#acme-ops');
   });
 
   it('falls back to the own label when a subagent parent is deleted', () => {

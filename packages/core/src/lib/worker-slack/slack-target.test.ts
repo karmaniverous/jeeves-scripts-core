@@ -17,8 +17,8 @@ describe('normalizeSlackTarget', () => {
   });
 
   it.each([
-    '#ops-ceo',
-    'ops-ceo',
+    '#acme-ops',
+    'acme-ops',
     '',
     'C1',
     'email:x@y.z',
@@ -32,7 +32,7 @@ describe('normalizeSlackTarget', () => {
   });
 
   it('requireSlackTarget throws on names and prefix/ID-family mismatches', () => {
-    expect(() => requireSlackTarget('#ops-ceo')).toThrow(
+    expect(() => requireSlackTarget('#acme-ops')).toThrow(
       /Invalid Slack target/,
     );
     expect(() => requireSlackTarget('user:C000EXAMPLE1')).toThrow(

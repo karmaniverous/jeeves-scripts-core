@@ -31,7 +31,7 @@ describe('detectSubagentLabel', () => {
 describe('detectMetaPhase', () => {
   it.each([
     [
-      '# jeeves-meta \u00b7 ARCHITECT \u00b7 j:/domains/x',
+      '# jeeves-meta \u00b7 ARCHITECT \u00b7 d:/domains/x',
       'meta-architect',
       'Meta Architect',
     ],

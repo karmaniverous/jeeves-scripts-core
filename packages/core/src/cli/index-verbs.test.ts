@@ -60,9 +60,9 @@ afterEach(() => {
 describe('CLI verb failures and exit codes', () => {
   it('run: passes a non-zero exit code through and reports a throw', async () => {
     mocks.runJob.mockResolvedValueOnce(3);
-    await expect(cli('run', 'x-post', 'karma')).resolves.toBe(3);
+    await expect(cli('run', 'x-post', 'example')).resolves.toBe(3);
     expect(mocks.runJob).toHaveBeenCalledWith(expect.any(String), 'x-post', [
-      'karma',
+      'example',
     ]);
     process.exitCode = undefined;
     mocks.runJob.mockRejectedValueOnce(new Error('Unknown runnable id: nope'));

@@ -100,7 +100,9 @@ describe('silo-router', () => {
 
     it('throws UnknownSiloError for an unconfigured silo', () => {
       loadMultiSiloConfig();
-      expect(() => siloPath('tcs', ['x'], options)).toThrow(UnknownSiloError);
+      expect(() => siloPath('initech', ['x'], options)).toThrow(
+        UnknownSiloError,
+      );
     });
   });
 
@@ -109,7 +111,7 @@ describe('silo-router', () => {
       loadMultiSiloConfig();
       expect(isKnownSilo(undefined, options)).toBe(true);
       expect(isKnownSilo('acme', options)).toBe(true);
-      expect(isKnownSilo('tcs', options)).toBe(false);
+      expect(isKnownSilo('initech', options)).toBe(false);
     });
   });
 

@@ -44,7 +44,7 @@ describe('configSchema', () => {
       siloRouting: {
         defaultBasePath: '/base/domains',
         silos: {
-          tcs: { basePath: '/base/tcs' },
+          initech: { basePath: '/base/initech' },
         },
       },
       jobs: {
@@ -52,7 +52,7 @@ describe('configSchema', () => {
       },
     });
     expect(result.pipeline?.accounts).toHaveLength(1);
-    expect(result.siloRouting.silos.tcs?.basePath).toBe('/base/tcs');
+    expect(result.siloRouting.silos.initech?.basePath).toBe('/base/initech');
     expect(result.jobs['email-poll']?.enabled).toBe(true);
   });
 

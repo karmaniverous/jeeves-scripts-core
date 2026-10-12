@@ -19,12 +19,14 @@ beforeEach(() => {
     configPath,
     JSON.stringify({
       instance: { name: 'acme', baseDir: dir },
-      siloRouting: { silos: { tcs: { basePath: path.join(dir, 'tcs') } } },
+      siloRouting: {
+        silos: { initech: { basePath: path.join(dir, 'initech') } },
+      },
       integrations: {
         x: {
           accounts: {
             main: {},
-            ty: { silo: 'tcs', relativePath: 'x/ty' },
+            other: { silo: 'initech', relativePath: 'x/other' },
           },
         },
       },
@@ -54,7 +56,7 @@ describe('constants()', () => {
   it('resolves each X account through its silo, defaulting to x/<handle> in the default silo', () => {
     expect(constants().X_ACCOUNTS).toEqual({
       main: path.join(dir, 'content', 'x', 'main'),
-      ty: path.join(dir, 'tcs', 'x', 'ty'),
+      other: path.join(dir, 'initech', 'x', 'other'),
     });
   });
 

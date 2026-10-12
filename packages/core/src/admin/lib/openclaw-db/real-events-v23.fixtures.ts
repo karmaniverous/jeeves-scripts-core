@@ -42,7 +42,7 @@ export const runtimeContext = (senderName: string): string =>
       '```json',
       JSON.stringify({
         chat_id: 'user:U000EXAMPLE2',
-        message_id: '1790273602.735929',
+        message_id: '1790000000.000200',
         sender: { id: 'U000EXAMPLE2', name: senderName },
         timestamp: 'Thu 2026-09-24 18:13:22 UTC',
         group_space: 'T000EXAMPLE1',

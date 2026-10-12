@@ -33,7 +33,7 @@ await dispatchWithSlack(
   task,
   { jobId: 'my-job', thinking: 'low', timeout: 600 },
   {
-    reads: [{ target: 'C000EXAMPLE1', label: '#ops-ceo', limit: 30 }],
+    reads: [{ target: 'C000EXAMPLE1', label: '#acme-ops', limit: 30 }],
     posts: [
       {
         target: 'C000EXAMPLE1',

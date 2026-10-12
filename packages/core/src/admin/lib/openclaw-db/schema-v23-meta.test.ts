@@ -98,7 +98,7 @@ describe('loadV23Meta', () => {
     const fx = createV23Fixture(root);
     fx.addHotSession('ch', [sessionHeader('ch')], [], {
       key: 'agent:main:slack:channel:c000example2',
-      entry: slackChannelEntry('C000EXAMPLE2', 'ops-ceo'),
+      entry: slackChannelEntry('C000EXAMPLE2', 'acme-ops'),
     });
     fx.addHotSession('sub', [sessionHeader('sub')], [], {
       key: 'agent:main:subagent:1',
@@ -113,14 +113,14 @@ describe('loadV23Meta', () => {
     const db = new DatabaseSync(fx.dbPath, { readOnly: true });
     try {
       const meta = loadV23Meta(db);
-      expect(meta.forSession('ch')?.channelName).toBe('#ops-ceo');
-      expect(meta.forSession('sub')?.parent?.channelName).toBe('#ops-ceo');
+      expect(meta.forSession('ch')?.channelName).toBe('#acme-ops');
+      expect(meta.forSession('sub')?.parent?.channelName).toBe('#acme-ops');
       expect(meta.forSession('thr')?.channelName).toBe('#acme-dev');
       expect(meta.forSession('missing')).toBeUndefined();
       expect(
         meta.forKey('agent:main:slack:channel:c000example2:thread:9')
           .channelName,
-      ).toBe('#ops-ceo');
+      ).toBe('#acme-ops');
     } finally {
       db.close();
     }
@@ -137,7 +137,7 @@ describe('loadV23Meta parent linkage', () => {
     });
     fx.addHotSession('ch', [sessionHeader('ch')], [], {
       key: 'agent:main:slack:channel:c000example2',
-      entry: slackChannelEntry('C000EXAMPLE2', 'ops-ceo'),
+      entry: slackChannelEntry('C000EXAMPLE2', 'acme-ops'),
     });
     fx.addHotSession(
       's1',
@@ -167,7 +167,7 @@ describe('loadV23Meta parent linkage', () => {
     try {
       const meta = loadV23Meta(db);
       const nested = meta.forSession('s2');
-      expect(nested?.parent?.parent?.channelName).toBe('#ops-ceo');
+      expect(nested?.parent?.parent?.channelName).toBe('#acme-ops');
       expect(nested?.parent?.missing).toBeUndefined();
       expect(meta.forSession('s3')?.parent).toEqual({
         sessionKey: 'agent:main:subagent:gone',

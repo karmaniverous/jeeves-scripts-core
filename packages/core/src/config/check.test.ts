@@ -60,14 +60,16 @@ describe('configCheck', () => {
         instance: { name: 'test', baseDir: '/base' },
         siloRouting: { silos: { acme: { basePath: '/srv/acme' } } },
         integrations: {
-          x: { accounts: { known: { silo: 'acme' }, lost: { silo: 'tcs' } } },
+          x: {
+            accounts: { known: { silo: 'acme' }, lost: { silo: 'initech' } },
+          },
         },
       }),
     );
     const result = configCheck(options);
     expect(result.ok).toBe(false);
     expect(result.errors).toEqual([
-      'integrations.x.accounts.lost.silo: unknown silo "tcs". Configured silos: acme.',
+      'integrations.x.accounts.lost.silo: unknown silo "initech". Configured silos: acme.',
     ]);
   });
 
@@ -78,12 +80,12 @@ describe('configCheck', () => {
         siloRouting: {
           silos: { acme: { basePath: '/srv/acme' } },
         },
-        jobs: { 'vc-daily-briefing': { silo: 'tcs' } },
+        jobs: { 'daily-briefing': { silo: 'initech' } },
       }),
     );
     const result = configCheck(options);
     expect(result.ok).toBe(false);
-    expect(result.errors[0]).toMatch(/unknown silo "tcs"/);
+    expect(result.errors[0]).toMatch(/unknown silo "initech"/);
   });
 
   it('passes when a job names a known silo', () => {
