@@ -64,7 +64,7 @@ Google Workspace CLI wrapper with retry. Depends on `GOG_BIN`, `GOG_CONFIG_DIR`.
 Single source of truth for which gog credentials exist. Depends on `GOG_CLIENT_PATH`, `GOG_CONFIG_DIR`.
 
 - `gogServiceAccountDirs(configDir?)` — directories searched for service-account mailboxes, in order: `<configDir>/data` (current gog), then `<configDir>` (older gog without `data/`); `gogServiceAccountDir(configDir?)` is the first
-- `serviceAccountFileName(email)` / `serviceAccountKeyPath(email, configDir?)` — `sa-<base64(email), padding stripped>.json`, and its path under `data/`
+- `serviceAccountFileName(email)` — `sa-<base64(email), padding stripped>.json`, the file name `findServiceAccountFile` looks for in each directory
 - `findServiceAccountFile(email, configDir?)` — that mailbox's registration in the first directory that has it, or `null`
 - `detectGogCredentials(configDir?)` — `{ oauthClient, serviceAccount, any }`: OAuth client file present, any `sa-*.json` present
 - `requireGogCredentials(job, accountCount, creds?)` — `false` when `accountCount` is 0 (caller skips), `true` when any credential exists, otherwise throws so the run fails
@@ -73,8 +73,7 @@ Single source of truth for which gog credentials exist. Depends on `GOG_CLIENT_P
 
 Gateway HTTP client for OpenClaw tool invocation. Depends on `GATEWAY_HOST` (loopback) and `GATEWAY_PORT` (OpenClaw's own `gateway.port`, via `gatewayPort()`).
 
-- `loadGatewayToken()` — the bearer token from `CLAWDBOT_GATEWAY_TOKEN` or the OpenClaw config (`gatewayToken()`, below)
-- `gatewayInvoke(tool, args, options?)` — invoke an OpenClaw gateway HTTP API tool
+- `gatewayInvoke(tool, args, options?)` — invoke an OpenClaw gateway HTTP API tool; the bearer token is `gatewayToken()` from [openclaw-config.ts](#openclaw-configts) (`CLAWDBOT_GATEWAY_TOKEN`, else the OpenClaw config), and the call throws when there is none
 - `unwrapResult(r)` — unwrap result from gateway response
 
 ### gateway-rpc.ts

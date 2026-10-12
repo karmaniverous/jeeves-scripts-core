@@ -27,7 +27,7 @@ import { createV23Fixture } from './v23.fixtures.js';
 
 // Each test re-imports the collector's module graph (vi.resetModules) and
 // builds a SQLite fixture: well under a second locally, over the 5 s default
-// on a loaded Windows CI runner (runs 38014055786, 38141546503).
+// on a loaded Windows CI runner.
 vi.setConfig({ testTimeout: 30_000 });
 
 const root = useOpenClawDbRoot();

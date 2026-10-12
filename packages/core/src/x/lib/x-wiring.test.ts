@@ -4,10 +4,10 @@
  * the queue-action job declaration.
  */
 
-import type { Client } from '@xdevplatform/xdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { xQueueAction } from './run-x-queue-action.js';
+import type { XTimelineClient, XTimelinePage } from './x-client.js';
 import { xConfig, xJobDeps } from './x-deps.js';
 import {
   pollBookmarks,
@@ -17,21 +17,20 @@ import {
   pollUserTweets,
 } from './x-timelines.js';
 
-const page = {
-  data: [{ id: '1', text: 'hi', created_at: '2026-01-01', author_id: 'a' }],
+const page: XTimelinePage = {
+  data: [{ id: '1', text: 'hi', createdAt: '2026-01-01', authorId: 'a' }],
 };
-const client = (known: boolean) =>
-  ({
-    users: {
-      getByUsername: (h: string) =>
-        Promise.resolve({ data: known ? { id: `id-${h}` } : undefined }),
-      getPosts: vi.fn(() => Promise.resolve(page)),
-      getMentions: vi.fn(() => Promise.resolve(page)),
-      getTimeline: vi.fn(() => Promise.resolve(page)),
-      getLikedPosts: vi.fn(() => Promise.resolve(page)),
-      getBookmarks: vi.fn(() => Promise.resolve({})),
-    },
-  }) as unknown as Client;
+const client = (known: boolean): XTimelineClient => ({
+  users: {
+    getByUsername: (h: string) =>
+      Promise.resolve({ data: known ? { id: `id-${h}` } : undefined }),
+    getPosts: vi.fn(() => Promise.resolve(page)),
+    getMentions: vi.fn(() => Promise.resolve(page)),
+    getTimeline: vi.fn(() => Promise.resolve(page)),
+    getLikedPosts: vi.fn(() => Promise.resolve(page)),
+    getBookmarks: vi.fn(() => Promise.resolve({})),
+  },
+});
 
 beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => undefined);

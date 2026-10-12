@@ -5,22 +5,21 @@
  * repost/unrepost. Called from the queue-driven X jobs.
  */
 
-import type { Client } from '@xdevplatform/xdk';
-
 import { lookupUser } from './x-api.js';
+import type { XPostBody, XPostsApi, XUserActionsClient } from './x-client.js';
 
 // ── Write actions ──────────────────────────────────────────────────
 
 /** Create a tweet, reply, or quote tweet. */
 export async function createPost(
-  client: Client,
+  client: { posts: XPostsApi },
   text: string,
   options?: { inReplyToTweetId?: string; quoteTweetId?: string },
 ): Promise<{ id?: string }> {
-  const body: Record<string, unknown> = { text };
+  const body: XPostBody = { text };
   if (options?.inReplyToTweetId)
-    body.reply = { in_reply_to_tweet_id: options.inReplyToTweetId };
-  if (options?.quoteTweetId) body.quote_tweet_id = options.quoteTweetId;
+    body.reply = { inReplyToTweetId: options.inReplyToTweetId };
+  if (options?.quoteTweetId) body.quoteTweetId = options.quoteTweetId;
 
   const res = await client.posts.create(body);
   return {
@@ -30,7 +29,7 @@ export async function createPost(
 
 /** Like a tweet on behalf of a handle. */
 export async function likePost(
-  client: Client,
+  client: XUserActionsClient,
   handle: string,
   tweetId: string,
 ): Promise<boolean> {
@@ -43,7 +42,7 @@ export async function likePost(
 
 /** Remove a like from a tweet on behalf of a handle. */
 export async function unlikePost(
-  client: Client,
+  client: XUserActionsClient,
   handle: string,
   tweetId: string,
 ): Promise<boolean> {
@@ -56,7 +55,7 @@ export async function unlikePost(
 
 /** Repost (retweet) a tweet on behalf of a handle. */
 export async function repostPost(
-  client: Client,
+  client: XUserActionsClient,
   handle: string,
   tweetId: string,
 ): Promise<boolean> {
@@ -69,7 +68,7 @@ export async function repostPost(
 
 /** Remove a repost on behalf of a handle. */
 export async function unrepostPost(
-  client: Client,
+  client: XUserActionsClient,
   handle: string,
   tweetId: string,
 ): Promise<boolean> {

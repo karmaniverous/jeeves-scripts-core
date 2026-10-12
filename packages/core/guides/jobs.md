@@ -217,7 +217,7 @@ const { reportChannel } = localConfig<typeof configSchema>();
 | File | Purpose |
 | --- | --- |
 | `src/jobs/define-job.ts` | `defineJob`, `isJobModule`, `runJobModule` |
-| `src/jobs/registry.ts` | `coreJobs`, `coreDomains`, `findJob`, `loadJob` |
+| `src/jobs/registry.ts` | `coreJobs`, `coreDomains`, `loadJob` |
 | `src/jobs/plugin.ts` | `definePlugin`, `override`, `localConfig` |
 | `src/jobs/runnables.ts` | Registration: `buildRunnables`, `readInstanceManifests`, `registeredManifests` |
 | `src/cli/load-plugin.ts` | Loads `jeeves-scripts.plugin.ts` with tsx |

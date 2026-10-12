@@ -3,13 +3,15 @@
  *
  * A recording `fetch` double for tests: each request is passed to a handler
  * that returns a JSON body (and optional status), answered with a real
- * `Response`. Test support only.
+ * `Response`. Headers are recorded with lower-case names, whatever form
+ * (`Headers`, tuple array or record) the caller passed. Test support only.
  */
 
 /** One recorded request. */
 export interface FetchCall {
   url: URL;
   method: string;
+  /** Request headers, keyed by lower-case name. */
   headers: Record<string, string>;
   body: unknown;
 }
@@ -34,7 +36,12 @@ export function fakeFetch(handler: (call: FetchCall) => FakeReply): FakeFetch {
     const call: FetchCall = {
       url: new URL(input instanceof Request ? input.url : String(input)),
       method: init?.method ?? 'GET',
-      headers: { ...(init?.headers as Record<string, string> | undefined) },
+      headers: Object.fromEntries(
+        new Headers(
+          init?.headers ??
+            (input instanceof Request ? input.headers : undefined),
+        ),
+      ),
       body: typeof raw === 'string' ? (JSON.parse(raw) as unknown) : undefined,
     };
     calls.push(call);

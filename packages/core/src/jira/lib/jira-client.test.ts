@@ -34,7 +34,7 @@ describe('jiraConnection', () => {
     expect(fake.calls[0]?.url.href).toBe(
       'https://acme.atlassian.net/rest/api/3/field',
     );
-    expect(fake.calls[0]?.headers.Authorization).toBe(conn.authHeader);
+    expect(fake.calls[0]?.headers.authorization).toBe(conn.authHeader);
   });
 
   it('reports missing credentials', () => {
@@ -60,7 +60,7 @@ describe('jiraRequest', () => {
       'https://acme.atlassian.net/rest/agile/1.0/issue/rank?a=1',
     );
     expect(call?.method).toBe('PUT');
-    expect(call?.headers['Content-Type']).toBe('application/json');
+    expect(call?.headers['content-type']).toBe('application/json');
     expect(call?.body).toEqual({ issues: ['ACME-1'] });
   });
 

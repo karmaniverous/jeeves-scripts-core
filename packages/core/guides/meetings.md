@@ -71,7 +71,6 @@ Each meeting lives in a directory under `{silo}/meetings/{meetingId}/`:
 | `lib/notion-api.ts` | Notion API HTTP helpers with authentication |
 | `lib/notion-browser-extract.ts` | Extracts meeting content from Notion public pages via gateway browser tool |
 | `lib/notion-inbox-processor.ts` | Processes a Notion inbox page end-to-end: fetch, extract, stage, archive |
-| `lib/meeting-cursor.ts` | Cursor and sort logic for global meetings meta steering |
 
 ## reportOnly catch-up
 

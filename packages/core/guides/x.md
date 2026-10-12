@@ -69,6 +69,7 @@ All entries in core's manifest `jobs/x.json` carry a non-null `prerequisite` (`X
 ## Key Dependencies
 
 - `src/x/lib/poll-handles.ts` — which handles a poll run covers (`integrations.x.accounts`, or the handle argument)
-- `src/x/lib/` — X API client wrappers, OAuth token management, polling helpers
+- `src/x/lib/` - X API client wrappers, OAuth token management, polling helpers
+- `src/x/lib/x-client.ts` - `XClient`: the subset of the `@xdevplatform/xdk` client the jobs call (user lookup, the timeline reads, like/repost, post creation). The SDK camel-cases response keys and snake-cases request bodies, so the jobs read `createdAt`/`authorId` and post `reply.inReplyToTweetId`/`quoteTweetId`; timeline reads request `postFields: ['id', 'text', 'created_at']` with the `author_id` expansion
 - `lib/constants.ts` — `constants()`: `X_ACCOUNTS` from `integrations.x.accounts` and `X_OAUTH_DIR` (`{paths.credentialsDir}/oauth`) in `jeeves-scripts.json`
 - `config/integrations.ts` — `integrations.x.accounts`

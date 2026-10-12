@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { ApiError, type Client } from '@xdevplatform/xdk';
+import { ApiError } from '@xdevplatform/xdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -10,6 +10,7 @@ import {
   withAutoRefresh,
   xHandlePrerequisite,
 } from './x-api.js';
+import type { XClient, XUserLookupClient } from './x-client.js';
 import { type XWorld, xWorld } from './x-deps.test-helper.js';
 import { writeOAuthCredentials } from './x-oauth.js';
 
@@ -48,25 +49,25 @@ describe('xHandlePrerequisite', () => {
   });
 
   it('needs the OAuth file unless told not to', () => {
-    expect(check({ requireAccount: true })({ args: ['karma'] })).toBe(true);
-    fs.rmSync(path.join(w.deps.oauthDir, 'x-karma-oauth2.json'));
-    expect(check()({ args: ['karma'] })).toBe(
+    expect(check({ requireAccount: true })({ args: ['example'] })).toBe(true);
+    fs.rmSync(path.join(w.deps.oauthDir, 'x-example-oauth2.json'));
+    expect(check()({ args: ['example'] })).toBe(
       'X OAuth2 credentials not configured',
     );
-    expect(check({ requireOAuth: false })({ args: ['karma'] })).toBe(true);
+    expect(check({ requireOAuth: false })({ args: ['example'] })).toBe(true);
   });
 });
 
 describe('createXClient', () => {
   it('needs credentials with an access token', () => {
     expect(createXClient(w.deps.oauthDir, 'nobody')).toBeNull();
-    expect(createXClient(w.deps.oauthDir, 'karma')).toBeNull();
-    writeOAuthCredentials(w.deps.oauthDir, 'karma', {
+    expect(createXClient(w.deps.oauthDir, 'example')).toBeNull();
+    writeOAuthCredentials(w.deps.oauthDir, 'example', {
       provider: 'x',
-      account: 'karma',
+      account: 'example',
       access_token: 'tok',
     });
-    expect(createXClient(w.deps.oauthDir, 'karma')).not.toBeNull();
+    expect(createXClient(w.deps.oauthDir, 'example')).not.toBeNull();
   });
 });
 
@@ -75,9 +76,9 @@ describe('withAutoRefresh', () => {
     new ApiError('no', 401, 'Unauthorized', new Headers());
 
   beforeEach(() => {
-    writeOAuthCredentials(w.deps.oauthDir, 'karma', {
+    writeOAuthCredentials(w.deps.oauthDir, 'example', {
       provider: 'x',
-      account: 'karma',
+      account: 'example',
       access_token: 'tok',
     });
   });
@@ -90,22 +91,22 @@ describe('withAutoRefresh', () => {
 
   it('returns the call result', async () => {
     await expect(
-      withAutoRefresh(w.deps.oauthDir, 'karma', () => Promise.resolve(7)),
+      withAutoRefresh(w.deps.oauthDir, 'example', () => Promise.resolve(7)),
     ).resolves.toBe(7);
   });
 
   it('refreshes once on a 401 and retries', async () => {
     const fn = vi
-      .fn<(c: Client) => Promise<number>>()
+      .fn<(c: XClient) => Promise<number>>()
       .mockRejectedValueOnce(unauthorized())
       .mockResolvedValueOnce(9);
     const refresh = vi.fn(() =>
       Promise.resolve({ accessToken: 'new', refreshToken: 'r' }),
     );
     await expect(
-      withAutoRefresh(w.deps.oauthDir, 'karma', fn, refresh),
+      withAutoRefresh(w.deps.oauthDir, 'example', fn, refresh),
     ).resolves.toBe(9);
-    expect(refresh).toHaveBeenCalledWith('karma');
+    expect(refresh).toHaveBeenCalledWith('example');
     expect(fn).toHaveBeenCalledTimes(2);
   });
 
@@ -114,13 +115,13 @@ describe('withAutoRefresh', () => {
     await expect(
       withAutoRefresh(
         w.deps.oauthDir,
-        'karma',
+        'example',
         () => Promise.reject(err),
         () => Promise.resolve(null),
       ),
     ).rejects.toBe(err);
     await expect(
-      withAutoRefresh(w.deps.oauthDir, 'karma', () =>
+      withAutoRefresh(w.deps.oauthDir, 'example', () =>
         Promise.reject(new Error('boom')),
       ),
     ).rejects.toThrow('boom');
@@ -132,7 +133,7 @@ describe('lookupUser', () => {
     const getByUsername = vi.fn((h: string) =>
       Promise.resolve({ data: h === 'ghost' ? undefined : { id: `id-${h}` } }),
     );
-    const client = { users: { getByUsername } } as unknown as Client;
+    const client: XUserLookupClient = { users: { getByUsername } };
     await expect(lookupUser(client, 'cached-one')).resolves.toBe(
       'id-cached-one',
     );

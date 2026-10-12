@@ -38,8 +38,8 @@ describe('notionRequest', () => {
     );
     const [call] = fake.calls;
     expect(call?.url.href).toBe('https://api.notion.com/v1/pages');
-    expect(call?.headers.Authorization).toBe('Bearer ntn_secret');
-    expect(call?.headers['Notion-Version']).toBe(constants().NOTION_VERSION);
+    expect(call?.headers.authorization).toBe('Bearer ntn_secret');
+    expect(call?.headers['notion-version']).toBe(constants().NOTION_VERSION);
     expect(call?.body).toEqual({ a: 1 });
   });
 

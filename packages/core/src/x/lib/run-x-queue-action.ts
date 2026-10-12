@@ -7,12 +7,11 @@
  * caps; default 50) through `drain-x-queue`.
  */
 
-import type { Client } from '@xdevplatform/xdk';
-
 import type { JobContext, JobPrerequisite } from '../../jobs/define-job.js';
 import { argValue, parseRunnableArgs } from '../../lib/args.js';
 import { drainXQueue } from './drain-x-queue.js';
 import { xHandlePrerequisite } from './x-api.js';
+import type { XClient } from './x-client.js';
 import { xConfig, type XJobDeps, xJobDeps } from './x-deps.js';
 
 /** A queue action's labels and API call. */
@@ -27,7 +26,7 @@ export interface XQueueActionOptions {
   successLabel: string;
   /** The action to perform on each tweet; false fails the queue item. */
   actionFn: (
-    client: Client,
+    client: XClient,
     handle: string,
     tweetId: string,
   ) => Promise<boolean>;

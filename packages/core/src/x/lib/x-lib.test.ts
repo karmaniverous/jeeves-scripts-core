@@ -8,7 +8,6 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import type { Client } from '@xdevplatform/xdk';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -18,6 +17,13 @@ import {
   unlikePost,
   unrepostPost,
 } from './x-actions.js';
+import type {
+  XClient,
+  XPostsApi,
+  XTimelinePage,
+  XTweetData,
+  XUsersApi,
+} from './x-client.js';
 import {
   getOAuthPath,
   readOAuthCredentials,
@@ -44,43 +50,43 @@ afterEach(() => {
 
 describe('x-oauth', () => {
   it('stores credentials at {oauthDir}/x-<handle>-oauth2.json', () => {
-    expect(getOAuthPath(dir, 'karma')).toBe(
-      path.join(dir, 'x-karma-oauth2.json'),
+    expect(getOAuthPath(dir, 'example')).toBe(
+      path.join(dir, 'x-example-oauth2.json'),
     );
-    expect(readOAuthCredentials(dir, 'karma')).toBeNull();
-    writeOAuthCredentials(dir, 'karma', {
+    expect(readOAuthCredentials(dir, 'example')).toBeNull();
+    writeOAuthCredentials(dir, 'example', {
       provider: 'x',
-      account: 'karma',
+      account: 'example',
       access_token: 'a',
     });
-    expect(readOAuthCredentials(dir, 'karma')).toEqual({
+    expect(readOAuthCredentials(dir, 'example')).toEqual({
       provider: 'x',
-      account: 'karma',
+      account: 'example',
       access_token: 'a',
     });
   });
 
   it('reads an unparseable file as no credentials', () => {
-    fs.writeFileSync(getOAuthPath(dir, 'karma'), '{');
-    expect(readOAuthCredentials(dir, 'karma')).toBeNull();
+    fs.writeFileSync(getOAuthPath(dir, 'example'), '{');
+    expect(readOAuthCredentials(dir, 'example')).toBeNull();
   });
 
   it('skips refresh without a refresh token or client credentials', async () => {
     expect(await refreshOAuth2Token(dir, 'nobody', refresher)).toBeNull();
-    writeOAuthCredentials(dir, 'karma', {
+    writeOAuthCredentials(dir, 'example', {
       provider: 'x',
-      account: 'karma',
+      account: 'example',
       access_token: 'a',
       clientId: 'id',
     });
-    expect(await refreshOAuth2Token(dir, 'karma', refresher)).toBeNull();
+    expect(await refreshOAuth2Token(dir, 'example', refresher)).toBeNull();
     expect(refresher).not.toHaveBeenCalled();
   });
 
   it('refreshes and writes the new tokens back, keeping the old refresh token if none is returned', async () => {
-    writeOAuthCredentials(dir, 'karma', {
+    writeOAuthCredentials(dir, 'example', {
       provider: 'x',
-      account: 'karma',
+      account: 'example',
       access_token: 'old',
       refresh_token: 'rt',
       clientId: 'id',
@@ -94,7 +100,7 @@ describe('x-oauth', () => {
     });
     const at = new Date('2026-01-01T00:00:00Z');
     await expect(
-      refreshOAuth2Token(dir, 'karma', refresher, () => at),
+      refreshOAuth2Token(dir, 'example', refresher, () => at),
     ).resolves.toEqual({
       accessToken: 'new',
       refreshToken: 'rt',
@@ -106,7 +112,7 @@ describe('x-oauth', () => {
       { clientId: 'id', clientSecret: 'secret' },
       'rt',
     );
-    expect(readOAuthCredentials(dir, 'karma')).toMatchObject({
+    expect(readOAuthCredentials(dir, 'example')).toMatchObject({
       access_token: 'new',
       refresh_token: 'rt',
       clientSecret: 'secret',
@@ -117,8 +123,8 @@ describe('x-oauth', () => {
 });
 
 /** A fake client recording calls; user lookup resolves `handle` to `id-<handle>`. */
-const fakeClient = (data: unknown[] = []) => {
-  const page = { data };
+const fakeClient = (data: XTweetData[] = []) => {
+  const page: XTimelinePage = { data };
   const users = {
     getByUsername: vi.fn((handle: string) =>
       Promise.resolve({
@@ -134,30 +140,32 @@ const fakeClient = (data: unknown[] = []) => {
     unlikePost: vi.fn(() => Promise.resolve({})),
     repostPost: vi.fn(() => Promise.resolve({})),
     unrepostPost: vi.fn(() => Promise.resolve({})),
-  };
+  } satisfies XUsersApi;
   const posts = {
     create: vi.fn(() => Promise.resolve({ data: { id: 'p1' } })),
-  };
-  return { client: { users, posts } as unknown as Client, users, posts };
+  } satisfies XPostsApi;
+  const client: XClient = { users, posts };
+  return { client, users, posts };
 };
 
 describe('x-timelines', () => {
   it('normalises tweets, dropping those without an id', async () => {
     const { client, users } = fakeClient([
-      { id: '1', text: 't', created_at: '2026-10-01', author_id: 'a' },
+      { id: '1', text: 't', createdAt: '2026-10-01', authorId: 'a' },
       { text: 'no id' },
       { id: '2' },
     ]);
     await expect(
-      pollUserTweets(client, 'karma', { maxResults: 5, sinceId: '0' }),
+      pollUserTweets(client, 'example', { maxResults: 5, sinceId: '0' }),
     ).resolves.toEqual([
       { id: '1', text: 't', createdAt: '2026-10-01', authorId: 'a' },
       { id: '2', text: '', createdAt: '', authorId: undefined },
     ]);
-    expect(users.getPosts).toHaveBeenCalledWith('id-karma', {
+    expect(users.getPosts).toHaveBeenCalledWith('id-example', {
       maxResults: 5,
       sinceId: '0',
-      tweetFields: ['id', 'text', 'created_at', 'author_id'],
+      postFields: ['id', 'text', 'created_at'],
+      expansions: ['author_id'],
     });
   });
 
@@ -169,11 +177,11 @@ describe('x-timelines', () => {
 
   it('reads bookmarks for the resolved user', async () => {
     const { client, users } = fakeClient([{ id: '9' }]);
-    expect((await pollBookmarks(client, 'karma')).map((t) => t.id)).toEqual([
+    expect((await pollBookmarks(client, 'example')).map((t) => t.id)).toEqual([
       '9',
     ]);
     expect(users.getBookmarks).toHaveBeenCalledWith(
-      'id-karma',
+      'id-example',
       expect.anything(),
     );
   });
@@ -187,19 +195,21 @@ describe('x-actions', () => {
     ).resolves.toEqual({ id: 'p1' });
     expect(posts.create).toHaveBeenCalledWith({
       text: 'hello',
-      reply: { in_reply_to_tweet_id: 'r' },
-      quote_tweet_id: 'q',
+      reply: { inReplyToTweetId: 'r' },
+      quoteTweetId: 'q',
     });
   });
 
   it('likes, unlikes, reposts and unreposts as the resolved user', async () => {
     const { client, users } = fakeClient();
-    expect(await likePost(client, 'karma', 't1')).toBe(true);
-    expect(await unlikePost(client, 'karma', 't1')).toBe(true);
-    expect(await repostPost(client, 'karma', 't1')).toBe(true);
-    expect(await unrepostPost(client, 'karma', 't1')).toBe(true);
-    expect(users.likePost).toHaveBeenCalledWith('id-karma', { tweetId: 't1' });
-    expect(users.repostPost).toHaveBeenCalledWith('id-karma', {
+    expect(await likePost(client, 'example', 't1')).toBe(true);
+    expect(await unlikePost(client, 'example', 't1')).toBe(true);
+    expect(await repostPost(client, 'example', 't1')).toBe(true);
+    expect(await unrepostPost(client, 'example', 't1')).toBe(true);
+    expect(users.likePost).toHaveBeenCalledWith('id-example', {
+      tweetId: 't1',
+    });
+    expect(users.repostPost).toHaveBeenCalledWith('id-example', {
       tweetId: 't1',
     });
   });

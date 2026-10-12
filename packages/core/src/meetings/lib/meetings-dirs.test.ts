@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { siloRouting } from '../../config/index.js';
 import { getMeetingsDirs, meetingPackages } from './meetings-dirs.js';
 
 let dir: string;
@@ -35,8 +36,11 @@ describe('meetingPackages', () => {
 
 describe('getMeetingsDirs', () => {
   it('lists every silo meetings directory', () => {
-    expect(
-      getMeetingsDirs().every((d) => path.basename(d) === 'meetings'),
-    ).toBe(true);
+    const dirs = getMeetingsDirs();
+    // The test config has no silos: just the default silo's meetings dir.
+    expect(dirs).toEqual([
+      path.join(siloRouting().defaultBasePath, 'meetings'),
+    ]);
+    expect(dirs.every((d) => path.basename(d) === 'meetings')).toBe(true);
   });
 });

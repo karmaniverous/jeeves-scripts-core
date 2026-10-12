@@ -41,7 +41,7 @@ describe('slackApi', () => {
       team_id: 'T1',
     });
     expect(calls[0]?.url.href).toBe('https://slack.com/api/auth.test?a=1');
-    expect(calls[0]?.headers.Authorization).toBe('Bearer xoxb-1');
+    expect(calls[0]?.headers.authorization).toBe('Bearer xoxb-1');
   });
 
   it('rejects a Slack error and a non-JSON body', async () => {

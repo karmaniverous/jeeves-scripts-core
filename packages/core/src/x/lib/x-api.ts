@@ -13,6 +13,7 @@ import fs from 'node:fs';
 import { ApiError, Client } from '@xdevplatform/xdk';
 
 import type { JobContext } from '../../jobs/define-job.js';
+import type { XClient, XUserLookupClient } from './x-client.js';
 import {
   getOAuthPath,
   readOAuthCredentials,
@@ -63,7 +64,10 @@ const userIdCache = new Map<string, string>();
  * An X API client for a handle from its credential file; `null` (logged
  * as a skip) when the file or its access token is missing.
  */
-export function createXClient(oauthDir: string, handle: string): Client | null {
+export function createXClient(
+  oauthDir: string,
+  handle: string,
+): XClient | null {
   const creds = readOAuthCredentials(oauthDir, handle);
   if (!creds) {
     console.log(`[skip] X OAuth2 credentials not found for @${handle}`);
@@ -85,7 +89,7 @@ export function createXClient(oauthDir: string, handle: string): Client | null {
 export async function withAutoRefresh<T>(
   oauthDir: string,
   handle: string,
-  fn: (client: Client) => Promise<T>,
+  fn: (client: XClient) => Promise<T>,
   refresh: (handle: string) => Promise<TokenRefreshResult | null> = (h) =>
     refreshOAuth2Token(oauthDir, h),
 ): Promise<T> {
@@ -106,7 +110,7 @@ export async function withAutoRefresh<T>(
 
 /** Resolve a handle to a user id, caching the result. */
 export async function lookupUser(
-  client: Client,
+  client: XUserLookupClient,
   handle: string,
 ): Promise<string | null> {
   const cached = userIdCache.get(handle);

@@ -6,9 +6,13 @@
  * with the standard tweet fields.
  */
 
-import type { Client } from '@xdevplatform/xdk';
-
 import { lookupUser } from './x-api.js';
+import type {
+  XTimelineClient,
+  XTimelinePage,
+  XTimelineRequest,
+  XTweetData,
+} from './x-client.js';
 
 // ── Tweet type ─────────────────────────────────────────────────────
 
@@ -21,24 +25,24 @@ export interface XTweet {
 
 // ── Standard tweet fields for all poll calls ───────────────────────
 
-const TWEET_FIELDS = ['id', 'text', 'created_at', 'author_id'];
+// `postFields` is the SDK's name for `tweet.fields`; the author id comes
+// with the `author_id` expansion (not in the SDK's post field list).
+const POST_FIELDS: XTimelineRequest['postFields'] = [
+  'id',
+  'text',
+  'created_at',
+];
+const EXPANSIONS: XTimelineRequest['expansions'] = ['author_id'];
 
-interface TweetLike {
-  id?: string;
-  text?: string;
-  created_at?: string;
-  author_id?: string;
-}
-
-function normaliseTweets(data: TweetLike[] | undefined): XTweet[] {
+function normaliseTweets(data: XTweetData[] | undefined): XTweet[] {
   if (!data) return [];
   return data
-    .filter((t): t is TweetLike & { id: string } => !!t.id)
+    .filter((t): t is XTweetData & { id: string } => !!t.id)
     .map((t) => ({
       id: t.id,
-      createdAt: t.created_at ?? '',
+      createdAt: t.createdAt ?? '',
       text: t.text ?? '',
-      authorId: t.author_id,
+      authorId: t.authorId,
     }));
 }
 
@@ -51,10 +55,10 @@ export interface PollOptions {
 
 /** A user-timeline read: the user id and request options in, a page out. */
 type TimelineRead = (
-  client: Client,
+  client: XTimelineClient,
   userId: string,
-  request: { maxResults: number; sinceId?: string; tweetFields: string[] },
-) => Promise<{ data?: TweetLike[] }>;
+  request: XTimelineRequest,
+) => Promise<XTimelinePage>;
 
 /**
  * Build a poller over one user-timeline read: resolve the handle, read up
@@ -64,7 +68,7 @@ type TimelineRead = (
 const pollUserTimeline =
   (read: TimelineRead, withSinceId: boolean) =>
   async (
-    client: Client,
+    client: XTimelineClient,
     handle: string,
     options?: PollOptions,
   ): Promise<XTweet[]> => {
@@ -73,7 +77,8 @@ const pollUserTimeline =
     const res = await read(client, userId, {
       maxResults: options?.maxResults ?? 50,
       ...(withSinceId ? { sinceId: options?.sinceId } : {}),
-      tweetFields: TWEET_FIELDS,
+      postFields: POST_FIELDS,
+      expansions: EXPANSIONS,
     });
     return normaliseTweets(res.data);
   };

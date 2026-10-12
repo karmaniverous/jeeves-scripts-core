@@ -82,8 +82,7 @@ export function createV23Fixture(root: string, userVersion = 23): V23Fixture {
   const db = new DatabaseSync(dbPath);
   // A scratch file: no journal file and no fsync per statement. Every DDL
   // statement and insert otherwise commits (and syncs) on its own, which
-  // took a loaded Windows CI runner over 5 s per test (runs 38014055786,
-  // 38141546503).
+  // took a loaded Windows CI runner over 5 s per test.
   db.exec('PRAGMA journal_mode = MEMORY; PRAGMA synchronous = OFF');
   db.exec(V23_DDL);
   db.exec(`PRAGMA user_version = ${String(userVersion)}`);

@@ -15,14 +15,13 @@
 
 import fs from 'node:fs';
 
-import type { Client } from '@xdevplatform/xdk';
-
 import { argValue, parseRunnableArgs } from '../../lib/args.js';
 import {
   handleArg,
   logPollHandles,
   resolvePollHandles,
 } from './poll-handles.js';
+import type { XClient } from './x-client.js';
 import type { XJobDeps } from './x-deps.js';
 import { getOAuthPath } from './x-oauth.js';
 import type { PollOptions, XTweet } from './x-timelines.js';
@@ -31,7 +30,7 @@ import type { PollOptions, XTweet } from './x-timelines.js';
 export interface PollXOptions {
   /** API poll function to call */
   pollFn: (
-    client: Client,
+    client: XClient,
     handle: string,
     options?: PollOptions,
   ) => Promise<XTweet[]>;

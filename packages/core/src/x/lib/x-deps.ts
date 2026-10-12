@@ -10,10 +10,10 @@ import {
   getRunnerClient,
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
-import type { Client } from '@xdevplatform/xdk';
 
 import { constants } from '../../lib/constants.js';
 import { withAutoRefresh } from './x-api.js';
+import type { XClient } from './x-client.js';
 import { refreshOAuth2Token, type TokenRefreshResult } from './x-oauth.js';
 
 /** The X runnables' collaborators. */
@@ -30,7 +30,7 @@ export interface XJobDeps {
   /** Run a call with an authenticated client (refreshing on 401). */
   withClient: <T>(
     handle: string,
-    fn: (client: Client) => Promise<T>,
+    fn: (client: XClient) => Promise<T>,
   ) => Promise<T>;
   /** Refresh a handle's token. */
   refresh: (handle: string) => Promise<TokenRefreshResult | null>;
