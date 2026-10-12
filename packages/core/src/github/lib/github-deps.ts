@@ -19,7 +19,7 @@ import {
 } from '@karmaniverous/jeeves-runner';
 
 import { getBasePathForGitHubOrg } from '../../config/index.js';
-import { parseRunnableArgs, value } from '../../lib/args.js';
+import { argValue, parseRunnableArgs } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
 import { gh, type GhResult, setupGhConfig } from '../../lib/gh.js';
 
@@ -103,8 +103,8 @@ export const collabArgs = (
   deps: Pick<GitHubJobDeps, 'account' | 'botUser'>,
 ): { owner: string; botUser: string } =>
   parseRunnableArgs(args, {
-    owner: value('--owner', deps.account),
-    botUser: value('--botUser', deps.botUser),
+    owner: argValue('--owner', deps.account),
+    botUser: argValue('--botUser', deps.botUser),
   });
 
 /** GET a REST endpoint through `gh api`; `null` for an empty body. */

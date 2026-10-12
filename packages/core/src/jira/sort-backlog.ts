@@ -14,7 +14,7 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
-import { flag, parseRunnableArgs } from '../lib/args.js';
+import { argFlag, parseRunnableArgs } from '../lib/args.js';
 import { agilePut, fetchBacklog } from './lib/agile-api.js';
 import {
   printChangeSummary,
@@ -109,7 +109,7 @@ export async function sortJiraBacklog(
     process.exitCode = 1;
     return;
   }
-  const { live } = parseRunnableArgs(args, { live: flag('--live') });
+  const { live } = parseRunnableArgs(args, { live: argFlag('--live') });
   console.log(
     `\n=== Jira Backlog Priority Sort (${live ? 'LIVE' : 'DRY-RUN'}) ===\n`,
   );

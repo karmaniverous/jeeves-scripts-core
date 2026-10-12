@@ -15,7 +15,7 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
-import { flag, parseRunnableArgs, value } from '../lib/args.js';
+import { argFlag, argValue, parseRunnableArgs } from '../lib/args.js';
 import { backfillEntity } from '../lib/entity-store.js';
 import {
   hasJiraCredentials,
@@ -29,9 +29,9 @@ import { type JiraJobDeps, jiraJobDeps } from './lib/jira-deps.js';
 export const RATE_LIMIT_MS = 200;
 
 const argSpec = {
-  project: value('--project'),
-  type: value('--type', 'issue'),
-  live: flag('--live'),
+  project: argValue('--project'),
+  type: argValue('--type', 'issue'),
+  live: argFlag('--live'),
 };
 
 interface Tally {

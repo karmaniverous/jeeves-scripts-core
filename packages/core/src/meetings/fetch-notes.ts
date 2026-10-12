@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { defineJob } from '../jobs/define-job.js';
-import { flag, parseRunnableArgs } from '../lib/args.js';
+import { argFlag, parseRunnableArgs } from '../lib/args.js';
 import { runDocFetch } from './lib/doc-fetch.js';
 import { runFathomExtract } from './lib/fathom-extract.js';
 import {
@@ -95,7 +95,7 @@ export async function fetchNotes(
   args: readonly string[],
   deps: FetchNotesDeps,
 ): Promise<void> {
-  const { dryRun } = parseRunnableArgs(args, { dryRun: flag('--dry-run') });
+  const { dryRun } = parseRunnableArgs(args, { dryRun: argFlag('--dry-run') });
   const { geminiNeeded, fathomNeeded } = findMeetingsNeedingFetch(
     deps.meetingsDirs(),
   );

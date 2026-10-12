@@ -169,7 +169,11 @@ Validated JSON file I/O, on the root export: `readJsonFile(file, schema)` parses
 
 ### args.ts
 
-The one argument parser for core runnables (internal): `parseRunnableArgs(ctx.args, { live: flag('--live'), project: value('--project', ''), days: optional('--days') })`. A flag is present or not, a value is the argument after its name (else the default, or `undefined` for `optional`), and unknown arguments are ignored. `admin-report-token-metrics` keeps its own strict parser, which rejects unknown arguments.
+The one argument parser for runnables, core's and instances', on the root export (Decision 59): `parseRunnableArgs(ctx.args, spec)` with `argFlag(name)`, `argValue(name, fallback?, { alias? })` and `argOptional(name, { alias? })`, plus `positionalArgs(ctx.args, spec?)`. The convention (bare flags, `--name value` and `--name=value`, positionals) is in [jobs.md](./jobs.md#arguments). `admin-report-token-metrics` keeps its own strict parser, which rejects unknown arguments.
+
+### slack-client.ts
+
+The one Slack Web API client, on the root export (Decision 59): `createSlackClient({ token, fetch?, rateLimitAttempts?, sleep? })`. Core's Slack poller reads through it (`slack/lib/slack-api.ts`, `slack/lib/file-content.ts`). Usage, errors and rate limits are in [slack.md](./slack.md#slack-client).
 
 ### entity-store.ts
 

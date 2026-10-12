@@ -29,7 +29,7 @@ import {
 
 import { pipeline, type PipelineConfig } from '../../config/index.js';
 import { defineJob } from '../../jobs/define-job.js';
-import { flag, parseRunnableArgs } from '../../lib/args.js';
+import { argFlag, parseRunnableArgs } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
 import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
 import { requireGogCredentials } from '../../lib/gog-credentials.js';
@@ -67,7 +67,7 @@ export function backfillHistorical(
   args: readonly string[],
   deps: BackfillHistoricalDeps,
 ): void {
-  const { live } = parseRunnableArgs(args, { live: flag('--live') });
+  const { live } = parseRunnableArgs(args, { live: argFlag('--live') });
   const emailConfig = deps.emailConfig();
   const settings = resolveBackfillSettings(emailConfig.backfill, [...args]);
   const reportOnly = emailConfig.reportOnly;

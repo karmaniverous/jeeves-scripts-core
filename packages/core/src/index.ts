@@ -7,8 +7,9 @@
  * 49), the plugin API (`definePlugin`, `override`, `localConfig`) and the
  * utilities (the task-file dispatcher and its date helpers,
  * worker dispatch with job-side Slack I/O, the readers for other
- * components' own config, the `gh` helpers, token-metrics queries and the
- * document converters). No other built module is exported; the CLI entry
+ * components' own config, the `gh` helpers, token-metrics queries, the
+ * document converters, the runnable argument parser, the Slack Web API
+ * client, retry and JSON file helpers). No other built module is exported; the CLI entry
  * point is the separate `@karmaniverous/jeeves-scripts-core/cli` export.
  *
  * @packageDocumentation
@@ -64,6 +65,19 @@ export {
   type PluginDeclaration,
   pluginDeclarationSchema,
 } from './jobs/plugin.js';
+export {
+  argFlag,
+  argOptional,
+  type ArgSpec,
+  argValue,
+  type ArgValueOptions,
+  type FlagSpec,
+  type OptionalSpec,
+  type ParsedArgs,
+  parseRunnableArgs,
+  positionalArgs,
+  type ValueSpec,
+} from './lib/args.js';
 export * from './lib/component-config.js';
 export { type Constants, constants } from './lib/constants.js';
 export {
@@ -88,6 +102,16 @@ export {
   retrySync,
 } from './lib/retry.js';
 export * from './lib/runner-config.js';
+export {
+  createSlackClient,
+  SlackApiError,
+  type SlackClient,
+  type SlackClientOptions,
+  type SlackFileUpload,
+  type SlackPostedMessage,
+  type SlackPostMessageOptions,
+  type SlackResponse,
+} from './lib/slack-client.js';
 export { dispatchWithSlack } from './lib/worker-slack/run.js';
 export * from './lib/worker-slack/worker-slack-config.js';
 export type { WorkerSlackResult } from './lib/worker-slack/worker-slack-job.js';

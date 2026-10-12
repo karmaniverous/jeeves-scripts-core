@@ -47,7 +47,7 @@ describe('slackApi', () => {
   it('rejects a Slack error and a non-JSON body', async () => {
     serve({ 'auth.test': [{ ok: false, error: 'invalid_auth' }, 'not json'] });
     await expect(slackApi('auth.test', {}, 't')).rejects.toThrow(
-      'Slack API auth.test: invalid_auth',
+      'Slack auth.test failed: invalid_auth',
     );
     await expect(slackApi('auth.test', {}, 't')).rejects.toThrow();
   });

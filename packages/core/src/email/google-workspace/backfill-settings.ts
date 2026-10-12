@@ -15,7 +15,7 @@
 import { z } from 'zod';
 
 import type { BackfillConfig } from '../../config/index.js';
-import { optional, parseRunnableArgs } from '../../lib/args.js';
+import { argOptional, parseRunnableArgs } from '../../lib/args.js';
 
 /** Resolved backfill settings. */
 export interface BackfillSettings {
@@ -56,9 +56,9 @@ export function resolveBackfillSettings(
     lookback: lookbackArg,
     window: windowArg,
   } = parseRunnableArgs(argv, {
-    accounts: optional('--accounts'),
-    lookback: optional('--lookback-days'),
-    window: optional('--window-days'),
+    accounts: argOptional('--accounts'),
+    lookback: argOptional('--lookback-days'),
+    window: argOptional('--window-days'),
   });
 
   const accounts =

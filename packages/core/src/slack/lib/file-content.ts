@@ -12,6 +12,7 @@
  * limit. A skipped file records why in `markdownSkipped` and is logged.
  */
 
+import { createSlackClient } from '../../lib/slack-client.js';
 import {
   RATE_LIMIT_MS,
   slackApi,
@@ -110,9 +111,7 @@ export async function enrichFileContent(
       }
 
       // Fetch the raw content
-      const resp = await fetch(downloadUrl, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const resp = await createSlackClient({ token }).download(downloadUrl);
       if (!resp.ok) continue;
 
       const body = await readCapped(resp, MAX_INLINE_BYTES);

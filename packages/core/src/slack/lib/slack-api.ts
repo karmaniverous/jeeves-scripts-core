@@ -1,15 +1,15 @@
 /**
  * @module slack/lib/slack-api
  *
- * Typed wrappers over the Slack Web API REST endpoints.
- *
- * Pure HTTP helpers consumed by slack/poll. Provides paginated fetching
- * for conversation history, thread replies, and channel discovery.
- * Includes a rate-limit sleep utility. No dependency on project
- * constants or config.
+ * The poller's Slack reads over core's one Slack client (lib/slack-client):
+ * paginated conversation history, thread replies, channel discovery,
+ * members and users, each with the token of the account reading. Includes
+ * the pause between pages. No dependency on project constants or config.
  */
 
 import { sleepAsync } from '@karmaniverous/jeeves';
+
+import { createSlackClient } from '../../lib/slack-client.js';
 
 /** Pause between Slack API calls, shared with slack/poll. */
 export const RATE_LIMIT_MS = 1200;
@@ -18,23 +18,18 @@ export const RATE_LIMIT_MS = 1200;
 export const sleep = sleepAsync;
 
 /**
- * Call a Slack Web API method (GET with query parameters).
+ * Call a Slack Web API read method with `token` (the client's `call`: GET
+ * with query parameters, a 429 retried after its `Retry-After`).
  *
- * @throws When the response is not JSON or `ok` is false
- * (`Slack API <method>: <error>`).
+ * @throws SlackApiError when the response is not JSON or `ok` is false
+ * (`Slack <method> failed: <error>`).
  */
-export async function slackApi(
+export function slackApi(
   method: string,
   params: Record<string, string>,
   token: string,
 ): Promise<Record<string, unknown>> {
-  const qs = new URLSearchParams(params).toString();
-  const res = await fetch(`https://slack.com/api/${method}?${qs}`, {
-    headers: { Authorization: 'Bearer ' + token },
-  });
-  const j = JSON.parse(await res.text()) as Record<string, unknown>;
-  if (!j.ok) throw new Error(`Slack API ${method}: ${j.error as string}`);
-  return j;
+  return createSlackClient({ token }).call(method, params);
 }
 
 /** Structured metadata for a Slack file attachment. */

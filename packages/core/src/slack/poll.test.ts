@@ -107,7 +107,7 @@ describe('pollSlack', () => {
       written.filter((f) => f.endsWith('.json')).length,
     ).toBeGreaterThanOrEqual(3);
     expect(console.error).toHaveBeenCalledWith(
-      'ERROR C2: Slack API conversations.history: not_in_channel',
+      'ERROR C2: Slack conversations.history failed: not_in_channel',
     );
     expect(console.log).toHaveBeenCalledWith('Total: 3 new messages');
     expect([...runner.state.values()]).toContain('100.5');

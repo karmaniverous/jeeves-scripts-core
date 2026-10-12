@@ -37,7 +37,7 @@
 import fs from 'node:fs';
 
 import { defineJob } from '../jobs/define-job.js';
-import { flag, parseRunnableArgs, value } from '../lib/args.js';
+import { argFlag, argValue, parseRunnableArgs } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
 import { userCacheFile } from '../slack/lib/slack-cache.js';
 import {
@@ -102,11 +102,11 @@ export async function regenerate(
 ): Promise<void> {
   process.exitCode = await runRegen(
     parseRunnableArgs(args, {
-      from: value('--from'),
-      to: value('--to'),
-      out: value('--out'),
-      dryRun: flag('--dry-run'),
-      allowPreUpgrade: flag('--allow-pre-upgrade'),
+      from: argValue('--from'),
+      to: argValue('--to'),
+      out: argValue('--out'),
+      dryRun: argFlag('--dry-run'),
+      allowPreUpgrade: argFlag('--allow-pre-upgrade'),
     }),
     deps,
   );

@@ -17,7 +17,7 @@ import fs from 'node:fs';
 
 import type { Client } from '@xdevplatform/xdk';
 
-import { parseRunnableArgs, value } from '../../lib/args.js';
+import { argValue, parseRunnableArgs } from '../../lib/args.js';
 import {
   handleArg,
   logPollHandles,
@@ -54,8 +54,8 @@ export async function pollXItems(
   deps: Pick<XJobDeps, 'withClient' | 'runner'>,
 ): Promise<void> {
   const parsed = parseRunnableArgs(args, {
-    count: value('--count', String(options.defaultCount ?? 50)),
-    queue: value('--queue', `${options.queuePrefix}-${handle}`),
+    count: argValue('--count', String(options.defaultCount ?? 50)),
+    queue: argValue('--queue', `${options.queuePrefix}-${handle}`),
   });
   const count = Number(parsed.count);
 

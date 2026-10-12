@@ -64,6 +64,8 @@ Every runnable runs in the CLI's process ([`defineJob`](./jobs.md#declaring-a-jo
 
 `run` never adds a manifest's `args`: a registered runner job's args are `["run", <id>, ...effective manifest args]`, so a person typing `run <id>` gets exactly what was typed.
 
+The CLI parses nothing after the id: the runnable gets the rest as `ctx.args` and parses it with `parseRunnableArgs` from the root export. Every runnable follows one convention: bare boolean flags (`--live`, `--dry-run`), valued options as `--name value` or `--name=value`, and positionals; for example `run jira-backfill --project=ACME --live` ([jobs](./jobs.md#arguments)).
+
 Running a core module by path (`node dist/<domain>/<module>.js`) runs nothing: runnable modules only declare themselves.
 
 ## Listing runnables

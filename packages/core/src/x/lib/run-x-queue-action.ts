@@ -10,7 +10,7 @@
 import type { Client } from '@xdevplatform/xdk';
 
 import type { JobContext, JobPrerequisite } from '../../jobs/define-job.js';
-import { parseRunnableArgs, value } from '../../lib/args.js';
+import { argValue, parseRunnableArgs } from '../../lib/args.js';
 import { drainXQueue } from './drain-x-queue.js';
 import { xHandlePrerequisite } from './x-api.js';
 import { xConfig, type XJobDeps, xJobDeps } from './x-deps.js';
@@ -41,8 +41,8 @@ export async function runXQueueAction(
 ): Promise<void> {
   const handle = args[0] ?? '';
   const parsed = parseRunnableArgs(args, {
-    maxItems: value('--maxItems', '50'),
-    queue: value('--queue', `${options.queuePrefix}-${handle}`),
+    maxItems: argValue('--maxItems', '50'),
+    queue: argValue('--queue', `${options.queuePrefix}-${handle}`),
   });
   const runnerClient = deps.runner();
   try {

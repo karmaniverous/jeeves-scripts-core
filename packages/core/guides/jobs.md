@@ -39,7 +39,7 @@ export default defineJob({
   crashDir: () => '/base/acme', // where _crash.log goes; default: the working directory
   prerequisite: () => hasAcmeConfig() || 'no acme block in jeeves-scripts.json',
   run: async ({ args }) => {
-    await report(args.includes('--live'));
+    await report(parseRunnableArgs(args, { live: argFlag('--live') }).live);
   },
 });
 ```
@@ -62,6 +62,46 @@ A job never ends the process itself (`process.exit` is a lint error in core). It
 - **Partial failure** (some items failed, the rest were processed): `process.exitCode = 1` after the run's summary.
 
 A job's logic takes its config values, file roots, clients, clock and arguments as parameters; its `run` builds the live ones from `ctx.args` and config when it runs (`run: ({ args }) => main(args, liveDeps())`), so tests pass their own.
+
+### Arguments
+
+A runnable reads its arguments from `ctx.args` (everything after `run <id>`, unchanged; see [cli](./cli.md#commands)) rather than `process.argv`, so a test can pass its own. Core's runnables and instance runnables use one convention and one parser from the root export (Decision 59):
+
+- **Boolean options are bare flags:** `--live`, `--dry-run`. Present means `true`; `--live=true` and `--live true` do not set a flag (the `true` is just another argument).
+- **Valued options** are `--name value` or `--name=value` (the first `=` splits, so `--services=a=b` gives `a=b`), optionally with a short alias written `-e value`. The first occurrence wins.
+- **Positionals** are the arguments that don't start with `-` and aren't the separate value of a valued option.
+- **Unknown arguments are ignored.**
+
+```ts
+import {
+  argFlag,
+  argOptional,
+  argValue,
+  defineJob,
+  parseRunnableArgs,
+  positionalArgs,
+} from '@karmaniverous/jeeves-scripts-core';
+
+const spec = {
+  live: argFlag('--live'), // boolean
+  project: argValue('--project', 'ACME'), // string, default 'ACME' ('' when no default is given)
+  env: argOptional('--env', { alias: '-e' }), // string | undefined
+};
+
+export default defineJob({
+  id: 'acme-report',
+  domain: 'acme',
+  description: 'Report on acme.',
+  run: async ({ args }) => {
+    // run acme-report 2026 08 --env=prod --live
+    const { live, project, env } = parseRunnableArgs(args, spec);
+    const [year, month] = positionalArgs(args, spec); // ['2026', '08']
+    await report({ live, project, env, year, month });
+  },
+});
+```
+
+A valued option given without a value (at the end of the args, as `--name=`, or followed by an argument starting with `-`) throws `<name> requires a value`, which fails the run like any other throw (exit 1). Check what the values mean (a number, a date, a known name) in the runnable, and report a bad one as a usage error. The parser is pure, so a test passes its own args.
 
 ## Manifests
 

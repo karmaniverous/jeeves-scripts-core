@@ -9,7 +9,7 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
-import { parseRunnableArgs, value } from '../lib/args.js';
+import { argValue, parseRunnableArgs } from '../lib/args.js';
 import {
   collabArgs,
   ghReady,
@@ -33,7 +33,8 @@ export function drainCollabs(
 
   const { owner, botUser } = collabArgs(args, deps);
   const maxItems = Number(
-    parseRunnableArgs(args, { maxItems: value('--maxItems', '50') }).maxItems,
+    parseRunnableArgs(args, { maxItems: argValue('--maxItems', '50') })
+      .maxItems,
   );
   const client = deps.runner();
 

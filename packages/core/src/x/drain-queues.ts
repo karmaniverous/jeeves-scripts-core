@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { defineJob } from '../jobs/define-job.js';
-import { parseRunnableArgs, value } from '../lib/args.js';
+import { argValue, parseRunnableArgs } from '../lib/args.js';
 import { type XJobDeps, xJobDeps } from './lib/x-deps.js';
 
 /** The queues each account drains, with the subdirectory they flush to. */
@@ -34,7 +34,8 @@ export function drainXQueues(
   deps: Pick<XJobDeps, 'accounts' | 'runner'>,
 ): void {
   const maxItems = Number(
-    parseRunnableArgs(args, { maxItems: value('--maxItems', '50') }).maxItems,
+    parseRunnableArgs(args, { maxItems: argValue('--maxItems', '50') })
+      .maxItems,
   );
   const client = deps.runner();
   try {

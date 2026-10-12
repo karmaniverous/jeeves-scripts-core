@@ -16,7 +16,7 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
-import { flag, parseRunnableArgs, value } from '../lib/args.js';
+import { argFlag, argValue, parseRunnableArgs } from '../lib/args.js';
 import { backfillEntity } from '../lib/entity-store.js';
 import {
   forEachLinearEntity,
@@ -26,9 +26,9 @@ import {
 } from './lib/linear-sync.js';
 
 const argSpec = {
-  team: value('--team'),
-  type: value('--type', 'issue'),
-  live: flag('--live'),
+  team: argValue('--team'),
+  type: argValue('--type', 'issue'),
+  live: argFlag('--live'),
 };
 
 /**
