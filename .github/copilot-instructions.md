@@ -10,10 +10,6 @@ The presumption is that any issue you find has survived the project's existing q
 
 ## Critical — Always Flag These
 
-### Instance-Specific Content
-
-This package is public and shared by every Jeeves instance. Flag anything that is not generic: code only one instance would use, one-off host migrations, instance/client/person/host names, real Slack/Notion/Google Drive ids, instance drive letters or paths, and hard-coded values that should come from config. Also flag a PR description that lacks the instance-agnostic confirmation from AGENTS.md.
-
 ### No Lint/Check Suppression
 
 Never suggest disabling linting or type-checking rules. This includes `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, `noqa`, `noinspection`, or any language/framework equivalent. The code must be fixed, not suppressed. If a rule fires, the code is wrong.
