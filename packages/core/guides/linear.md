@@ -1,3 +1,7 @@
+---
+title: Linear
+---
+
 # linear/
 
 Linear webhook drain, polling sync, and one-time backfill.
@@ -81,7 +85,7 @@ Supporting modules in `lib/`:
 
 | Entity Type | Payload Object | Key Field    | Example File          |
 | ----------- | -------------- | ------------ | --------------------- |
-| `issue`     | `body.data`    | `identifier` | `issue/ACME-1.json`    |
+| `issue`     | `body.data`    | `identifier` | `issue/ACME-1.json`   |
 | `comment`   | `body.data`    | `id`         | `comment/{uuid}.json` |
 | `cycle`     | `body.data`    | `number`     | `cycle/1.json`        |
 | `project`   | `body.data`    | `id`         | `project/{uuid}.json` |

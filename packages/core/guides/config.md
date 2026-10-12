@@ -1,3 +1,7 @@
+---
+title: Configuration
+---
+
 # config/
 
 One validated file, `jeeves-scripts.json`, configures every script on an instance. It holds instance settings, path overrides, integrations, the pipeline (accounts, buckets, refs, email and Drive settings), silo routing and per-job deltas. It never holds a secret value. Everything here is exported from the package root, `@karmaniverous/jeeves-scripts-core`.

@@ -1,3 +1,7 @@
+---
+title: Convert
+---
+
 # convert/
 
 Utilities for converting DOCX and PDF files to Markdown with YAML frontmatter, on the root export, and two thin runnables that convert one file each.
@@ -12,9 +16,14 @@ Utilities for converting DOCX and PDF files to Markdown with YAML frontmatter, o
 | `convert-pdf-to-md.ts` | The runnable `convert-pdf-to-md <in> <out>` (no manifest). |
 
 ```ts
-import { convertDocxToMd, convertPdfToMd } from '@karmaniverous/jeeves-scripts-core';
+import {
+  convertDocxToMd,
+  convertPdfToMd,
+} from '@karmaniverous/jeeves-scripts-core';
 
-const { converted, skipped, failed } = await convertPdfToMd(['/base/content/docs']);
+const { converted, skipped, failed } = await convertPdfToMd([
+  '/base/content/docs',
+]);
 ```
 
 Each resolves to `{ converted, skipped, failed }` and logs one line per file (`CONVERT`, `SKIP`, `FAIL`) and a summary. A file that fails is logged and counted, never thrown.

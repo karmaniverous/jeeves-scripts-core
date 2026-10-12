@@ -1,3 +1,7 @@
+---
+title: Google Drive Sync Design
+---
+
 # Google Drive Sync: Spec
 
 > **Historical design record.** Written against `jeeves-scripts-template`: `pipeline-config.json` is now the `pipeline` block of `jeeves-scripts.json` (`pipeline.googleDrive`), `src/lib/pipeline-config.ts` is `config/pipeline-schema.ts`, and jobs are core's registered jobs with core manifests ([jobs.md](./jobs.md)), run as `bin/jeeves-scripts.js run <job-id>`, not `runner_create_job` with a script path. The operating doc is [google-drive.md](./google-drive.md).

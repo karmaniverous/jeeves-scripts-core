@@ -1,3 +1,7 @@
+---
+title: Slack
+---
+
 # slack/
 
 Polls Slack channels for new messages across configured workspaces, auto-discovers channels the bot has joined, and writes per-message JSON archives.
@@ -65,7 +69,7 @@ Earlier versions kept channel workspaces in a separate `{configDir}/slack-channe
 
 ## Channel Config
 
-What *we* decide about a channel is config, in `jeeves-scripts.json`, and nowhere else:
+What _we_ decide about a channel is config, in `jeeves-scripts.json`, and nowhere else:
 
 ```json
 "slack": {
@@ -102,8 +106,8 @@ No config file, or no token in it, fails the run. Each channel is read with the 
 - `SLACK_DOMAIN_DIR` from `constants()`: `{contentDir}/slack`. The run skips (`[skip]`, exit 0) when `SLACK_DOMAIN_DIR` does not exist. Multi-workspace routing: a channel's workspace is its `teamId` in the [Slack cache](#slack-cache-state), and `siloRouting` in `jeeves-scripts.json` maps workspaces to silos (`slackWorkspaces`; [config.md](./config.md)); unmapped workspaces go to the default silo.
 - Run under jeeves-runner (or with `JR_DB_PATH` pointing at the runner DB) for read-position state.
 
-| Job          | Schedule     | Manifest          |
-| ------------ | ------------ | ----------------- |
+| Job          | Schedule     | Manifest               |
+| ------------ | ------------ | ---------------------- |
 | `slack-poll` | Every 11 min | core `jobs/slack.json` |
 
 The manifest entry carries a non-null `prerequisite` naming the token sources in [Bot Tokens](#bot-tokens).
@@ -124,7 +128,9 @@ import {
 const slack = createSlackClient({ token: slackBotToken('acme') });
 
 const { ts } = await slack.postMessage('C000EXAMPLE1', 'Report ready.');
-await slack.postMessage('C000EXAMPLE1', 'Details in the thread.', { threadTs: ts });
+await slack.postMessage('C000EXAMPLE1', 'Details in the thread.', {
+  threadTs: ts,
+});
 
 const dm = await slack.openDm('U000EXAMPLE1');
 await slack.uploadFile({
@@ -133,7 +139,8 @@ await slack.uploadFile({
   channelId: dm,
   title: 'Weekly report',
   initialComment: 'This week in two sheets.',
-  contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  contentType:
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 });
 
 try {

@@ -1,3 +1,7 @@
+---
+title: Token Metrics Runbook
+---
+
 # Token Metrics Operational Runbook
 
 ## How the Pipeline Works

@@ -1,6 +1,7 @@
 /**
  * TypeDoc configuration for the jeeves-scripts-core monorepo: the API
- * reference for core's root export plus the guides as project documents,
+ * reference for core's root export plus the guides (one Guides section via
+ * `guides/index.md`) as project documents,
  * written to `docs/` (design §11). TypeScript per Decision 52; TypeDoc
  * finds only JSON and JavaScript config files by itself, so `npm run docs`
  * passes this file with `--options`, and Node loads it with type stripping.
@@ -47,10 +48,11 @@ const config: Options = {
   },
   out: './docs/',
   plugin: ['typedoc-plugin-mdn-links', 'typedoc-plugin-replace-text'],
+  // The guides index lists every guide and the changelog as `children`, so
+  // TypeDoc renders them as one Guides section.
   projectDocuments: [
     './packages/core/README.md',
-    './packages/core/guides/*.md',
-    './packages/core/CHANGELOG.md',
+    './packages/core/guides/index.md',
   ],
   replaceText: {
     replacements: [

@@ -1,3 +1,7 @@
+---
+title: Google Drive
+---
+
 # google-drive/
 
 Mirrors Google Drive content **shared to the assistant's Workspace account** into the content tree as text, so the watcher indexes it and jeeves-meta synthesizes it. New, changed, moved, renamed, deleted and un-shared items all propagate. Unchanged files are never re-downloaded. Downloads are budgeted per run so a large first share never overruns the schedule.
@@ -210,8 +214,8 @@ JR_DB_PATH=… node bin/jeeves-scripts.js run google-drive-sync --live
 
 ## Jobs
 
-| Job                 | Schedule     | Manifest                 |
-| ------------------- | ------------ | ------------------------ |
+| Job                 | Schedule     | Manifest                      |
+| ------------------- | ------------ | ----------------------------- |
 | `google-drive-sync` | Every 13 min | core `jobs/google-drive.json` |
 
 `overlap_policy: skip`, `timeout_seconds: 720`, `args: ["--live"]`. The manifest carries a non-null `prerequisite`, so deploy does not auto-register it.

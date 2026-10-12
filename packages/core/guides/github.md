@@ -1,3 +1,7 @@
+---
+title: GitHub
+---
+
 # github/
 
 GitHub repo sync, issue sync, notification monitoring, and collaborator management.

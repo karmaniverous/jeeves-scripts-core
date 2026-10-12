@@ -1,3 +1,7 @@
+---
+title: Admin
+---
+
 # admin/
 
 Token metrics collection, session cost management, and housekeeping (orphaned `.tmp` files, Qdrant health). OpenClaw post-install dist patches are not here: they live in `jeeves` (Decision 36).
