@@ -4,7 +4,9 @@
  * The directory a Slack channel's messages are written to:
  * `{silo}/slack/{name} ({id})`, where the silo comes from the channel's
  * workspace (channel-workspace, then `getBasePathForSlackWorkspace`). A
- * channel renamed in Slack has its existing directory renamed to match.
+ * channel renamed in Slack has its existing directory renamed to match;
+ * when that rename fails (e.g. `EPERM` while another process holds the
+ * directory open) the existing directory is kept and a warning logged.
  */
 
 import fs from 'node:fs';
@@ -14,7 +16,48 @@ import { getBasePathForSlackWorkspace } from '../../config/index.js';
 import type { ChannelInfo } from './channel-info.js';
 import { channelTeamId } from './channel-workspace.js';
 
-/** The channel's message directory (workspace from `teams`, account → team), renaming an existing `* ({id})` directory to the current name. */
+const errorCode = (err: unknown): string => {
+  if (err instanceof Error) {
+    const { code } = err as NodeJS.ErrnoException;
+    return code ?? err.message;
+  }
+  return String(err);
+};
+
+/**
+ * The directory for channel `channelId` under `slackRoot`, named
+ * `targetDirName`. An existing `* ({id})` directory under another name is
+ * renamed to the target; if the rename fails for any reason, the existing
+ * directory is returned (with a warning) so messages keep going where
+ * they always have. When the target already exists it is used as is and
+ * any other `* ({id})` directory is left in place.
+ */
+function channelDirFor(
+  slackRoot: string,
+  channelId: string,
+  targetDirName: string,
+): string {
+  const targetDir = path.join(slackRoot, targetDirName);
+  if (!fs.existsSync(slackRoot) || fs.existsSync(targetDir)) return targetDir;
+
+  const suffix = `(${channelId})`;
+  const entry = fs.readdirSync(slackRoot).find((e) => e.endsWith(suffix));
+  if (entry === undefined) return targetDir;
+
+  const oldDir = path.join(slackRoot, entry);
+  try {
+    fs.renameSync(oldDir, targetDir);
+  } catch (err) {
+    console.warn(
+      `WARN ${channelId}: could not rename "${entry}" -> "${targetDirName}" (${errorCode(err)}); keeping "${entry}"`,
+    );
+    return oldDir;
+  }
+  console.log(`RENAMED: ${entry} -> ${targetDirName}`);
+  return targetDir;
+}
+
+/** The channel's message directory (workspace from `teams`, account → team), renaming an existing `* ({id})` directory to the current name when it can and keeping it when it can't. */
 export async function resolveChannelDir(
   channelId: string,
   channelInfo: ChannelInfo,
@@ -23,21 +66,9 @@ export async function resolveChannelDir(
 ): Promise<string> {
   const teamId = await channelTeamId(channelId, channelInfo, token, teams);
   const basePath = getBasePathForSlackWorkspace(teamId);
-  const slackRoot = path.join(basePath, 'slack');
-  const targetDirName = `${channelInfo.name} (${channelId})`;
-  const targetDir = path.join(slackRoot, targetDirName);
-
-  if (fs.existsSync(slackRoot)) {
-    const suffix = `(${channelId})`;
-    for (const entry of fs.readdirSync(slackRoot)) {
-      if (entry.endsWith(suffix) && entry !== targetDirName) {
-        const oldDir = path.join(slackRoot, entry);
-        fs.renameSync(oldDir, targetDir);
-        console.log(`RENAMED: ${entry} -> ${targetDirName}`);
-        return targetDir;
-      }
-    }
-  }
-
-  return targetDir;
+  return channelDirFor(
+    path.join(basePath, 'slack'),
+    channelId,
+    `${channelInfo.name} (${channelId})`,
+  );
 }

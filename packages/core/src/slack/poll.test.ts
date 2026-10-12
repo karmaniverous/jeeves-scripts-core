@@ -119,6 +119,30 @@ describe('pollSlack', () => {
       expect.stringMatching(/^Total:/),
     );
   });
+
+  it('still polls a renamed channel whose directory cannot be renamed, writing to the existing one', async () => {
+    const oldDir = path.join(deps().slackDir, 'old-name (C1)');
+    fs.rmSync(deps().slackDir, { recursive: true, force: true });
+    fs.mkdirSync(oldDir, { recursive: true });
+    vi.spyOn(fs, 'renameSync').mockImplementation(() => {
+      throw Object.assign(new Error('EPERM: operation not permitted, rename'), {
+        code: 'EPERM',
+      });
+    });
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await pollSlack(deps());
+    expect(warn).toHaveBeenCalledWith(
+      'WARN C1: could not rename "old-name (C1)" -> "general (C1)" (EPERM); keeping "old-name (C1)"',
+    );
+    expect(console.error).not.toHaveBeenCalledWith(
+      expect.stringMatching(/^ERROR C1:/),
+    );
+    expect(files(oldDir).filter((f) => f.endsWith('.json')).length).toBe(3);
+    expect(fs.existsSync(path.join(deps().slackDir, 'general (C1)'))).toBe(
+      false,
+    );
+    expect([...runner.state.values()]).toContain('100.5');
+  });
 });
 
 describe('slackPollDeps', () => {
