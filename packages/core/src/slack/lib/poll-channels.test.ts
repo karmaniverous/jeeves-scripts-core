@@ -174,6 +174,11 @@ describe('channel-dir', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     await resolveChannelDir('C1', channel({ name: 'new-name' }), 't', {});
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('(boom)'));
+    rename.mockImplementation(() => {
+      throw Object.assign(new Error('odd'), { code: 13 });
+    });
+    await resolveChannelDir('C1', channel({ name: 'new-name' }), 't', {});
+    expect(warn).toHaveBeenLastCalledWith(expect.stringContaining('(odd)'));
     rename.mockRestore();
     warn.mockRestore();
   });

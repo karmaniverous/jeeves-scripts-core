@@ -16,12 +16,10 @@ import { getBasePathForSlackWorkspace } from '../../config/index.js';
 import type { ChannelInfo } from './channel-info.js';
 import { channelTeamId } from './channel-workspace.js';
 
+/** A system error's string `code`, else the error's message. */
 const errorCode = (err: unknown): string => {
-  if (err instanceof Error) {
-    const { code } = err as NodeJS.ErrnoException;
-    return code ?? err.message;
-  }
-  return String(err);
+  if (!(err instanceof Error)) return String(err);
+  return 'code' in err && typeof err.code === 'string' ? err.code : err.message;
 };
 
 /**
