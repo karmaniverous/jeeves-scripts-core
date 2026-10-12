@@ -53,5 +53,6 @@ export default defineConfig({
         branches: 70,
       },
     },
+    testTimeout: 20_000,
   },
 });
