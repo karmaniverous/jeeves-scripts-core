@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.3] - 2026-10-14
+
+### 🐛 Bug Fixes
+
+- *(release)* GitHub release notes and changelog use the new version tag
 ## [0.1.2] - 2026-10-12
 
 ### 🐛 Bug Fixes
@@ -12,6 +17,10 @@ All notable changes to this project will be documented in this file.
 ### 💼 Other
 
 - Extended test timeouts
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-scripts-core v0.1.2
 ## [0.1.1] - 2026-10-12
 
 ### 💼 Other
