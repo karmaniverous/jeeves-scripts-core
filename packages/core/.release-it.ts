@@ -6,7 +6,10 @@
  *
  * git-cliff runs before the release tag exists, so both the changelog and the
  * GitHub release notes pass `--tag core/${version}`: without it git-cliff
- * files the release's own commits under `[unreleased]`.
+ * files the release's own commits under `[unreleased]`. The release notes use
+ * `--unreleased`, not `--latest`: release-it renders them before its git step
+ * creates the tag, when `--latest` still means the previous release
+ * (karmaniverous/npm-package-template-ts#30).
  */
 
 import type { Config } from 'release-it';
@@ -21,7 +24,9 @@ const config: Config = {
   },
   github: {
     release: true,
-    releaseNotes: 'npx git-cliff --tag core/${version} --latest --strip header',
+    releaseName: "${name.split('/').pop()}@${version}",
+    releaseNotes:
+      'npx git-cliff --tag core/${version} --unreleased --strip header',
   },
   hooks: {
     'after:init': [
