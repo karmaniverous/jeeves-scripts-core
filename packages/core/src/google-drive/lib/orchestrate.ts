@@ -6,7 +6,6 @@
  * under the shared budget), and record each one's run state.
  */
 
-import { argOptional, argValue, parseRunnableArgs } from '../../lib/args.js';
 import { type SyncEntryConfig, SyncEntrySchema } from './config.js';
 import { budgetExhausted } from './execute.js';
 import { createLedgerStore, type RunnerState } from './ledger.js';
@@ -20,13 +19,9 @@ import type { SyncSummary } from './summary.js';
  */
 export function selectSyncs(
   configured: SyncEntryConfig[],
-  argv: string[],
+  parsed: { account: string; domains?: string | undefined },
   live: boolean,
 ): SyncEntryConfig[] {
-  const parsed = parseRunnableArgs(argv, {
-    account: argValue('--account'),
-    domains: argOptional('--domains'),
-  });
   const account = parsed.account.toLowerCase();
   if (!account) return configured;
   const matched = configured.filter((s) => s.account.toLowerCase() === account);

@@ -14,6 +14,13 @@ import type { LedgerRecord } from './ledger.js';
 import type { NamingClass } from './naming.js';
 import type { DriveFile } from './types.js';
 
+/**
+ * Marker content key (`google-drive-sync --reconvert`): never equals a
+ * probe key, and never takes the unchanged-`modifiedTime` fast path, so the
+ * item re-converts.
+ */
+export const RECONVERT_KEY = 'reconvert';
+
 const mtKey = (file: DriveFile): string => `mt:${file.modifiedTime ?? ''}`;
 
 /** Blobs: md5 when Drive reports one, else modifiedTime. */
@@ -40,7 +47,10 @@ export function probeKey(
   if (namingClass !== 'google-native') return blobKey(file);
   const written = prior?.written;
   if (!written) return mtKey(file);
-  if (written.modifiedTime === (file.modifiedTime ?? null))
+  if (
+    written.contentKey !== RECONVERT_KEY &&
+    written.modifiedTime === (file.modifiedTime ?? null)
+  )
     return written.contentKey;
   return revisionKey(file, client);
 }

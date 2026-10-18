@@ -164,6 +164,7 @@ export const linearDrainDeps = (): LinearDrainDeps => ({
 export default defineJob({
   id: 'linear-drain',
   domain: 'linear',
+  flags: {},
   description:
     "Persist one Linear webhook payload read from stdin (run by jeeves-server's webhook route).",
   name: 'linear/drain',

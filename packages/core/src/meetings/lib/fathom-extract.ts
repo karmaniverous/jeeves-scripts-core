@@ -13,7 +13,7 @@ import path from 'node:path';
 
 import { nowIso, readJson } from '@karmaniverous/jeeves';
 
-import { parseDocFetchArgs } from './doc-fetch-scan.js';
+import { docFetchArgs, type DocFetchOptions } from './doc-fetch-scan.js';
 import { extractHiddenDivInnerHtml, htmlToText } from './fathom-html.js';
 import { writeMeetingMeta } from './meeting-schema.js';
 import { getMeetingsDirs, meetingPackages } from './meetings-dirs.js';
@@ -118,11 +118,11 @@ function findMeetingsNeedingFathom(meetingsDirs: string[]): FathomMeeting[] {
 // ── Main entry point ──────────────────────────────────────────────────
 
 export function runFathomExtract(
-  argv: string[] = [],
+  options: DocFetchOptions = {},
   meetingsDirs: string[] = getMeetingsDirs(),
   now: () => string = nowIso,
 ): void {
-  const args = parseDocFetchArgs(argv);
+  const args = docFetchArgs(options);
   let meetings = findMeetingsNeedingFathom(meetingsDirs);
 
   if (

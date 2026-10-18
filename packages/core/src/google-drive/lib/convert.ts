@@ -21,6 +21,7 @@ import type { SheetsConversionConfig } from './config.js';
 import type { DriveClient } from './drive-client.js';
 import type { SkipReason } from './ledger.js';
 import { renderWorkbook } from './sheets-md.js';
+import { stripEmbeddedImages } from './strip-images.js';
 import type { DriveFile } from './types.js';
 
 /** A permanent per-item outcome: skip until the content key changes. */
@@ -99,7 +100,7 @@ async function pdfToText(file: string): Promise<string> {
  * Produce the Markdown/text body for `file`. `stagingFile` is a scratch
  * path in the staging directory; it is removed before returning.
  */
-export async function materialize(
+async function convertRaw(
   kind: ConversionKind,
   file: DriveFile,
   client: DriveClient,
@@ -145,4 +146,21 @@ export async function materialize(
   } finally {
     for (const p of written) rmSync(p, { force: true });
   }
+}
+
+/**
+ * Materialise one Drive file as text, with inline base64 images replaced
+ * by short placeholders (they bloat the index and carry no searchable
+ * text). See `convertRaw` for the per-kind conversion.
+ */
+export async function materialize(
+  kind: ConversionKind,
+  file: DriveFile,
+  client: DriveClient,
+  stagingFile: string,
+  caps: SheetsConversionConfig,
+): Promise<string> {
+  return stripEmbeddedImages(
+    await convertRaw(kind, file, client, stagingFile, caps),
+  );
 }

@@ -37,7 +37,7 @@
 import fs from 'node:fs';
 
 import { defineJob } from '../jobs/define-job.js';
-import { argFlag, argValue, parseRunnableArgs } from '../lib/args.js';
+import { argFlag, argValue, type ParsedArgs } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
 import { userCacheFile } from '../slack/lib/slack-cache.js';
 import {
@@ -95,21 +95,26 @@ export const regenDeps = (): RegenDeps => ({
   openState: openTokenMetricsState,
 });
 
-/** Parse the arguments and run the regeneration; sets the exit code. */
+/** The flags `admin-regenerate-token-metrics` accepts. */
+export const regenFlags = {
+  from: argValue('--from', '', { description: 'Range start (inclusive)' }),
+  to: argValue('--to', '', { description: 'Range end (exclusive)' }),
+  out: argValue('--out', '', {
+    description: 'Write the buckets to this scratch directory instead of live',
+  }),
+  dryRun: argFlag('--dry-run', 'Report what would be rebuilt; write nothing'),
+  allowPreUpgrade: argFlag(
+    '--allow-pre-upgrade',
+    'Allow a range before the OpenClaw 2026.9 upgrade',
+  ),
+};
+
+/** Run the regeneration; sets the exit code. */
 export async function regenerate(
-  args: readonly string[],
+  flags: ParsedArgs<typeof regenFlags>,
   deps: RegenDeps,
 ): Promise<void> {
-  process.exitCode = await runRegen(
-    parseRunnableArgs(args, {
-      from: argValue('--from'),
-      to: argValue('--to'),
-      out: argValue('--out'),
-      dryRun: argFlag('--dry-run'),
-      allowPreUpgrade: argFlag('--allow-pre-upgrade'),
-    }),
-    deps,
-  );
+  process.exitCode = await runRegen(flags, deps);
 }
 
 export default defineJob({
@@ -118,5 +123,6 @@ export default defineJob({
   description:
     'Rebuild hourly token-metrics buckets for [--from, --to) (scratch with --out, or live), and bootstrap the agent-DB cursor after the OpenClaw 2026.9 upgrade.',
   name: 'regenerate-token-metrics',
-  run: ({ args }) => regenerate(args, regenDeps()),
+  flags: regenFlags,
+  run: ({ flags }) => regenerate(flags, regenDeps()),
 });

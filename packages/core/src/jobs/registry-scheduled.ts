@@ -54,6 +54,12 @@ export const scheduledJobs: readonly RegistryEntry[] = [
     load: () => import('../email/google-workspace/backfill-historical.js'),
   },
   {
+    id: 'email-respond',
+    domain: 'email',
+    module: 'email/google-workspace/respond',
+    load: () => import('../email/google-workspace/respond.js'),
+  },
+  {
     id: 'email-download',
     domain: 'email',
     module: 'email/google-workspace/download',

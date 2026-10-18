@@ -89,7 +89,7 @@ describe('every core runnable', () => {
       // error (no-floating-promises), so only .catch( and void could hide one.
       expect(job.run.toString()).not.toMatch(/\.catch\(|\bvoid\s/);
       unhandled.length = 0;
-      const settled = await settle(() => job.run({ args: [] }));
+      const settled = await settle(() => job.run({ args: [], flags: {} }));
       await drain();
       expect(unhandled).toEqual([]);
       expect(['resolved', 'rejected', 'threw']).toContain(settled);

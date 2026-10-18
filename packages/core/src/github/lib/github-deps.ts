@@ -19,7 +19,7 @@ import {
 } from '@karmaniverous/jeeves-runner';
 
 import { getBasePathForGitHubOrg } from '../../config/index.js';
-import { argValue, parseRunnableArgs } from '../../lib/args.js';
+import { argOptional, type ParsedArgs } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
 import { gh, type GhResult, setupGhConfig } from '../../lib/gh.js';
 
@@ -97,15 +97,24 @@ export function ghReady(deps: Pick<GitHubJobDeps, 'configDir'>): boolean {
   return false;
 }
 
+/** The collaborator jobs' flags. */
+export const collabFlags = {
+  owner: argOptional('--owner', {
+    description: 'Repository owner (default: the gh account)',
+  }),
+  botUser: argOptional('--botUser', {
+    description: 'Bot user to invite (default: the configured bot user)',
+  }),
+};
+
 /** The collaborator jobs' `--owner` and `--botUser` (default: the gh account and bot user). */
 export const collabArgs = (
-  args: readonly string[],
+  flags: Partial<ParsedArgs<typeof collabFlags>>,
   deps: Pick<GitHubJobDeps, 'account' | 'botUser'>,
-): { owner: string; botUser: string } =>
-  parseRunnableArgs(args, {
-    owner: argValue('--owner', deps.account),
-    botUser: argValue('--botUser', deps.botUser),
-  });
+): { owner: string; botUser: string } => ({
+  owner: flags.owner ?? deps.account,
+  botUser: flags.botUser ?? deps.botUser,
+});
 
 /** GET a REST endpoint through `gh api`; `null` for an empty body. */
 export const ghApiVia = (

@@ -2,13 +2,17 @@ import fs from 'node:fs';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { parseRunnableArgs } from '../lib/args.js';
 import { fakeFetch, type FetchCall } from '../lib/fake-fetch.test-helper.js';
 import {
   jiraTempDir,
   jiraTestDeps,
   noJiraCredentials,
 } from './lib/jira-deps.test-helper.js';
-import { sortJiraBacklog } from './sort-backlog.js';
+import { sortJiraBacklog, sortJiraBacklogFlags } from './sort-backlog.js';
+
+const flagsOf = (args: string[]) =>
+  parseRunnableArgs(args, sortJiraBacklogFlags);
 
 let dir: string;
 let out: string[];
@@ -51,7 +55,10 @@ const text = () => out.join('\n');
 describe('sortJiraBacklog', () => {
   it('fails with exit code 1 when no board is configured', async () => {
     const fake = board([]);
-    await sortJiraBacklog([], jiraTestDeps(dir, fake, { boardId: undefined }));
+    await sortJiraBacklog(
+      flagsOf([]),
+      jiraTestDeps(dir, fake, { boardId: undefined }),
+    );
     expect(process.exitCode).toBe(1);
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('integrations.jira.boardId'),
@@ -61,13 +68,19 @@ describe('sortJiraBacklog', () => {
 
   it('skips without credentials', async () => {
     const fake = board([]);
-    await sortJiraBacklog([], noJiraCredentials(jiraTestDeps(dir, fake)));
+    await sortJiraBacklog(
+      flagsOf([]),
+      noJiraCredentials(jiraTestDeps(dir, fake)),
+    );
     expect(text()).toContain('[skip] Jira API credentials not configured');
     expect(fake.calls).toEqual([]);
   });
 
   it('has nothing to sort in a one-issue backlog', async () => {
-    await sortJiraBacklog([], jiraTestDeps(dir, board([issue('A-1')])));
+    await sortJiraBacklog(
+      flagsOf([]),
+      jiraTestDeps(dir, board([issue('A-1')])),
+    );
     expect(text()).toContain('Nothing to sort.');
   });
 
@@ -77,7 +90,7 @@ describe('sortJiraBacklog', () => {
       issue('E-1', 'Low', 'Epic'),
       issue('A-2', 'Low'),
     ]);
-    await sortJiraBacklog([], jiraTestDeps(dir, fake));
+    await sortJiraBacklog(flagsOf([]), jiraTestDeps(dir, fake));
     expect(text()).toContain('Skipping 1 epic(s) \u2014 not included in sort');
     expect(text()).toContain('\u2705 Backlog is already sorted by priority.');
     expect(fake.calls.filter((c) => c.method === 'PUT')).toEqual([]);
@@ -90,7 +103,7 @@ describe('sortJiraBacklog', () => {
       issue('A-3', 'Weird'),
       issue('A-4'),
     ]);
-    await sortJiraBacklog([], jiraTestDeps(dir, fake));
+    await sortJiraBacklog(flagsOf([]), jiraTestDeps(dir, fake));
     expect(text()).toContain('=== Jira Backlog Priority Sort (DRY-RUN) ===');
     expect(text()).toContain('Priority distribution:');
     expect(text()).toContain(
@@ -108,7 +121,7 @@ describe('sortJiraBacklog', () => {
 
   it('re-ranks live through the Agile rank API', async () => {
     const fake = board([issue('A-1', 'Low'), issue('A-2', 'High')]);
-    await sortJiraBacklog(['--live'], jiraTestDeps(dir, fake));
+    await sortJiraBacklog(flagsOf(['--live']), jiraTestDeps(dir, fake));
     const puts = fake.calls.filter((c) => c.method === 'PUT');
     expect(puts.length).toBeGreaterThan(0);
     expect(puts[0]?.url.pathname).toBe('/rest/agile/1.0/issue/rank');

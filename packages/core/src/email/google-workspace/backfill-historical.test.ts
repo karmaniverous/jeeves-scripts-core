@@ -4,13 +4,18 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { parseRunnableArgs } from '../../lib/args.js';
 import { fakeRunnerClient } from '../../lib/fake-runner-client.test-helper.js';
 import { useTempConfig } from '../../lib/temp-config.test-helper.js';
 import {
   backfillHistorical,
   type BackfillHistoricalDeps,
   backfillHistoricalDeps,
+  backfillHistoricalFlags,
 } from './backfill-historical.js';
+
+const flagsOf = (args: string[]) =>
+  parseRunnableArgs(args, backfillHistoricalFlags);
 
 // Thread caches written by the live run land under a temp base directory.
 useTempConfig();
@@ -56,7 +61,7 @@ afterEach(() => {
 
 describe('backfillHistorical', () => {
   it('reports a dry run without moving the cursor', () => {
-    backfillHistorical([], deps());
+    backfillHistorical(flagsOf([]), deps());
     expect(logs).toContain('Mode: DRY-RUN');
     expect(logs).toContain('Accounts: me@example.com');
     expect(logs).toContain('Lookback: 30 days, window: 7 days');
@@ -69,7 +74,10 @@ describe('backfillHistorical', () => {
   });
 
   it('processes live, advancing the cursor, and honours --accounts', () => {
-    backfillHistorical(['--live', '--accounts', 'other@example.com'], deps());
+    backfillHistorical(
+      flagsOf(['--live', '--accounts', 'other@example.com']),
+      deps(),
+    );
     expect(logs).toContain('Mode: LIVE');
     expect(logs).toContain('Accounts: other@example.com');
     expect(logs.some((l) => l.startsWith('  Cursor:'))).toBe(true);
@@ -82,7 +90,7 @@ describe('backfillHistorical', () => {
       'cursor-me@example.com',
       '2026-04-01T00:00:00.000Z',
     );
-    backfillHistorical(['--live'], deps());
+    backfillHistorical(flagsOf(['--live']), deps());
     expect(logs).toContain('  Lookback limit reached: nothing to do');
   });
 
@@ -93,7 +101,7 @@ describe('backfillHistorical', () => {
       },
     });
     expect(() => {
-      backfillHistorical([], d);
+      backfillHistorical(flagsOf([]), d);
     }).toThrow('no gog');
   });
 });

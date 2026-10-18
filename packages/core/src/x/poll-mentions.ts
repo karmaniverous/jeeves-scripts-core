@@ -10,7 +10,7 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
-import { runXPoller } from './lib/poll-x-items.js';
+import { pollXFlags, runXPoller } from './lib/poll-x-items.js';
 import { xJobDeps } from './lib/x-deps.js';
 import { pollUserMentions } from './lib/x-timelines.js';
 
@@ -18,9 +18,12 @@ export default defineJob({
   id: 'x-poll-mentions',
   domain: 'x',
   name: 'x/poll-mentions',
-  run: ({ args }) =>
+  flags: pollXFlags,
+  positionals: '[handle]',
+  run: ({ args, flags }) =>
     runXPoller(
       args,
+      flags,
       {
         pollFn: pollUserMentions,
         queuePrefix: 'x-mentions',

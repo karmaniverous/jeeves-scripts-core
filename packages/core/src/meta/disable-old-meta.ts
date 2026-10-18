@@ -141,6 +141,7 @@ export function disableOldMeta(deps: DisableOldMetaDeps): void {
 export default defineJob({
   id: 'meta-disable-old',
   domain: 'meta',
+  flags: {},
   name: 'meta/disable-old-meta',
   run: () => {
     disableOldMeta({

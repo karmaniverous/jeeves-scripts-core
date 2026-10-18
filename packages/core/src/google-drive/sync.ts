@@ -14,6 +14,8 @@
  *   --domains <list>     delegated domains (comma-separated) for a synthesized dry-run entry
  *   --allow-mass-delete  apply deletions blocked by the mass-deletion guard
  *   --reset-state        clear the ledger + run state (requires --live)
+ *   --reconvert          re-convert synced items whose copy still holds
+ *                        inline base64 images (reported unless --live)
  */
 
 import {
@@ -22,6 +24,12 @@ import {
 } from '@karmaniverous/jeeves-runner';
 
 import { defineJob } from '../jobs/define-job.js';
+import {
+  argFlag,
+  argOptional,
+  argValue,
+  type ParsedArgs,
+} from '../lib/args.js';
 import { constants } from '../lib/constants.js';
 import {
   assertDisjointTargets,
@@ -34,6 +42,37 @@ import { createRunBudget } from './lib/execute.js';
 import { createLedgerStore } from './lib/ledger.js';
 import { runSyncs, selectSyncs } from './lib/orchestrate.js';
 import { compactMeta, exitCodeFor } from './lib/summary.js';
+
+/** The flags `google-drive-sync` accepts. */
+export const googleDriveSyncFlags = {
+  live: argFlag(
+    '--live',
+    'Apply changes (default: dry run, no writes anywhere)',
+  ),
+  account: argValue('--account', '', {
+    description:
+      'Limit to one configured sync; in a dry run with no configured block, synthesize a default entry',
+  }),
+  domains: argOptional('--domains', {
+    description:
+      'Delegated domains (comma-separated) for a synthesized dry-run entry',
+  }),
+  allowMassDelete: argFlag(
+    '--allow-mass-delete',
+    'Apply deletions blocked by the mass-deletion guard',
+  ),
+  resetState: argFlag(
+    '--reset-state',
+    'Clear the ledger and run state (requires --live)',
+  ),
+  reconvert: argFlag(
+    '--reconvert',
+    'Re-convert synced items whose copy still holds inline base64 images',
+  ),
+};
+
+/** Parsed {@link googleDriveSyncFlags}. */
+export type GoogleDriveSyncFlags = ParsedArgs<typeof googleDriveSyncFlags>;
 
 /** What {@link googleDriveSync} reads and calls. */
 export interface GoogleDriveSyncDeps {
@@ -65,15 +104,14 @@ export const googleDriveSyncDeps = (): GoogleDriveSyncDeps => ({
 
 /** Run the selected syncs (dry run unless `--live`), or reset their state. */
 export async function googleDriveSync(
-  args: readonly string[],
+  flags: GoogleDriveSyncFlags,
   deps: GoogleDriveSyncDeps,
 ): Promise<void> {
-  const argv = [...args];
-  const live = argv.includes('--live');
+  const { live } = flags;
   const config = deps.config();
   const configured = config?.syncs ?? [];
   assertDisjointTargets(configured, deps.contentDir);
-  const syncs = selectSyncs(configured, argv, live);
+  const syncs = selectSyncs(configured, flags, live);
   if (syncs.length === 0) {
     console.log('[skip] no googleDrive syncs configured');
     return;
@@ -81,7 +119,7 @@ export async function googleDriveSync(
 
   const runner = deps.runner();
   try {
-    if (argv.includes('--reset-state')) {
+    if (flags.resetState) {
       for (const s of syncs) {
         const n = createLedgerStore(runner, s.account, live).reset();
         console.log(
@@ -90,7 +128,7 @@ export async function googleDriveSync(
       }
       return;
     }
-    await sync(runner, syncs, live, config?.budget, argv, deps);
+    await sync(runner, syncs, config?.budget, flags, deps);
   } finally {
     runner.close();
   }
@@ -100,16 +138,16 @@ export default defineJob({
   id: 'google-drive-sync',
   domain: 'google-drive',
   name: 'google-drive/sync',
-  run: ({ args }) => googleDriveSync(args, googleDriveSyncDeps()),
+  flags: googleDriveSyncFlags,
+  run: ({ flags }) => googleDriveSync(flags, googleDriveSyncDeps()),
 });
 
 /** The sync proper: SIGTERM handling, the run budget, the run report. */
 async function sync(
   runner: RunnerClient,
   syncs: SyncEntryConfig[],
-  live: boolean,
   limits: BudgetConfig | undefined,
-  argv: string[],
+  flags: GoogleDriveSyncFlags,
   deps: GoogleDriveSyncDeps,
 ): Promise<void> {
   let stop = false;
@@ -126,8 +164,9 @@ async function sync(
   );
 
   const summaries = await deps.runSyncs(syncs, runner, {
-    live,
-    allowMassDelete: argv.includes('--allow-mass-delete'),
+    live: flags.live,
+    allowMassDelete: flags.allowMassDelete,
+    reconvert: flags.reconvert,
     budget,
     shouldStop: () => stop,
     log: (account, line) => {

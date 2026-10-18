@@ -148,6 +148,7 @@ export function emailInventory(deps: InventoryDeps): void {
 export default defineJob({
   id: 'email-inventory',
   domain: 'email',
+  flags: {},
   description:
     'Print thread directory, message file and thread-state counts per email account and silo (diagnostics).',
   name: 'email/inventory',

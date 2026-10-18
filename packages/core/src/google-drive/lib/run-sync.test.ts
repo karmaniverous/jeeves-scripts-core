@@ -1,101 +1,29 @@
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { BudgetConfigSchema, SyncEntrySchema } from './config.js';
+import { BudgetConfigSchema } from './config.js';
 import type { DriveClient } from './drive-client.js';
 import { createRunBudget } from './execute.js';
 import { fakeDrive, file } from './fake-drive.test-helper.js';
 import { fakeRunner } from './fake-runner.test-helper.js';
 import type { RunnerState } from './ledger.js';
-import type { FetchLike } from './meta-seed.js';
-import { stagingDirFor, syncOne, type SyncOptions } from './run-sync.js';
+import { stagingDirFor, syncOne } from './run-sync.js';
+import {
+  cfg,
+  drive,
+  folder,
+  note,
+  opts,
+  sandboxDir,
+  target,
+  tree,
+  useSandbox,
+} from './run-sync.test-helper.js';
 import { FOLDER_MIME } from './types.js';
 
-const cfg = SyncEntrySchema.parse({
-  account: 'assistant@example.com',
-  pathResolution: { domains: ['example.com'] },
-});
-const ext = {
-  owners: [{ emailAddress: 'ext@example.org' }],
-  sharingUser: { emailAddress: 'ext@example.org' },
-};
-const folder = file({
-  id: 'F',
-  name: 'Project',
-  mimeType: FOLDER_MIME,
-  ...ext,
-});
-const note = file({
-  id: 'n',
-  name: 'notes.txt',
-  parents: ['F'],
-  md5Checksum: 'v1',
-});
-
-let dir: string;
-beforeEach(() => {
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'gdrive-sync-'));
-});
-afterEach(() => {
-  fs.rmSync(dir, { recursive: true, force: true });
-});
-
-function drive(shared: boolean, body = 'hello'): DriveClient {
-  const c = fakeDrive(
-    shared ? { sharedWithMe: [folder], children: [note] } : {},
-  );
-  c.downloadTo = (_id, out) => {
-    fs.writeFileSync(out, body);
-    return out;
-  };
-  return c;
-}
-
-/** The meta service, simulated: creates `.meta/` and answers 201. */
-const seedFetch: FetchLike = (_url, init) => {
-  const body: unknown =
-    typeof init.body === 'string' ? JSON.parse(init.body) : null;
-  const p =
-    body !== null &&
-    typeof body === 'object' &&
-    'path' in body &&
-    typeof body.path === 'string'
-      ? body.path
-      : null;
-  if (p === null) return Promise.resolve(new Response('', { status: 400 }));
-  fs.mkdirSync(path.join(p, '.meta'), { recursive: true });
-  return Promise.resolve(new Response('', { status: 201 }));
-};
-
-function opts(
-  client: DriveClient,
-  live: boolean,
-  log: string[] = [],
-): SyncOptions {
-  return {
-    live,
-    allowMassDelete: false,
-    budget: createRunBudget(BudgetConfigSchema.parse({}), Date.now()),
-    shouldStop: () => false,
-    log: (l) => log.push(l),
-    client,
-    contentDir: path.join(dir, 'content'),
-    stagingRoot: path.join(dir, 'staging'),
-    fetchFn: seedFetch,
-  };
-}
-
-const target = (): string => path.join(dir, 'content', 'google-drive');
-const tree = (): string[] =>
-  fs.existsSync(target())
-    ? fs
-        .readdirSync(target(), { recursive: true, encoding: 'utf8' })
-        .map((p) => p.split(path.sep).join('/'))
-        .sort()
-    : [];
+useSandbox();
 
 describe('stagingDirFor', () => {
   it('places the account directly under the staging root', () => {
@@ -282,10 +210,10 @@ describe('syncOne end to end', () => {
   });
 
   it('refuses a target dir that is a symlink, leaving the outside tree alone', async () => {
-    const outside = path.join(dir, 'outside');
+    const outside = path.join(sandboxDir(), 'outside');
     fs.mkdirSync(outside);
     fs.writeFileSync(path.join(outside, 'sentinel'), 'keep');
-    fs.mkdirSync(path.join(dir, 'content'));
+    fs.mkdirSync(path.join(sandboxDir(), 'content'));
     // 'junction' needs no symlink privilege on Windows; ignored elsewhere.
     fs.symlinkSync(outside, target(), 'junction');
     await expect(

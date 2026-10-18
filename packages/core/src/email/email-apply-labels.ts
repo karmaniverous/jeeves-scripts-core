@@ -11,8 +11,6 @@
  * `jeeves-scripts run email-apply-labels`; it has no manifest.
  */
 
-import { parseArgs } from 'node:util';
-
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
 import {
@@ -23,6 +21,7 @@ import {
   resetConfig,
 } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
+import { argFlag, argOptional, type ParsedArgs } from '../lib/args.js';
 import {
   APPLY_LABELS_MAX_THREADS,
   type ApplyLabelsClient,
@@ -69,25 +68,34 @@ export interface ApplyLabelsDeps {
   client?: () => ApplyLabelsClient & { close(): void };
 }
 
-/** Parsed options, or the message for an invalid one. */
-const parseOptions = (args: readonly string[]) => {
+/** The flags `email-apply-labels` accepts. */
+export const applyLabelsFlags = {
+  since: argOptional('--since', {
+    description: 'Only messages after this date',
+  }),
+  account: argOptional('--account', {
+    description: 'One configured Gmail account',
+  }),
+  max: argOptional('--max', {
+    description: 'Messages to process (positive integer)',
+  }),
+  dryRun: argFlag('--dry-run', 'Report the labels; apply nothing'),
+  config: argOptional('--config', {
+    description: 'Path to jeeves-scripts.json',
+  }),
+};
+
+/** Parsed {@link applyLabelsFlags}. */
+export type ApplyLabelsFlags = ParsedArgs<typeof applyLabelsFlags>;
+
+/** Validated options, or the message for an invalid one. */
+const parseOptions = (values: Partial<ApplyLabelsFlags>) => {
   try {
-    const { values } = parseArgs({
-      args: [...args],
-      options: {
-        since: { type: 'string' },
-        account: { type: 'string' },
-        max: { type: 'string' },
-        'dry-run': { type: 'boolean' },
-        config: { type: 'string' },
-      },
-      strict: true,
-    });
     return {
       since: values.since === undefined ? undefined : parseSince(values.since),
       account: values.account,
       max: values.max === undefined ? undefined : parseMax(values.max),
-      dryRun: values['dry-run'] ?? false,
+      dryRun: values.dryRun ?? false,
       config: values.config,
     };
   } catch (e) {
@@ -96,18 +104,18 @@ const parseOptions = (args: readonly string[]) => {
 };
 
 /**
- * Run `email-apply-labels` with its command-line arguments. Problems are
+ * Run `email-apply-labels` with its parsed flags. Problems are
  * printed to stderr with `process.exitCode = 1`; nothing throws for them.
  */
 export function emailApplyLabels(
-  args: readonly string[],
+  flags: Partial<ApplyLabelsFlags>,
   deps: ApplyLabelsDeps = {},
 ): void {
   const fail = (message: string) => {
     console.error(`apply-labels: ${message}`);
     process.exitCode = 1;
   };
-  const options = parseOptions(args);
+  const options = parseOptions(flags);
   if (typeof options === 'string') {
     fail(options);
     return;
@@ -151,7 +159,8 @@ export default defineJob({
   id: 'email-apply-labels',
   domain: 'email',
   description: `Enqueue classification labels thread state calls for but that were never applied (e.g. while reportOnly was on); drain-updates applies them. Default --max ${String(APPLY_LABELS_MAX_THREADS)}.`,
-  run: ({ args }) => {
-    emailApplyLabels(args);
+  flags: applyLabelsFlags,
+  run: ({ flags }) => {
+    emailApplyLabels(flags);
   },
 });

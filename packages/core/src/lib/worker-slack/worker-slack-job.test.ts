@@ -136,27 +136,41 @@ describe('runWorkerSlackJob', () => {
     expect(print).toHaveBeenCalledWith(result.task);
   });
 
-  it('--dry-run prints the posts instead of posting', async () => {
+  it('--dry-run reports and dispatches nothing (#15)', async () => {
     const slack = mockSlack();
+    const dispatch = vi.fn();
     const print = vi.fn();
     const result = await runWorkerSlackJob('T', CONFIG, {
       slack,
-      dispatch: vi.fn().mockResolvedValue({
-        exitCode: 0,
-        finalText: reply([
-          { channel: 'C000EXAMPLE1', text: 'Agenda', pin: true },
-        ]),
-      }),
+      dispatch,
       print,
       dryRun: true,
+      jobId: 'acme-ops-agenda',
     });
 
+    expect(dispatch).not.toHaveBeenCalled();
     expect(slack.send).not.toHaveBeenCalled();
     expect(slack.pin).not.toHaveBeenCalled();
-    expect(print).toHaveBeenCalledWith(
-      '[slack dry-run] → channel:C000EXAMPLE1 (pin)\nAgenda',
+    expect(slack.edit).not.toHaveBeenCalled();
+    expect(print).toHaveBeenCalledTimes(1);
+    expect(print.mock.calls[0]?.[0]).toMatch(
+      new RegExp(
+        `^\\[slack dry-run\\] would dispatch job acme-ops-agenda with a ${String(result.task.length)}-character task; posts allowed to: channel:C000EXAMPLE1`,
+      ),
     );
-    expect(result).toMatchObject({ posted: 0, posts: [{ text: 'Agenda' }] });
+    expect(result).toMatchObject({ posted: 0, posts: [] });
+  });
+
+  it('--dry-run without posts or job id names no targets', async () => {
+    const print = vi.fn();
+    const { task } = await runWorkerSlackJob(
+      'T',
+      {},
+      { slack: mockSlack(), dispatch: vi.fn(), print, dryRun: true },
+    );
+    expect(print).toHaveBeenCalledWith(
+      `[slack dry-run] would dispatch a ${String(task.length)}-character task; posts allowed to: none`,
+    );
   });
 
   it('posts nothing when any target is not allowed', async () => {

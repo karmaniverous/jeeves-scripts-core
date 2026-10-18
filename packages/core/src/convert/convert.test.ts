@@ -85,7 +85,7 @@ describe('convert runnables', () => {
     fs.writeFileSync(input, 'x');
     mocks.extractPdfText.mockResolvedValue({ text: 'one pdf', total: 1 });
 
-    await convertPdfJob.run({ args: [input, output] });
+    await convertPdfJob.run({ args: [input, output], flags: {} });
 
     const md = fs.readFileSync(output, 'utf8');
     expect(md).toContain(`source: ${JSON.stringify(input)}`);
@@ -101,7 +101,7 @@ describe('convert runnables', () => {
     fs.writeFileSync(output, 'old');
     mocks.convertToHtml.mockResolvedValue({ value: '<h2>Hello</h2>' });
 
-    await convertDocxJob.run({ args: [input, output] });
+    await convertDocxJob.run({ args: [input, output], flags: {} });
 
     expect(fs.readFileSync(output, 'utf8')).toContain('## Hello');
   });
@@ -109,7 +109,7 @@ describe('convert runnables', () => {
   it.each([[[]], [['only-in']], [['a', 'b', 'c']]])(
     'rejects arguments other than <in> <out>: %j',
     async (args) => {
-      await expect(convertPdfJob.run({ args })).rejects.toThrow(
+      await expect(convertPdfJob.run({ args, flags: {} })).rejects.toThrow(
         'Usage: jeeves-scripts run convert-pdf-to-md <in> <out>',
       );
     },
@@ -119,6 +119,7 @@ describe('convert runnables', () => {
     await expect(
       convertDocxJob.run({
         args: [path.join(dir, 'missing.docx'), path.join(dir, 'o.md')],
+        flags: {},
       }),
     ).rejects.toThrow(/ENOENT/);
   });

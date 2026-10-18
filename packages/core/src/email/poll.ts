@@ -136,6 +136,7 @@ export async function pollEmail(deps: EmailPollDeps): Promise<void> {
 export default defineJob({
   id: 'email-poll',
   domain: 'email',
+  flags: {},
   name: 'email/poll',
   crashDir: () => constants().EMAIL_EVENTS_DIR,
   run: () => pollEmail(emailPollDeps()),

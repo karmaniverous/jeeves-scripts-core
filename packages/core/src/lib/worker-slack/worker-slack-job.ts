@@ -7,10 +7,13 @@
  *
  * 1. read the configured channels/threads and append them to the TASK;
  * 2. append the Slack output contract (worker-posts.ts);
- * 3. dispatch the worker (skipped with `printTask`);
+ * 3. dispatch the worker (skipped with `printTask` or `dryRun`);
  * 4. parse and validate the worker's `slack-posts` block;
- * 5. post each message (pin it, or edit an existing message, when asked),
- *    or print the posts in `dryRun` mode.
+ * 5. post each message (pin it, or edit an existing message, when asked).
+ *
+ * `printTask` prints the full TASK; `dryRun` prints a one-line report (job,
+ * TASK length, allowed post targets). Neither starts a worker session, so a
+ * dry run is always a safe preview.
  *
  * Nothing is posted unless the whole block is valid and every target,
  * edit and pin is allowed. The config is validated by the caller at the
@@ -36,8 +39,10 @@ export interface WorkerSlackDeps {
   dispatch: (
     task: string,
   ) => Promise<{ exitCode: number; finalText: string | null }>;
-  /** Print instead of posting. */
+  /** Report what would be dispatched; dispatch and post nothing. */
   dryRun?: boolean;
+  /** Job id, named in the dry-run report. */
+  jobId?: string;
   /** Print the TASK and stop before dispatching. */
   printTask?: boolean;
   /** Output sink (default console.log). */
@@ -48,7 +53,7 @@ export interface WorkerSlackDeps {
 export interface WorkerSlackResult {
   /** The full TASK that was (or would be) dispatched. */
   task: string;
-  /** Validated posts (empty when printTask). */
+  /** Validated posts (empty when printTask or dryRun). */
   posts: WorkerPost[];
   /** Number of messages actually posted. */
   posted: number;
@@ -90,15 +95,6 @@ export async function buildWorkerSlackTask(
     .join('\n\n');
 }
 
-function describe(post: WorkerPost): string {
-  const where = post.edit_ts
-    ? `${post.channel} edit ${post.edit_ts}`
-    : post.thread_ts
-      ? `${post.channel} thread ${post.thread_ts}`
-      : post.channel;
-  return `[slack dry-run] → ${where}${post.pin ? ' (pin)' : ''}\n${post.text}`;
-}
-
 async function deliver(slack: SlackIo, post: WorkerPost): Promise<void> {
   if (post.edit_ts) {
     await slack.edit(post.channel, post.edit_ts, post.text);
@@ -131,6 +127,16 @@ export async function runWorkerSlackJob(
     print(task);
     return { task, posts: [], posted: 0 };
   }
+  if (deps.dryRun) {
+    const targets = (config.posts ?? []).map((p) =>
+      requireSlackTarget(p.target),
+    );
+    const job = deps.jobId ? `job ${deps.jobId} with ` : '';
+    print(
+      `[slack dry-run] would dispatch ${job}a ${String(task.length)}-character task; posts allowed to: ${targets.length > 0 ? targets.join(', ') : 'none'}`,
+    );
+    return { task, posts: [], posted: 0 };
+  }
 
   const { exitCode, finalText } = await deps.dispatch(task);
   if (exitCode !== 0)
@@ -140,15 +146,9 @@ export async function runWorkerSlackJob(
 
   let posted = 0;
   for (const post of posts) {
-    if (deps.dryRun) {
-      print(describe(post));
-      continue;
-    }
     await deliver(deps.slack, post);
     posted += 1;
   }
-  print(
-    `[worker-slack] ${deps.dryRun ? 'dry-run: would post' : 'posted'} ${String(deps.dryRun ? posts.length : posted)} message(s)`,
-  );
+  print(`[worker-slack] posted ${String(posted)} message(s)`);
   return { task, posts, posted };
 }

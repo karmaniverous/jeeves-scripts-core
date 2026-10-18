@@ -202,6 +202,7 @@ export async function pollSlack(deps: SlackPollDeps): Promise<void> {
 export default defineJob({
   id: 'slack-poll',
   domain: 'slack',
+  flags: {},
   name: 'slack/poll',
   run: () => pollSlack(slackPollDeps()),
 });

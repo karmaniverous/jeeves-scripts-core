@@ -9,10 +9,12 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { drainXQueues } from './drain-queues.js';
-import { runXPoller } from './lib/poll-x-items.js';
+import { type ArgSpec, parseRunnableArgs } from '../lib/args.js';
+import { drainXQueues, drainXQueuesFlags } from './drain-queues.js';
+import { pollXFlags, runXPoller } from './lib/poll-x-items.js';
 import {
   runXQueueAction,
+  xQueueActionFlags,
   type XQueueActionOptions,
 } from './lib/run-x-queue-action.js';
 import type { XClient, XTweetData } from './lib/x-client.js';
@@ -26,6 +28,9 @@ import {
 } from './lib/x-deps.test-helper.js';
 import { pollFeeds, PRUNE_DAYS } from './poll-feed.js';
 import { refreshXToken } from './refresh-token.js';
+
+const flagsOf = <S extends ArgSpec>(args: string[], spec: S) =>
+  parseRunnableArgs(args, spec);
 
 let w: XWorld;
 let logs: string[];
@@ -58,7 +63,12 @@ describe('runXPoller', () => {
 
   it('enqueues every fetched tweet for each configured handle with an OAuth file', async () => {
     const opts = options();
-    await runXPoller(['--count', '5'], opts, w.deps);
+    await runXPoller(
+      ['--count', '5'],
+      flagsOf(['--count', '5'], pollXFlags),
+      opts,
+      w.deps,
+    );
     expect(opts.pollFn).toHaveBeenCalledWith(w.client, 'example', {
       maxResults: 5,
     });
@@ -81,24 +91,43 @@ describe('runXPoller', () => {
   it('counts dedup skips and honours --queue', async () => {
     const runner = w.deps.runner();
     vi.spyOn(runner, 'enqueue').mockReturnValue(-1);
-    await runXPoller(['example', '--queue', 'q'], options(), w.deps);
+    await runXPoller(
+      ['example', '--queue', 'q'],
+      flagsOf(['example', '--queue', 'q'], pollXFlags),
+      options(),
+      w.deps,
+    );
     expect(logs).toContain(
       'posts: @example fetched=2, enqueued=0, dedupSkipped=2',
     );
   });
 
   it('logs skipped handles, empty results and API errors without failing', async () => {
-    await runXPoller(['ghost'], options(), w.deps);
+    await runXPoller(
+      ['ghost'],
+      flagsOf(['ghost'], pollXFlags),
+      options(),
+      w.deps,
+    );
     expect(logs).toContain('[skip] @ghost: not in integrations.x.accounts');
-    await runXPoller([], options(vi.fn(() => Promise.resolve([]))), w.deps);
+    await runXPoller(
+      [],
+      flagsOf([], pollXFlags),
+      options(vi.fn(() => Promise.resolve([]))),
+      w.deps,
+    );
     expect(logs).toContain('posts: no items returned for @example');
     await runXPoller(
       [],
+      flagsOf([], pollXFlags),
       options(vi.fn(() => Promise.reject(new Error('rate')))),
       w.deps,
     );
     expect(errors).toContain('posts: API error for @example: rate');
-    await runXPoller([], options(), { ...w.deps, accounts: {} });
+    await runXPoller([], flagsOf([], pollXFlags), options(), {
+      ...w.deps,
+      accounts: {},
+    });
     expect(
       logs.some((l) => l.startsWith('[skip] no X accounts configured')),
     ).toBe(true);
@@ -175,7 +204,12 @@ describe('runXQueueAction', () => {
     r.enqueue('x-like-example', { tweetId: 't2' });
     r.enqueue('x-like-example', { tweetId: 't3' });
     const opts = options((_c, _h, id) => Promise.resolve(id !== 't2'));
-    await runXQueueAction(['example', '--maxItems', '2'], opts, w.deps);
+    await runXQueueAction(
+      ['example', '--maxItems', '2'],
+      flagsOf(['example', '--maxItems', '2'], xQueueActionFlags),
+      opts,
+      w.deps,
+    );
     const q = w.runner.queues.get('x-like-example') ?? [];
     expect(q.map((i) => i.status)).toEqual(['done', 'failed', 'pending']);
     expect(logs).toContain('like: @example liked=1, failed=1');
@@ -183,13 +217,23 @@ describe('runXQueueAction', () => {
   });
 
   it('drains an empty handle queue without a handle', async () => {
-    await runXQueueAction([], options(), w.deps);
+    await runXQueueAction(
+      [],
+      flagsOf([], xQueueActionFlags),
+      options(),
+      w.deps,
+    );
     expect(logs).toContain('like: @ liked=0, failed=0');
   });
 
   it('drains the --queue override', async () => {
     w.runner.client.enqueue('custom', { tweetId: 't1' });
-    await runXQueueAction(['example', '--queue', 'custom'], options(), w.deps);
+    await runXQueueAction(
+      ['example', '--queue', 'custom'],
+      flagsOf(['example', '--queue', 'custom'], xQueueActionFlags),
+      options(),
+      w.deps,
+    );
     expect(w.runner.queues.get('custom')?.[0]?.status).toBe('done');
   });
 });
@@ -220,7 +264,7 @@ describe('drainXQueues', () => {
     r.enqueue('x-posts-example', { id: '1', raw: { id: '1', text: 'raw' } });
     r.enqueue('x-mentions-example', { id: '2', text: 'plain' });
     r.enqueue('x-feed-example', { text: 'no id' });
-    drainXQueues(['--maxItems', '10'], w.deps);
+    drainXQueues(flagsOf(['--maxItems', '10'], drainXQueuesFlags), w.deps);
     expect(
       JSON.parse(
         fs.readFileSync(path.join(w.accountDir, 'posts', '1.json'), 'utf8'),

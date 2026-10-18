@@ -52,8 +52,8 @@ describe('every GitHub job', () => {
     syncRepos(w.deps);
     await syncIssues(w.deps);
     buildRegistry(w.deps);
-    pollCollabs([], w.deps);
-    drainCollabs([], w.deps);
+    pollCollabs({}, w.deps);
+    drainCollabs({}, w.deps);
     watchNotifications(w.deps);
     expect(
       logs.filter((l) => l === '[skip] GitHub CLI config not configured'),

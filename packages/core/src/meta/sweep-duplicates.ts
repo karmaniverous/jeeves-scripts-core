@@ -225,6 +225,7 @@ export function sweepDuplicates(deps: SweepDuplicatesDeps): void {
 export default defineJob({
   id: 'meta-sweep-duplicates',
   domain: 'meta',
+  flags: {},
   name: 'meta/sweep-duplicates',
   run: () => {
     sweepDuplicates({ entityTypes: ENTITY_TYPES, entityDirs: getEntityDirs });

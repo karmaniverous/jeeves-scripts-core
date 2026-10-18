@@ -106,7 +106,7 @@ describe('runRefreshTokenRates', () => {
 describe('refreshTokenRatesMain', () => {
   it('--dry-run reports changes without seeding or writing', async () => {
     const d = deps(card({ 'a/m': r(1, 1) }), { 'a/m': r(2, 2) });
-    const res = await refreshTokenRatesMain(['node', 'x', '--dry-run'], d);
+    const res = await refreshTokenRatesMain({ dryRun: true }, d);
     expect(res.outcome).toBe('dry-run');
     expect(res.changes).toHaveLength(1);
     expect(d.write).not.toHaveBeenCalled();

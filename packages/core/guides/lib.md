@@ -136,7 +136,7 @@ Recovers an LLM worker's full final reply after `dispatchSession`: it takes the 
 Job-side Slack I/O for LLM workers. On OpenClaw 2026.9, sub-agent sessions have no `message` tool, so the job script does all Slack work:
 
 - `worker-slack-config.ts`: Zod 4 schema for the job's `{ accountId?, reads?, posts? }` config (each post target carries `editTs?`, the exact message ids the worker may edit, and `pin?`); types are derived with `z.infer`.
-- `run.ts`: `dispatchWithSlack(task, dispatchOptions, { reads, posts })` is the production entry point. It validates the config before any gateway call and supports `--dry-run` (print the posts instead of posting) and `--print-task` (print the TASK, no dispatch).
+- `run.ts`: `dispatchWithSlack(task, dispatchOptions, { reads, posts })` is the production entry point. It validates the config before any gateway call and supports `--dry-run` (report the job, TASK length and post targets; no dispatch, no posts) and `--print-task` (print the TASK, no dispatch).
 - `worker-slack-job.ts`: orchestration with injected deps (read → TASK → dispatch → validate → post/pin/edit).
 - `worker-posts.ts`: the `slack-posts` output contract (a fenced JSON array, never a bare object, of `{channel, text, thread_ts?, pin?, edit_ts?}`; `edit_ts` replaces the text of an existing message and can't be combined with `thread_ts`/`pin`; edits and pins are allowed only where the target's `editTs` / `pin` permit), the worker instructions, and the Slack context formatting (fenced as untrusted data the worker must never follow as instructions).
 - `slack-io.ts`: `read` / `send` / `pin` / `edit` through the gateway `message` tool (`/tools/invoke`). A read response without a valid `messages` array throws (only `messages: []` means an empty channel).
@@ -172,7 +172,15 @@ Validated JSON file I/O, on the root export: `readJsonFile(file, schema)` parses
 
 ### args.ts
 
-The one argument parser for runnables, core's and instances', on the root export (Decision 59): `parseRunnableArgs(ctx.args, spec)` with `argFlag(name)`, `argValue(name, fallback?, { alias? })` and `argOptional(name, { alias? })`, plus `positionalArgs(ctx.args, spec?)`. The convention (bare flags, `--name value` and `--name=value`, positionals) is in [jobs.md](./jobs.md#arguments). `admin-report-token-metrics` keeps its own strict parser, which rejects unknown arguments.
+The one argument parser for runnables, core's and instances', on the root export (Decision 59): `argFlag(name, description?)`, `argValue(name, fallback?, { alias?, description? })` and `argOptional(name, { alias?, description? })` build the spec a runnable declares as `defineJob({ flags })`; `run` checks the arguments against it with `unknownArgs(args, spec, positionals?)` and the job reads `ctx.flags` (`parseRunnableArgs(args, spec)`), plus `positionalArgs(ctx.args, spec?)`. The convention (bare flags, `--name value` and `--name=value`, positionals) and the checks are in [jobs.md](./jobs.md#arguments).
+
+### is-record.ts
+
+`isRecord(v)`: the one type guard for a non-null object read from unknown JSON (arrays pass; `admin/lib/openrouter-pricing.ts` keeps its own, which rejects arrays).
+
+### dispatcher-flags.ts
+
+`dispatcherFlags` (`--print-task`, `--dry-run`), for a dispatcher's `defineJob({ flags })`, on the root export. `resolveDispatcherFlags` reads them from parsed flags or, for dispatchers that declare none, from raw arguments (default `process.argv`).
 
 ### slack-client.ts
 

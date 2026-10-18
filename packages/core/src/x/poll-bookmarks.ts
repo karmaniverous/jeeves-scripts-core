@@ -10,7 +10,7 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
-import { runXPoller } from './lib/poll-x-items.js';
+import { pollXFlags, runXPoller } from './lib/poll-x-items.js';
 import { xJobDeps } from './lib/x-deps.js';
 import { pollBookmarks } from './lib/x-timelines.js';
 
@@ -18,9 +18,12 @@ export default defineJob({
   id: 'x-poll-bookmarks',
   domain: 'x',
   name: 'x/poll-bookmarks',
-  run: ({ args }) =>
+  flags: pollXFlags,
+  positionals: '[handle]',
+  run: ({ args, flags }) =>
     runXPoller(
       args,
+      flags,
       {
         pollFn: pollBookmarks,
         queuePrefix: 'x-bookmarks',

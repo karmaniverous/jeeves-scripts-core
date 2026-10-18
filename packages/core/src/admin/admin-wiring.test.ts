@@ -13,14 +13,21 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetConfig } from '../config/loader.js';
+import { parseRunnableArgs } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
 import { fakeRunnerClient } from '../lib/fake-runner-client.test-helper.js';
 import { useTempConfig } from '../lib/temp-config.test-helper.js';
 import { collect, collectDeps } from './collect-token-metrics.js';
 import { openTokenMetricsState } from './lib/token-metrics-state.js';
 import { refreshRatesDeps } from './refresh-token-rates.js';
-import { regenDeps, regenerate } from './regenerate-token-metrics.js';
+import {
+  regenDeps,
+  regenerate,
+  regenFlags,
+} from './regenerate-token-metrics.js';
 import { sessionRefreshDeps } from './session-refresh.js';
+
+const flagsOf = (args: string[]) => parseRunnableArgs(args, regenFlags);
 
 const baseDir = useTempConfig();
 
@@ -85,7 +92,7 @@ describe('refresh-token-rates wiring', () => {
 
 describe('regenerate-token-metrics wiring', () => {
   it('fails on a missing --from before reading any source', async () => {
-    await regenerate(['--dry-run'], regenDeps());
+    await regenerate(flagsOf(['--dry-run']), regenDeps());
     expect(process.exitCode).toBe(1);
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('--from ISO is required.'),

@@ -10,16 +10,20 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { parseRunnableArgs } from '../lib/args.js';
 import {
   ingestNotion,
   type IngestNotionDeps,
   ingestNotionDeps,
+  ingestNotionFlags,
 } from './ingest-notion.js';
 import {
   type NotionInboxDeps,
   processNotionInboxMeeting,
   sha1Prefix,
 } from './lib/notion-inbox-processor.js';
+
+const flagsOf = (args: string[]) => parseRunnableArgs(args, ingestNotionFlags);
 
 let dir: string;
 let logs: string[];
@@ -53,13 +57,13 @@ describe('ingestNotion', () => {
 
   it('skips without a Notion key', async () => {
     const d = deps({ apiKeyPath: path.join(dir, 'missing') });
-    await ingestNotion([], d);
+    await ingestNotion(flagsOf([]), d);
     expect(logs).toEqual(['[skip] Notion API key not configured']);
   });
 
   it('processes the oldest Inbox page older than the minimum age', async () => {
     const d = deps();
-    await ingestNotion(['--min-age=2'], d);
+    await ingestNotion(flagsOf(['--min-age=2']), d);
     expect(d.request).toHaveBeenCalledWith(
       'POST',
       '/v1/data_sources/DS1/query',
@@ -77,10 +81,10 @@ describe('ingestNotion', () => {
 
   it('reports an empty Inbox, as JSON in a dry run', async () => {
     const d = deps({ request: () => Promise.resolve({ results: [] }) });
-    await ingestNotion([], d);
+    await ingestNotion(flagsOf([]), d);
     expect(logs).toEqual(['No inbox meetings found (older than 4h).']);
     logs = [];
-    await ingestNotion(['--dry-run'], d);
+    await ingestNotion(flagsOf(['--dry-run']), d);
     expect(JSON.parse(logs[0] ?? '{}')).toEqual({
       skip: true,
       reason: 'No inbox meetings found (older than 4h)',
@@ -89,7 +93,7 @@ describe('ingestNotion', () => {
 
   it('prints the task in a dry run for a requested page', async () => {
     const d = deps();
-    await ingestNotion(['--page-id=P9', '--dry-run'], d);
+    await ingestNotion(flagsOf(['--page-id=P9', '--dry-run']), d);
     expect(JSON.parse(logs[0] ?? '{}')).toMatchObject({
       task: 'Process Notion inbox meeting page P9',
     });
@@ -99,7 +103,7 @@ describe('ingestNotion', () => {
   it('processes the override page and then removes the override', async () => {
     const d = deps();
     fs.writeFileSync(d.overridePath, 'OVR\n');
-    await ingestNotion([], d);
+    await ingestNotion(flagsOf([]), d);
     expect(d.process).toHaveBeenCalledWith('OVR');
     expect(fs.existsSync(d.overridePath)).toBe(false);
   });

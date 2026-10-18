@@ -42,8 +42,9 @@ export default defineJob({
   name: 'acme/report', // crash-log label; default: the id
   crashDir: () => '/base/acme', // where _crash.log goes; default: the working directory
   prerequisite: () => hasAcmeConfig() || 'no acme block in jeeves-scripts.json',
-  run: async ({ args }) => {
-    await report(parseRunnableArgs(args, { live: argFlag('--live') }).live);
+  flags: { live: argFlag('--live', 'Write changes') }, // the flags run accepts (see Arguments)
+  run: async ({ flags }) => {
+    await report(flags.live);
   },
 });
 ```
@@ -69,12 +70,11 @@ A job's logic takes its config values, file roots, clients, clock and arguments 
 
 ### Arguments
 
-A runnable reads its arguments from `ctx.args` (everything after `run <id>`, unchanged; see [cli](./cli.md#commands)) rather than `process.argv`, so a test can pass its own. Core's runnables and instance runnables use one convention and one parser from the root export (Decision 59):
+A runnable declares the flags it accepts as `defineJob({ flags })`, and reads them, parsed, from `ctx.flags`; positionals come from `ctx.args` (everything after `run <id>`). Core's runnables and instance runnables use one convention and one parser from the root export (Decision 59):
 
-- **Boolean options are bare flags:** `--live`, `--dry-run`. Present means `true`; `--live=true` and `--live true` do not set a flag (the `true` is just another argument).
+- **Boolean options are bare flags:** `--live`, `--dry-run`. Present means `true`; `--live=true` is rejected as an unknown option.
 - **Valued options** are `--name value` or `--name=value` (the first `=` splits, so `--services=a=b` gives `a=b`), optionally with a short alias written `-e value`. The first occurrence wins.
-- **Positionals** are the arguments that don't start with `-` and aren't the separate value of a valued option.
-- **Unknown arguments are ignored.**
+- **Positionals** are the arguments that don't start with `-` and aren't the separate value of a valued option. A runnable that takes any declares `positionals`, a usage string such as `'<handle>'`.
 
 ```ts
 import {
@@ -82,13 +82,12 @@ import {
   argOptional,
   argValue,
   defineJob,
-  parseRunnableArgs,
   positionalArgs,
 } from '@karmaniverous/jeeves-scripts-core';
 
-const spec = {
-  live: argFlag('--live'), // boolean
-  project: argValue('--project', 'ACME'), // string, default 'ACME' ('' when no default is given)
+const flags = {
+  live: argFlag('--live', 'Write changes (default: dry run)'), // boolean
+  project: argValue('--project', 'ACME', { description: 'Project key' }), // string, default 'ACME'
   env: argOptional('--env', { alias: '-e' }), // string | undefined
 };
 
@@ -96,16 +95,23 @@ export default defineJob({
   id: 'acme-report',
   domain: 'acme',
   description: 'Report on acme.',
-  run: async ({ args }) => {
+  flags,
+  positionals: '<year> <month>',
+  run: async ({ args, flags }) => {
     // run acme-report 2026 08 --env=prod --live
-    const { live, project, env } = parseRunnableArgs(args, spec);
-    const [year, month] = positionalArgs(args, spec); // ['2026', '08']
-    await report({ live, project, env, year, month });
+    const [year, month] = positionalArgs(args, flags); // ['2026', '08']
+    await report({ ...flags, year, month }); // flags is typed from the spec
   },
 });
 ```
 
-A valued option given without a value (at the end of the args, as `--name=`, or followed by an argument starting with `-`) throws `<name> requires a value`, which fails the run like any other throw (exit 1). Check what the values mean (a number, a date, a known name) in the runnable, and report a bad one as a usage error. The parser is pure, so a test passes its own args.
+**What `run <id>` checks** (#14), before the body runs:
+
+- A runnable that declares `flags` (`flags: {}` for none) accepts only those, plus positionals when it declares `positionals`. Anything else exits 1 with `Unknown option <flag> for <id> (see run <id> --help)` (or `Unexpected argument <arg> ...`). A valued option without a value (at the end, as `--name=`, or followed by an argument starting with `-`, which is then checked on its own and never taken as the value) exits 1 with `<name> requires a value for <id> ...`. Every occurrence is checked, so repeating an option can't hide a flag.
+- A runnable that declares no `flags` keeps the old behaviour: it gets every argument unchecked in `ctx.args` (and `ctx.flags` is `{}`), and `run` prints `[deprecated] <id> declares no flags; ...` on stderr when given any flag. **A later minor release rejects undeclared flags for every runnable**, so declare them now.
+- `run <id> --help` (or `-h`) prints the usage, description, declared flags with their descriptions and defaults, and the effective manifest, then exits 0 without running anything.
+
+Every core runnable declares its flags (a test enforces it, and that no core source reads `process.argv` or raw `args` for flags). A task-file or Slack dispatcher declares the shared `dispatcherFlags` (`--print-task`, `--dry-run`) from the root export; `taskFileDispatcher` passes the parsed flags on. Check what values mean (a number, a date, a known name) in the runnable, and report a bad one as a usage error. `parseRunnableArgs` stays exported for parsing outside `run`; it is pure, so a test passes its own args.
 
 ## Manifests
 

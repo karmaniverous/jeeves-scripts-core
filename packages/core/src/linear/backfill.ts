@@ -16,7 +16,7 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
-import { argFlag, argValue, parseRunnableArgs } from '../lib/args.js';
+import { argFlag, argValue, type ParsedArgs } from '../lib/args.js';
 import { backfillEntity } from '../lib/entity-store.js';
 import {
   forEachLinearEntity,
@@ -25,10 +25,13 @@ import {
   linearJobDeps,
 } from './lib/linear-sync.js';
 
-const argSpec = {
-  team: argValue('--team'),
-  type: argValue('--type', 'issue'),
-  live: argFlag('--live'),
+/** The flags `linear-backfill` accepts. */
+export const linearBackfillFlags = {
+  team: argValue('--team', '', {
+    description: 'Linear team key (issue backfill)',
+  }),
+  type: argValue('--type', 'issue', { description: 'Entity type to backfill' }),
+  live: argFlag('--live', 'Write (default: dry run)'),
 };
 
 /**
@@ -36,12 +39,12 @@ const argSpec = {
  * issue backfill without `--team` or any failed entity sets exit code 1.
  */
 export async function linearBackfill(
-  args: readonly string[],
+  flags: ParsedArgs<typeof linearBackfillFlags>,
   deps: LinearJobDeps,
 ): Promise<void> {
   const config = linearConfigOrSkip(deps);
   if (!config) return;
-  const { team, type, live } = parseRunnableArgs(args, argSpec);
+  const { team, type, live } = flags;
   if (type !== 'issue' && type !== 'comment') {
     console.error(
       `[error] --type "${type}" is not supported (only "issue" or "comment")`,
@@ -97,5 +100,6 @@ export default defineJob({
   description:
     'Seed the Linear issue or comment archive from a team (dry run unless --live).',
   name: 'linear/backfill',
-  run: ({ args }) => linearBackfill(args, linearJobDeps()),
+  flags: linearBackfillFlags,
+  run: ({ flags }) => linearBackfill(flags, linearJobDeps()),
 });

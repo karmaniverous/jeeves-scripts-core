@@ -9,6 +9,7 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
+import { argOptional, type ParsedArgs } from '../lib/args.js';
 import { getTokenMetrics, type TokenMetricsOptions } from './token-metrics.js';
 
 /** Seams for tests. */
@@ -34,36 +35,38 @@ const defaultDeps: ReportDeps = {
 const ID = 'admin-report-token-metrics';
 const USAGE = `usage: ${ID} [--from <date>] [--to <date>]`;
 
+/** The flags `admin-report-token-metrics` accepts. */
+export const reportFlags = {
+  from: argOptional('--from', { description: 'Range start (a date)' }),
+  to: argOptional('--to', { description: 'Range end (a date)' }),
+};
+
 /**
- * Parse `--from` / `--to` (`--from <v>` or `--from=<v>`).
+ * Validate the parsed `--from` / `--to` dates.
  *
  * @returns The options, or the usage error.
  */
-export const parseReportArgs = (
-  args: readonly string[],
+export const reportOptions = (
+  flags: ParsedArgs<typeof reportFlags>,
 ): TokenMetricsOptions | string => {
   const options: TokenMetricsOptions = {};
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i] ?? '';
-    const [flag, inline] = arg.split(/=(.*)/s, 2);
-    if (flag !== '--from' && flag !== '--to')
-      return `unknown argument "${arg}". ${USAGE}`;
-    const value = inline ?? args[++i];
-    if (value === undefined || value === '')
-      return `${flag} needs a date. ${USAGE}`;
+  for (const key of ['from', 'to'] as const) {
+    const value = flags[key];
+    if (value === undefined) continue;
+    if (value === '') return `--${key} needs a date. ${USAGE}`;
     if (Number.isNaN(Date.parse(value)))
-      return `${flag} is not a valid date: ${value}. ${USAGE}`;
-    options[flag === '--from' ? 'from' : 'to'] = value;
+      return `--${key} is not a valid date: ${value}. ${USAGE}`;
+    options[key] = value;
   }
   return options;
 };
 
 /** Run the report: JSON on stdout, or a usage error on stderr and exit code 1. */
 export const runReport = (
-  args: readonly string[],
+  flags: ParsedArgs<typeof reportFlags>,
   deps: ReportDeps = defaultDeps,
 ): void => {
-  const options = parseReportArgs(args);
+  const options = reportOptions(flags);
   if (typeof options === 'string') {
     deps.err(`${ID}: ${options}`);
     process.exitCode = 1;
@@ -77,7 +80,8 @@ export default defineJob({
   domain: 'admin',
   description:
     'Print the token cost report for [--from <date>] [--to <date>] as JSON (getTokenMetrics).',
-  run: ({ args }) => {
-    runReport(args);
+  flags: reportFlags,
+  run: ({ flags }) => {
+    runReport(flags);
   },
 });

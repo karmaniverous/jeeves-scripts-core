@@ -29,11 +29,14 @@ import {
 
 import { pipeline, type PipelineConfig } from '../../config/index.js';
 import { defineJob } from '../../jobs/define-job.js';
-import { argFlag, parseRunnableArgs } from '../../lib/args.js';
+import { argFlag, type ParsedArgs } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
 import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
 import { requireGogCredentials } from '../../lib/gog-credentials.js';
-import { resolveBackfillSettings } from './backfill-settings.js';
+import {
+  backfillSettingsFlags,
+  resolveBackfillSettings,
+} from './backfill-settings.js';
 import { backfillAccount } from './backfill-window.js';
 
 /** What {@link backfillHistorical} reads and calls. */
@@ -62,14 +65,20 @@ export const backfillHistoricalDeps = (): BackfillHistoricalDeps => ({
   now: () => new Date(),
 });
 
+/** The flags `email-backfill-historical` accepts. */
+export const backfillHistoricalFlags = {
+  live: argFlag('--live', 'Write (default: dry run)'),
+  ...backfillSettingsFlags,
+};
+
 /** Backfill one window per account (dry run unless `--live`). */
 export function backfillHistorical(
-  args: readonly string[],
+  flags: ParsedArgs<typeof backfillHistoricalFlags>,
   deps: BackfillHistoricalDeps,
 ): void {
-  const { live } = parseRunnableArgs(args, { live: argFlag('--live') });
+  const { live } = flags;
   const emailConfig = deps.emailConfig();
-  const settings = resolveBackfillSettings(emailConfig.backfill, [...args]);
+  const settings = resolveBackfillSettings(emailConfig.backfill, flags);
   const reportOnly = emailConfig.reportOnly;
 
   console.log(`Mode: ${live ? 'LIVE' : 'DRY-RUN'}`);
@@ -123,7 +132,8 @@ export default defineJob({
   domain: 'email',
   name: 'email/backfill-historical',
   crashDir: () => constants().EMAIL_EVENTS_DIR,
-  run: ({ args }) => {
-    backfillHistorical(args, backfillHistoricalDeps());
+  flags: backfillHistoricalFlags,
+  run: ({ flags }) => {
+    backfillHistorical(flags, backfillHistoricalDeps());
   },
 });

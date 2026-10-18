@@ -19,24 +19,40 @@
 import { runScript } from '@karmaniverous/jeeves';
 import { z } from 'zod';
 
+import {
+  type ArgSpec,
+  type ParsedArgs,
+  parseRunnableArgs,
+} from '../lib/args.js';
+
 /** What a running job receives. */
 export const jobContextSchema = z.object({
   /** The job's command-line arguments (also in `process.argv.slice(2)`). */
   args: z.array(z.string()).readonly(),
 });
 
+/** No declared flags. */
+export type NoFlags = Record<string, never>;
+
 /** What a running job receives. */
-export type JobContext = z.infer<typeof jobContextSchema>;
+export interface JobContext<S extends ArgSpec = ArgSpec> {
+  /** The job's command-line arguments (also in `process.argv.slice(2)`). */
+  args: readonly string[];
+  /** The declared flags, parsed (`defineJob({ flags })`); `{}` when none are declared. */
+  flags: ParsedArgs<S>;
+}
 
 /** The job body. */
-export type JobRun = (ctx: JobContext) => void | Promise<void>;
+export type JobRun<S extends ArgSpec = ArgSpec> = (
+  ctx: JobContext<S>,
+) => void | Promise<void>;
 
 /**
  * A prerequisite check: `true` when the job can run, else the reason it
  * can't (logged as `[skip] <reason>`; the run exits 0).
  */
-export type JobPrerequisite = (
-  ctx: JobContext,
+export type JobPrerequisite<S extends ArgSpec = ArgSpec> = (
+  ctx: JobContext<S>,
 ) => true | string | Promise<true | string>;
 
 /** A Zod schema for a function-valued declaration field (internal). */
@@ -73,6 +89,20 @@ export const jobDeclarationSchema = z
     name: z.string().min(1).optional(),
     /** Directory for `_crash.log`, resolved when the job runs (default: the working directory). */
     crashDir: fn<() => string>('crashDir').optional(),
+    /**
+     * The flags and valued options the job accepts (`lib/args`). When set,
+     * `run <id>` rejects any other option before the body runs, and the job
+     * reads the parsed values from `ctx.flags`. When unset, the job accepts
+     * no flags (any given are passed through with a deprecation warning).
+     */
+    flags: z
+      .custom<ArgSpec>(
+        (v) => typeof v === 'object' && v !== null && !Array.isArray(v),
+        { message: 'flags must be an object' },
+      )
+      .optional(),
+    /** Usage text for accepted positional arguments, e.g. `<handle>`; unset = none accepted. */
+    positionals: z.string().min(1).optional(),
     /** Checked before `run`; anything but `true` skips the run. */
     prerequisite: fn<JobPrerequisite>('prerequisite').optional(),
     /** The job body. */
@@ -83,13 +113,43 @@ export const jobDeclarationSchema = z
     path: ['id'],
   });
 
-/** A job declaration. */
-export type JobDeclaration = z.infer<typeof jobDeclarationSchema>;
+/** A job declaration; `S` is its flag spec, which types `ctx.flags`. */
+export type JobDeclaration<S extends ArgSpec = NoFlags> = Omit<
+  z.infer<typeof jobDeclarationSchema>,
+  'flags' | 'prerequisite' | 'run'
+> & {
+  /** See {@link jobDeclarationSchema}. */
+  flags?: S;
+  /** Checked before `run`; anything but `true` skips the run. */
+  prerequisite?: JobPrerequisite<S>;
+  /** The job body. */
+  run: JobRun<S>;
+};
 
 const JOB = Symbol.for('@karmaniverous/jeeves-scripts-core/job');
 
+/**
+ * What a caller passes to a declared job's `run` or `prerequisite`. `flags`
+ * may be left out (as tests written before declared flags do): the job then
+ * parses them from `args` with its own spec.
+ */
+export interface JobCallContext {
+  /** The job's command-line arguments. */
+  args: readonly string[];
+  /** The parsed flags; default: parsed from `args`. */
+  flags?: ParsedArgs<ArgSpec>;
+}
+
 /** A declared job, as `defineJob` returns it. */
-export type JobModule = Readonly<JobDeclaration> & {
+export type JobModule = Readonly<
+  Omit<z.infer<typeof jobDeclarationSchema>, 'prerequisite' | 'run'>
+> & {
+  /** Checked before `run`; anything but `true` skips the run. */
+  readonly prerequisite?: (
+    ctx: JobCallContext,
+  ) => true | string | Promise<true | string>;
+  /** The job body. */
+  readonly run: (ctx: JobCallContext) => void | Promise<void>;
   /** Brand set by {@link defineJob}; see {@link isJobModule}. */
   readonly [JOB]: true;
 };
@@ -104,18 +164,41 @@ export type JobModule = Readonly<JobDeclaration> & {
  *   id: 'acme-report',
  *   domain: 'acme',
  *   prerequisite: () => hasAcmeConfig() || 'no acme block in jeeves-scripts.json',
- *   run: async ({ args }) => { await report(args.includes('--live')); },
+ *   flags: { live: argFlag('--live', 'Write changes (default: dry run)') },
+ *   run: async ({ flags }) => { await report(flags.live); },
  * });
  * ```
  * @throws When the declaration is invalid (bad id, missing `run`, ...).
  */
-export const defineJob = (declaration: JobDeclaration): JobModule => {
+export const defineJob = <S extends ArgSpec = NoFlags>(
+  declaration: JobDeclaration<S>,
+): JobModule => {
   const result = jobDeclarationSchema.safeParse(declaration);
   if (!result.success)
     throw new Error(
       `Invalid job declaration: ${z.prettifyError(result.error)}`,
     );
-  return Object.freeze({ ...declaration, [JOB]: true as const });
+  // `run` and `prerequisite` receive `flags` parsed with this same spec
+  // (the casts: a caller's `flags` were parsed with it, or are parsed here).
+  const { prerequisite, run } = declaration as unknown as {
+    prerequisite?: (ctx: JobContext) => true | string | Promise<true | string>;
+    run: (ctx: JobContext) => void | Promise<void>;
+  };
+  const withFlags = (ctx: JobCallContext): JobContext => ({
+    args: ctx.args,
+    flags: ctx.flags ?? jobContext(declaration, ctx.args).flags,
+  });
+  return Object.freeze({
+    ...(declaration as unknown as Omit<
+      z.infer<typeof jobDeclarationSchema>,
+      'prerequisite' | 'run'
+    >),
+    ...(prerequisite
+      ? { prerequisite: (ctx: JobCallContext) => prerequisite(withFlags(ctx)) }
+      : {}),
+    run: (ctx: JobCallContext) => run(withFlags(ctx)),
+    [JOB]: true as const,
+  });
 };
 
 /** Whether a value is a job declared with {@link defineJob}. */
@@ -123,6 +206,20 @@ export const isJobModule = (value: unknown): value is JobModule =>
   typeof value === 'object' &&
   value !== null &&
   (value as Record<symbol, unknown>)[JOB] === true;
+
+/**
+ * The context a job runs with: its arguments, and its declared flags parsed
+ * from them (`{}` when it declares none).
+ *
+ * @throws Error `<name> requires a value` when a declared valued option has none.
+ */
+export const jobContext = (
+  job: { flags?: ArgSpec | undefined },
+  args: readonly string[],
+): JobContext => ({
+  args: [...args],
+  flags: job.flags ? parseRunnableArgs(args, job.flags) : {},
+});
 
 /** Seams for tests. */
 export interface RunJobDeps {
@@ -150,7 +247,7 @@ export const runJobModule = (
   deps: RunJobDeps = defaultDeps,
 ): Promise<void> => {
   process.argv = [process.argv[0] ?? process.execPath, job.id, ...args];
-  const ctx: JobContext = { args: [...args] };
+  const ctx = jobContext(job, args);
   return new Promise<void>((resolve) => {
     deps.runScript(
       job.name ?? job.id,

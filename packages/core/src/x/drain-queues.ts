@@ -13,7 +13,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { defineJob } from '../jobs/define-job.js';
-import { argValue, parseRunnableArgs } from '../lib/args.js';
+import { argValue, type ParsedArgs } from '../lib/args.js';
 import { type XJobDeps, xJobDeps } from './lib/x-deps.js';
 
 /** The queues each account drains, with the subdirectory they flush to. */
@@ -25,18 +25,22 @@ export const DRAIN_SUBDIRS = [
   'bookmarks',
 ] as const;
 
+/** The flags `x-drain-queues` accepts. */
+export const drainXQueuesFlags = {
+  maxItems: argValue('--maxItems', '50', {
+    description: 'Items to flush per queue',
+  }),
+};
+
 /**
  * Flush up to `--maxItems` (default 50) items from each of every account's
  * poll queues to `{account}/<subdir>/<id>.json`.
  */
 export function drainXQueues(
-  args: readonly string[],
+  flags: ParsedArgs<typeof drainXQueuesFlags>,
   deps: Pick<XJobDeps, 'accounts' | 'runner'>,
 ): void {
-  const maxItems = Number(
-    parseRunnableArgs(args, { maxItems: argValue('--maxItems', '50') })
-      .maxItems,
-  );
+  const maxItems = Number(flags.maxItems);
   const client = deps.runner();
   try {
     let totalProcessed = 0;
@@ -73,7 +77,8 @@ export default defineJob({
   id: 'x-drain-queues',
   domain: 'x',
   name: 'x/drain-queues',
-  run: ({ args }) => {
-    drainXQueues(args, xJobDeps());
+  flags: drainXQueuesFlags,
+  run: ({ flags }) => {
+    drainXQueues(flags, xJobDeps());
   },
 });

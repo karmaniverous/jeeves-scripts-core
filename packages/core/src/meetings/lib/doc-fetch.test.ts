@@ -66,7 +66,7 @@ afterEach(() => {
 
 describe('runDocFetch', () => {
   it('has nothing to fetch in an empty tree', async () => {
-    await runDocFetch([], deps());
+    await runDocFetch({}, deps());
     expect(logs).toContain('[doc-fetch] Nothing to fetch');
     expect(runner.closed()).toBe(true);
   });
@@ -74,7 +74,7 @@ describe('runDocFetch', () => {
   it('lists what it would fetch in a dry run, capped by --max', async () => {
     meeting('m1', 'https://docs.google.com/document/d/D1/edit');
     meeting('m2', 'https://docs.google.com/document/d/D2/edit');
-    await runDocFetch(['--dry-run', '--max=1'], deps());
+    await runDocFetch({ dryRun: true, max: 1 }, deps());
     expect(
       logs.filter((l) => l.startsWith('[doc-fetch] WOULD_FETCH')),
     ).toHaveLength(1);
@@ -95,7 +95,7 @@ describe('runDocFetch', () => {
       }),
     );
     await runDocFetch(
-      [],
+      {},
       deps((docId) =>
         docId === 'GOOD'
           ? { ok: true, content: 'the notes' }

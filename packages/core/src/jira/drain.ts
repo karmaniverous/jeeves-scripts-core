@@ -205,6 +205,7 @@ export const jiraDrainDeps = (): JiraDrainDeps => {
 export default defineJob({
   id: 'jira-drain',
   domain: 'jira',
+  flags: {},
   description:
     "Persist one Jira webhook payload read from stdin (run by jeeves-server's webhook route).",
   name: 'jira/drain',

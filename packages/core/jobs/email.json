@@ -46,10 +46,25 @@
       "interval": 1,
       "timezone": "UTC"
     },
-    "args": ["--live"],
+    "args": [
+      "--live"
+    ],
     "overlap_policy": "skip",
     "timeout_seconds": 1800,
     "enabled": true,
     "prerequisite": "Gmail via gog (OAuth client or service-account mailboxes) + emailConfig.backfill (accounts, lookbackDays, windowDays) in jeeves-scripts.json (pipeline)"
+  },
+  "email-respond": {
+    "name": "Email Auto-reply",
+    "description": "Assistant-mailbox auto-reply: deterministically qualifies new mail to emailConfig.respond.mailbox (allowed sender, mailbox in To, DKIM, not automated, thread cap), handles each as a request from that sender in a worker session (which may decline when To is shared), replies in-thread preserving all original To/Cc/Bcc addressees, and (with emailConfig.respond.slackMirror) mirrors each sent reply to Slack (sender's DM, or a requested channel the sender belongs to).",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 3,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 1800,
+    "enabled": true,
+    "prerequisite": "emailConfig.respond configured by the operator (mailbox + allowedSenders) in jeeves-scripts.json (pipeline); the mailbox a gmail account that can send via gog; slackMirror needs the users:read.email bot scope. Never auto-register."
   }
 }

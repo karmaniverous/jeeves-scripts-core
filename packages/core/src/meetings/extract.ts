@@ -269,6 +269,7 @@ export function extractMeetings(deps: ExtractDeps): void {
 export default defineJob({
   id: 'meetings-extract',
   domain: 'meetings',
+  flags: {},
   name: 'meetings/extract',
   run: () => {
     extractMeetings(extractDeps());

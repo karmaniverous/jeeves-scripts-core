@@ -3,14 +3,17 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { parseRunnableArgs } from '../lib/args.js';
 import { fakeFetch } from '../lib/fake-fetch.test-helper.js';
-import { jiraBackfill, RATE_LIMIT_MS } from './backfill.js';
+import { jiraBackfill, jiraBackfillFlags, RATE_LIMIT_MS } from './backfill.js';
 import { jiraJobDeps } from './lib/jira-deps.js';
 import {
   jiraTempDir,
   jiraTestDeps,
   noJiraCredentials,
 } from './lib/jira-deps.test-helper.js';
+
+const flagsOf = (args: string[]) => parseRunnableArgs(args, jiraBackfillFlags);
 
 let dir: string;
 const issues = [
@@ -35,7 +38,7 @@ describe('jiraBackfill', () => {
   it('skips without credentials', async () => {
     const fake = search();
     await jiraBackfill(
-      ['--project', 'ACME'],
+      flagsOf(['--project', 'ACME']),
       noJiraCredentials(jiraTestDeps(dir, fake)),
     );
     expect(console.log).toHaveBeenCalledWith(
@@ -52,7 +55,7 @@ describe('jiraBackfill', () => {
     ],
   ])('rejects %j with exit code 1', async (args, message) => {
     const fake = search();
-    await jiraBackfill(args, jiraTestDeps(dir, fake));
+    await jiraBackfill(flagsOf(args), jiraTestDeps(dir, fake));
     expect(console.error).toHaveBeenCalledWith(message);
     expect(process.exitCode).toBe(1);
     expect(fake.calls).toEqual([]);
@@ -60,7 +63,7 @@ describe('jiraBackfill', () => {
 
   it('only logs in a dry run', async () => {
     const fake = search();
-    await jiraBackfill(['--project', 'ACME'], jiraTestDeps(dir, fake));
+    await jiraBackfill(flagsOf(['--project', 'ACME']), jiraTestDeps(dir, fake));
     expect(fake.calls[0]?.url.searchParams.get('jql')).toBe(
       'project = ACME ORDER BY created ASC',
     );
@@ -74,7 +77,7 @@ describe('jiraBackfill', () => {
     const deps = jiraTestDeps(dir, search(), { sleep });
     fs.mkdirSync(path.join(dir, 'jira', 'issue'), { recursive: true });
     fs.writeFileSync(path.join(dir, 'jira', 'issue', 'ACME-2.json'), '{}');
-    await jiraBackfill(['--project', 'ACME', '--live'], deps);
+    await jiraBackfill(flagsOf(['--project', 'ACME', '--live']), deps);
     const written = JSON.parse(
       fs.readFileSync(path.join(dir, 'jira', 'issue', 'ACME-1.json'), 'utf8'),
     ) as { current: unknown; meta: { lastBackfill: string } };
@@ -95,7 +98,7 @@ describe('jiraBackfill', () => {
     fs.mkdirSync(path.join(dir, 'jira'), { recursive: true });
     fs.writeFileSync(path.join(dir, 'jira', 'issue'), '');
     await jiraBackfill(
-      ['--project', 'ACME', '--live'],
+      flagsOf(['--project', 'ACME', '--live']),
       jiraTestDeps(dir, search()),
     );
     expect(console.error).toHaveBeenCalledWith(

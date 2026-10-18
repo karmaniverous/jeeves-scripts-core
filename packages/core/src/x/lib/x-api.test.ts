@@ -34,27 +34,33 @@ const check = (over: Record<string, unknown> = {}) =>
 
 describe('xHandlePrerequisite', () => {
   it('needs a handle argument', () => {
-    expect(check()({ args: [] })).toBe(
+    expect(check()({ args: [], flags: {} })).toBe(
       'No X account handle provided. Usage: jeeves-scripts run <job-id> <handle> (post.ts)',
     );
   });
 
   it('needs a configured account only when asked', () => {
-    expect(check({ requireAccount: true })({ args: ['other'] })).toBe(
+    expect(
+      check({ requireAccount: true })({ args: ['other'], flags: {} }),
+    ).toBe(
       "X account 'other' is not in integrations.x.accounts in jeeves-scripts.json",
     );
-    expect(check()({ args: ['other'] })).toBe(
+    expect(check()({ args: ['other'], flags: {} })).toBe(
       'X OAuth2 credentials not configured',
     );
   });
 
   it('needs the OAuth file unless told not to', () => {
-    expect(check({ requireAccount: true })({ args: ['example'] })).toBe(true);
+    expect(
+      check({ requireAccount: true })({ args: ['example'], flags: {} }),
+    ).toBe(true);
     fs.rmSync(path.join(w.deps.oauthDir, 'x-example-oauth2.json'));
-    expect(check()({ args: ['example'] })).toBe(
+    expect(check()({ args: ['example'], flags: {} })).toBe(
       'X OAuth2 credentials not configured',
     );
-    expect(check({ requireOAuth: false })({ args: ['example'] })).toBe(true);
+    expect(
+      check({ requireOAuth: false })({ args: ['example'], flags: {} }),
+    ).toBe(true);
   });
 });
 

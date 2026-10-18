@@ -11,10 +11,7 @@ const mocks = vi.hoisted(() => ({
   dispatchSession: vi.fn(),
   readWorkerFinalText: vi.fn(),
   gatewaySlackIo: vi.fn(),
-  runWorkerSlackJob:
-    vi.fn<
-      (task: string, slack: unknown, deps: WorkerSlackDeps) => Promise<unknown>
-    >(),
+  runWorkerSlackJob: vi.fn<typeof WorkerSlackJobModule.runWorkerSlackJob>(),
   gatewayInvoke: vi.fn(),
   gatewayRpc: vi.fn(),
 }));
@@ -36,6 +33,7 @@ vi.mock('./worker-slack-job.js', () => ({
 
 import { constants } from '../constants.js';
 import { dispatchWithSlack } from './run.js';
+import type * as WorkerSlackJobModule from './worker-slack-job.js';
 import type { WorkerSlackDeps } from './worker-slack-job.js';
 
 const OPTIONS = { jobId: 'acme-ops-agenda' };
@@ -72,6 +70,7 @@ describe('dispatchWithSlack', () => {
     expect(deps.slack).toBe(FAKE_IO);
     expect(deps.dryRun).toBe(true);
     expect(deps.printTask).toBe(true);
+    expect(deps.jobId).toBe('acme-ops-agenda');
 
     const plain = await depsFor(['node', 'job.ts']);
     expect(plain.dryRun).toBe(false);
@@ -136,6 +135,27 @@ describe('dispatchWithSlack', () => {
     expect(mocks.gatewaySlackIo).not.toHaveBeenCalled();
     expect(mocks.runWorkerSlackJob).not.toHaveBeenCalled();
     expect(mocks.dispatchSession).not.toHaveBeenCalled();
+  });
+
+  it('--dry-run never starts a worker session (#15)', async () => {
+    const { runWorkerSlackJob } = await vi.importActual<
+      typeof WorkerSlackJobModule
+    >('./worker-slack-job.js');
+    mocks.runWorkerSlackJob.mockImplementationOnce(runWorkerSlackJob);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      const result = await dispatchWithSlack(
+        'Base task',
+        OPTIONS,
+        { posts: [{ target: 'C000EXAMPLE1', purpose: 'p' }] },
+        ['--dry-run'],
+      );
+      expect(result).toMatchObject({ posts: [], posted: 0 });
+    } finally {
+      log.mockRestore();
+    }
+    expect(mocks.dispatchSession).not.toHaveBeenCalled();
+    expect(FAKE_IO.send).not.toHaveBeenCalled();
   });
 
   it('propagates a failing job run', async () => {

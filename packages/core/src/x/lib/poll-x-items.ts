@@ -15,7 +15,7 @@
 
 import fs from 'node:fs';
 
-import { argValue, parseRunnableArgs } from '../../lib/args.js';
+import { argOptional, type ParsedArgs } from '../../lib/args.js';
 import {
   handleArg,
   logPollHandles,
@@ -25,6 +25,19 @@ import type { XClient } from './x-client.js';
 import type { XJobDeps } from './x-deps.js';
 import { getOAuthPath } from './x-oauth.js';
 import type { PollOptions, XTweet } from './x-timelines.js';
+
+/** The flags an X poll job accepts. */
+export const pollXFlags = {
+  count: argOptional('--count', {
+    description: 'Items to fetch per handle (default 50)',
+  }),
+  queue: argOptional('--queue', {
+    description: 'Runner queue to fill (default <prefix>-<handle>)',
+  }),
+};
+
+/** Parsed {@link pollXFlags}. */
+export type PollXFlags = ParsedArgs<typeof pollXFlags>;
 
 /** A poll job's API function and labels. */
 export interface PollXOptions {
@@ -48,15 +61,12 @@ export interface PollXOptions {
  */
 export async function pollXItems(
   handle: string,
-  args: readonly string[],
+  flags: PollXFlags,
   options: PollXOptions,
   deps: Pick<XJobDeps, 'withClient' | 'runner'>,
 ): Promise<void> {
-  const parsed = parseRunnableArgs(args, {
-    count: argValue('--count', String(options.defaultCount ?? 50)),
-    queue: argValue('--queue', `${options.queuePrefix}-${handle}`),
-  });
-  const count = Number(parsed.count);
+  const count = Number(flags.count ?? options.defaultCount ?? 50);
+  const queue = flags.queue ?? `${options.queuePrefix}-${handle}`;
 
   let tweets: XTweet[];
   try {
@@ -81,7 +91,7 @@ export async function pollXItems(
     let enqueued = 0,
       dedupSkipped = 0;
     for (const t of tweets) {
-      const itemId = runnerClient.enqueue(parsed.queue, {
+      const itemId = runnerClient.enqueue(queue, {
         id: t.id,
         createdAt: t.createdAt,
         author: t.authorId ?? handle,
@@ -123,9 +133,10 @@ export function pollHandles(
  */
 export async function runXPoller(
   args: readonly string[],
+  flags: PollXFlags,
   options: PollXOptions,
   deps: XJobDeps,
 ): Promise<void> {
   for (const handle of pollHandles(args, deps))
-    await pollXItems(handle, args, options, deps);
+    await pollXItems(handle, flags, options, deps);
 }

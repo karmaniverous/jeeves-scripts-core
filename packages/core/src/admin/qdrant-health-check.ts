@@ -269,6 +269,7 @@ async function main(): Promise<void> {
 export default defineJob({
   id: 'admin-check-qdrant-health',
   domain: 'admin',
+  flags: {},
   name: 'admin/qdrant-health-check',
   run: () => main(),
 });

@@ -18,6 +18,7 @@ import { execFile } from 'node:child_process';
 import path from 'node:path';
 
 import { resolveOpenClawDist } from '../admin/lib/resolve-openclaw-dist.js';
+import { isRecord } from './is-record.js';
 
 /** Gateway RPC caller: resolves with the method's result payload. */
 export type GatewayRpc = (
@@ -34,10 +35,6 @@ const MAX_BUFFER_BYTES = 64 * 1024 * 1024;
 /** Path to the global `openclaw.mjs` CLI entry point. */
 export function resolveOpenClawCli(): string {
   return path.join(path.dirname(resolveOpenClawDist()), 'openclaw.mjs');
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null;
 }
 
 function parseJson(text: string): unknown {

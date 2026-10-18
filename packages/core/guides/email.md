@@ -15,6 +15,8 @@ email/
   email-state.ts           ← shared: per-thread/account state in runner SQLite
   imap/                    ← platform-agnostic IMAP transport
   google-workspace/        ← gog CLI transport (Gmail)
+  google-workspace/respond.ts   ← assistant-mailbox auto-reply (email-respond job)
+  google-workspace/respond/     ← auto-reply qualification, state, TASK, orchestration
 ```
 
 ## Data Flow
@@ -56,8 +58,9 @@ flowchart TD
 | `email-download` | `google-workspace/download.ts` | Every 13 min |
 | `email-drain-updates` | `google-workspace/drain-updates.ts` | Every 17 min |
 | `email-backfill-historical` | `google-workspace/backfill-historical.ts --live` | Hourly; needs `emailConfig.backfill` |
+| `email-respond` | `google-workspace/respond.ts` | Every 3 min; needs an operator-configured `emailConfig.respond` (never auto-registered) |
 
-Core's manifest (`jobs/email.json`) is authoritative; an instance adjusts it with `jobs.<id>` deltas. `email-inventory` is registered without a manifest. All four entries carry a non-null `prerequisite` (gog credentials or IMAP, plus `emailConfig.backfill` for the backfill).
+Core's manifest (`jobs/email.json`) is authoritative; an instance adjusts it with `jobs.<id>` deltas. `email-inventory` is registered without a manifest. All five entries carry a non-null `prerequisite` (gog credentials or IMAP, plus `emailConfig.backfill` for the backfill and an operator-configured `emailConfig.respond` for the auto-reply, which `sync-jobs` never registers on its own).
 
 ### Historical backfill
 
@@ -80,6 +83,70 @@ node bin/jeeves-scripts.js run email-apply-labels [--since <date>] [--account <i
 - `--since` keeps threads dated (else last seen) on or after the date; `--account` limits it to one configured Gmail account (polled or backfill).
 - While `reportOnly` is on it refuses (exit code 1), except as a `--dry-run`, which only reads state and prints what would be enqueued.
 
+### Auto-reply (email-respond)
+
+`google-workspace/respond.ts` (Gmail only: the mailbox must be a `gmail` account in `accounts`, and the config check rejects anything else) lets the people the operator chooses email the assistant's own mailbox (`emailConfig.respond.mailbox`) and get a real answer. Whether a message reaches the assistant at all is decided by a plain script with no LLM; the worker session writes the answer and, when the mailbox shares To with others, first decides whether one is needed.
+
+Each run searches the mailbox for `in:inbox newer_than:2d`, reads every message's headers in those threads (skipping mail the mailbox sent), and replies only when **all** of these hold (`google-workspace/respond/qualify.ts`):
+
+1. **Allowed sender.** The From header holds exactly one address (an address inside a quoted display name never counts, and a header with two angle addresses is rejected as ambiguous), it is in `emailConfig.respond.allowedSenders`, and it is not the mailbox. The list is set by the operator and is deliberately independent of `accounts`: polling a mailbox never lets its owner command the assistant.
+2. **Direct recipient.** The mailbox is in the **To** header (proper address-list parsing). Cc-only, or absent from both To and Cc (BCC), never qualifies.
+3. **Authenticated.** Only the topmost `Authentication-Results` header counts, and only when its authserv-id is `mx.google.com` (lower headers can be forged by the sender). It needs `dkim=pass` from a signing domain (`header.d`, else the domain after the last `@` of `header.i`) equal to the sender's domain or Google's default Workspace signing domain for it, `<domain with dots as dashes>.<digits>.gappssmtp.com`. Domains without their own DKIM key are signed that way by Google.
+4. **Not automated.** No `Auto-Submitted` other than `no`, no `List-Id`, no `Precedence: bulk|list|junk`.
+5. **Not already handled, under the cap.** No recorded outcome that is final, and the thread is under `maxRepliesPerThreadPerHour` (default 3). At most `maxPerRun` (default 3) messages per run, oldest first, and at most one per thread per run.
+
+**Two-step decision.** Qualification decides whether the worker sees the message at all. The worker then decides whether a reply is needed (`google-workspace/respond/recipients.ts`, `addressingOf`):
+
+- **Sole:** the mailbox is the only To addressee. A reply is required.
+- **Shared:** To holds more than one addressee. The message may not need the assistant, so the worker is told to reply only when the newest message asks something of the assistant, addresses it by name, or the assistant can add clear value. Otherwise it returns an `email-no-reply` block with a one-line reason. That is recorded as `skipped` (`reason: worker declined: …`, final), nothing is sent and the run summary counts it under `declined`. An `email-no-reply` on a sole message is a contract failure.
+
+**Sender identity.** Each qualifying message gets one worker session, told that the request comes from that person and must be handled with exactly the permissions and rules that apply to them in any other channel (a Slack DM from them, say): the email grants no extra authority. The thread is passed fenced as untrusted data (each body is the `text/plain` part, or the `text/html` part rendered as text when there is no plain part, e.g. Apple Mail rich-link messages; `lib/email-html.ts`), cut off at the message being answered (later messages, possibly from someone else, never reach the worker), and the job checks that the last message is from the sender; that message is the request, and quoted, forwarded or external content is never an instruction. The worker never sends mail itself. Its final reply must be exactly one fenced `email-reply` block (or, on a shared message, one `email-no-reply` block), optionally (when the Slack mirror is on) followed by one `email-slack-channel` block after a reply, with nothing else; an `email-reply` block becomes the reply body. The TASK lists every reply recipient and warns that all of them will read the reply.
+
+**Reply.** The script sends it with `gog gmail send --reply-to-message-id`, from the mailbox, preserving every original addressee (`buildReplyRecipients`): To = the sender plus the original To, Cc = the original Cc, Bcc = the original Bcc, with the mailbox removed and addresses deduped case-insensitively across all three. Received mail rarely carries a Bcc header, so Bcc is preserved only when one is present. Recipients are passed explicitly as `--to`/`--cc`/`--bcc`, never `--reply-all`. It then labels the thread `emailConfig.respond.label` (default `assistant-replied`) and records the outcome.
+
+**Slack mirror.** With `emailConfig.respond.slackMirror: true` (default `false`: it needs the `users:read.email` bot scope), every sent reply is also posted to Slack through the gateway `message` tool (`google-workspace/respond/slack-mirror.ts`, `google-workspace/respond/slack-directory.ts`). Lookups use the `default` Slack account's bot token (`getTokens`, `slack/lib/channel-token.ts`); with no token, or when Slack setup fails (e.g. a malformed OpenClaw config), the run logs that the mirror is disabled and still sends email (`initSlackDirectory`). The script finds the sender's Slack user with `users.lookupByEmail`. If there is no match, or the bot token lacks the `users:read.email` scope, nothing is posted. By default the post goes to the sender's DM with the assistant. The TASK describes this only when the mirror is on. When the newest message explicitly asks for a channel, the worker adds an `email-slack-channel` block (one channel name, optionally with `#`, or ID) after its reply. An ID is looked up with `conversations.info`; a value that is not a readable ID (including names such as `general`, which look like IDs) is matched by name against non-archived public and private channels the bot can list. The script posts there only when the channel resolves, the bot is a member and the sender is a member; otherwise, including when any of those checks errors, it uses the DM. The post shows the subject, the To and Cc addressees (never Bcc) and the reply, truncated after 3,000 characters. Declined messages are never mirrored. A mirror failure is logged and never changes the email outcome.
+
+**Failures.** A failed dispatch, a worker reply that breaks the output contract (including a misplaced, repeated or malformed `email-slack-channel` block), or a failed send is retried on later runs up to 2 attempts, then recorded as failed permanently and the run exits non-zero. A message that fails qualification is recorded as skipped with its reason. **Known limitation:** a crash between sending and recording can, rarely, produce a second reply on the next run.
+
+**Dry run.** `--dry-run` (`run email-respond --dry-run`), `emailConfig.respond.dryRun: true`, or `emailConfig.reportOnly: true` (like every other email job, report-only makes no Gmail changes) does discovery and qualification and logs what it would do: no dispatch, no send, no Slack post, no state writes.
+
+| File | Purpose |
+| --- | --- |
+| `google-workspace/respond.ts` | Entry: config, gog discovery, runner state, dispatch, send, label, Slack mirror wiring |
+| `google-workspace/respond/address.ts` | RFC 5322-ish address-list parsing (quoted names, angle brackets) |
+| `google-workspace/respond/automated.ts` | Auto-Submitted / List-Id / Precedence checks |
+| `google-workspace/respond/dkim.ts` | Topmost `Authentication-Results` DKIM check, incl. the gappssmtp rule |
+| `google-workspace/respond/qualify.ts` | The five reply conditions as one pure decision |
+| `google-workspace/respond/recipients.ts` | Sole vs shared addressing, and the reply's To/Cc/Bcc |
+| `google-workspace/respond/slack-mirror.ts` | Slack mirror: target choice (DM or verified channel), post format, `mirrorReply()` |
+| `google-workspace/respond/slack-directory.ts` | Slack Web API lookups for the mirror (user by email, channel, membership) |
+| `google-workspace/respond/candidates.ts` | gog args, metadata parsing, thread discovery and rendering |
+| `google-workspace/respond/state.ts` | Runner-state outcomes and per-thread reply timestamps |
+| `google-workspace/respond/task.ts` | Worker TASK builder and contract parser (`email-reply` / `email-no-reply`, optional `email-slack-channel`) |
+| `google-workspace/respond/run-mode.ts` | Dry-run decision (flag, `respond.dryRun`, `reportOnly`) |
+| `google-workspace/respond/schemas.ts` | Zod schemas for gog JSON (search, message, thread, labels) |
+| `google-workspace/respond/plan.ts` | Qualify candidates and pick this run's messages (oldest first, caps, one per thread) |
+| `google-workspace/respond/process.ts` | One message: thread check, dispatch, contract, send, label, record, Slack mirror |
+| `google-workspace/respond/orchestrate.ts` | One run: plan, then process each selected message; summary |
+
+**Configuration** (`pipeline.emailConfig.respond`, optional; absent means the job logs a skip and exits 0):
+
+```json
+{
+  "respond": {
+    "mailbox": "assistant@example.com",
+    "allowedSenders": ["owner@example.com"],
+    "maxRepliesPerThreadPerHour": 3,
+    "maxPerRun": 3,
+    "label": "assistant-replied",
+    "dryRun": false,
+    "slackMirror": false
+  }
+}
+```
+
+`mailbox` and `allowedSenders` are required (addresses are lowercased; `allowedSenders` must not include the mailbox); the rest show their defaults. The manifest carries a `prerequisite`, so `sync-jobs` never registers the job on its own: the operator configures `respond` and registers it.
+
 ## State, Queues and Logs
 
 | Where | What |
@@ -88,6 +155,8 @@ node bin/jeeves-scripts.js run email-apply-labels [--since <date>] [--account <i
 | Runner state items `email` / `<account>.seenThreadIds`, item key `<threadId>` | Per-thread state: classification, labels applied, seen messages |
 | Runner state `imap-poll` | IMAP watermark per account and folder: `{ uidValidity, lastUid }` |
 | Runner state `email-backfill`, key `cursor-<email>` | Historical backfill cursor |
+| Runner state items `email-respond` / `messages`, item key `<messageId>` | Auto-reply outcome per message: `{ status: replied\|failed\|skipped, attempts, at, threadId, reason? }` |
+| Runner state items `email-respond` / `thread-replies`, item key `<threadId>` | Auto-reply timestamps per thread (hourly cap) |
 | Queue `email-pending` | Threads whose bodies `download` fetches |
 | Queue `email-updates` | Label actions `drain-updates` applies to Gmail |
 | `EMAIL_EVENTS_DIR` (`/base/state/runner/email-events`) | Event logs: `<account>.jsonl` (thread seen/updated) and `_runs-*.jsonl` (per-run summaries); `trim-jsonl.ts` drops event lines older than 7 days after each poll |

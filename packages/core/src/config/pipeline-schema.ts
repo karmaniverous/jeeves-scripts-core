@@ -98,22 +98,39 @@ export const bucketsSchema = z.object({
 });
 
 /** The `pipeline` block: the template's `pipeline-config.json`, same keys. */
-export const pipelineSchema = z.object({
-  /** Mail and calendar accounts. */
-  accounts: z.array(accountSchema),
-  /** Mail bucket routing. */
-  buckets: bucketsSchema,
-  /** Named references (Slack channels, Notion ids, paths) by dotted key. */
-  refs: z.record(z.string(), z.string()),
-  /** Email pipeline settings. */
-  emailConfig: emailConfigSchema,
-  /**
-   * Google Drive sync block, kept raw here: the google-drive domain
-   * validates it, so a mistake in it fails only the Drive job, never
-   * every job that loads this config.
-   */
-  googleDrive: z.unknown().optional(),
-});
+export const pipelineSchema = z
+  .object({
+    /** Mail and calendar accounts. */
+    accounts: z.array(accountSchema),
+    /** Mail bucket routing. */
+    buckets: bucketsSchema,
+    /** Named references (Slack channels, Notion ids, paths) by dotted key. */
+    refs: z.record(z.string(), z.string()),
+    /** Email pipeline settings. */
+    emailConfig: emailConfigSchema,
+    /**
+     * Google Drive sync block, kept raw here: the google-drive domain
+     * validates it, so a mistake in it fails only the Drive job, never
+     * every job that loads this config.
+     */
+    googleDrive: z.unknown().optional(),
+  })
+  .superRefine((data, ctx) => {
+    // email-respond replies through gog: its mailbox must be a Gmail account.
+    const mailbox = data.emailConfig.respond?.mailbox;
+    if (mailbox === undefined) return;
+    const account = data.accounts.find(
+      (a) => a.email.trim().toLowerCase() === mailbox,
+    );
+    if (account?.type !== 'gmail')
+      ctx.addIssue({
+        code: 'custom',
+        message: account
+          ? `emailConfig.respond.mailbox ${mailbox} is an ${account.type} account; email-respond needs a gmail (gog) account`
+          : `emailConfig.respond.mailbox ${mailbox} must be a gmail account in accounts`,
+        path: ['emailConfig', 'respond', 'mailbox'],
+      });
+  });
 
 /** Parsed `pipeline` block. */
 export type PipelineConfig = z.infer<typeof pipelineSchema>;

@@ -14,6 +14,8 @@ export default defineJob({
   id: 'example-say-hello',
   domain: 'example',
   description: 'Print a greeting from this instance (the template sample).',
+  flags: {},
+  positionals: '[name]',
   run: ({ args }) => {
     const [name = 'world'] = args;
     console.log(`Hello, ${name}, from ${loadConfig().instance.name}!`);

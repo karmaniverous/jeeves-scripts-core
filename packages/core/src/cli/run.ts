@@ -16,13 +16,18 @@
  * 4. else `run` fails: unknown id.
  *
  * Every runnable runs in this process through `runJobModule`, with the
- * arguments after the id passed unchanged.
+ * arguments after the id. A runnable that declares `flags` gets them
+ * checked first (`jobs/job-help`): an undeclared option exits 1 before
+ * the body runs. One that declares none gets them unchecked, with a
+ * deprecation warning. `run <id> --help` is handled by `cli/list`
+ * ({@link jobHelp}).
  */
 
 import path from 'node:path';
 
 import { CONFIG_PATH_ENV } from '../config/loader.js';
 import { runJobModule } from '../jobs/define-job.js';
+import { argsError, flagsDeprecation } from '../jobs/job-help.js';
 import type { RegistryEntry } from '../jobs/registry.js';
 import { buildRunnables, type Runnable } from '../jobs/runnables.js';
 import { loadPlugin } from './load-plugin.js';
@@ -70,7 +75,8 @@ export const resolveRunnable = (
 /**
  * Run a runnable in this process. Resolves to 0 when its body has finished
  * or it skipped (a crash exits 1 through `runScript`; a runnable may set
- * `process.exitCode`).
+ * `process.exitCode`), and to 1, without running it, when it declares
+ * `flags` and `args` holds anything else.
  *
  * @throws On a registration error or an unknown id, before anything runs.
  */
@@ -81,6 +87,14 @@ export const runJob = async (
   options: RegisterOptions = {},
 ): Promise<number> => {
   const runnable = resolveRunnable(await registerInstance(root, options), id);
-  await runJobModule(await runnable.load(), args);
+  const job = await runnable.load();
+  const error = argsError(job, args);
+  if (error) {
+    console.error(error);
+    return 1;
+  }
+  const deprecation = flagsDeprecation(job, args);
+  if (deprecation) console.warn(deprecation);
+  await runJobModule(job, args);
   return 0;
 };

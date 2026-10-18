@@ -251,12 +251,12 @@ export async function runRefreshTokenRates(
 /**
  * Job entry logic.
  *
- * @param argv - Process arguments (`--dry-run` supported).
+ * @param flags - `dryRun`: report the changes, write nothing.
  * @param deps - Injected side effects.
  */
 export async function refreshTokenRatesMain(
-  argv: readonly string[],
+  flags: { dryRun: boolean },
   deps: RefreshRatesDeps,
 ): Promise<RefreshRatesResult> {
-  return runRefreshTokenRates(deps, { dryRun: argv.includes('--dry-run') });
+  return runRefreshTokenRates(deps, { dryRun: flags.dryRun });
 }

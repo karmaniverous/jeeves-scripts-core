@@ -25,6 +25,8 @@ node "$JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js" run <job-id> [args...]
 node "$JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js" config check
 ```
 
+Runnables declare their flags: `run <job-id> --help` prints a runnable's usage, flags and effective manifest without running it. An undeclared option exits 1 (`Unknown option <flag> for <id>`) before anything runs; runnables that declare no flags only warn, for now.
+
 How `run` resolves an id and every other command: [cli.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/cli.md).
 
 ## Operator rules

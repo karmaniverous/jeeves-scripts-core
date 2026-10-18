@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { parseRunnableArgs } from '../lib/args.js';
 import { fakeRunnerClient } from '../lib/fake-runner-client.test-helper.js';
 import { SyncEntrySchema } from './lib/config.js';
 import { emptySummary } from './lib/summary.js';
@@ -7,7 +8,11 @@ import {
   googleDriveSync,
   type GoogleDriveSyncDeps,
   googleDriveSyncDeps,
+  googleDriveSyncFlags,
 } from './sync.js';
+
+const flagsOf = (args: string[]) =>
+  parseRunnableArgs(args, googleDriveSyncFlags);
 
 let runner: ReturnType<typeof fakeRunnerClient>;
 let sigterm: (() => void) | undefined;
@@ -65,7 +70,7 @@ afterEach(() => {
 
 describe('googleDriveSync', () => {
   it('skips without configured syncs', async () => {
-    await googleDriveSync([], deps({ config: () => null }));
+    await googleDriveSync(flagsOf([]), deps({ config: () => null }));
     expect(logs).toEqual(['[skip] no googleDrive syncs configured']);
     expect(runner.closed()).toBe(false);
   });
@@ -73,7 +78,7 @@ describe('googleDriveSync', () => {
   it('runs the selected syncs, stops on SIGTERM and reports JR_RESULT', async () => {
     const d = deps();
     await googleDriveSync(
-      ['--live', '--account', 'B@example.com', '--allow-mass-delete'],
+      flagsOf(['--live', '--account', 'B@example.com', '--allow-mass-delete']),
       d,
     );
     expect(d.runSyncs).toHaveBeenCalledWith(
@@ -92,13 +97,13 @@ describe('googleDriveSync', () => {
   });
 
   it('resets ledger state, saying what it would reset in a dry run', async () => {
-    await googleDriveSync(['--reset-state'], deps());
+    await googleDriveSync(flagsOf(['--reset-state']), deps());
     expect(logs).toEqual([
       'WOULD RESET a@example.com: 0 ledger records',
       'WOULD RESET b@example.com: 0 ledger records',
     ]);
     await googleDriveSync(
-      ['--reset-state', '--live', '--account', 'a@example.com'],
+      flagsOf(['--reset-state', '--live', '--account', 'a@example.com']),
       deps(),
     );
     expect(logs).toContain('RESET a@example.com: 0 ledger records');
@@ -107,7 +112,7 @@ describe('googleDriveSync', () => {
   it('synthesizes an entry for an unconfigured account in a dry run', async () => {
     const d = deps({ config: () => null });
     await googleDriveSync(
-      ['--account', 'x@other.org', '--domains', 'other.org, more.org'],
+      flagsOf(['--account', 'x@other.org', '--domains', 'other.org, more.org']),
       d,
     );
     expect(d.runSyncs).toHaveBeenCalledWith(

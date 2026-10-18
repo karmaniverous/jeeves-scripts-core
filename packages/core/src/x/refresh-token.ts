@@ -45,5 +45,7 @@ export default defineJob({
     requireOAuth: false,
     ...xConfig,
   }),
+  flags: {},
+  positionals: '<handle>',
   run: ({ args }) => refreshXToken(args[0] ?? '', xJobDeps()),
 });
