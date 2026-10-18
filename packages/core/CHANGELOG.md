@@ -2,11 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-10-18
+
+### 💼 Other
+
+- [14-15] fix(dispatchers): --dry-run never starts a worker session, with or without slack (#15)
+
+With slack, --dry-run now reads Slack, builds the TASK and prints a one-line report (job, task length, allowed post targets), then stops. The 'real worker, posts printed' mode is removed. dispatchTaskFile resolves 'previewed' for --dry-run on both paths.
+- [14-15] test(worker-slack): type the runWorkerSlackJob mock from the module (#15)
+- *(google-drive)* Replace inline base64 images with placeholders; add --reconvert (#20)
+- [14-15] feat(cli): runnables declare their flags; run checks them and prints run <id> --help (#14)
+
+defineJob({ flags, positionals }) declares the accepted flags (lib/args specs, now with descriptions); the job reads them parsed from ctx.flags. run <id> rejects an undeclared option, an unexpected positional or a valued option without a value (exit 1, before the body runs) for a runnable that declares flags, and passes everything through with a deprecation warning for one that declares none (strict for all in a later minor). run <id> --help prints usage, description, flags and the effective manifest without running the body. Every core runnable declares its flags and reads them through ctx.flags (enforced by flags-discipline.test.ts); dispatchers share dispatcherFlags. job.run({ args }) without flags still works: the job parses them itself.
+- *(email)* Email-respond assistant-mailbox auto-reply (#22); review and Copilot fixes
 ## [0.1.3] - 2026-10-14
 
 ### 🐛 Bug Fixes
 
 - *(release)* GitHub release notes and changelog use the new version tag
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-scripts-core v0.1.3
 ## [0.1.2] - 2026-10-12
 
 ### 🐛 Bug Fixes
