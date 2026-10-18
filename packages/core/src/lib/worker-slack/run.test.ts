@@ -11,10 +11,7 @@ const mocks = vi.hoisted(() => ({
   dispatchSession: vi.fn(),
   readWorkerFinalText: vi.fn(),
   gatewaySlackIo: vi.fn(),
-  runWorkerSlackJob:
-    vi.fn<
-      (task: string, slack: unknown, deps: WorkerSlackDeps) => Promise<unknown>
-    >(),
+  runWorkerSlackJob: vi.fn<typeof WorkerSlackJobModule.runWorkerSlackJob>(),
   gatewayInvoke: vi.fn(),
   gatewayRpc: vi.fn(),
 }));
