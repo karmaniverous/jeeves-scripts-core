@@ -147,6 +147,8 @@ flowchart TD
 | Native text | `text/*`, JSON/XML/YAML/JS…, or a text extension | bytes as-is; invalid UTF-8 → skipped (`invalid-utf8`) |
 | Everything else | images, media, archives, Forms, Drawings, Sites, shortcuts… | skipped (`non-convertible`) |
 
+Every conversion replaces inline base64 images (`data:image/...` URIs: Markdown images, HTML `<img>` tags, bare data URIs) with `[image]` or `[image: <alt text>]` placeholders (`lib/strip-images.ts`). Office conversions and some Google Docs exports embed every picture this way, which turned a few pages of prose into megabytes of base64 that the watcher chunked and embedded as text.
+
 Permanent skips (`export-limit` for Drive exports over 10 MB, `invalid-utf8`, `oversize`, `non-convertible`, `path-too-long`) are recorded in the ledger and re-evaluated only when the file's content key changes. When an item that was already synced becomes skipped during download, its old copy is left in place and removed by the next run's plan, under the mass-deletion guard. An empty Doc exports as an empty body: that's normal.
 
 ## Tree, Shares and Metas
@@ -174,6 +176,7 @@ jeeves-runner state (`JR_DB_PATH`), namespace `google-drive`:
 - **Content keys:** `md5:<md5Checksum>` for uploads. For Google-native files, `rev:<latest revision id>`, checked in two stages: unchanged `modifiedTime` → reuse the stored key (no call); changed → one `revisions.list`. A rename bumps `modifiedTime` but not the revision, so it's a move, not a re-export. If revisions are unreadable, `mt:<modifiedTime>` is used instead.
 - The **queue is derived**, never stored: snapshot files whose probe key ≠ `written.contentKey`, minus skipped/parked/backing-off items.
 - **Reset:** `node bin/jeeves-scripts.js run google-drive-sync --reset-state --live [--account <a>]`. Never a bare `deleteState`: `state_items` has a foreign key with no cascade, so deleting the parent while items exist fails. A reset just causes one full (budgeted) re-download.
+- **Re-convert inline images:** `node bin/jeeves-scripts.js run google-drive-sync --reconvert [--live] [--account <a>]`. Items whose written copy still contains `data:image/` get their content key invalidated, so they re-convert as updates in the same run (a dry run lists them as `UPDATE`). Run it once after upgrading to a release that strips inline images; copies synced earlier are otherwise only re-converted when their Drive content changes.
 - Inspect: `runner_query_state` (namespace `google-drive`, key `run:<account>`) and `runner_query_collection`.
 
 ## Running
@@ -194,6 +197,7 @@ JR_DB_PATH=… node bin/jeeves-scripts.js run google-drive-sync --live
 | `--domains <a,b>` | Delegated domains for a synthesized dry-run entry |
 | `--allow-mass-delete` | Apply deletions blocked by the mass-deletion guard (never ones blocked by enumeration errors) |
 | `--reset-state` | Clear the ledger and run state (needs `--live`; dry run prints the count) |
+| `--reconvert` | Re-convert synced items whose copy still holds inline base64 images (dry run lists them as updates) |
 
 `runner_trigger` always runs with the manifest's `args` (`--live`), so there is no runner-side dry run.
 

@@ -14,6 +14,8 @@
  *   --domains <list>     delegated domains (comma-separated) for a synthesized dry-run entry
  *   --allow-mass-delete  apply deletions blocked by the mass-deletion guard
  *   --reset-state        clear the ledger + run state (requires --live)
+ *   --reconvert          re-convert synced items whose copy still holds
+ *                        inline base64 images (reported unless --live)
  */
 
 import {
@@ -128,6 +130,7 @@ async function sync(
   const summaries = await deps.runSyncs(syncs, runner, {
     live,
     allowMassDelete: argv.includes('--allow-mass-delete'),
+    reconvert: argv.includes('--reconvert'),
     budget,
     shouldStop: () => stop,
     log: (account, line) => {
