@@ -131,6 +131,59 @@ export function parseRunnableArgs<S extends ArgSpec>(
   return out as ParsedArgs<S>;
 }
 
+/** How {@link scanArgs} classifies one argument. */
+interface ScannedArg {
+  arg: string;
+  kind: 'positional' | 'declared' | 'unknown' | 'valueless';
+}
+
+/**
+ * Classify each argument against `spec`: a positional (not starting with
+ * `-`), a declared flag or option (by name, alias or `--name=value`), or
+ * an unknown option, or a declared valued option given without a value
+ * (`valueless`: at the end, `--name=`, or followed by an option-like
+ * argument, which is then classified on its own and never consumed). The
+ * separate value of a declared valued option is consumed, never
+ * classified.
+ */
+function scanArgs(args: readonly string[], spec: ArgSpec): ScannedArg[] {
+  const specs = Object.values(spec);
+  const out: ScannedArg[] = [];
+  for (let i = 0; i < args.length; i += 1) {
+    const arg = args[i] ?? '';
+    if (!arg.startsWith('-')) {
+      out.push({ arg, kind: 'positional' });
+      continue;
+    }
+    const s = specs.find(
+      (x) =>
+        arg === x.name ||
+        (x.kind !== 'flag' &&
+          (arg === x.alias || arg.startsWith(`${x.name}=`))),
+    );
+    if (!s) {
+      out.push({ arg, kind: 'unknown' });
+      continue;
+    }
+    if (s.kind === 'flag') {
+      out.push({ arg, kind: 'declared' });
+      continue;
+    }
+    // A valued option: `--name=value`, or its value is the next argument,
+    // which must not itself look like an option (never swallow one).
+    const value = arg.includes('=')
+      ? arg.slice(arg.indexOf('=') + 1)
+      : args[i + 1];
+    if (!value || value.startsWith('-')) {
+      out.push({ arg, kind: 'valueless' });
+      continue;
+    }
+    out.push({ arg, kind: 'declared' });
+    if (!arg.includes('=')) i += 1;
+  }
+  return out;
+}
+
 /**
  * The arguments `spec` does not declare: an option-like argument (starting
  * with `-`) that is no flag, option or alias of `spec` (`--name=value` for
@@ -142,23 +195,25 @@ export function unknownArgs(
   spec: ArgSpec,
   positionals = false,
 ): string[] {
-  const specs = Object.values(spec);
-  const unknown: string[] = [];
-  for (let i = 0; i < args.length; i += 1) {
-    const a = args[i] ?? '';
-    if (!a.startsWith('-')) {
-      if (!positionals) unknown.push(a);
-      continue;
-    }
-    const s = specs.find(
-      (x) =>
-        a === x.name ||
-        (x.kind !== 'flag' && (a === x.alias || a.startsWith(`${x.name}=`))),
-    );
-    if (!s) unknown.push(a);
-    else if (s.kind !== 'flag' && !a.includes('=')) i += 1;
-  }
-  return unknown;
+  return scanArgs(args, spec)
+    .filter(
+      ({ kind }) =>
+        kind === 'unknown' || (kind === 'positional' && !positionals),
+    )
+    .map(({ arg }) => arg);
+}
+
+/**
+ * The valued options given without a value, every occurrence (a repeated
+ * option is checked each time, not only the first one the parser reads).
+ */
+export function valuelessArgs(
+  args: readonly string[],
+  spec: ArgSpec,
+): string[] {
+  return scanArgs(args, spec)
+    .filter(({ kind }) => kind === 'valueless')
+    .map(({ arg }) => arg.split('=')[0] ?? arg);
 }
 
 /**
@@ -170,13 +225,7 @@ export function positionalArgs(
   args: readonly string[],
   spec: ArgSpec = {},
 ): string[] {
-  const valued = new Set<string>();
-  for (const s of Object.values(spec))
-    if (s.kind !== 'flag') {
-      valued.add(s.name);
-      if (s.alias) valued.add(s.alias);
-    }
-  return args.filter(
-    (a, i) => !a.startsWith('-') && !valued.has(args[i - 1] ?? ''),
-  );
+  return scanArgs(args, spec)
+    .filter(({ kind }) => kind === 'positional')
+    .map(({ arg }) => arg);
 }

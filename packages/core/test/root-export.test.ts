@@ -124,6 +124,7 @@ const EXPECTED = [
   'resolveConfigPath',
   'resolveImapPassword',
   'resolveTaskFile',
+  'respondConfigSchema',
   'retryAsync',
   'retrySync',
   'runnerConfig',

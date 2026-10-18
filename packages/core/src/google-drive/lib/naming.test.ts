@@ -205,8 +205,8 @@ describe('naming: identity root', () => {
     expect(identityRootSegment('odd:name@example.com')).toBe(
       'odd_name@example.com',
     );
-    expect(identityRootSegment('Mike.Blaney@Example.com')).toBe(
-      'mike.blaney@example.com',
+    expect(identityRootSegment('Jane.Doe@Example.com')).toBe(
+      'jane.doe@example.com',
     );
   });
 });

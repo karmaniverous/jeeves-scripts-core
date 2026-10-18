@@ -13,6 +13,7 @@ import {
   parseRunnableArgs,
   positionalArgs,
   unknownArgs,
+  valuelessArgs,
 } from './args.js';
 
 describe('parseRunnableArgs', () => {
@@ -154,7 +155,7 @@ describe('unknownArgs (#14)', () => {
 
   it('accepts declared flags, aliases and both value forms; skips separate values', () => {
     expect(
-      unknownArgs(['--live', '--max', '3', '-m', '--odd', '--since=x'], spec),
+      unknownArgs(['--live', '--max', '3', '-m', '7', '--since=x'], spec),
     ).toEqual([]);
   });
 
@@ -165,5 +166,28 @@ describe('unknownArgs (#14)', () => {
       'pos',
     ]);
     expect(unknownArgs(['pos'], spec, true)).toEqual([]);
+  });
+});
+
+describe('valued options never swallow an option (#14)', () => {
+  const spec = { project: argValue('--project', 'X'), live: argFlag('--live') };
+
+  it('reports an undeclared option given as a repeated option value', () => {
+    const args = ['--project', 'ACME', '--project', '--dryrun', '--live'];
+    expect(unknownArgs(args, spec)).toEqual(['--dryrun']);
+    expect(valuelessArgs(args, spec)).toEqual(['--project']);
+  });
+
+  it('checks every occurrence of a valued option, not just the first', () => {
+    expect(
+      valuelessArgs(['--project', 'ACME', '--project', '--live'], spec),
+    ).toEqual(['--project']);
+    expect(valuelessArgs(['--project=', '--project'], spec)).toEqual([
+      '--project',
+      '--project',
+    ]);
+    expect(valuelessArgs(['--project', 'ACME', '--project=B'], spec)).toEqual(
+      [],
+    );
   });
 });

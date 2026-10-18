@@ -15,6 +15,7 @@
 
 import type { DatabaseSync } from 'node:sqlite';
 
+import { isRecord } from '../../../lib/is-record.js';
 import { MAX_ROLLUP_DEPTH } from './subagent-rollup.js';
 import type { SessionMeta } from './types.js';
 
@@ -24,10 +25,6 @@ interface NodeInfo {
   displayName?: string;
   originLabel?: string;
   parentKey?: string;
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null;
 }
 
 function str(v: unknown): string | undefined {

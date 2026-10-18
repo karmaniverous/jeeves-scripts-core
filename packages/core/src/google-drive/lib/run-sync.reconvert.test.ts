@@ -3,9 +3,10 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { RECONVERT_KEY } from './content-key.js';
 import { fakeRunner } from './fake-runner.test-helper.js';
 import { emptyRecord, type LedgerRecord } from './ledger.js';
-import { markImageBloat, RECONVERT_KEY, syncOne } from './run-sync.js';
+import { markImageBloat, syncOne } from './run-sync.js';
 import {
   cfg,
   drive,
@@ -45,6 +46,43 @@ describe('markImageBloat', () => {
     expect(ledger.get('c')?.written?.contentKey).toBe('md5:a');
     expect(ledger.get('m')?.written?.contentKey).toBe('md5:a');
     expect(ledger.get('u')?.written).toBeNull();
+  });
+});
+
+describe('markImageBloat: stays inside the target', () => {
+  const written = (localPath: string): LedgerRecord => ({
+    ...emptyRecord(),
+    localPath,
+    written: {
+      contentKey: 'md5:a',
+      modifiedTime: null,
+      kind: 'text',
+      at: 'now',
+    },
+  });
+
+  it('never reads a ledger path that escapes the target', () => {
+    const inner = path.join(sandboxDir(), 'inner');
+    fs.mkdirSync(inner);
+    fs.writeFileSync(path.join(sandboxDir(), 'outside.md'), BLOAT);
+    const ledger = new Map([['x', written('../outside.md')]]);
+    expect(markImageBloat(ledger, inner)).toBe(0);
+    expect(ledger.get('x')?.written?.contentKey).toBe('md5:a');
+  });
+
+  it('never follows a linked directory out of the target', () => {
+    const inner = path.join(sandboxDir(), 'inner');
+    const outside = path.join(sandboxDir(), 'outside');
+    fs.mkdirSync(inner);
+    fs.mkdirSync(outside);
+    fs.writeFileSync(path.join(outside, 'secret.md'), BLOAT);
+    // A junction needs no privilege on Windows; elsewhere it is a dir symlink.
+    fs.symlinkSync(outside, path.join(inner, 'dir'), 'junction');
+    const ledger = new Map([['d', written('dir/secret.md')]]);
+    expect(markImageBloat(ledger, inner)).toBe(0);
+    expect(
+      [...ledger.values()].map((r) => r.written?.contentKey),
+    ).not.toContain(RECONVERT_KEY);
   });
 });
 

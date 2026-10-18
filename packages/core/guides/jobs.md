@@ -107,7 +107,7 @@ export default defineJob({
 
 **What `run <id>` checks** (#14), before the body runs:
 
-- A runnable that declares `flags` (`flags: {}` for none) accepts only those, plus positionals when it declares `positionals`. Anything else exits 1 with `Unknown option <flag> for <id> (see run <id> --help)` (or `Unexpected argument <arg> ...`). A valued option without a value (at the end, as `--name=`, or followed by an argument starting with `-`) exits 1 with `<name> requires a value for <id> ...`.
+- A runnable that declares `flags` (`flags: {}` for none) accepts only those, plus positionals when it declares `positionals`. Anything else exits 1 with `Unknown option <flag> for <id> (see run <id> --help)` (or `Unexpected argument <arg> ...`). A valued option without a value (at the end, as `--name=`, or followed by an argument starting with `-`, which is then checked on its own and never taken as the value) exits 1 with `<name> requires a value for <id> ...`. Every occurrence is checked, so repeating an option can't hide a flag.
 - A runnable that declares no `flags` keeps the old behaviour: it gets every argument unchecked in `ctx.args` (and `ctx.flags` is `{}`), and `run` prints `[deprecated] <id> declares no flags; ...` on stderr when given any flag. **A later minor release rejects undeclared flags for every runnable**, so declare them now.
 - `run <id> --help` (or `-h`) prints the usage, description, declared flags with their descriptions and defaults, and the effective manifest, then exits 0 without running anything.
 

@@ -8,6 +8,7 @@ import {
   formatJobHelp,
   wantsHelp,
 } from './job-help.js';
+import type { JobManifest } from './manifest.js';
 
 const job = defineJob({
   id: 'acme-report',
@@ -58,6 +59,15 @@ describe('argsError', () => {
     );
   });
 
+  it('never lets a repeated valued option hide an undeclared safety flag', () => {
+    expect(argsError(job, ['--max', '3', '--max', '--dryrun', '--live'])).toBe(
+      'Unknown option --dryrun for acme-report (see run acme-report --help)',
+    );
+    expect(argsError(job, ['--max', '3', '--max', '--live'])).toBe(
+      '--max requires a value for acme-report (see run acme-report --help)',
+    );
+  });
+
   it('reports a valued option without a value', () => {
     expect(argsError(job, ['--max'])).toMatch(/^--max requires a value/);
   });
@@ -79,7 +89,17 @@ describe('flagsDeprecation', () => {
 
 describe('formatJobHelp', () => {
   it('prints usage, description, flags and the manifest', () => {
-    const text = formatJobHelp(job, { schedule: '0 * * * *' } as never);
+    const manifest: JobManifest = {
+      id: 'acme-report',
+      domain: 'acme',
+      name: 'Acme report',
+      description: 'Report on acme.',
+      schedule: '0 * * * *',
+      overlap_policy: 'skip',
+      enabled: true,
+      prerequisite: null,
+    };
+    const text = formatJobHelp(job, manifest);
     expect(text).toContain(
       'Usage: jeeves-scripts run acme-report [options] <handle>',
     );
@@ -88,7 +108,7 @@ describe('formatJobHelp', () => {
     expect(text).toContain('  -m, --max <value>  Items; default: 5');
     expect(text).toContain('  --since <value>');
     expect(text).toContain('  -h, --help  Print this help and exit');
-    expect(text).toContain('"schedule": "0 * * * *"');
+    expect(text).toContain(JSON.stringify(manifest, null, 2));
   });
 
   it('says so when no flags are declared and there is no manifest', () => {

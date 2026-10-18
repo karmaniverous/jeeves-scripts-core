@@ -29,9 +29,22 @@ const isArgs = (
   input: readonly string[] | Partial<DispatcherFlags>,
 ): input is readonly string[] => Array.isArray(input);
 
+/** A dispatcher flag value: a boolean, or absent (`false`). */
+function flagValue(flags: object, key: keyof DispatcherFlags): boolean {
+  const value: unknown = (flags as Record<string, unknown>)[key];
+  if (value === undefined) return false;
+  if (typeof value !== 'boolean')
+    throw new TypeError(
+      `dispatcher flag ${key} must be a boolean, got ${typeof value}`,
+    );
+  return value;
+}
+
 /**
  * The dispatcher flags from parsed flags or raw arguments (default:
  * `process.argv`).
+ *
+ * @throws TypeError when a parsed flag is present but not a boolean.
  */
 export const resolveDispatcherFlags = (
   input: readonly string[] | Partial<DispatcherFlags> = process.argv,
@@ -41,15 +54,23 @@ export const resolveDispatcherFlags = (
         printTask: input.includes('--print-task'),
         dryRun: input.includes('--dry-run'),
       }
-    : { printTask: input.printTask ?? false, dryRun: input.dryRun ?? false };
+    : {
+        printTask: flagValue(input, 'printTask'),
+        dryRun: flagValue(input, 'dryRun'),
+      };
 
 /**
- * The declared dispatcher flags in a job context, or `undefined` when the
- * job declares none (then its raw arguments decide).
+ * The declared dispatcher flags in a job context (validated booleans), or
+ * `undefined` when the job declares none (then its raw arguments decide).
+ *
+ * @throws TypeError when a declared flag is not a boolean.
  */
 export const declaredDispatcherFlags = (
   flags: object | undefined,
-): Partial<DispatcherFlags> | undefined =>
+): DispatcherFlags | undefined =>
   flags && ('printTask' in flags || 'dryRun' in flags)
-    ? (flags as Partial<DispatcherFlags>)
+    ? {
+        printTask: flagValue(flags, 'printTask'),
+        dryRun: flagValue(flags, 'dryRun'),
+      }
     : undefined;

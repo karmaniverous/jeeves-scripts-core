@@ -18,9 +18,11 @@ import {
   moveFile,
   prepareStaging,
   pruneDirs,
+  safeJoin,
   scanTree,
 } from './apply.js';
 import { resolveTargetDir, type SyncEntryConfig } from './config.js';
+import { RECONVERT_KEY } from './content-key.js';
 import { createDriveClient, type DriveClient } from './drive-client.js';
 import { enumerate } from './enumerate.js';
 import { type RunBudget, runQueue } from './execute.js';
@@ -60,12 +62,11 @@ export interface SyncOptions {
   reconvert?: boolean;
 }
 
-/** Marker content key: never equals a Drive probe key, so the item re-converts. */
-export const RECONVERT_KEY = 'reconvert';
-
 /**
  * Invalidate the content key of every written record whose copy under
- * `targetDir` contains an inline base64 image. Mutates `ledger`.
+ * `targetDir` contains an inline base64 image. Mutates `ledger`. Reads only
+ * regular files inside `targetDir`: a ledger path that escapes it, runs
+ * through a symlinked directory, or is itself a symlink is skipped.
  *
  * @returns The number of records marked.
  */
@@ -76,8 +77,13 @@ export function markImageBloat(
   let marked = 0;
   for (const record of ledger.values()) {
     if (!record.written || !record.localPath) continue;
-    const file = path.join(targetDir, record.localPath);
-    if (!fs.existsSync(file)) continue;
+    let file: string;
+    try {
+      file = safeJoin(targetDir, record.localPath);
+    } catch {
+      continue;
+    }
+    if (!fs.lstatSync(file, { throwIfNoEntry: false })?.isFile()) continue;
     if (!fs.readFileSync(file, 'utf8').includes('data:image/')) continue;
     record.written = { ...record.written, contentKey: RECONVERT_KEY };
     marked += 1;
@@ -138,6 +144,7 @@ export async function syncOne(
   const loaded = new Map(
     [...ledger].map(([id, rec]) => [id, recordFingerprint(rec)]),
   );
+  assertNoSymlinks(opts.contentDir ?? constants().CONTENT_DIR, targetDir);
   if (opts.reconvert) {
     const marked = markImageBloat(ledger, targetDir);
     opts.log(
@@ -145,7 +152,6 @@ export async function syncOne(
     );
   }
   const prepared = prepare(snapshot, ledger, client, cfg, targetDir);
-  assertNoSymlinks(opts.contentDir ?? constants().CONTENT_DIR, targetDir);
   const scan = scanTree(targetDir);
   const p = plan({
     items: prepared.items,

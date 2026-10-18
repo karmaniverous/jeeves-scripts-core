@@ -162,6 +162,38 @@ describe('jeeves-scripts CLI', () => {
       expect(errors[0]).toContain('must default-export definePlugin');
     });
 
+    it.each([['--help'], ['-h']])(
+      'run <id> %s goes through the real parser to the runnable help, running nothing',
+      async (flag) => {
+        const logs: string[] = [];
+        const errors: string[] = [];
+        vi.spyOn(console, 'error').mockImplementation((line: unknown) => {
+          errors.push(String(line));
+        });
+        vi.spyOn(console, 'log').mockImplementation((line: unknown) => {
+          logs.push(String(line));
+        });
+        const code = await main({
+          root: dir,
+          argv: ['node', 'jeeves-scripts', 'run', 'email-respond', flag],
+        });
+        expect(code).toBe(0);
+        expect(errors).toEqual([]);
+        expect(logs.join('\n')).toContain(
+          'Usage: jeeves-scripts run email-respond [options]',
+        );
+        expect(logs.join('\n')).toContain('--dry-run');
+      },
+    );
+
+    it('run rejects an undeclared option through the real parser before the body runs', async () => {
+      const { code, errors } = await runMain('run', 'email-respond', '--live');
+      expect(code).toBe(1);
+      expect(errors).toEqual([
+        'Unknown option --live for email-respond (see run email-respond --help)',
+      ]);
+    });
+
     it('list with an invalid instance manifest', async () => {
       write('jobs/local.json', { 'local-thing': { name: 'x' } });
       const { code, errors } = await runMain('list');

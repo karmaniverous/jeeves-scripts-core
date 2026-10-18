@@ -14,7 +14,7 @@
  * Pure.
  */
 
-import { type ArgSpec, parseRunnableArgs, unknownArgs } from '../lib/args.js';
+import { type ArgSpec, unknownArgs, valuelessArgs } from '../lib/args.js';
 import type { JobModule } from './define-job.js';
 import type { JobManifest } from './manifest.js';
 
@@ -37,11 +37,9 @@ export const argsError = (
     return bad.startsWith('-')
       ? `Unknown option ${bad} for ${job.id} ${see}`
       : `Unexpected argument ${bad} for ${job.id} ${see}`;
-  try {
-    parseRunnableArgs(args, job.flags);
-  } catch (e) {
-    return `${e instanceof Error ? e.message : String(e)} for ${job.id} ${see}`;
-  }
+  const [valueless] = valuelessArgs(args, job.flags);
+  if (valueless !== undefined)
+    return `${valueless} requires a value for ${job.id} ${see}`;
   return undefined;
 };
 

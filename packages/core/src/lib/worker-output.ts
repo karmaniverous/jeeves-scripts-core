@@ -16,6 +16,7 @@
  */
 
 import type { GatewayRpc } from './gateway-rpc.js';
+import { isRecord } from './is-record.js';
 import { parseResultLine } from './worker-session.js';
 
 /** Number of trailing history messages to fetch. */
@@ -26,10 +27,6 @@ export const HISTORY_MAX_CHARS = 500_000;
 
 /** Text `chat.history` substitutes for an oversized message. */
 const OMITTED_PLACEHOLDER = '[chat.history omitted: message too large]';
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null;
-}
 
 /**
  * Find the worker session key in spawn-worker stdout.

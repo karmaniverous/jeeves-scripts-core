@@ -20,6 +20,7 @@
 import { z } from 'zod';
 
 import type { GatewayInvoker } from '../gateway-client.js';
+import { isRecord } from '../is-record.js';
 
 /** A Slack message as seen by the job. */
 export interface SlackMessage {
@@ -50,10 +51,6 @@ export interface SlackIo {
   pin: (target: string, messageId: string) => Promise<void>;
   /** Replace the text of an existing message. */
   edit: (target: string, messageId: string, text: string) => Promise<void>;
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null;
 }
 
 /**
