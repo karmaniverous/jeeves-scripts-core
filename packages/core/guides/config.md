@@ -75,6 +75,8 @@ Every schema is exported (Zod 4), with its `z.infer` type (`Config`, `PathsConfi
 
 `slack.channels` maps a Slack channel id to what this instance decides about it: `project` (tags the channel's indexed messages) and `homeDir` (the channel's home directory; must be an absolute path). It is the only place those decisions live; channel names, types, members and user details come from Slack and are cached in `{stateDir}/slack` (state, not config). See [slack.md](./slack.md#channel-config).
 
+Two more `slack` settings tune `slack-poll`: `backfillBudgetSeconds` (positive integer, default 60), the most time one channel may take in a run before it saves its position and hands off to the next channel; and `newChannelLookbackDays` (non-negative; unset by default), how far back a channel with no read position yet is read (`0`: from now; unset: its full history). See [slack.md](./slack.md#read-positions-state).
+
 ### People
 
 `people` says which accounts and email addresses belong to one person, which is a decision we make, so it is config:

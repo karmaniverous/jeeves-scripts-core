@@ -42,15 +42,23 @@ export type SlackTs = z.infer<typeof slackTsSchema>;
 export type Cursors = Record<string, SlackTs>;
 
 /**
+ * The runner state store failed: poll-fatal, never swallowed by a
+ * per-channel error handler.
+ */
+export class CursorStoreError extends Error {
+  override name = 'CursorStoreError';
+}
+
+/**
  * Run a store operation, rethrowing any failure as a clear poll-fatal
- * error.
+ * {@link CursorStoreError}.
  */
 function withStore<T>(op: () => T): T {
   try {
     return op();
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    throw new Error(
+    throw new CursorStoreError(
       `Slack read positions unavailable: runner state store error (${msg}). Aborting poll.`,
       { cause: err },
     );
