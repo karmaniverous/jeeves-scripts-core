@@ -71,41 +71,31 @@ export interface HistoryResponse {
   response_metadata?: { next_cursor?: string };
 }
 
-export async function fetchHistory(
+/** Messages per `conversations.history` page. */
+export const HISTORY_PAGE_SIZE = 200;
+
+/**
+ * One page of a channel's history: the (up to {@link HISTORY_PAGE_SIZE})
+ * messages just after `oldest`, sorted oldest first, and whether newer ones
+ * remain. Given `oldest` and no `latest`, Slack returns the messages
+ * nearest `oldest` (newest first within the page), so the next page is the
+ * same call with `oldest` moved to this page's newest message: a caller can
+ * stop between pages and resume from its saved read position.
+ */
+export async function fetchHistoryPage(
   channelId: string,
   oldest: string,
   token: string,
-): Promise<{ messages: SlackMessage[]; newestTs: string }> {
-  let cursor: string | undefined;
-  const allMessages: SlackMessage[] = [];
-  let newestTs = oldest;
-
-  do {
-    const params: Record<string, string> = {
-      channel: channelId,
-      limit: '200',
-      oldest,
-    };
-    if (cursor) params.cursor = cursor;
-
-    const resp = (await slackApi(
-      'conversations.history',
-      params,
-      token,
-    )) as HistoryResponse;
-    const messages = resp.messages ?? [];
-
-    for (const msg of messages) {
-      if (msg.ts <= oldest) continue;
-      allMessages.push(msg);
-      if (msg.ts > newestTs) newestTs = msg.ts;
-    }
-
-    cursor = resp.has_more ? resp.response_metadata?.next_cursor : undefined;
-    if (cursor) await sleep(RATE_LIMIT_MS);
-  } while (cursor);
-
-  return { messages: allMessages, newestTs };
+): Promise<{ messages: SlackMessage[]; hasMore: boolean }> {
+  const resp = (await slackApi(
+    'conversations.history',
+    { channel: channelId, limit: String(HISTORY_PAGE_SIZE), oldest },
+    token,
+  )) as HistoryResponse;
+  const messages = (resp.messages ?? [])
+    .filter((m) => m.ts > oldest)
+    .sort((x, y) => (x.ts < y.ts ? -1 : x.ts > y.ts ? 1 : 0));
+  return { messages, hasMore: resp.has_more === true };
 }
 
 export async function fetchReplies(

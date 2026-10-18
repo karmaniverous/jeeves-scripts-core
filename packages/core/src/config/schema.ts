@@ -61,7 +61,7 @@ export const configObjectSchema = z.object({
   /** Data silos (Decision 28). */
   siloRouting: siloRoutingSchema.default({ silos: {} }),
   /** What this instance decides about Slack channels (Decision 9). */
-  slack: slackConfigSchema.default({ channels: {} }),
+  slack: slackConfigSchema.default(() => slackConfigSchema.parse({})),
   /** Which accounts and emails belong to one person (Decision 34). */
   people: peopleSchema.default({}),
   /** Per-job deltas. */

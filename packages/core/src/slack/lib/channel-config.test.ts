@@ -61,7 +61,10 @@ afterEach(() => {
 
 describe('slackConfigSchema', () => {
   it('defaults to no channels', () => {
-    expect(slackConfigSchema.parse({})).toEqual({ channels: {} });
+    expect(slackConfigSchema.parse({})).toEqual({
+      channels: {},
+      backfillBudgetSeconds: 60,
+    });
   });
 
   it.each(['D:/content/x', 'D:\\content\\x', '/srv/x', '\\\\host\\share'])(
