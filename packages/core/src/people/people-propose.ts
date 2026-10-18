@@ -11,9 +11,9 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { parseArgs } from 'node:util';
 
 import { defineJob } from '../jobs/define-job.js';
+import { argFlag, argOptional, type ParsedArgs } from '../lib/args.js';
 import { proposeFromSlack } from './propose.js';
 
 /** Collaborators of {@link peoplePropose}, injectable for tests. */
@@ -29,21 +29,24 @@ const defaultDeps: PeopleProposeDeps = {
   write: (text) => process.stdout.write(text),
 };
 
+/** The flags `people-propose` accepts. */
+export const peopleProposeFlags = {
+  all: argFlag('--all', 'Include every Slack user, not only likely people'),
+  out: argOptional('--out', {
+    description: 'Also write the proposal to this file',
+  }),
+};
+
 /**
- * Run `people-propose` with its command-line arguments.
+ * Run `people-propose` with its parsed flags.
  *
- * @throws When `--out` names `jeeves-scripts.json` (any case), or an
- *   argument is unknown.
+ * @throws When `--out` names `jeeves-scripts.json` (any case).
  */
 export async function peoplePropose(
-  args: readonly string[],
+  flags: Partial<ParsedArgs<typeof peopleProposeFlags>>,
   deps: PeopleProposeDeps = defaultDeps,
 ): Promise<void> {
-  const { values } = parseArgs({
-    args: [...args],
-    options: { all: { type: 'boolean' }, out: { type: 'string' } },
-    strict: true,
-  });
+  const values = flags;
   // Case-insensitive: on Windows JEEVES-SCRIPTS.JSON is the same file.
   if (
     values.out &&
@@ -61,5 +64,6 @@ export default defineJob({
   domain: 'people',
   description:
     'Propose a people block from the Slack users of every gateway bot account (read-only; never writes config).',
-  run: ({ args }) => peoplePropose(args),
+  flags: peopleProposeFlags,
+  run: ({ flags }) => peoplePropose(flags),
 });

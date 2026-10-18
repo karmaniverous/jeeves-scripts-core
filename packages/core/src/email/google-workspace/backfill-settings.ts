@@ -15,7 +15,7 @@
 import { z } from 'zod';
 
 import type { BackfillConfig } from '../../config/index.js';
-import { argOptional, parseRunnableArgs } from '../../lib/args.js';
+import { argOptional, type ParsedArgs } from '../../lib/args.js';
 
 /** Resolved backfill settings. */
 export interface BackfillSettings {
@@ -41,6 +41,17 @@ function parseAccounts(raw: string): string[] {
     .filter(Boolean);
 }
 
+/** The flags that override `emailConfig.backfill`. */
+export const backfillSettingsFlags = {
+  accounts: argOptional('--accounts', {
+    description: 'Accounts (comma-separated)',
+  }),
+  lookback: argOptional('--lookback-days', {
+    description: 'Days back to backfill',
+  }),
+  window: argOptional('--window-days', { description: 'Days per run' }),
+};
+
 /**
  * Resolve settings from CLI args (`--accounts a,b`, `--lookback-days N`,
  * `--window-days N`), falling back per field to `emailConfig.backfill`.
@@ -49,17 +60,13 @@ function parseAccounts(raw: string): string[] {
  */
 export function resolveBackfillSettings(
   config: BackfillConfig | undefined,
-  argv: string[],
+  flags: Partial<ParsedArgs<typeof backfillSettingsFlags>>,
 ): BackfillSettings {
   const {
     accounts: accountsArg,
     lookback: lookbackArg,
     window: windowArg,
-  } = parseRunnableArgs(argv, {
-    accounts: argOptional('--accounts'),
-    lookback: argOptional('--lookback-days'),
-    window: argOptional('--window-days'),
-  });
+  } = flags;
 
   const accounts =
     accountsArg !== undefined ? parseAccounts(accountsArg) : config?.accounts;

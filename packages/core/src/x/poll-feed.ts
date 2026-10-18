@@ -112,5 +112,7 @@ export default defineJob({
   id: 'x-poll-feed',
   domain: 'x',
   name: 'x/poll-feed',
+  flags: {},
+  positionals: '[handle]',
   run: ({ args }) => pollFeeds(args, xJobDeps()),
 });

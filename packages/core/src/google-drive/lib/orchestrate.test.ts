@@ -2,6 +2,8 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { parseRunnableArgs } from '../../lib/args.js';
+import { googleDriveSyncFlags } from '../sync.js';
 import {
   assertDisjointTargets,
   BudgetConfigSchema,
@@ -16,33 +18,40 @@ import { createLedgerStore } from './ledger.js';
 import { lastRunAt, runSyncs, selectSyncs } from './orchestrate.js';
 import { emptySummary } from './summary.js';
 
+const flagsOf = (args: string[]) =>
+  parseRunnableArgs(args, googleDriveSyncFlags);
+
 const a = SyncEntrySchema.parse({ account: 'a@example.com' });
 const b = SyncEntrySchema.parse({ account: 'b@example.com' });
 
 describe('selectSyncs', () => {
   it('returns every configured sync without --account', () => {
-    expect(selectSyncs([a, b], [], true)).toEqual([a, b]);
+    expect(selectSyncs([a, b], flagsOf([]), true)).toEqual([a, b]);
   });
 
   it('filters by --account, case-insensitively', () => {
-    expect(selectSyncs([a, b], ['--account', 'B@Example.com'], true)).toEqual([
-      b,
-    ]);
+    expect(
+      selectSyncs([a, b], flagsOf(['--account', 'B@Example.com']), true),
+    ).toEqual([b]);
   });
 
   it('never synthesizes an entry for a live run', () => {
-    expect(selectSyncs([a], ['--account', 'x@other.example'], true)).toEqual(
-      [],
-    );
+    expect(
+      selectSyncs([a], flagsOf(['--account', 'x@other.example']), true),
+    ).toEqual([]);
   });
 
   it('synthesizes a dry-run entry, defaulting domains to the account domain', () => {
-    const [s] = selectSyncs([], ['--account', 'x@other.example'], false);
+    const [s] = selectSyncs(
+      [],
+      flagsOf(['--account', 'x@other.example']),
+      false,
+    );
     expect(s?.account).toBe('x@other.example');
     expect(s?.pathResolution.domains).toEqual(['other.example']);
     const [t] = selectSyncs(
       [],
-      ['--account', 'x@o.example', '--domains', 'a.com, b.com'],
+      flagsOf(['--account', 'x@o.example', '--domains', 'a.com, b.com']),
       false,
     );
     expect(t?.pathResolution.domains).toEqual(['a.com', 'b.com']);

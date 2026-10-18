@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { argFlag, argValue } from '../lib/args.js';
 import {
   defineJob,
   isJobModule,
@@ -87,6 +88,36 @@ describe('defineJob', () => {
 });
 
 describe('runJobModule', () => {
+  it('parses flags itself when a caller passes only args', async () => {
+    const run = vi.fn();
+    const job = defineJob({
+      id: 'acme-direct',
+      domain: 'acme',
+      flags: { live: argFlag('--live') },
+      run,
+    });
+    await job.run({ args: ['--live'] });
+    expect(run).toHaveBeenCalledWith({
+      args: ['--live'],
+      flags: { live: true },
+    });
+  });
+
+  it('parses declared flags into ctx.flags (#14)', async () => {
+    const run = vi.fn();
+    const job = defineJob({
+      id: 'acme-flags',
+      domain: 'acme',
+      flags: { live: argFlag('--live'), max: argValue('--max', '5') },
+      run,
+    });
+    await runJobModule(job, ['--live', '--max=3'], fakeDeps().deps);
+    expect(run).toHaveBeenCalledWith({
+      args: ['--live', '--max=3'],
+      flags: { live: true, max: '3' },
+    });
+  });
+
   it('sets argv to [node, id, ...args] and passes the args to run', async () => {
     const run = vi.fn();
     const { deps } = fakeDeps();
@@ -96,7 +127,7 @@ describe('runJobModule', () => {
       deps,
     );
     expect(process.argv.slice(1)).toEqual(['acme-report', '--live', 'x']);
-    expect(run).toHaveBeenCalledWith({ args: ['--live', 'x'] });
+    expect(run).toHaveBeenCalledWith({ args: ['--live', 'x'], flags: {} });
   });
 
   it('wraps the run in runScript under the job name, or the id, with its crash dir', async () => {

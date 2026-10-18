@@ -48,6 +48,7 @@ export async function refreshJiraFields(deps: JiraJobDeps): Promise<void> {
 export default defineJob({
   id: 'jira-refresh-fields',
   domain: 'jira',
+  flags: {},
   name: 'jira/refresh-fields',
   run: () => refreshJiraFields(jiraJobDeps()),
 });

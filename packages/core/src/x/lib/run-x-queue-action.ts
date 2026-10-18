@@ -8,7 +8,12 @@
  */
 
 import type { JobContext, JobPrerequisite } from '../../jobs/define-job.js';
-import { argValue, parseRunnableArgs } from '../../lib/args.js';
+import {
+  argOptional,
+  argValue,
+  type ParsedArgs,
+  positionalArgs,
+} from '../../lib/args.js';
 import { drainXQueue } from './drain-x-queue.js';
 import { xHandlePrerequisite } from './x-api.js';
 import type { XClient } from './x-client.js';
@@ -32,23 +37,32 @@ export interface XQueueActionOptions {
   ) => Promise<boolean>;
 }
 
+/** The flags a queue-action job accepts. */
+export const xQueueActionFlags = {
+  maxItems: argValue('--maxItems', '50', { description: 'Items to process' }),
+  queue: argOptional('--queue', {
+    description: 'Runner queue to drain (default <prefix>-<handle>)',
+  }),
+};
+
+/** Parsed {@link xQueueActionFlags}. */
+export type XQueueActionFlags = ParsedArgs<typeof xQueueActionFlags>;
+
 /** Drain the handle's action queue. */
 export async function runXQueueAction(
   args: readonly string[],
+  flags: XQueueActionFlags,
   options: XQueueActionOptions,
   deps: Pick<XJobDeps, 'runner' | 'withClient'>,
 ): Promise<void> {
-  const handle = args[0] ?? '';
-  const parsed = parseRunnableArgs(args, {
-    maxItems: argValue('--maxItems', '50'),
-    queue: argValue('--queue', `${options.queuePrefix}-${handle}`),
-  });
+  const handle = positionalArgs(args, xQueueActionFlags)[0] ?? '';
+  const queue = flags.queue ?? `${options.queuePrefix}-${handle}`;
   const runnerClient = deps.runner();
   try {
     await drainXQueue(
       runnerClient,
-      parsed.queue,
-      Number(parsed.maxItems),
+      queue,
+      Number(flags.maxItems),
       (tweetId) =>
         deps.withClient(handle, (client) =>
           options.actionFn(client, handle, tweetId),
@@ -63,14 +77,18 @@ export async function runXQueueAction(
 
 /** The `prerequisite` and `run` of a queue-action job. */
 export function xQueueAction(options: XQueueActionOptions): {
-  prerequisite: JobPrerequisite;
-  run: (ctx: JobContext) => Promise<void>;
+  flags: typeof xQueueActionFlags;
+  positionals: string;
+  prerequisite: JobPrerequisite<typeof xQueueActionFlags>;
+  run: (ctx: JobContext<typeof xQueueActionFlags>) => Promise<void>;
 } {
   return {
+    flags: xQueueActionFlags,
+    positionals: '<handle>',
     prerequisite: xHandlePrerequisite({
       scriptName: options.scriptName,
       ...xConfig,
     }),
-    run: ({ args }) => runXQueueAction(args, options, xJobDeps()),
+    run: ({ args, flags }) => runXQueueAction(args, flags, options, xJobDeps()),
   };
 }

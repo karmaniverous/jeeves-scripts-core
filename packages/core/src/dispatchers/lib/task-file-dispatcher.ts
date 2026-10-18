@@ -32,6 +32,11 @@ import { loadConfig } from '../../config/loader.js';
 import { siloPath } from '../../config/silo-router.js';
 import { constants } from '../../lib/constants.js';
 import { withDateContext } from '../../lib/dates.js';
+import {
+  declaredDispatcherFlags,
+  type DispatcherFlags,
+  resolveDispatcherFlags,
+} from '../../lib/dispatcher-flags.js';
 import { dispatchWithSlack } from '../../lib/worker-slack/run.js';
 import type { WorkerSlackConfig } from '../../lib/worker-slack/worker-slack-config.js';
 
@@ -51,9 +56,14 @@ export interface TaskFileDispatcherOptions extends DispatchOptions {
   /** Job-side Slack reads and allowed post targets (see `lib/worker-slack`). */
   slack?: Lazy<WorkerSlackConfig>;
   /**
+   * The parsed dispatcher flags (`ctx.flags` of a job that declares
+   * `flags: dispatcherFlags`). Wins over `args`.
+   */
+  flags?: Partial<DispatcherFlags>;
+  /**
    * The runnable's arguments (`ctx.args`), read for `--print-task` and
-   * `--dry-run`. Default: `process.argv`, for callers written before the
-   * flags were read from here.
+   * `--dry-run` when `flags` is unset. Default: `process.argv`, for callers
+   * written before the flags were read from here.
    */
   args?: readonly string[];
 }
@@ -115,9 +125,11 @@ export const dispatchTaskFile = async (
     silo,
     dateTimeZone,
     slack,
-    args = process.argv,
+    flags: declared,
+    args,
     ...dispatchOptions
   } = options;
+  const flags = resolveDispatcherFlags(declared ?? args);
   const file = resolveTaskFile({
     jobId: dispatchOptions.jobId,
     silo,
@@ -135,16 +147,14 @@ export const dispatchTaskFile = async (
   if (slack !== undefined) {
     // The Slack path handles both flags (it adds the Slack context first);
     // neither starts a worker.
-    await deps.dispatchWithSlack(task, dispatchOptions, resolve(slack), args);
-    return args.includes('--print-task') || args.includes('--dry-run')
-      ? 'previewed'
-      : 'dispatched';
+    await deps.dispatchWithSlack(task, dispatchOptions, resolve(slack), flags);
+    return flags.printTask || flags.dryRun ? 'previewed' : 'dispatched';
   }
-  if (args.includes('--print-task')) {
+  if (flags.printTask) {
     deps.log(task);
     return 'previewed';
   }
-  if (args.includes('--dry-run')) {
+  if (flags.dryRun) {
     deps.log(
       `[dry-run] ${scriptName}: would dispatch job ${dispatchOptions.jobId} with a ${String(task.length)}-character task`,
     );
@@ -164,6 +174,7 @@ export const dispatchTaskFile = async (
  * export default defineJob({
  *   id: 'acme-daily-briefing',
  *   domain: 'acme',
+ *   flags: dispatcherFlags,
  *   run: taskFileDispatcher({
  *     scriptName: 'acme/daily-briefing',
  *     jobId: 'acme-daily-briefing',
@@ -175,7 +186,11 @@ export const dispatchTaskFile = async (
 export const taskFileDispatcher =
   (
     options: TaskFileDispatcherOptions,
-  ): ((ctx?: { args: readonly string[] }) => Promise<void>) =>
+  ): ((ctx?: { args: readonly string[]; flags?: object }) => Promise<void>) =>
   async (ctx) => {
-    await dispatchTaskFile({ args: ctx?.args, ...options });
+    await dispatchTaskFile({
+      args: ctx?.args,
+      flags: declaredDispatcherFlags(ctx?.flags),
+      ...options,
+    });
   };

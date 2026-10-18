@@ -145,5 +145,7 @@ export default defineJob({
     requireAccount: true,
     ...xConfig,
   }),
+  flags: {},
+  positionals: '<handle>',
   run: ({ args }) => postQueue(args[0] ?? '', xJobDeps()),
 });

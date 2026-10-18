@@ -226,6 +226,7 @@ export async function syncIssues(deps: GitHubJobDeps): Promise<void> {
 export default defineJob({
   id: 'github-sync-issues',
   domain: 'github',
+  flags: {},
   name: 'github/sync-issues',
   run: () => syncIssues(githubJobDeps()),
 });

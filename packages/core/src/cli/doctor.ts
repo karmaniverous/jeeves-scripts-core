@@ -22,7 +22,7 @@ import path from 'node:path';
 
 import { configCheck } from '../config/check.js';
 import { CONFIG_PATH_ENV, loadConfig } from '../config/loader.js';
-import type { JobModule } from '../jobs/define-job.js';
+import { jobContext, type JobModule } from '../jobs/define-job.js';
 import { type JobManifest, readCoreManifests } from '../jobs/manifest.js';
 import type { Plugin } from '../jobs/plugin.js';
 import {
@@ -77,7 +77,9 @@ const prerequisiteState = async (
   }
   if (job?.prerequisite) {
     try {
-      const ready = await job.prerequisite({ args: manifest.args ?? [] });
+      const ready = await job.prerequisite(
+        jobContext(job, manifest.args ?? []),
+      );
       return ready === true ? 'met' : `not met: ${ready}`;
     } catch (e) {
       return `unknown (check threw: ${message(e)})`;

@@ -24,9 +24,10 @@ import { gogBin } from '../../lib/gog.js';
 import type { IndexStore } from './doc-fetch-scan.js';
 import type { MeetingManifest } from './doc-fetch-scan.js';
 import {
+  docFetchArgs,
+  type DocFetchOptions,
   findUnfetchedMeetings,
   loadIndexIfExists,
-  parseDocFetchArgs,
 } from './doc-fetch-scan.js';
 import { writeMeetingMeta } from './meeting-schema.js';
 import { getMeetingsDirs } from './meetings-dirs.js';
@@ -124,10 +125,10 @@ export const docFetchDeps = (): DocFetchDeps => ({
 
 /** Fetch the transcript of every meeting with an unfetched Gemini Doc. */
 export async function runDocFetch(
-  argv: string[] = [],
+  options: DocFetchOptions = {},
   deps: DocFetchDeps = docFetchDeps(),
 ): Promise<void> {
-  const args = parseDocFetchArgs(argv);
+  const args = docFetchArgs(options);
   const client = deps.runner();
 
   try {

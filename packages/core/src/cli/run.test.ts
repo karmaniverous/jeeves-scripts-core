@@ -1,11 +1,12 @@
 import path from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CONFIG_PATH_ENV } from '../config/loader.js';
 import { defineJob } from '../jobs/define-job.js';
 import { definePlugin, override, type Plugin } from '../jobs/plugin.js';
 import type { RegistryEntry } from '../jobs/registry.js';
+import { argFlag, argValue } from '../lib/args.js';
 import { registerInstance, resolveRunnable, runJob } from './run.js';
 
 const root = path.resolve('/instance');
@@ -189,5 +190,77 @@ describe('runJob', () => {
       ),
     ).rejects.toThrow(/reuses a core id/);
     expect(ran).toEqual([]);
+  });
+});
+
+describe('runJob: declared flags (#14)', () => {
+  const seen: unknown[] = [];
+  const strict = defineJob({
+    id: 'acme-strict',
+    domain: 'acme',
+    flags: {
+      live: argFlag('--live'),
+      max: argValue('--max', '5'),
+    },
+    run: ({ flags }) => {
+      seen.push(flags);
+    },
+  });
+  const opts = withPlugin(
+    definePlugin({ jobs: [strict, job('acme-loose', 'acme', 'instance')] }),
+  );
+
+  beforeEach(() => {
+    seen.length = 0;
+  });
+
+  it('parses declared flags into ctx.flags (both value forms)', async () => {
+    expect(await runJob(root, 'acme-strict', ['--live', '--max=7'], opts)).toBe(
+      0,
+    );
+    expect(await runJob(root, 'acme-strict', ['--max', '9'], opts)).toBe(0);
+    expect(seen).toEqual([
+      { live: true, max: '7' },
+      { live: false, max: '9' },
+    ]);
+  });
+
+  it.each([
+    [
+      ['--bogus'],
+      'Unknown option --bogus for acme-strict (see run acme-strict --help)',
+    ],
+    [
+      ['stray'],
+      'Unexpected argument stray for acme-strict (see run acme-strict --help)',
+    ],
+    [
+      ['--max'],
+      '--max requires a value for acme-strict (see run acme-strict --help)',
+    ],
+  ])('rejects %j with exit 1 before the body runs', async (args, message) => {
+    const error = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    try {
+      expect(await runJob(root, 'acme-strict', args, opts)).toBe(1);
+      expect(error).toHaveBeenCalledWith(message);
+    } finally {
+      error.mockRestore();
+    }
+    expect(seen).toEqual([]);
+  });
+
+  it('runs an undeclared runnable with a deprecation warning when given flags', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      expect(await runJob(root, 'acme-loose', ['--anything'], opts)).toBe(0);
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringMatching(/^\[deprecated\] acme-loose declares no flags/),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+    expect(ran.map((r) => r.args)).toEqual([['--anything']]);
   });
 });

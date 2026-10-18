@@ -16,10 +16,11 @@ import { fileURLToPath } from 'node:url';
 
 import { Command } from '@commander-js/extra-typings';
 
+import { wantsHelp } from '../jobs/job-help.js';
 import { instanceConfigCheck } from './config-check.js';
 import { doctorReport } from './doctor.js';
 import { describeError, formatInit, initRepo } from './init.js';
-import { formatList, listRunnables } from './list.js';
+import { formatList, jobHelp, listRunnables } from './list.js';
 import { openclawPresent } from './openclaw.js';
 import { coreVersion } from './package-info.js';
 import { runJob } from './run.js';
@@ -86,11 +87,18 @@ const buildRunCommand = (root: string) =>
       'Run a runnable by id: a plugin override, else the core runnable, else the instance runnable.',
     )
     .argument('<id>', 'runnable id (see list)')
-    .argument('[args...]', 'arguments passed to the runnable unchanged')
+    .argument(
+      '[args...]',
+      'arguments for the runnable, checked against the flags it declares (run <id> --help)',
+    )
     .allowUnknownOption()
     .passThroughOptions()
     .action(async (jobId, args) => {
       try {
+        if (wantsHelp(args)) {
+          console.log(await jobHelp(root, jobId));
+          return;
+        }
         const code = await runJob(root, jobId, args);
         if (code !== 0) process.exitCode = code;
       } catch (e) {

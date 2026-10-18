@@ -34,6 +34,7 @@ export function sweepOrphanedTmp(now: number = Date.now()): void {
 export default defineJob({
   id: JOB_ID,
   domain: 'admin',
+  flags: {},
   name: 'admin/sweep-orphaned-tmp',
   run: () => {
     sweepOrphanedTmp();

@@ -15,7 +15,7 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
-import { argFlag, argValue, parseRunnableArgs } from '../lib/args.js';
+import { argFlag, argValue, type ParsedArgs } from '../lib/args.js';
 import { backfillEntity } from '../lib/entity-store.js';
 import {
   hasJiraCredentials,
@@ -28,10 +28,11 @@ import { type JiraJobDeps, jiraJobDeps } from './lib/jira-deps.js';
 /** Delay between issues. */
 export const RATE_LIMIT_MS = 200;
 
-const argSpec = {
-  project: argValue('--project'),
-  type: argValue('--type', 'issue'),
-  live: argFlag('--live'),
+/** The flags `jira-backfill` accepts. */
+export const jiraBackfillFlags = {
+  project: argValue('--project', '', { description: 'Jira project key' }),
+  type: argValue('--type', 'issue', { description: 'Entity type to backfill' }),
+  live: argFlag('--live', 'Write (default: dry run)'),
 };
 
 interface Tally {
@@ -86,14 +87,14 @@ async function backfillIssues(
  * `--project`, an unsupported `--type` or any failed issue sets exit code 1.
  */
 export async function jiraBackfill(
-  args: readonly string[],
+  flags: ParsedArgs<typeof jiraBackfillFlags>,
   deps: JiraJobDeps,
 ): Promise<void> {
   if (!hasJiraCredentials(deps.settings)) {
     console.log('[skip] Jira API credentials not configured');
     return;
   }
-  const { project, type, live } = parseRunnableArgs(args, argSpec);
+  const { project, type, live } = flags;
   if (!project) {
     console.error('[error] --project <key> is required');
     process.exitCode = 1;
@@ -132,5 +133,6 @@ export default defineJob({
   description:
     'Seed the Jira issue archive from a project backlog (dry run unless --live).',
   name: 'jira/backfill',
-  run: ({ args }) => jiraBackfill(args, jiraJobDeps()),
+  flags: jiraBackfillFlags,
+  run: ({ flags }) => jiraBackfill(flags, jiraJobDeps()),
 });

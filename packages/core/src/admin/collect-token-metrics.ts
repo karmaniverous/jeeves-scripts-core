@@ -122,6 +122,7 @@ export async function collect(
 export default defineJob({
   id: 'admin-collect-token-metrics',
   domain: 'admin',
+  flags: {},
   name: 'collect-token-metrics',
   run: () => collect(collectDeps()),
 });

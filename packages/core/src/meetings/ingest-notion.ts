@@ -11,10 +11,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { parseArgs } from '@karmaniverous/jeeves';
-
 import { getRef } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
+import { argFlag, argOptional, type ParsedArgs } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
 import { notionRequest } from './lib/notion-api.js';
 import { processNotionInboxMeeting } from './lib/notion-inbox-processor.js';
@@ -67,13 +66,23 @@ async function pickOldestInboxPageId(
   return q.results?.[0]?.id ?? null;
 }
 
+/** The flags `meetings-ingest-notion` accepts. */
+export const ingestNotionFlags = {
+  pageId: argOptional('--page-id', { description: 'Ingest this Notion page' }),
+  meetingId: argOptional('--meeting-id', { description: 'Alias of --page-id' }),
+  minAge: argOptional('--min-age', {
+    description: 'Minimum page age in hours (default 4)',
+  }),
+  dryRun: argFlag('--dry-run', 'Report; write nothing'),
+};
+
 /**
  * Process the requested Inbox page (`--page-id=`/`--meeting-id=`), the
  * override file's page, or the oldest page older than `--min-age=` hours
  * (default 4); `--dry-run` prints the task instead.
  */
 export async function ingestNotion(
-  args: readonly string[],
+  flags: ParsedArgs<typeof ingestNotionFlags>,
   deps: IngestNotionDeps,
 ): Promise<void> {
   if (!fs.existsSync(deps.apiKeyPath)) {
@@ -81,10 +90,9 @@ export async function ingestNotion(
     return;
   }
 
-  const kv = parseArgs([...args]);
-  const requestedPageId = kv['page-id'] ?? kv['meeting-id'];
-  const minAgeHours = 'min-age' in kv ? parseFloat(kv['min-age']) : 4;
-  const isDryRun = args.includes('--dry-run');
+  const requestedPageId = flags.pageId ?? flags.meetingId;
+  const minAgeHours = flags.minAge === undefined ? 4 : parseFloat(flags.minAge);
+  const isDryRun = flags.dryRun;
 
   // Check file override
   const OVERRIDE_PATH = deps.overridePath;
@@ -139,5 +147,6 @@ export default defineJob({
   id: 'meetings-ingest-notion',
   domain: 'meetings',
   name: 'meetings/ingest-notion',
-  run: ({ args }) => ingestNotion(args, ingestNotionDeps()),
+  flags: ingestNotionFlags,
+  run: ({ flags }) => ingestNotion(flags, ingestNotionDeps()),
 });

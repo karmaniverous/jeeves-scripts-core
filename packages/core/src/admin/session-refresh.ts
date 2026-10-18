@@ -31,6 +31,7 @@ export const sessionRefreshDeps = (): SessionRefreshDeps => ({
 export default defineJob({
   id: 'admin-refresh-sessions',
   domain: 'admin',
+  flags: {},
   name: 'session-refresh',
   run: async () => {
     await sessionRefresh(sessionRefreshDeps());

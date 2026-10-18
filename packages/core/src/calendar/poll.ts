@@ -218,6 +218,7 @@ export async function pollCalendars(deps: CalendarPollDeps): Promise<void> {
 export default defineJob({
   id: 'calendar-poll',
   domain: 'calendar',
+  flags: {},
   name: 'calendar/poll',
   run: () => pollCalendars(calendarPollDeps()),
 });

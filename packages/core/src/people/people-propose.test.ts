@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { argsError } from '../jobs/job-help.js';
 import peopleProposeJob, { peoplePropose } from './people-propose.js';
 import type { PeopleProposal } from './propose.js';
 
@@ -38,7 +39,7 @@ describe('people-propose', () => {
 
   it('prints the proposal, passing --all through', async () => {
     const d = deps();
-    await peoplePropose(['--all'], d);
+    await peoplePropose({ all: true }, d);
     expect(d.propose).toHaveBeenCalledWith({ all: true });
     expect(d.write).toHaveBeenCalledWith(
       `${JSON.stringify(proposal, null, 2)}\n`,
@@ -49,7 +50,7 @@ describe('people-propose', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'people-propose-'));
     const out = path.join(dir, 'proposal.json');
     const d = deps();
-    await peoplePropose(['--out', out], d);
+    await peoplePropose({ out }, d);
     expect(fs.readFileSync(out, 'utf8')).toBe(
       `${JSON.stringify(proposal, null, 2)}\n`,
     );
@@ -65,14 +66,19 @@ describe('people-propose', () => {
       .spyOn(fs, 'writeFileSync')
       .mockImplementation(() => undefined);
     const d = deps();
-    await expect(peoplePropose(['--out', out], d)).rejects.toThrow(
+    await expect(peoplePropose({ out }, d)).rejects.toThrow(
       'people-propose never writes jeeves-scripts.json',
     );
     expect(d.propose).not.toHaveBeenCalled();
     expect(write).not.toHaveBeenCalled();
   });
 
-  it('rejects an unknown option', async () => {
-    await expect(peoplePropose(['--bogus'], deps())).rejects.toThrow(/bogus/);
+  it('declares --all and --out, so run rejects anything else', () => {
+    expect(argsError(peopleProposeJob, ['--bogus'])).toMatch(
+      /Unknown option --bogus/,
+    );
+    expect(
+      argsError(peopleProposeJob, ['--all', '--out', 'x.json']),
+    ).toBeUndefined();
   });
 });

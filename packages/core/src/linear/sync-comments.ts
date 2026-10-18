@@ -15,6 +15,7 @@ import { linearJobDeps, syncLinear } from './lib/linear-sync.js';
 export default defineJob({
   id: 'linear-sync-comments',
   domain: 'linear',
+  flags: {},
   name: 'linear/sync-comments',
   run: () => syncLinear('comment', linearJobDeps()),
 });

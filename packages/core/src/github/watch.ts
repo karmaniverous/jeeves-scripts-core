@@ -250,6 +250,7 @@ export function watchNotifications(deps: GitHubJobDeps): void {
 export default defineJob({
   id: 'github-watch',
   domain: 'github',
+  flags: {},
   name: 'github/watch',
   run: () => {
     watchNotifications(githubJobDeps());

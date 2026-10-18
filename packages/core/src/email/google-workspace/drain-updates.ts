@@ -230,6 +230,7 @@ export function drainUpdates(deps: DrainUpdatesDeps): void {
 export default defineJob({
   id: 'email-drain-updates',
   domain: 'email',
+  flags: {},
   name: 'email/drain-updates',
   crashDir: () => constants().EMAIL_EVENTS_DIR,
   run: () => {

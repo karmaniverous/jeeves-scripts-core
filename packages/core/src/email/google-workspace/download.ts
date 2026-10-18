@@ -325,6 +325,7 @@ export function downloadThreads(deps: DownloadDeps): void {
 export default defineJob({
   id: 'email-download',
   domain: 'email',
+  flags: {},
   name: 'email/download',
   crashDir: () => constants().EMAIL_EVENTS_DIR,
   run: () => {

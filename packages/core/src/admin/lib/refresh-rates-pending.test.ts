@@ -59,7 +59,7 @@ describe('pending models', () => {
       { 'a/m': r(2, 10), 'a/new': r(1, 1) },
       ['a/new'],
     );
-    const res = await refreshTokenRatesMain(['--dry-run'], d);
+    const res = await refreshTokenRatesMain({ dryRun: true }, d);
     expect(res.changes).toHaveLength(1);
     expect(d.writePending).not.toHaveBeenCalled();
     expect(d.pending()).toEqual(['a/new']);

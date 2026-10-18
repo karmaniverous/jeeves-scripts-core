@@ -188,7 +188,7 @@ describe('runFathomExtract', () => {
       'fathom-a.html':
         '<div style="display:none;">Meeting Purpose<p>Hi</p></div>',
     });
-    runFathomExtract([], [dir, path.join(dir, 'absent')], () => 'NOW');
+    runFathomExtract({}, [dir, path.join(dir, 'absent')], () => 'NOW');
     expect(fs.readFileSync(path.join(mp, 'transcript.txt'), 'utf8')).toBe(
       'Meeting PurposeHi\n',
     );
@@ -206,7 +206,7 @@ describe('runFathomExtract', () => {
     pkg('done', { 'fathom-a.html': 'x', 'transcript.txt': 't' });
     pkg('m2', { 'fathom-a.html': 'x' });
     pkg('m3', { 'fathom-b.html': 'x' });
-    runFathomExtract(['--dry-run', '--max=1'], [dir]);
+    runFathomExtract({ dryRun: true, max: 1 }, [dir]);
     expect(console.log).toHaveBeenCalledWith(
       '[fathom-extract] Found 1 meetings needing extraction',
     );
@@ -215,7 +215,7 @@ describe('runFathomExtract', () => {
 
   it('fails a meeting without a hidden div and sets exit code 1', () => {
     pkg('bad', { 'fathom-a.html': '<p>nothing hidden</p>' });
-    runFathomExtract([], [dir]);
+    runFathomExtract({}, [dir]);
     expect(console.error).toHaveBeenCalledWith(
       '[fathom-extract] FAIL bad: Could not locate hidden transcript div',
     );

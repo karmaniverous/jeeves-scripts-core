@@ -45,7 +45,7 @@ describe('pollCollabs paging', () => {
         return page === '1' ? invites : [];
       return undefined;
     });
-    pollCollabs([], w.deps);
+    pollCollabs({}, w.deps);
     const pages = w.ghCalls
       .filter((c) => c[0] === 'api')
       .map((c) => /[?&]page=(\d+)/.exec(c[3] ?? '')?.[1]);
@@ -70,7 +70,7 @@ describe('drainCollabs failures', () => {
       kind: 'repo',
       full_name: 'acme/a',
     });
-    drainCollabs([], w.deps);
+    drainCollabs({}, w.deps);
     expect(
       (w.runner.queues.get('gh-collabs') ?? []).map((i) => i.error),
     ).toEqual(['Not Found', 'unknown error']);

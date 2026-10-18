@@ -14,7 +14,7 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
-import { argFlag, parseRunnableArgs } from '../lib/args.js';
+import { argFlag, type ParsedArgs } from '../lib/args.js';
 import { agilePut, fetchBacklog } from './lib/agile-api.js';
 import {
   printChangeSummary,
@@ -94,11 +94,16 @@ async function sortBoard(
     );
 }
 
+/** The flags `jira-sort-backlog` accepts. */
+export const sortJiraBacklogFlags = {
+  live: argFlag('--live', 'Apply the new order (default: dry run)'),
+};
+
 /**
  * Run the sort. No board id sets exit code 1; missing credentials skip.
  */
 export async function sortJiraBacklog(
-  args: readonly string[],
+  flags: ParsedArgs<typeof sortJiraBacklogFlags>,
   deps: JiraJobDeps,
 ): Promise<void> {
   const { boardId } = deps;
@@ -109,7 +114,7 @@ export async function sortJiraBacklog(
     process.exitCode = 1;
     return;
   }
-  const { live } = parseRunnableArgs(args, { live: argFlag('--live') });
+  const { live } = flags;
   console.log(
     `\n=== Jira Backlog Priority Sort (${live ? 'LIVE' : 'DRY-RUN'}) ===\n`,
   );
@@ -124,5 +129,6 @@ export default defineJob({
   id: 'jira-sort-backlog',
   domain: 'jira',
   name: 'jira/sort-backlog',
-  run: ({ args }) => sortJiraBacklog(args, jiraJobDeps()),
+  flags: sortJiraBacklogFlags,
+  run: ({ flags }) => sortJiraBacklog(flags, jiraJobDeps()),
 });

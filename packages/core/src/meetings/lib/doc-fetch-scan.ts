@@ -50,18 +50,15 @@ interface MeetingIndexEntry {
 
 // ── Pure helpers ───────────────────────────────────────────────────────
 
-export function parseDocFetchArgs(argv: string[]): DocFetchArgs {
-  const out: DocFetchArgs = {
-    dryRun: argv.includes('--dry-run'),
-    max: null,
-  };
+/** Fetch options: report only (`dryRun`), at most `max` meetings. */
+export interface DocFetchOptions {
+  dryRun?: boolean;
+  max?: number | null;
+}
 
-  for (const arg of argv) {
-    const m = /^--max=(\d+)$/.exec(arg);
-    if (m) out.max = Number(m[1]);
-  }
-
-  return out;
+/** {@link DocFetchOptions} with defaults applied. */
+export function docFetchArgs(options: DocFetchOptions = {}): DocFetchArgs {
+  return { dryRun: options.dryRun ?? false, max: options.max ?? null };
 }
 
 export function extractDocId(url: string | null | undefined): string | null {

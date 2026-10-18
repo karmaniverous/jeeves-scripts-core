@@ -207,6 +207,7 @@ export function buildRegistry(deps: GitHubJobDeps): void {
 export default defineJob({
   id: 'github-build-registry',
   domain: 'github',
+  flags: {},
   name: 'github/build-registry',
   run: () => {
     buildRegistry(githubJobDeps());

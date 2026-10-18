@@ -16,6 +16,7 @@
 
 import { loadConfig } from '../config/loader.js';
 import { scheduleText } from '../config/schedule-schema.js';
+import { formatJobHelp } from '../jobs/job-help.js';
 import { type JobManifest, readCoreManifests } from '../jobs/manifest.js';
 import { loadJob } from '../jobs/registry.js';
 import {
@@ -24,7 +25,11 @@ import {
   type Runnable,
   type RunnableSource,
 } from '../jobs/runnables.js';
-import { registerInstance, type RegisterOptions } from './run.js';
+import {
+  registerInstance,
+  type RegisterOptions,
+  resolveRunnable,
+} from './run.js';
 
 /** One `list` entry (a `--json` element). */
 export interface ListEntry {
@@ -70,6 +75,32 @@ export const registerWithManifests = async (
     deltas: loadConfig().jobs,
   });
   return { runnables, manifests };
+};
+
+/**
+ * The `run <id> --help` text: usage, description, declared flags and the
+ * effective manifest. Loads the runnable's module but runs nothing. When
+ * the manifests cannot be resolved (e.g. no instance config), the help
+ * still prints, without the manifest.
+ *
+ * @throws On a plugin load or registration error, or an unknown id.
+ */
+export const jobHelp = async (
+  root: string,
+  id: string,
+  options: ListOptions = {},
+): Promise<string> => {
+  let runnables: Runnable[];
+  let manifest: JobManifest | undefined;
+  try {
+    const registered = await registerWithManifests(root, options);
+    runnables = registered.runnables;
+    manifest = registered.manifests.get(id);
+  } catch {
+    runnables = await registerInstance(root, options);
+  }
+  const job = await resolveRunnable(runnables, id).load();
+  return formatJobHelp(job, manifest);
 };
 
 /** A shell-style glob (`*`, `?`, `[...]`) as an anchored RegExp. */

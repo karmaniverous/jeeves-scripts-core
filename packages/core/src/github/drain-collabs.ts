@@ -9,9 +9,10 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
-import { argValue, parseRunnableArgs } from '../lib/args.js';
+import { argValue, type ParsedArgs } from '../lib/args.js';
 import {
   collabArgs,
+  collabFlags,
   ghReady,
   type GitHubJobDeps,
   githubJobDeps,
@@ -24,18 +25,23 @@ interface CollabItem {
   id?: number;
 }
 
+/** The flags `github-drain-collabs` accepts. */
+export const drainCollabsFlags = {
+  ...collabFlags,
+  maxItems: argValue('--maxItems', '50', {
+    description: 'Invitations to process',
+  }),
+};
+
 /** Run the job. */
 export function drainCollabs(
-  args: readonly string[],
+  flags: Partial<ParsedArgs<typeof drainCollabsFlags>>,
   deps: GitHubJobDeps,
 ): void {
   if (!ghReady(deps)) return;
 
-  const { owner, botUser } = collabArgs(args, deps);
-  const maxItems = Number(
-    parseRunnableArgs(args, { maxItems: argValue('--maxItems', '50') })
-      .maxItems,
-  );
+  const { owner, botUser } = collabArgs(flags, deps);
+  const maxItems = Number(flags.maxItems ?? '50');
   const client = deps.runner();
 
   try {
@@ -102,7 +108,8 @@ export default defineJob({
   id: 'github-drain-collabs',
   domain: 'github',
   name: 'github/drain-collabs',
-  run: ({ args }) => {
-    drainCollabs(args, githubJobDeps());
+  flags: drainCollabsFlags,
+  run: ({ flags }) => {
+    drainCollabs(flags, githubJobDeps());
   },
 });

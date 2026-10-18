@@ -12,6 +12,7 @@ import {
   argValue,
   parseRunnableArgs,
   positionalArgs,
+  unknownArgs,
 } from './args.js';
 
 describe('parseRunnableArgs', () => {
@@ -141,5 +142,28 @@ describe('positionalArgs', () => {
 
   it('treats every non-dash argument as positional without a spec', () => {
     expect(positionalArgs(['a', '--x', 'b'])).toEqual(['a', 'b']);
+  });
+});
+
+describe('unknownArgs (#14)', () => {
+  const spec = {
+    live: argFlag('--live'),
+    max: argValue('--max', '5', { alias: '-m' }),
+    since: argOptional('--since'),
+  };
+
+  it('accepts declared flags, aliases and both value forms; skips separate values', () => {
+    expect(
+      unknownArgs(['--live', '--max', '3', '-m', '--odd', '--since=x'], spec),
+    ).toEqual([]);
+  });
+
+  it('reports undeclared options, a flag given a value, and positionals unless allowed', () => {
+    expect(unknownArgs(['--nope', '--live=1', 'pos'], spec)).toEqual([
+      '--nope',
+      '--live=1',
+      'pos',
+    ]);
+    expect(unknownArgs(['pos'], spec, true)).toEqual([]);
   });
 });

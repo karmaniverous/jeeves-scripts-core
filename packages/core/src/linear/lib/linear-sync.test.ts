@@ -4,14 +4,18 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { parseRunnableArgs } from '../../lib/args.js';
 import { fakeRunnerClient } from '../../lib/fake-runner-client.test-helper.js';
-import { linearBackfill } from '../backfill.js';
+import { linearBackfill, linearBackfillFlags } from '../backfill.js';
 import {
   type LinearJobDeps,
   linearJobDeps,
   RATE_LIMIT_MS,
   syncLinear,
 } from './linear-sync.js';
+
+const flagsOf = (args: string[]) =>
+  parseRunnableArgs(args, linearBackfillFlags);
 
 let dir: string;
 let runner: ReturnType<typeof fakeRunnerClient>;
@@ -142,7 +146,7 @@ describe('linearBackfill', () => {
     ],
     [[], '[error] --team <key> is required for --type issue'],
   ])('rejects %j with exit code 1', async (args, message) => {
-    await linearBackfill(args, deps());
+    await linearBackfill(flagsOf(args), deps());
     expect(console.error).toHaveBeenCalledWith(message);
     expect(process.exitCode).toBe(1);
     expect(seen).toEqual([]);
@@ -152,12 +156,12 @@ describe('linearBackfill', () => {
     const loadConfig = () => {
       throw new Error('bad');
     };
-    await linearBackfill(['--team', 'ACME'], deps({ loadConfig }));
+    await linearBackfill(flagsOf(['--team', 'ACME']), deps({ loadConfig }));
     expect(seen).toEqual([]);
   });
 
   it('only logs in a dry run', async () => {
-    await linearBackfill(['--team', 'ACME'], deps());
+    await linearBackfill(flagsOf(['--team', 'ACME']), deps());
     expect(seen).toEqual([['issue', 'ACME']]);
     expect(console.log).toHaveBeenCalledWith('[backfill] dry-run ACME-1');
     expect(console.log).toHaveBeenCalledWith(
@@ -169,11 +173,11 @@ describe('linearBackfill', () => {
   it('writes new entities live and skips existing ones', async () => {
     fs.mkdirSync(path.join(dir, 'linear', 'comment'), { recursive: true });
     fs.writeFileSync(path.join(dir, 'linear', 'comment', 'c1.json'), '{}');
-    await linearBackfill(['--type', 'comment', '--live'], deps());
+    await linearBackfill(flagsOf(['--type', 'comment', '--live']), deps());
     expect(console.log).toHaveBeenCalledWith(
       '[backfill] skip   comment/c1 (exists)',
     );
-    await linearBackfill(['--team', 'ACME', '--live'], deps());
+    await linearBackfill(flagsOf(['--team', 'ACME', '--live']), deps());
     expect(exists('issue', 'ACME-2')).toBe(true);
     expect(console.log).toHaveBeenCalledWith('[backfill] created ACME-1');
     expect(console.log).toHaveBeenCalledWith(

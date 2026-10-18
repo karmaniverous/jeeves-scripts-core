@@ -1,4 +1,4 @@
-﻿/**
+/**
  * `@karmaniverous/jeeves-scripts-core`: shared Jeeves scripts domains,
  * runnable registry and CLI for `jeeves-scripts` instance repos.
  *
@@ -50,6 +50,7 @@ export {
   type JobModule,
   type JobPrerequisite,
   type JobRun,
+  type NoFlags,
 } from './jobs/define-job.js';
 export {
   definePlugin,
@@ -76,6 +77,7 @@ export {
   type ParsedArgs,
   parseRunnableArgs,
   positionalArgs,
+  unknownArgs,
   type ValueSpec,
 } from './lib/args.js';
 export * from './lib/component-config.js';
@@ -87,6 +89,10 @@ export {
   requireTimeZone,
   withDateContext,
 } from './lib/dates.js';
+export {
+  type DispatcherFlags,
+  dispatcherFlags,
+} from './lib/dispatcher-flags.js';
 export { gh, ghApi, ghJson, type GhResult, setupGhConfig } from './lib/gh.js';
 export {
   readJsonFile,

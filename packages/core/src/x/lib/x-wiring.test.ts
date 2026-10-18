@@ -84,9 +84,12 @@ describe('xQueueAction', () => {
       successLabel: 'liked',
       actionFn: () => Promise.resolve(true),
     });
-    expect(job.prerequisite({ args: [] })).toMatch(
-      /^No X account handle provided/,
-    );
+    expect(
+      job.prerequisite({
+        args: [],
+        flags: { maxItems: '50', queue: undefined },
+      }),
+    ).toMatch(/^No X account handle provided/);
     expect(typeof job.run).toBe('function');
   });
 });

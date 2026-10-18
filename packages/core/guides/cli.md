@@ -41,7 +41,7 @@ jeeves-scripts --dir ./new-instance init        # no repo yet
 
 | Command | What it does |
 | --- | --- |
-| `run <id> [args...]` | Run a runnable by id (below). Everything after the id is passed to it unchanged. Exit 0 when done or skipped; 1 on a crash, an unknown id or a registration error; a runnable may set another code with `process.exitCode`. |
+| `run <id> [args...]` | Run a runnable by id (below), checking the arguments against the flags it declares. `run <id> --help` prints its usage, flags and effective manifest and runs nothing. Exit 0 when done or skipped; 1 on a crash, an unknown id, a registration error or an undeclared option; a runnable may set another code with `process.exitCode`. |
 | `list [glob] [--json]` | Every registered runnable whose id matches the glob ([below](#listing-runnables)). Exit 1 on an invalid manifest, delta or registration. |
 | `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references, then load and register the instance plugin as `list` does: its `configSchema` validates the `local` block ([jobs](./jobs.md#instance-runnables-and-overrides)), and registration checks unique ids, the naming rule and core domains, the instance manifests and the `jobs` deltas (an unknown id fails). A plugin that fails to load or register, an invalid manifest or delta, or a rejected `local` is a problem like any other. Silo references are `jobs.<id>.silo` and `integrations.x.accounts.<handle>.silo`. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
 | `doctor` | Report on the instance ([below](#doctor)). Informational: always exits 0. |
@@ -68,7 +68,7 @@ Every runnable runs in the CLI's process ([`defineJob`](./jobs.md#declaring-a-jo
 
 `run` never adds a manifest's `args`: a registered runner job's args are `["run", <id>, ...effective manifest args]`, so a person typing `run <id>` gets exactly what was typed.
 
-The CLI parses nothing after the id: the runnable gets the rest as `ctx.args` and parses it with `parseRunnableArgs` from the root export. Every runnable follows one convention: bare boolean flags (`--live`, `--dry-run`), valued options as `--name value` or `--name=value`, and positionals; for example `run jira-backfill --project=ACME --live` ([jobs](./jobs.md#arguments)).
+The runnable gets everything after the id as `ctx.args`, and its declared flags parsed as `ctx.flags`. When it declares `flags`, `run` first rejects any option it does not declare (exit 1, `Unknown option <flag> for <id> (see run <id> --help)`), before the body runs; when it declares none, the arguments pass unchecked with a deprecation warning, until a later minor release makes the check apply to every runnable. `run <id> --help` (or `-h`) prints the usage, description, declared flags and effective manifest, and exits 0 without running the body. Every runnable follows one convention: bare boolean flags (`--live`, `--dry-run`), valued options as `--name value` or `--name=value`, and positionals; for example `run jira-backfill --project=ACME --live` ([jobs](./jobs.md#arguments)).
 
 Running a core module by path (`node dist/<domain>/<module>.js`) runs nothing: runnable modules only declare themselves.
 

@@ -150,7 +150,7 @@ describe('dispatchTaskFile', () => {
       'Do the thing.',
       { jobId: 'j' },
       slack,
-      ['--dry-run'],
+      { dryRun: true, printTask: false },
     );
     expect(deps.runDispatcher).not.toHaveBeenCalled();
   });

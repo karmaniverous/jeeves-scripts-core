@@ -173,7 +173,7 @@ describe('pollCollabs', () => {
       'poll-state',
       JSON.stringify({ lastRepoUpdatedAt: '2026-01-02' }),
     );
-    pollCollabs(['--owner', 'me', '--botUser', 'bot'], w.deps);
+    pollCollabs({ owner: 'me', botUser: 'bot' }, w.deps);
     const q = (w.runner.queues.get('gh-collabs') ?? []).map((i) => i.payload);
     expect(q).toEqual([
       { kind: 'repo', full_name: 'acme/new', permission: 'push', ts: GH_NOW },
@@ -209,7 +209,7 @@ describe('drainCollabs', () => {
       permission: 'admin',
     });
     r.enqueue('gh-collabs', { kind: 'other' });
-    drainCollabs(['--maxItems', '10'], w.deps);
+    drainCollabs({ maxItems: '10' }, w.deps);
     const q = w.runner.queues.get('gh-collabs') ?? [];
     expect(q.map((i) => i.status)).toEqual(['done', 'done', 'failed', 'done']);
     expect(q[2]?.error).toBe('forbidden');

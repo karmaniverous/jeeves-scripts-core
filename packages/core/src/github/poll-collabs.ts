@@ -10,8 +10,10 @@
  */
 
 import { defineJob } from '../jobs/define-job.js';
+import type { ParsedArgs } from '../lib/args.js';
 import {
   collabArgs,
+  collabFlags,
   ghReady,
   type GitHubJobDeps,
   githubJobDeps,
@@ -19,12 +21,12 @@ import {
 
 /** Run the job. */
 export function pollCollabs(
-  args: readonly string[],
+  flags: Partial<ParsedArgs<typeof collabFlags>>,
   deps: GitHubJobDeps,
 ): void {
   if (!ghReady(deps)) return;
 
-  const { owner, botUser } = collabArgs(args, deps);
+  const { owner, botUser } = collabArgs(flags, deps);
   const client = deps.runner();
   const stateJson = client.getState('gh-collabs', 'poll-state');
   const state = stateJson
@@ -123,7 +125,8 @@ export default defineJob({
   id: 'github-poll-collabs',
   domain: 'github',
   name: 'github/poll-collabs',
-  run: ({ args }) => {
-    pollCollabs(args, githubJobDeps());
+  flags: collabFlags,
+  run: ({ flags }) => {
+    pollCollabs(flags, githubJobDeps());
   },
 });

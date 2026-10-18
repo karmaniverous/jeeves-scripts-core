@@ -158,6 +158,7 @@ export function syncRepos(deps: GitHubJobDeps): void {
 export default defineJob({
   id: 'github-sync-repos',
   domain: 'github',
+  flags: {},
   name: 'github/sync-repos',
   run: () => {
     syncRepos(githubJobDeps());

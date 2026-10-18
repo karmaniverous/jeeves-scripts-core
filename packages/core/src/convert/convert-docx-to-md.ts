@@ -15,5 +15,7 @@ export default defineJob({
   id: 'convert-docx-to-md',
   domain: 'convert',
   description: 'Convert one .docx file to Markdown: <in> <out>.',
+  flags: {},
+  positionals: '<input.docx> <output.md>',
   run: ({ args }) => convertFileArgs('convert-docx-to-md', args, extractDocx),
 });

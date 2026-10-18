@@ -15,5 +15,7 @@ export default defineJob({
   id: 'convert-pdf-to-md',
   domain: 'convert',
   description: 'Convert one .pdf file to Markdown: <in> <out>.',
+  flags: {},
+  positionals: '<input.pdf> <output.md>',
   run: ({ args }) => convertFileArgs('convert-pdf-to-md', args, extractPdf),
 });

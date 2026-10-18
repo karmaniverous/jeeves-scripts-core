@@ -4,7 +4,9 @@
  * The one argument parser for runnables, core's and instances' (root
  * export): a typed spec of bare boolean flags, valued options
  * (`--name value` or `--name=value`, optionally a short alias) and
- * positionals, read from `ctx.args`. Unknown arguments are ignored. Pure.
+ * positionals. A runnable declares its spec as `defineJob({ flags })`; the
+ * CLI checks the arguments against it ({@link unknownArgs}) and the job
+ * reads the parsed values from `ctx.flags`. Pure.
  */
 
 /** A bare boolean flag: `true` when the exact name appears in the args. */
@@ -13,12 +15,16 @@ export interface FlagSpec {
   kind: 'flag';
   /** The flag as typed, e.g. `--live`. */
   name: string;
+  /** One line for `run <id> --help`. */
+  description?: string;
 }
 
 /** How a valued option may also be written. */
 export interface ArgValueOptions {
   /** A short alias taking its value as the next argument, e.g. `-e`. */
   alias?: string;
+  /** One line for `run <id> --help`. */
+  description?: string;
 }
 
 /** A valued option: its value, else the default. */
@@ -52,7 +58,11 @@ export type ParsedArgs<S extends ArgSpec> = {
 };
 
 /** Declare a bare boolean flag (`--live`). `--live=true` does not set it. */
-export const argFlag = (name: string): FlagSpec => ({ kind: 'flag', name });
+export const argFlag = (name: string, description?: string): FlagSpec => ({
+  kind: 'flag',
+  name,
+  ...(description === undefined ? {} : { description }),
+});
 
 /** Declare a valued option with its default (`''` unless given). */
 export const argValue = (
@@ -119,6 +129,36 @@ export function parseRunnableArgs<S extends ArgSpec>(
           ? valueOf(args, s)
           : (valueOf(args, s) ?? s.fallback);
   return out as ParsedArgs<S>;
+}
+
+/**
+ * The arguments `spec` does not declare: an option-like argument (starting
+ * with `-`) that is no flag, option or alias of `spec` (`--name=value` for
+ * a valued option), and, unless `positionals` is set, any positional
+ * argument. The separate value of a valued option is never reported.
+ */
+export function unknownArgs(
+  args: readonly string[],
+  spec: ArgSpec,
+  positionals = false,
+): string[] {
+  const specs = Object.values(spec);
+  const unknown: string[] = [];
+  for (let i = 0; i < args.length; i += 1) {
+    const a = args[i] ?? '';
+    if (!a.startsWith('-')) {
+      if (!positionals) unknown.push(a);
+      continue;
+    }
+    const s = specs.find(
+      (x) =>
+        a === x.name ||
+        (x.kind !== 'flag' && (a === x.alias || a.startsWith(`${x.name}=`))),
+    );
+    if (!s) unknown.push(a);
+    else if (s.kind !== 'flag' && !a.includes('=')) i += 1;
+  }
+  return unknown;
 }
 
 /**

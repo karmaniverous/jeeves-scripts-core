@@ -19,6 +19,7 @@
 import { atomicWrite } from '@karmaniverous/jeeves';
 
 import { defineJob } from '../jobs/define-job.js';
+import { argFlag } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
 import { fetchOpenRouterRates, httpGetJson } from './lib/openrouter-pricing.js';
 import {
@@ -36,8 +37,11 @@ export default defineJob({
   id: 'admin-refresh-token-rates',
   domain: 'admin',
   name: 'admin/refresh-token-rates',
-  run: async ({ args }) => {
-    await refreshTokenRatesMain([...args], refreshRatesDeps());
+  flags: {
+    dryRun: argFlag('--dry-run', 'Report the rate changes; write nothing'),
+  },
+  run: async ({ flags }) => {
+    await refreshTokenRatesMain(flags, refreshRatesDeps());
   },
 });
 

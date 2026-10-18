@@ -12,8 +12,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { defineJob } from '../jobs/define-job.js';
-import { argFlag, parseRunnableArgs } from '../lib/args.js';
+import { argFlag, type ParsedArgs } from '../lib/args.js';
 import { runDocFetch } from './lib/doc-fetch.js';
+import type { DocFetchOptions } from './lib/doc-fetch-scan.js';
 import { runFathomExtract } from './lib/fathom-extract.js';
 import {
   findShareMeetingsNeedingFetch,
@@ -36,7 +37,7 @@ export interface FetchNotesDeps {
   /** Fetch Gemini Docs. */
   docFetch: () => Promise<void>;
   /** Extract transcripts from Fathom HTML. */
-  fathomExtract: (argv: string[]) => void;
+  fathomExtract: (options: DocFetchOptions) => void;
   /** Fetch Fathom share pages. */
   shareFetch: (max: number) => Promise<{ fetched: number; errors: number }>;
   /** ISO timestamp. */
@@ -90,12 +91,17 @@ export function findMeetingsNeedingFetch(meetingsDirs: string[]): {
   return { geminiNeeded, fathomNeeded };
 }
 
+/** The flags `meetings-fetch-notes` accepts. */
+export const fetchNotesFlags = {
+  dryRun: argFlag('--dry-run', 'Report what needs fetching; fetch nothing'),
+};
+
 /** Fetch what the meetings need, or report it (`--dry-run`). */
 export async function fetchNotes(
-  args: readonly string[],
+  flags: ParsedArgs<typeof fetchNotesFlags>,
   deps: FetchNotesDeps,
 ): Promise<void> {
-  const { dryRun } = parseRunnableArgs(args, { dryRun: argFlag('--dry-run') });
+  const { dryRun } = flags;
   const { geminiNeeded, fathomNeeded } = findMeetingsNeedingFetch(
     deps.meetingsDirs(),
   );
@@ -134,7 +140,7 @@ export async function fetchNotes(
   }
 
   await deps.docFetch();
-  deps.fathomExtract([`--max=${String(MAX_FATHOM_PER_RUN)}`]);
+  deps.fathomExtract({ max: MAX_FATHOM_PER_RUN });
 
   if (fathomShareNeeded.length > 0) {
     console.log(
@@ -151,5 +157,6 @@ export default defineJob({
   id: 'meetings-fetch-notes',
   domain: 'meetings',
   name: 'meetings/fetch-notes',
-  run: ({ args }) => fetchNotes(args, fetchNotesDeps()),
+  flags: fetchNotesFlags,
+  run: ({ flags }) => fetchNotes(flags, fetchNotesDeps()),
 });

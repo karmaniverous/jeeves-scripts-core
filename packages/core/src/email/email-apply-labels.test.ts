@@ -13,12 +13,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getGmailAccounts } from '../config/index.js';
 import { resetConfig } from '../config/loader.js';
+import { parseRunnableArgs } from '../lib/args.js';
 import emailApplyLabelsJob, {
+  applyLabelsFlags,
   emailApplyLabels,
   formatApplyLabels,
 } from './email-apply-labels.js';
 import { setThreadState } from './email-state.js';
 import type { ApplyLabelsClient } from './google-workspace/apply-labels.js';
+
+const flagsOf = (args: string[]) => parseRunnableArgs(args, applyLabelsFlags);
 
 const A = 'me@example.com';
 
@@ -61,7 +65,7 @@ const fakeClient = () => {
 };
 
 const run = (args: string[], client = fakeClient().client) => {
-  emailApplyLabels(['--config', configPath, ...args], {
+  emailApplyLabels(flagsOf(['--config', configPath, ...args]), {
     client: () => client,
   });
 };
@@ -86,7 +90,7 @@ describe('email-apply-labels', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
     const factory = vi.fn();
-    emailApplyLabels(['--config', configPath], { client: factory });
+    emailApplyLabels(flagsOf(['--config', configPath]), { client: factory });
     expect(process.exitCode).toBe(1);
     expect(factory).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(
@@ -146,14 +150,13 @@ describe('email-apply-labels', () => {
     ['--since', 'yesterday-ish'],
     ['--max', '0'],
     ['--max', '2.5'],
-    ['--bogus', 'x'],
   ])('rejects %s %s with exit code 1, opening nothing', (flag, value) => {
     writeConfig(false);
     const error = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
     const factory = vi.fn();
-    emailApplyLabels(['--config', configPath, flag, value], {
+    emailApplyLabels(flagsOf(['--config', configPath, flag, value]), {
       client: factory,
     });
     expect(process.exitCode).toBe(1);

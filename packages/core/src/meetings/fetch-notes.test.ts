@@ -61,12 +61,12 @@ describe('findMeetingsNeedingFetch', () => {
 
 describe('fetchNotes', () => {
   it('reports nothing to fetch, as JSON in a dry run', async () => {
-    await fetchNotes([], deps());
+    await fetchNotes({ dryRun: false }, deps());
     expect(logs).toEqual([
       '[2026-03-03T00:00:00.000Z] No meetings need transcript fetching',
     ]);
     logs = [];
-    await fetchNotes(['--dry-run'], deps());
+    await fetchNotes({ dryRun: true }, deps());
     expect(JSON.parse(logs[0] ?? '{}')).toEqual({
       skip: true,
       reason: 'No meetings need transcript fetching',
@@ -78,7 +78,7 @@ describe('fetchNotes', () => {
     const d = deps({
       shareCandidates: () => [{ meetingId: 's1' } as ShareCandidate],
     });
-    await fetchNotes(['--dry-run'], d);
+    await fetchNotes({ dryRun: true }, d);
     expect(JSON.parse(logs.at(-1) ?? '{}')).toEqual({
       skip: false,
       geminiNeeded: ['g'],
@@ -93,11 +93,11 @@ describe('fetchNotes', () => {
     const d = deps({
       shareCandidates: () => [{ meetingId: 's1' } as ShareCandidate],
     });
-    await fetchNotes([], d);
+    await fetchNotes({ dryRun: false }, d);
     expect(d.docFetch).toHaveBeenCalled();
-    expect(d.fathomExtract).toHaveBeenCalledWith([
-      `--max=${String(MAX_FATHOM_PER_RUN)}`,
-    ]);
+    expect(d.fathomExtract).toHaveBeenCalledWith({
+      max: MAX_FATHOM_PER_RUN,
+    });
     expect(d.shareFetch).toHaveBeenCalledWith(MAX_FATHOM_SHARE_PER_RUN);
     expect(logs).toContain(
       '[2026-03-03T00:00:00.000Z] Fathom share fetch: 1 fetched, 0 errors',

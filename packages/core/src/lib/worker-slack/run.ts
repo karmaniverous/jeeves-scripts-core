@@ -6,7 +6,7 @@
  * full final reply back via the gateway `chat.history` RPC, and does
  * Slack I/O through the gateway `message` tool.
  *
- * Flags (from process.argv):
+ * Flags (declared dispatcherFlags, else the raw arguments or process.argv):
  * - `--dry-run`: read Slack, build the TASK, print a one-line report (job,
  *   TASK length, allowed post targets) and stop: no worker, no posts;
  * - `--print-task`: read Slack, print the full TASK, and stop (no dispatch).
@@ -24,6 +24,10 @@ import {
 } from '@karmaniverous/jeeves-runner';
 
 import { constants } from '../constants.js';
+import {
+  type DispatcherFlags,
+  resolveDispatcherFlags,
+} from '../dispatcher-flags.js';
 import { gatewayInvoke } from '../gateway-client.js';
 import { gatewayRpc } from '../gateway-rpc.js';
 import { readWorkerFinalText } from '../worker-output.js';
@@ -43,7 +47,8 @@ import {
  * @param task - Base TASK text.
  * @param options - Runner dispatch options (jobId, thinking, timeout, …).
  * @param slackConfig - Reads and allowed post targets (validated here).
- * @param argv - Process arguments (flags).
+ * @param flags - `dryRun` / `printTask` (`lib/dispatcher-flags`), or raw
+ *   arguments to read them from (default: `process.argv`).
  * @returns The run result.
  * @throws Error when the Slack config is invalid (before any side effect).
  */
@@ -51,14 +56,15 @@ export async function dispatchWithSlack(
   task: string,
   options: DispatchOptions,
   slackConfig: WorkerSlackConfig,
-  argv: readonly string[] = process.argv,
+  flags?: readonly string[] | Partial<DispatcherFlags>,
 ): Promise<WorkerSlackResult> {
   const slack = parseWorkerSlackConfig(slackConfig);
+  const { dryRun, printTask } = resolveDispatcherFlags(flags);
   return runWorkerSlackJob(task, slack, {
     slack: gatewaySlackIo(gatewayInvoke, slack.accountId),
-    dryRun: argv.includes('--dry-run'),
+    dryRun,
     jobId: options.jobId,
-    printTask: argv.includes('--print-task'),
+    printTask,
     dispatch: async (fullTask) => {
       const { exitCode, stdout } = await dispatchSession(
         fullTask,
