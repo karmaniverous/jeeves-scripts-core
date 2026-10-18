@@ -24,8 +24,8 @@ flowchart LR
 
 - Loads Slack bot tokens (see [Bot Tokens](#bot-tokens)).
 - Discovers all channel types the bot is a member of (public, private, IM, MPIM), excluding archived, for every token's account (IMs always count). Each run refreshes known channels' name and flags from Slack and adds new ones with `_autoDiscovered` (timestamp) and `_account` (the token's account name), in the [Slack cache](#slack-cache-state).
-- Fetches paginated conversation history since the last read position per channel, and processes it oldest first. Read positions are instance state in the jeeves-runner state store (see [Read Positions](#read-positions-state)).
-- **Backlogs.** A channel gets at most `slack.backfillBudgetSeconds` (default 60) per run. After the budget no further message is started (at least one always is, so a backlog always progresses); the poll logs `backfilling <channelId> (<name>): N written, M left, resuming next run` and moves on to the next channel. A large backlog (a newly joined old channel, a lost position, a first poll) is ingested over several runs, and channels after it are polled every run. Keep the budget well under the job's timeout (300 s).
+- Reads conversation history since the last read position per channel, oldest first, one page (200 messages) at a time: given `oldest` and no `latest`, Slack returns the messages just after `oldest`, so each page is fetched from the position just saved and nothing is fetched ahead of what is written. Read positions are instance state in the jeeves-runner state store (see [Read Positions](#read-positions-state)).
+- **Backlogs.** A channel gets at most `slack.backfillBudgetSeconds` (default 60) per run, page fetches included. After the budget no further message or page is started (at least one message always is, so a backlog always progresses); the poll logs `backfilling <channelId> (<name>): N written, resuming next run` and moves on to the next channel. A large backlog (a newly joined old channel, a lost position, a first poll) is ingested over several runs, and channels after it are polled every run. Keep the budget well under the job's timeout (300 s).
 - A channel Slack no longer shows to the bot (`channel_not_found`: left, deleted, a DM no longer visible) logs `SKIP <channelId>: ...` (a warning), not `ERROR`.
 - For a channel with new messages, re-reads its members (`conversations.members`) when they are more than a day old; they are written as each message's `participants`.
 - Fetches thread replies for threaded messages.
@@ -178,7 +178,7 @@ try {
 
 | File | Purpose |
 | --- | --- |
-| `lib/slack-api.ts` | The poller's Slack reads over the [Slack client](#slack-client): `fetchHistory()`, `fetchReplies()`, `discoverChannels()`, `fetchMembers()`, `fetchUsers()`, `slackApi(method, params, token)`, `SlackFileMetadata` type, with pagination |
+| `lib/slack-api.ts` | The poller's Slack reads over the [Slack client](#slack-client): `fetchHistoryPage()`, `fetchReplies()`, `discoverChannels()`, `fetchMembers()`, `fetchUsers()`, `slackApi(method, params, token)`, `SlackFileMetadata` type, with pagination |
 | `../lib/slack-client.ts` | `createSlackClient()` and `SlackApiError` (root export) |
 | `../lib/constants.ts` | `constants()`: `SLACK_DOMAIN_DIR` under `paths.contentDir` in `jeeves-scripts.json` |
 | `../config/silo-router.ts` | `getBasePathForSlackWorkspace()` for output directory routing (see [silos](./config.md#silos)) |

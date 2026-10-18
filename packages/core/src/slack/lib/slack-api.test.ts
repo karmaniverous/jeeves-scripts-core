@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fakeFetch, type FetchCall } from '../../lib/fake-fetch.test-helper.js';
 import {
   discoverChannels,
-  fetchHistory,
+  fetchHistoryPage,
   fetchMembers,
   fetchReplies,
   fetchUsers,
@@ -54,22 +54,31 @@ describe('slackApi', () => {
 });
 
 describe('paginated reads', () => {
-  it('fetchHistory keeps messages newer than oldest across pages', async () => {
+  it('fetchHistoryPage reads one page after oldest, oldest first, and reports more', async () => {
     serve({
       'conversations.history': [
         {
           ok: true,
-          messages: [{ ts: '5' }, { ts: '1' }],
+          messages: [{ ts: '7' }, { ts: '5' }, { ts: '1' }],
           has_more: true,
           response_metadata: { next_cursor: 'c2' },
         },
-        { ok: true, messages: [{ ts: '7' }] },
+        { ok: true, messages: [] },
       ],
     });
-    const { messages, newestTs } = await fetchHistory('C1', '2', 't');
-    expect(messages.map((m) => m.ts)).toEqual(['5', '7']);
-    expect(newestTs).toBe('7');
-    expect(calls[1]?.url.searchParams.get('cursor')).toBe('c2');
+    const page = await fetchHistoryPage('C1', '2', 't');
+    expect(page.messages.map((m) => m.ts)).toEqual(['5', '7']);
+    expect(page.hasMore).toBe(true);
+    expect(calls).toHaveLength(1);
+    expect(Object.fromEntries(calls[0]?.url.searchParams ?? [])).toEqual({
+      channel: 'C1',
+      limit: '200',
+      oldest: '2',
+    });
+    await expect(fetchHistoryPage('C1', '7', 't')).resolves.toEqual({
+      messages: [],
+      hasMore: false,
+    });
   });
 
   it('fetchReplies drops the parent and replies at or before oldest', async () => {

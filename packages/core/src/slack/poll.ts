@@ -44,7 +44,7 @@ import {
 import { enrichFileContent } from './lib/file-content.js';
 import { writeMessage } from './lib/message-writer.js';
 import {
-  fetchHistory,
+  fetchHistoryPage,
   fetchReplies,
   RATE_LIMIT_MS,
   type SlackMessage,
@@ -95,39 +95,54 @@ async function writeOne(
 }
 
 /**
- * Read one channel oldest-first, saving the read position after each
- * top-level message and its replies, so a run killed mid-channel resumes
- * where it stopped. The position is a top-level message's ts, never a
- * reply's (a reply can be newer than top-level messages not yet read).
- * Stops starting messages at the deadline (after at least one, so a
- * backlog always progresses).
+ * Read one channel oldest-first, a history page at a time, saving the read
+ * position after each top-level message and its replies, so a run killed
+ * mid-channel resumes where it stopped. Each page starts at the position
+ * just saved, so nothing is fetched ahead of what is written. The position
+ * is a top-level message's ts, never a reply's (a reply can be newer than
+ * top-level messages not yet read). At the deadline no further message or
+ * page is started (after at least one message, so a backlog always
+ * progresses); `more` says the channel has unread history left.
  */
 async function pollChannel(
   run: ChannelRun,
-): Promise<{ written: number; remaining: number }> {
-  const { channelId, channelInfo, token, oldest } = run;
+): Promise<{ written: number; more: boolean }> {
+  const { channelId, channelInfo, token } = run;
   const channelDir = await resolveChannelDir(
     channelId,
     channelInfo,
     token,
     run.teams,
   );
-  const { messages } = await fetchHistory(channelId, oldest, token);
-  if (messages.length > 0)
-    await refreshParticipants(channelId, channelInfo, token);
-  messages.sort((x, y) => (x.ts < y.ts ? -1 : x.ts > y.ts ? 1 : 0));
-
   let written = 0;
-  for (const [i, msg] of messages.entries()) {
-    if (i > 0 && run.now() >= run.deadline)
-      return { written, remaining: messages.length - i };
-    if (await writeOne(run, channelDir, msg)) written++;
-    if (msg.reply_count && msg.reply_count > 0)
-      for (const reply of await fetchReplies(channelId, msg.ts, oldest, token))
-        if (await writeOne(run, channelDir, reply)) written++;
-    run.advance(msg.ts);
+  let started = 0;
+  let position = run.oldest;
+  for (;;) {
+    const page = await fetchHistoryPage(channelId, position, token);
+    if (started === 0 && page.messages.length > 0)
+      await refreshParticipants(channelId, channelInfo, token);
+    for (const msg of page.messages) {
+      if (started > 0 && run.now() >= run.deadline)
+        return { written, more: true };
+      started++;
+      if (await writeOne(run, channelDir, msg)) written++;
+      if (msg.reply_count && msg.reply_count > 0)
+        for (const reply of await fetchReplies(
+          channelId,
+          msg.ts,
+          run.oldest,
+          token,
+        ))
+          if (await writeOne(run, channelDir, reply)) written++;
+      run.advance(msg.ts);
+      position = msg.ts;
+    }
+    // An empty page can't move the position: stop rather than refetch it.
+    if (!page.hasMore || page.messages.length === 0)
+      return { written, more: false };
+    if (run.now() >= run.deadline) return { written, more: true };
+    await sleep(RATE_LIMIT_MS);
   }
-  return { written, remaining: 0 };
 }
 
 /** A Slack ts `days` before `now` (epoch ms), never before the epoch. */
@@ -180,7 +195,7 @@ async function pollAll(
     }
     try {
       const token = await resolveChannelToken(id, info, tokensByAccount, teams);
-      const { written, remaining } = await pollChannel({
+      const { written, more } = await pollChannel({
         channelId: id,
         channelInfo: info,
         token,
@@ -195,9 +210,9 @@ async function pollAll(
         console.log(`${id} (${info.name}): ${String(written)} new`);
         totalWritten += written;
       }
-      if (remaining > 0)
+      if (more)
         console.log(
-          `backfilling ${id} (${info.name}): ${String(written)} written, ${String(remaining)} left, resuming next run`,
+          `backfilling ${id} (${info.name}): ${String(written)} written, resuming next run`,
         );
     } catch (err) {
       // A store failure aborts the run instead of being swallowed.

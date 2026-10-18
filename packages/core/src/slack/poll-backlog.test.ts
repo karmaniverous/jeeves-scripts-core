@@ -18,19 +18,31 @@ vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
 
 const { api, deps, fake, histories, runner } = usePollFixture();
 
-/** C1 history: `n` top-level messages, newest first as Slack returns them. */
-const backlog = (n: number, extra: Record<string, unknown> = {}) => {
+/**
+ * C1 history: `n` top-level messages (ts `200.000001` up). Like Slack given
+ * `oldest` and no `latest`: the `limit` messages just after `oldest`,
+ * newest first, and `has_more` when newer ones remain.
+ */
+const backlog = (
+  n: number,
+  extra: Record<string, unknown> = {},
+  onFetch?: () => void,
+) => {
   api['conversations.history'] = (q) => {
     if (q.get('channel') !== 'C1') return { ok: true, messages: [] };
+    onFetch?.();
     const oldest = Number(q.get('oldest'));
+    const after = Array.from({ length: n }, (_, i) => ({
+      ts: `${String(200 + i)}.000001`,
+      user: 'U1',
+      text: `m${String(i)}`,
+      ...extra,
+    })).filter((m) => Number(m.ts) > oldest);
+    const limit = Number(q.get('limit'));
     return {
       ok: true,
-      messages: Array.from({ length: n }, (_, i) => ({
-        ts: `${String(200 + n - 1 - i)}.000001`,
-        user: 'U1',
-        text: `m${String(n - 1 - i)}`,
-        ...extra,
-      })).filter((m) => Number(m.ts) > oldest),
+      messages: after.slice(0, limit).reverse(),
+      has_more: after.length > limit,
     };
   };
 };
@@ -102,11 +114,54 @@ describe('pollSlack backlogs', () => {
     await pollSlack(deps({ now: () => (clock += 20_000) }));
     expect(console.log).toHaveBeenCalledWith(
       expect.stringMatching(
-        /^backfilling C1 \(general\): \d+ written, 7 left, resuming next run$/,
+        /^backfilling C1 \(general\): \d+ written, resuming next run$/,
       ),
     );
     expect(runner().state.get('slack|lastTs-C1')).toBe('202.000001');
     expect(oldestFor('C3')).toHaveLength(1);
+  });
+
+  it('reads a long history a page at a time, stops at the budget between pages and resumes there', async () => {
+    fs.mkdirSync(deps().slackDir, { recursive: true });
+    api['conversations.list'] = () => ({
+      ok: true,
+      channels: [
+        { id: 'C1', name: 'general', is_member: true },
+        { id: 'C3', name: 'after', is_member: true },
+      ],
+    });
+    // The clock moves only while history is fetched: 30 s a page against a
+    // 60 s budget, so page 1 is read and page 2 is fetched but not started.
+    let clock = 0;
+    backlog(450, {}, () => (clock += 30_000));
+    const run = deps({ now: () => clock });
+    await pollSlack(run);
+    expect(oldestFor('C1')).toEqual(['0', '399.000001']);
+    expect(runner().state.get('slack|lastTs-C1')).toBe('399.000001');
+    // (The suite shares one archive, so earlier tests' files count as old.)
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /^backfilling C1 \(general\): \d+ written, resuming next run$/,
+      ),
+    );
+    expect(oldestFor('C3')).toHaveLength(1);
+
+    fake().calls.length = 0;
+    clock = 0;
+    vi.mocked(console.log).mockClear();
+    await pollSlack(run);
+    expect(oldestFor('C1')).toEqual(['399.000001', '599.000001']);
+    expect(runner().state.get('slack|lastTs-C1')).toBe('599.000001');
+
+    fake().calls.length = 0;
+    clock = 0;
+    vi.mocked(console.log).mockClear();
+    await pollSlack(run);
+    expect(oldestFor('C1')).toEqual(['599.000001']);
+    expect(runner().state.get('slack|lastTs-C1')).toBe('649.000001');
+    expect(console.log).not.toHaveBeenCalledWith(
+      expect.stringMatching(/^backfilling/),
+    );
   });
 
   it('always makes progress, even with a budget already spent', async () => {
