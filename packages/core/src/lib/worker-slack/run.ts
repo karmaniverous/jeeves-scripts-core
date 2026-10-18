@@ -7,7 +7,8 @@
  * Slack I/O through the gateway `message` tool.
  *
  * Flags (from process.argv):
- * - `--dry-run`: dispatch, but print the worker's posts instead of posting;
+ * - `--dry-run`: read Slack, build the TASK, print a one-line report (job,
+ *   TASK length, allowed post targets) and stop: no worker, no posts;
  * - `--print-task`: read Slack, print the full TASK, and stop (no dispatch).
  *
  * The job's Slack config is validated here (the dispatch boundary) before
@@ -56,6 +57,7 @@ export async function dispatchWithSlack(
   return runWorkerSlackJob(task, slack, {
     slack: gatewaySlackIo(gatewayInvoke, slack.accountId),
     dryRun: argv.includes('--dry-run'),
+    jobId: options.jobId,
     printTask: argv.includes('--print-task'),
     dispatch: async (fullTask) => {
       const { exitCode, stdout } = await dispatchSession(

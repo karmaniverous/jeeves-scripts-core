@@ -155,6 +155,24 @@ describe('dispatchTaskFile', () => {
     expect(deps.runDispatcher).not.toHaveBeenCalled();
   });
 
+  it('reports a Slack --dry-run as previewed (#15)', async () => {
+    writeTask('content/digest/TASK.md');
+    const deps = makeDeps();
+    await expect(
+      dispatchTaskFile(
+        {
+          scriptName: 's',
+          jobId: 'j',
+          taskFile: 'digest/TASK.md',
+          slack: { posts: [] },
+          args: ['--dry-run'],
+        },
+        deps,
+      ),
+    ).resolves.toBe('previewed');
+    expect(deps.runDispatcher).not.toHaveBeenCalled();
+  });
+
   it('previews without Slack: --print-task prints the task, --dry-run reports, neither dispatches', async () => {
     writeTask('content/digest/TASK.md');
     const deps = makeDeps();

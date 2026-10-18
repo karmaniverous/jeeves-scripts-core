@@ -16,9 +16,9 @@
  *   reads and posts); without it, through jeeves-runner's `runDispatcher`
  *   and core's `spawn-worker`.
  * - `--print-task` prints the full task and dispatches nothing, with or
- *   without `slack`. `--dry-run` with `slack` dispatches the worker and
- *   prints its posts instead of sending them; without `slack` (nothing to
- *   post) it reports what it would dispatch and dispatches nothing.
+ *   without `slack`. `--dry-run` reports what it would dispatch (job, task
+ *   length and, with `slack`, the allowed post targets) and dispatches
+ *   nothing, with or without `slack`: it never starts a worker session.
  *
  * Side effects: reads the config and the task file; spawns a worker.
  */
@@ -103,7 +103,7 @@ export const resolveTaskFile = (
  * Read the task and dispatch it (the body of {@link taskFileDispatcher}).
  *
  * @returns `'skipped'` when the task file does not exist, `'previewed'`
- *   for `--print-task` (and `--dry-run` without `slack`), else `'dispatched'`.
+ *   for `--print-task` or `--dry-run`, else `'dispatched'`.
  */
 export const dispatchTaskFile = async (
   options: TaskFileDispatcherOptions,
@@ -133,9 +133,12 @@ export const dispatchTaskFile = async (
     task = withDateContext(task, deps.now(), resolve(dateTimeZone));
 
   if (slack !== undefined) {
-    // The Slack path handles both flags (it adds the Slack context first).
+    // The Slack path handles both flags (it adds the Slack context first);
+    // neither starts a worker.
     await deps.dispatchWithSlack(task, dispatchOptions, resolve(slack), args);
-    return args.includes('--print-task') ? 'previewed' : 'dispatched';
+    return args.includes('--print-task') || args.includes('--dry-run')
+      ? 'previewed'
+      : 'dispatched';
   }
   if (args.includes('--print-task')) {
     deps.log(task);
