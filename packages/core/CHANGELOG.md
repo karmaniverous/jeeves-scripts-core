@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.1] - 2026-10-18
+
+### 💼 Other
+
+- [37] fix(slack): save the read position per message and budget each channel's backlog (#37)
+
+slack-poll now processes history oldest first and saves the channel's read position after each top-level message and its replies, so a run killed mid-channel resumes there. A channel stops starting messages after slack.backfillBudgetSeconds (default 60; at least one message always), logs the backfill and hands off, so a backlog can't starve the channels after it. New optional slack.newChannelLookbackDays sets where a channel with no position starts (0: from now; seeded as its position so a quiet channel doesn't slide forward). channel_not_found logs as a SKIP warning. A cursor-store failure still aborts the run.
+
+Closes #37
+- [37] fix(slack): read history a page at a time within the channel budget (#37)
+
+fetchHistory fetched every page (1.2 s apart) before writing anything, so a long backlog could still outlast the job timeout without saving a position. fetchHistoryPage reads one page just after oldest (Slack anchors to oldest when latest is unset); pollChannel fetches each next page from the position just saved and checks the budget between pages. Addresses Copilot review on #39.
 ## [0.2.0] - 2026-10-18
 
 ### 💼 Other
@@ -15,6 +27,10 @@ With slack, --dry-run now reads Slack, builds the TASK and prints a one-line rep
 
 defineJob({ flags, positionals }) declares the accepted flags (lib/args specs, now with descriptions); the job reads them parsed from ctx.flags. run <id> rejects an undeclared option, an unexpected positional or a valued option without a value (exit 1, before the body runs) for a runnable that declares flags, and passes everything through with a deprecation warning for one that declares none (strict for all in a later minor). run <id> --help prints usage, description, flags and the effective manifest without running the body. Every core runnable declares its flags and reads them through ctx.flags (enforced by flags-discipline.test.ts); dispatchers share dispatcherFlags. job.run({ args }) without flags still works: the job parses them itself.
 - *(email)* Email-respond assistant-mailbox auto-reply (#22); review and Copilot fixes
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-scripts-core v0.2.0
 ## [0.1.3] - 2026-10-14
 
 ### 🐛 Bug Fixes

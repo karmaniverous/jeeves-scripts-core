@@ -1,6 +1,6 @@
 {
   "name": "@karmaniverous/jeeves-scripts-core",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "author": "Jason Williscroft",
   "description": "Shared Jeeves scripts domains, runnable registry and CLI for jeeves-scripts instance repos.",
   "license": "BSD-3-Clause",
