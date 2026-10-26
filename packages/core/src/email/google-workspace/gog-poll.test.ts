@@ -11,6 +11,11 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import {
+  allReportOnly,
+  noneReportOnly,
+  reportOnlyAccounts,
+} from '../../config/report-only.test-helper.js';
 import type { EmailStoreClient } from '../email-state.js';
 import type { ThreadSummary } from './gmail-search.js';
 
@@ -118,7 +123,7 @@ describe('isThreadUpdate', () => {
 });
 
 describe('pollThread', () => {
-  const ctx = (client: EmailStoreClient, reportOnly = false) => ({
+  const ctx = (client: EmailStoreClient, reportOnly = noneReportOnly) => ({
     account: 'me@x',
     client,
     reportOnly,
@@ -147,7 +152,7 @@ describe('pollThread', () => {
       expect.objectContaining({
         messageId: 't1',
         labels: ['receipt'],
-        reportOnly: false,
+        reportOnly: noneReportOnly,
       }),
     );
     expect(mocks.fetchThreadMetadata).toHaveBeenCalledWith(
@@ -180,7 +185,10 @@ describe('pollThread', () => {
     pollThread(ctx(client), thread());
     mocks.bucket = 'finance';
     mocks.important = false;
-    const r = pollThread(ctx(client, true), thread({ messageCount: 2 }));
+    const r = pollThread(
+      ctx(client, allReportOnly),
+      thread({ messageCount: 2 }),
+    );
     expect(r).toMatchObject({
       isUpdate: true,
       labelsEnqueued: 1,
@@ -193,38 +201,45 @@ describe('pollThread', () => {
     });
     expect(mocks.enqueueLabelActions).toHaveBeenLastCalledWith(
       client,
-      expect.objectContaining({ reportOnly: true }),
+      expect.objectContaining({ reportOnly: allReportOnly }),
     );
   });
 });
 
 describe('pollGogAccount', () => {
-  it('searches, polls every thread and appends the run summary', () => {
-    const { client } = memoryClient();
-    mocks.threads = [thread(), thread({ threadId: 't2' })];
-    pollGogAccount({
-      account: 'me@x',
-      client,
-      reportOnly: false,
-      query: 'in:anywhere',
-      max: 100,
-    });
-    expect(mocks.gogWithRetry).toHaveBeenCalledWith(
-      ['search', 'me@x', 'in:anywhere', '100'],
-      { retries: 2, backoffMs: 5000 },
-    );
-    expect(events('_runs-me@x.jsonl')).toEqual([
-      expect.objectContaining({
-        kind: 'poll',
+  it.each([
+    ['no account', noneReportOnly, false],
+    ['another account', reportOnlyAccounts('other@x'), false],
+    ['this account', reportOnlyAccounts('me@x'), true],
+  ])(
+    'searches, polls every thread and appends the run summary (%s report-only)',
+    (_, policy, reportOnly) => {
+      const { client } = memoryClient();
+      mocks.threads = [thread(), thread({ threadId: 't2' })];
+      pollGogAccount({
         account: 'me@x',
-        fetched: 2,
-        new: 2,
-        updated: 0,
-        deepFetchedThreads: 2,
-        newMessages: 4,
-        labelsEnqueued: 2,
-        reportOnly: false,
-      }),
-    ]);
-  });
+        client,
+        reportOnly: policy,
+        query: 'in:anywhere',
+        max: 100,
+      });
+      expect(mocks.gogWithRetry).toHaveBeenCalledWith(
+        ['search', 'me@x', 'in:anywhere', '100'],
+        { retries: 2, backoffMs: 5000 },
+      );
+      expect(events('_runs-me@x.jsonl')).toEqual([
+        expect.objectContaining({
+          kind: 'poll',
+          account: 'me@x',
+          fetched: 2,
+          new: 2,
+          updated: 0,
+          deepFetchedThreads: 2,
+          newMessages: 4,
+          labelsEnqueued: 2,
+          reportOnly,
+        }),
+      ]);
+    },
+  );
 });

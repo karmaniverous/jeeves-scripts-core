@@ -3,7 +3,8 @@
  *
  * Label catch-up: enqueue the classification labels each thread's stored
  * state calls for but that were never enqueued (`labelApplied`), e.g.
- * threads classified while `emailConfig.reportOnly` was on. Reads thread
+ * threads classified while `emailConfig.reportOnly` was on. Report-only
+ * accounts are skipped outside a dry run. Reads thread
  * state from the runner store; writes `email-updates` items and
  * `labelApplied` through label-actions.ts, so drain-updates applies them
  * at its own rate limit. Called by the `email-apply-labels` runnable
@@ -12,6 +13,7 @@
 
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';
 
+import type { ReportOnlyPolicy } from '../../config/index.js';
 import {
   getThreadState,
   seenKey,
@@ -42,10 +44,11 @@ export interface ApplyLabelsOptions {
   /** Plan only: enqueue nothing and write no state. */
   dryRun: boolean;
   /**
-   * `emailConfig.reportOnly`. While it is on the run is always a dry run:
-   * nothing may be written back to Gmail.
+   * Effective report-only flag per account (`reportOnlyFor`). Outside a
+   * dry run a report-only account is skipped: nothing may be written back
+   * to its mailbox. A dry run plans every account and marks these.
    */
-  reportOnly: boolean;
+  reportOnly: ReportOnlyPolicy;
   /** Stop after this many threads with pending labels (default {@link APPLY_LABELS_MAX_THREADS}). */
   maxThreads?: number;
 }
@@ -53,6 +56,8 @@ export interface ApplyLabelsOptions {
 /** Per-account outcome. */
 export interface ApplyLabelsAccountResult {
   account: string;
+  /** The account is report-only: skipped (planned only, in a dry run). */
+  reportOnly: boolean;
   /** Threads in the account's stored state. */
   scanned: number;
   /** Threads with labels still to apply (handled this run). */
@@ -63,7 +68,7 @@ export interface ApplyLabelsAccountResult {
 
 /** Result of {@link applyPendingLabels}. */
 export interface ApplyLabelsResult {
-  /** True for a requested dry run and whenever `reportOnly` is on. */
+  /** True for a requested dry run. */
   dryRun: boolean;
   accounts: ApplyLabelsAccountResult[];
   /** Total labels enqueued (planned, in a dry run). */
@@ -103,8 +108,7 @@ const threadTime = (state: ThreadState): number => {
 export function applyPendingLabels(
   options: ApplyLabelsOptions,
 ): ApplyLabelsResult {
-  const { client, buckets, since, reportOnly } = options;
-  const dryRun = options.dryRun || reportOnly;
+  const { client, buckets, since, reportOnly, dryRun } = options;
   const maxThreads = options.maxThreads ?? APPLY_LABELS_MAX_THREADS;
   const result: ApplyLabelsResult = {
     dryRun,
@@ -117,11 +121,13 @@ export function applyPendingLabels(
   for (const account of options.accounts) {
     const acct: ApplyLabelsAccountResult = {
       account,
+      reportOnly: reportOnly(account),
       scanned: 0,
       threads: 0,
       labels: {},
     };
     result.accounts.push(acct);
+    if (acct.reportOnly && !dryRun) continue;
 
     for (const threadId of client.listItemKeys('email', seenKey(account), {
       order: 'asc',

@@ -2,21 +2,25 @@
  * @module label-actions
  *
  * Every write to the `email-updates` queue (Gmail label mutations) goes
- * through this module, so `emailConfig.reportOnly` is enforced in one
- * place.
+ * through this module, so report-only is enforced in one place, per
+ * account: an action is dropped when its account is report-only
+ * (`emailConfig.reportOnly` or `accounts[].reportOnly`; see the config
+ * `reportOnlyFor`).
  *
- * When `reportOnly` is true the pipeline still ingests and archives
- * mail, but nothing is written back to Gmail:
+ * For a report-only account the pipeline still ingests and archives
+ * mail, but nothing is written back to its mailbox:
  *
- * - producers enqueue no `email-updates` actions
+ * - producers enqueue no `email-updates` actions for it
  *   ({@link enqueueEmailUpdates}): classification labels from poll and
  *   backfill-historical ({@link enqueueLabelActions}) and human-curation
  *   signals detected by email-fetch ({@link curationSignalActions}) and
  *   the `meeting` label / archive for threads meetings/extract.ts
  *   turns into meeting packages;
  * - the consumer (drain-updates) applies none, as defence in depth
- *   against items enqueued before `reportOnly` was turned on
- *   ({@link planDrain}). Those items stay pending, untouched.
+ *   against items enqueued before the flag was turned on. With
+ *   `emailConfig.reportOnly` the whole queue stays pending, untouched
+ *   ({@link planDrain}); a single report-only account's items are dropped
+ *   (drain-updates).
  *
  * It also maps a queued action to its Gmail label changes and the
  * `gog gmail thread modify` call drain-updates makes
@@ -30,6 +34,7 @@
 import { nowIso } from '@karmaniverous/jeeves';
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';
 
+import type { ReportOnlyPolicy } from '../../config/index.js';
 import {
   type GogCredentials,
   requireGogCredentials,
@@ -59,18 +64,21 @@ export type EmailUpdateAction = EmailUpdateBase &
 
 /**
  * Enqueue `actions` on {@link EMAIL_UPDATES_QUEUE}, stamped with one
- * `createdAt`, unless `reportOnly`.
+ * `createdAt`, except those whose account is report-only.
  *
+ * @param reportOnly - the effective report-only flag per account
+ *   (`reportOnlyFor`); each action is checked against its own `account`.
  * @returns The stamp used, or `null` when nothing was enqueued.
  */
 export function enqueueEmailUpdates(
   client: Pick<RunnerClient, 'enqueue'>,
   actions: EmailUpdateAction[],
-  reportOnly: boolean,
+  reportOnly: ReportOnlyPolicy,
 ): string | null {
-  if (reportOnly || actions.length === 0) return null;
+  const writable = actions.filter((a) => !reportOnly(a.account));
+  if (writable.length === 0) return null;
   const createdAt = nowIso();
-  for (const a of actions) {
+  for (const a of writable) {
     client.enqueue(EMAIL_UPDATES_QUEUE, { ...a, createdAt });
   }
   return createdAt;
@@ -84,24 +92,26 @@ export interface EnqueueLabelActionsOptions {
   labels: string[];
   source: string;
   reason: string;
-  reportOnly: boolean;
+  /** Effective report-only flag per account (`reportOnlyFor`). */
+  reportOnly: ReportOnlyPolicy;
 }
 
 /** Result of {@link enqueueLabelActions}. */
 export interface EnqueueLabelActionsResult {
   /** Label → timestamp for every label actually enqueued. */
   applied: Record<string, string>;
-  /** Labels that would have been enqueued (all of them in reportOnly). */
+  /** Labels that would have been enqueued (all of them when report-only). */
   planned: number;
-  /** Labels actually enqueued (0 in reportOnly). */
+  /** Labels actually enqueued (0 when the account is report-only). */
   enqueued: number;
 }
 
 /**
- * Enqueue one `addLabel` action per label, unless `reportOnly`.
+ * Enqueue one `addLabel` action per label, unless the account is
+ * report-only.
  *
- * In reportOnly mode nothing is enqueued and `applied` is empty, so the
- * thread state does not record labels that were never applied.
+ * For a report-only account nothing is enqueued and `applied` is empty,
+ * so the thread state does not record labels that were never applied.
  */
 export function enqueueLabelActions(
   client: Pick<RunnerClient, 'enqueue'>,

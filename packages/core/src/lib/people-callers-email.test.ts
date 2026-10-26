@@ -11,6 +11,7 @@ import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { eventPeopleField } from '../calendar/lib/calendar-api.js';
+import { allReportOnly } from '../config/report-only.test-helper.js';
 import { getThreadsPath } from '../email/email-cache.js';
 import { fetchThreadMetadata } from '../email/google-workspace/email-fetch.js';
 import { writeMessage as writeImapMessage } from '../email/imap/message-store.js';
@@ -82,7 +83,7 @@ describe('email', () => {
         setItem: vi.fn(),
         enqueue: vi.fn(() => 1),
       },
-      reportOnly: true,
+      reportOnly: allReportOnly,
       gog: () => reply,
     });
     const eventsFile = fs

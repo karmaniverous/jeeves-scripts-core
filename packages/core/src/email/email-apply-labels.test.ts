@@ -25,17 +25,25 @@ import type { ApplyLabelsClient } from './google-workspace/apply-labels.js';
 const flagsOf = (args: string[]) => parseRunnableArgs(args, applyLabelsFlags);
 
 const A = 'me@example.com';
+const B = 'ops@example.com';
 
 let dir: string;
 let configPath: string;
 
-const writeConfig = (reportOnly: boolean) => {
+const writeConfig = (
+  reportOnly: boolean,
+  accounts: { email: string; reportOnly?: boolean }[] = [{ email: A }],
+) => {
   fs.writeFileSync(
     configPath,
     JSON.stringify({
       instance: { name: 'test', baseDir: '/base' },
       pipeline: {
-        accounts: [{ email: A, type: 'gmail', emailPolling: true }],
+        accounts: accounts.map((a) => ({
+          ...a,
+          type: 'gmail',
+          emailPolling: true,
+        })),
         buckets: { domains: [], priority: ['clients'] },
         refs: {},
         emailConfig: { reportOnly, digest: { slackChannelId: '' } },
@@ -94,8 +102,38 @@ describe('email-apply-labels', () => {
     expect(process.exitCode).toBe(1);
     expect(factory).not.toHaveBeenCalled();
     expect(error).toHaveBeenCalledWith(
-      expect.stringContaining('reportOnly is on'),
+      expect.stringContaining('every target account is report-only'),
     );
+  });
+
+  it('refuses when the one target account is report-only on its own', () => {
+    writeConfig(false, [{ email: A, reportOnly: true }, { email: B }]);
+    const error = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    const factory = vi.fn();
+    emailApplyLabels(flagsOf(['--config', configPath, '--account', A]), {
+      client: factory,
+    });
+    expect(process.exitCode).toBe(1);
+    expect(factory).not.toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining('every target account is report-only'),
+    );
+  });
+
+  it('skips a report-only account and catches up the others', () => {
+    writeConfig(false, [{ email: A, reportOnly: true }, { email: B }]);
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    const { client, enqueue } = fakeClient();
+    run([], client);
+    expect(process.exitCode).toBeUndefined();
+    expect(enqueue).toHaveBeenCalledTimes(2);
+    expect(enqueue.mock.calls.map((c) => (c as unknown[])[1])).toEqual([
+      expect.objectContaining({ account: B }),
+      expect.objectContaining({ account: B }),
+    ]);
+    expect(log).toHaveBeenCalledWith(`${A}: report-only, skipped`);
   });
 
   it('allows a dry run while reportOnly is on', () => {
@@ -179,7 +217,9 @@ describe('formatApplyLabels', () => {
     expect(
       formatApplyLabels({
         dryRun: false,
-        accounts: [{ account: A, scanned: 3, threads: 0, labels: {} }],
+        accounts: [
+          { account: A, reportOnly: false, scanned: 3, threads: 0, labels: {} },
+        ],
         labels: 0,
         truncated: true,
       }),
@@ -188,5 +228,26 @@ describe('formatApplyLabels', () => {
       'apply-labels: enqueued 0 labels; drain-updates applies them',
       'apply-labels: stopped at --max; run again to continue',
     ]);
+  });
+
+  it('marks a report-only account in a dry run', () => {
+    expect(
+      formatApplyLabels({
+        dryRun: true,
+        accounts: [
+          {
+            account: A,
+            reportOnly: true,
+            scanned: 1,
+            threads: 1,
+            labels: { receipt: 1 },
+          },
+        ],
+        labels: 1,
+        truncated: false,
+      })[0],
+    ).toBe(
+      `${A}: 1 of 1 threads need labels (receipt 1); report-only, skipped outside a dry run`,
+    );
   });
 });

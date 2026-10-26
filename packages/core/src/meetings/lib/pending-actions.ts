@@ -1,11 +1,13 @@
 /**
  * @module meetings/lib/pending-actions
  *
- * Defers the Gmail actions of meetings packaged while
- * `emailConfig.reportOnly` is on, and catches them up once it is off.
+ * Defers the Gmail actions of meetings packaged while their account is
+ * report-only (`emailConfig.reportOnly` or `accounts[].reportOnly`), and
+ * catches them up once it is not. Records of accounts still report-only
+ * stay pending.
  *
  * The record is a *pending* marker, written only when a new meeting's
- * actions are suppressed by `reportOnly`. It starts empty, so meetings
+ * actions are suppressed by report-only. It starts empty, so meetings
  * packaged before this module existed are never caught up: there is no
  * migration and no risk of mass-archiving old mail.
  *
@@ -20,6 +22,7 @@
 
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';
 
+import type { ReportOnlyPolicy } from '../../config/index.js';
 import {
   enqueueMeetingEmailActions,
   type MeetingEmailActionOptions,
@@ -57,8 +60,8 @@ export function messageKey(m: PendingMessage): string {
 }
 
 /**
- * Handle a newly packaged meeting's Gmail actions: enqueue them, or, under
- * `reportOnly`, record them as pending for a later catch-up.
+ * Handle a newly packaged meeting's Gmail actions: enqueue them, or, when
+ * its account is report-only, record them as pending for a later catch-up.
  *
  * @returns How many actions were queued, and whether they were deferred.
  */
@@ -66,10 +69,10 @@ export function handleNewMeetingEmailActions(
   client: Pick<RunnerClient, 'setItem' | 'enqueue'>,
   sourceKey: string,
   ref: MeetingMessageRef,
-  options: MeetingEmailActionOptions & { reportOnly: boolean },
+  options: MeetingEmailActionOptions & { reportOnly: ReportOnlyPolicy },
 ): { queued: number; deferred: boolean } {
   const { reportOnly, ...actionOptions } = options;
-  if (reportOnly) {
+  if (reportOnly(ref.account)) {
     deferMeetingEmailActions(client, sourceKey, ref);
     return { queued: 0, deferred: true };
   }
@@ -79,7 +82,7 @@ export function handleNewMeetingEmailActions(
   };
 }
 
-/** Record that a new meeting's Gmail actions were suppressed by reportOnly. */
+/** Record that a new meeting's Gmail actions were suppressed by report-only. */
 export function deferMeetingEmailActions(
   client: Pick<RunnerClient, 'setItem'>,
   sourceKey: string,
@@ -133,7 +136,7 @@ export interface CatchUpResult {
 
 /**
  * Enqueue the actions of up to `limit` pending meetings, then clear their
- * markers. Call only when `reportOnly` is off.
+ * markers. Meetings whose account is still report-only are left pending.
  *
  * @param currentLabels - current Gmail labels by {@link messageKey}, from
  *   the thread cache scanned this run.
@@ -141,9 +144,13 @@ export interface CatchUpResult {
 export function catchUpMeetingEmailActions(
   client: PendingClient,
   currentLabels: ReadonlyMap<string, string[]>,
-  options: MeetingEmailActionOptions & { limit?: number } = {},
+  options: MeetingEmailActionOptions & {
+    limit?: number;
+    /** Effective report-only flag per account (`reportOnlyFor`). */
+    reportOnly: ReportOnlyPolicy;
+  },
 ): CatchUpResult {
-  const { limit = CATCH_UP_PER_RUN, ...actionOptions } = options;
+  const { limit = CATCH_UP_PER_RUN, reportOnly, ...actionOptions } = options;
   const keys = client.listItemKeys(PENDING_NAMESPACE, PENDING_COLLECTION);
   let caughtUp = 0;
   let queued = 0;
@@ -152,12 +159,13 @@ export function catchUpMeetingEmailActions(
     if (caughtUp >= limit) break;
     const raw = client.getItem(PENDING_NAMESPACE, PENDING_COLLECTION, key);
     const pending = parsePending(raw);
+    if (pending && reportOnly(pending.account)) continue;
     if (pending) {
       const labels = currentLabels.get(messageKey(pending)) ?? [];
       queued += enqueueMeetingEmailActions(
         client,
         { ...pending, labels },
-        false,
+        reportOnly,
         actionOptions,
       );
       caughtUp++;

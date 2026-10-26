@@ -10,6 +10,11 @@ vi.mock('./email-triage.js', () => ({
   classifyCandidates: () => ({ receiptCandidate: true, junkCandidate: false }),
 }));
 
+import {
+  allReportOnly,
+  noneReportOnly,
+  reportOnlyAccounts,
+} from '../../config/report-only.test-helper.js';
 import type { EmailStoreClient } from '../email-state.js';
 import {
   BACKFILL_STATE_NAMESPACE,
@@ -17,7 +22,6 @@ import {
   backfillCursorKey,
   type BackfillDeps,
   backfillQuery,
-  nextBackfillWindow,
 } from './backfill-window.js';
 import { fetchThreadMetadata } from './email-fetch.js';
 import type { GogRunner } from './gmail-search.js';
@@ -79,49 +83,15 @@ function deps(
   gog: GogRunner,
   over: Partial<BackfillDeps> = {},
 ): BackfillDeps {
-  return { client, gog, now: NOW, live: true, reportOnly: false, ...over };
+  return {
+    client,
+    gog,
+    now: NOW,
+    live: true,
+    reportOnly: noneReportOnly,
+    ...over,
+  };
 }
-
-describe('nextBackfillWindow', () => {
-  it('starts at now when there is no cursor', () => {
-    expect(nextBackfillWindow(null, NOW, SETTINGS)).toEqual({
-      after: new Date(NOW.getTime() - 4 * DAY),
-      before: NOW,
-    });
-  });
-
-  it('clamps the last window to the lookback limit', () => {
-    const cursor = new Date(NOW.getTime() - 8 * DAY).toISOString();
-    expect(nextBackfillWindow(cursor, NOW, SETTINGS)).toEqual({
-      after: new Date(NOW.getTime() - 10 * DAY),
-      before: new Date(cursor),
-    });
-  });
-
-  it('returns null at or past the lookback limit', () => {
-    const at = new Date(NOW.getTime() - 10 * DAY).toISOString();
-    const past = new Date(NOW.getTime() - 11 * DAY).toISOString();
-    expect(nextBackfillWindow(at, NOW, SETTINGS)).toBeNull();
-    expect(nextBackfillWindow(past, NOW, SETTINGS)).toBeNull();
-  });
-
-  it('rejects a corrupt cursor', () => {
-    expect(() => nextBackfillWindow('garbage', NOW, SETTINGS)).toThrow(
-      /Invalid backfill cursor "garbage"/,
-    );
-  });
-});
-
-describe('backfillQuery', () => {
-  it('uses epoch seconds, flooring sub-second instants', () => {
-    expect(
-      backfillQuery({
-        after: new Date('2026-01-01T00:00:00Z'),
-        before: new Date('2026-01-02T00:00:00.999Z'),
-      }),
-    ).toBe('after:1767225600 before:1767312000');
-  });
-});
 
 describe('backfillAccount', () => {
   it('walks back one window per run, then no-ops', () => {
@@ -201,23 +171,25 @@ describe('backfillAccount', () => {
       ACCOUNT,
       SETTINGS,
       deps(client, pagedGog([{ ids: ['n'], next: '' }]), {
-        reportOnly: true,
+        reportOnly: allReportOnly,
         fetchMetadata,
       }),
     );
     expect(fetchMetadata).toHaveBeenCalledWith(
-      expect.objectContaining({ threadId: 'n', reportOnly: true }),
+      expect.objectContaining({ threadId: 'n', reportOnly: allReportOnly }),
     );
     expect(vi.mocked(fetchThreadMetadata)).not.toHaveBeenCalled();
   });
 
-  it('reportOnly: ingests but enqueues no Gmail label actions', () => {
+  it('a report-only account (global flag off): ingests but enqueues no Gmail label actions', () => {
     const { client, items, queue } = fakeClient();
     const gog = pagedGog([{ ids: ['new1'], next: '' }]);
     const r = backfillAccount(
       ACCOUNT,
       SETTINGS,
-      deps(client, gog, { reportOnly: true }),
+      deps(client, gog, {
+        reportOnly: reportOnlyAccounts(ACCOUNT),
+      }),
     );
     expect(queue).toEqual([]);
     expect(r).toMatchObject({ new: 1, labelsPlanned: 1, labelsEnqueued: 0 });

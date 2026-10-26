@@ -76,14 +76,40 @@ describe('pollEmail', () => {
     expect(d.pollGog).toHaveBeenCalledWith({
       account: 'a@x.com',
       client: runner.client,
-      reportOnly: true,
+      reportOnly: expect.any(Function) as unknown,
       query: 'in:anywhere',
       max: 100,
     });
     expect(console.log).toHaveBeenCalledWith(
-      '[gog] reportOnly: no Gmail label actions will be enqueued',
+      '[gog] a@x.com reportOnly: no Gmail label actions will be enqueued',
     );
     expect(runner.closed()).toBe(true);
+  });
+
+  it('resolves report-only per account when the global flag is off', async () => {
+    const d = deps({
+      config: () => ({
+        accounts: [
+          { ...gmail('shared@x.com'), reportOnly: true },
+          gmail('a@x.com'),
+        ],
+        emailConfig: { reportOnly: false, digest: { slackChannelId: '' } },
+      }),
+    });
+    await pollEmail(d);
+    const policies = vi
+      .mocked(d.pollGog)
+      .mock.calls.map(([ctx]) => [ctx.account, ctx.reportOnly(ctx.account)]);
+    expect(policies).toEqual([
+      ['shared@x.com', true],
+      ['a@x.com', false],
+    ]);
+    expect(console.log).toHaveBeenCalledWith(
+      '[gog] shared@x.com reportOnly: no Gmail label actions will be enqueued',
+    );
+    expect(console.log).not.toHaveBeenCalledWith(
+      '[gog] a@x.com reportOnly: no Gmail label actions will be enqueued',
+    );
   });
 
   it('logs an IMAP failure and still polls gog', async () => {

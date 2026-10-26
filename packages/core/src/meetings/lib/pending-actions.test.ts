@@ -5,6 +5,10 @@ vi.mock('@karmaniverous/jeeves', () => ({
 }));
 
 import {
+  noneReportOnly,
+  reportOnlyAccounts,
+} from '../../config/report-only.test-helper.js';
+import {
   EMAIL_UPDATES_QUEUE,
   type EmailUpdateAction,
 } from '../../email/google-workspace/label-actions.js';
@@ -69,8 +73,12 @@ function fakeClient() {
   return { client, queued, pending, invalid };
 }
 
-const msg = (id: string) => ({
-  account: 'me@example.com',
+const ME = 'me@example.com';
+const OTHER = 'other@example.com';
+const none = { reportOnly: noneReportOnly };
+
+const msg = (id: string, account = ME) => ({
+  account,
   threadId: `t-${id}`,
   messageId: id,
 });
@@ -82,7 +90,7 @@ describe('handleNewMeetingEmailActions', () => {
       client,
       'k-a',
       { ...msg('a'), labels: ['INBOX'] },
-      { reportOnly: false },
+      none,
     );
     expect(res).toEqual({ queued: 2, deferred: false });
     expect(queued.map((q) => q.action)).toEqual(['addLabel', 'archive']);
@@ -95,18 +103,30 @@ describe('handleNewMeetingEmailActions', () => {
       client,
       'k-a',
       { ...msg('a'), labels: ['INBOX'] },
-      { reportOnly: false, archive: false },
+      { ...none, archive: false },
     );
     expect(queued.map((q) => q.action)).toEqual(['addLabel']);
   });
 
-  it('defers under reportOnly: nothing enqueued, message recorded as pending', () => {
+  it('enqueues when only another account is report-only', () => {
+    const { client, queued, pending } = fakeClient();
+    handleNewMeetingEmailActions(
+      client,
+      'k-a',
+      { ...msg('a'), labels: ['INBOX'] },
+      { reportOnly: reportOnlyAccounts(OTHER) },
+    );
+    expect(queued.map((q) => q.action)).toEqual(['addLabel', 'archive']);
+    expect(pending().size).toBe(0);
+  });
+
+  it('defers for a report-only account: nothing enqueued, message recorded as pending', () => {
     const { client, queued, pending } = fakeClient();
     const res = handleNewMeetingEmailActions(
       client,
       'k-a',
       { ...msg('a'), labels: ['INBOX'] },
-      { reportOnly: true },
+      { reportOnly: reportOnlyAccounts(ME) },
     );
     expect(res).toEqual({ queued: 0, deferred: true });
     expect(queued).toHaveLength(0);
@@ -128,7 +148,7 @@ describe('deferMeetingEmailActions', () => {
 describe('catchUpMeetingEmailActions', () => {
   it('does nothing when nothing is pending (no migration of old meetings)', () => {
     const { client, queued } = fakeClient();
-    expect(catchUpMeetingEmailActions(client, new Map())).toEqual({
+    expect(catchUpMeetingEmailActions(client, new Map(), none)).toEqual({
       caughtUp: 0,
       queued: 0,
       remaining: 0,
@@ -145,7 +165,7 @@ describe('catchUpMeetingEmailActions', () => {
       [messageKey(msg('a')), ['INBOX']],
       [messageKey(msg('b')), ['INBOX', 'watch']],
     ]);
-    const r = catchUpMeetingEmailActions(client, labels);
+    const r = catchUpMeetingEmailActions(client, labels, none);
     expect(r).toEqual({ caughtUp: 2, queued: 3, remaining: 0, invalid: [] });
     expect(queued.map((q) => `${q.messageId}:${q.action}`)).toEqual([
       'a:addLabel',
@@ -158,7 +178,7 @@ describe('catchUpMeetingEmailActions', () => {
   it('labels only when the message is no longer in the cache', () => {
     const { client, queued } = fakeClient();
     deferMeetingEmailActions(client, 'k-a', msg('a'));
-    catchUpMeetingEmailActions(client, new Map());
+    catchUpMeetingEmailActions(client, new Map(), none);
     expect(queued.map((q) => q.action)).toEqual(['addLabel']);
   });
 
@@ -168,7 +188,7 @@ describe('catchUpMeetingEmailActions', () => {
     catchUpMeetingEmailActions(
       client,
       new Map([[messageKey(msg('a')), ['INBOX']]]),
-      { archive: false },
+      { archive: false, ...none },
     );
     expect(queued.map((q) => q.action)).toEqual(['addLabel']);
   });
@@ -177,30 +197,44 @@ describe('catchUpMeetingEmailActions', () => {
     const { client, queued } = fakeClient();
     for (const id of ['a', 'b', 'c'])
       deferMeetingEmailActions(client, `k-${id}`, msg(id));
-    expect(catchUpMeetingEmailActions(client, new Map(), { limit: 2 })).toEqual(
-      {
-        caughtUp: 2,
-        queued: 2,
-        remaining: 1,
-        invalid: [],
-      },
-    );
-    expect(catchUpMeetingEmailActions(client, new Map(), { limit: 2 })).toEqual(
-      {
-        caughtUp: 1,
-        queued: 1,
-        remaining: 0,
-        invalid: [],
-      },
-    );
+    expect(
+      catchUpMeetingEmailActions(client, new Map(), { limit: 2, ...none }),
+    ).toEqual({
+      caughtUp: 2,
+      queued: 2,
+      remaining: 1,
+      invalid: [],
+    });
+    expect(
+      catchUpMeetingEmailActions(client, new Map(), { limit: 2, ...none }),
+    ).toEqual({
+      caughtUp: 1,
+      queued: 1,
+      remaining: 0,
+      invalid: [],
+    });
     expect(queued).toHaveLength(3);
+  });
+
+  it('leaves a report-only account pending, outside the cap, and catches up the others', () => {
+    const { client, queued, pending } = fakeClient();
+    deferMeetingEmailActions(client, 'k-o1', msg('o1', OTHER));
+    deferMeetingEmailActions(client, 'k-o2', msg('o2', OTHER));
+    deferMeetingEmailActions(client, 'k-a', msg('a'));
+    const r = catchUpMeetingEmailActions(client, new Map(), {
+      limit: 1,
+      reportOnly: reportOnlyAccounts(OTHER),
+    });
+    expect(r).toEqual({ caughtUp: 1, queued: 1, remaining: 2, invalid: [] });
+    expect(queued.map((q) => q.messageId)).toEqual(['a']);
+    expect([...pending().keys()]).toEqual(['k-o1', 'k-o2']);
   });
 
   it('is idempotent: a second pass enqueues nothing', () => {
     const { client, queued } = fakeClient();
     deferMeetingEmailActions(client, 'k-a', msg('a'));
-    catchUpMeetingEmailActions(client, new Map());
-    catchUpMeetingEmailActions(client, new Map());
+    catchUpMeetingEmailActions(client, new Map(), none);
+    catchUpMeetingEmailActions(client, new Map(), none);
     expect(queued).toHaveLength(1);
   });
 
@@ -208,7 +242,7 @@ describe('catchUpMeetingEmailActions', () => {
     const { client, queued, pending, invalid } = fakeClient();
     pending().set('bad', '{"account":1}');
     deferMeetingEmailActions(client, 'k-a', msg('a'));
-    const res = catchUpMeetingEmailActions(client, new Map());
+    const res = catchUpMeetingEmailActions(client, new Map(), none);
     expect(res).toMatchObject({ caughtUp: 1, invalid: ['bad'], remaining: 0 });
     expect(queued.map((q) => q.messageId)).toEqual(['a']);
     expect(pending().size).toBe(0);
@@ -218,8 +252,10 @@ describe('catchUpMeetingEmailActions', () => {
   it('quarantined records are not retried by later runs', () => {
     const { client, queued, invalid } = fakeClient();
     client.setItem(PENDING_NAMESPACE, PENDING_COLLECTION, 'bad', 'not json');
-    catchUpMeetingEmailActions(client, new Map());
-    expect(catchUpMeetingEmailActions(client, new Map()).invalid).toEqual([]);
+    catchUpMeetingEmailActions(client, new Map(), none);
+    expect(catchUpMeetingEmailActions(client, new Map(), none).invalid).toEqual(
+      [],
+    );
     expect(queued).toHaveLength(0);
     expect(invalid().size).toBe(1);
   });

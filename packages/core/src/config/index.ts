@@ -50,6 +50,11 @@ export {
 } from './pipeline-accessors.js';
 export * from './pipeline-email-schema.js';
 export * from './pipeline-schema.js';
+export {
+  type ReportOnlyConfig,
+  reportOnlyFor,
+  type ReportOnlyPolicy,
+} from './report-only.js';
 export { type ScheduleInput, scheduleSchema } from './schedule-schema.js';
 export * from './schema.js';
 export {

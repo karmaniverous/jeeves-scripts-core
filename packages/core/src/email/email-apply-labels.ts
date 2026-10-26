@@ -5,9 +5,10 @@
  * `--since <date>`, `--account <id>`, `--max <n>`, `--dry-run` and
  * `--config <file>`: the classification-label catch-up (`google-workspace/apply-labels.ts`).
  * Reads the instance config and the runner store; outside a dry run it
- * enqueues `email-updates` items for drain-updates. Refuses (exit 1) while
- * `emailConfig.reportOnly` is on, except as a dry run; an invalid option or
- * an unknown account also exits 1. Run with
+ * enqueues `email-updates` items for drain-updates. Report-only accounts
+ * (`emailConfig.reportOnly` or `accounts[].reportOnly`) are skipped; when
+ * every target account is report-only it refuses (exit 1), except as a dry
+ * run. An invalid option or an unknown account also exits 1. Run with
  * `jeeves-scripts run email-apply-labels`; it has no manifest.
  */
 
@@ -18,6 +19,7 @@ import {
   getGmailAccounts,
   type LoadConfigOptions,
   pipeline,
+  reportOnlyFor,
   resetConfig,
 } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
@@ -49,10 +51,12 @@ export const parseMax = (value: string): number => {
 export const formatApplyLabels = (r: ApplyLabelsResult): string[] => {
   const verb = r.dryRun ? 'would enqueue' : 'enqueued';
   const lines = r.accounts.map((a) => {
+    if (a.reportOnly && !r.dryRun) return `${a.account}: report-only, skipped`;
     const labels = Object.entries(a.labels)
       .map(([l, n]) => `${l} ${String(n)}`)
       .join(', ');
-    return `${a.account}: ${String(a.threads)} of ${String(a.scanned)} threads need labels${labels ? ` (${labels})` : ''}`;
+    const note = a.reportOnly ? '; report-only, skipped outside a dry run' : '';
+    return `${a.account}: ${String(a.threads)} of ${String(a.scanned)} threads need labels${labels ? ` (${labels})` : ''}${note}`;
   });
   lines.push(
     `apply-labels: ${verb} ${String(r.labels)} labels${r.dryRun ? ' (dry run)' : '; drain-updates applies them'}`,
@@ -124,13 +128,7 @@ export function emailApplyLabels(
   // schema loads it at registration), so an explicit --config replaces it.
   if (options.config) resetConfig();
   const opts: LoadConfigOptions = { configPath: options.config };
-  const { reportOnly } = pipeline(opts).emailConfig;
-  if (reportOnly && !options.dryRun) {
-    fail(
-      'emailConfig.reportOnly is on, so nothing may be written back to Gmail. Turn it off first, or use --dry-run.',
-    );
-    return;
-  }
+  const reportOnly = reportOnlyFor(pipeline(opts));
   const all = getGmailAccounts(opts);
   if (options.account && !all.includes(options.account)) {
     fail(
@@ -138,11 +136,22 @@ export function emailApplyLabels(
     );
     return;
   }
+  const accounts = options.account ? [options.account] : all;
+  if (
+    !options.dryRun &&
+    accounts.length > 0 &&
+    accounts.every((a) => reportOnly(a))
+  ) {
+    fail(
+      'every target account is report-only (emailConfig.reportOnly or accounts[].reportOnly), so nothing may be written back to Gmail. Turn it off first, or use --dry-run.',
+    );
+    return;
+  }
   const client = (deps.client ?? getRunnerClient)();
   try {
     const result = applyPendingLabels({
       client,
-      accounts: options.account ? [options.account] : all,
+      accounts,
       buckets: getBucketNames(opts),
       since: options.since,
       dryRun: options.dryRun,

@@ -4,6 +4,7 @@ vi.mock('@karmaniverous/jeeves', () => ({
   nowIso: () => '2026-10-04T00:00:00.000Z',
 }));
 
+import type { ReportOnlyPolicy } from '../../config/index.js';
 import {
   curationSignalActions,
   EMAIL_UPDATES_QUEUE,
@@ -19,7 +20,10 @@ const STAMP = '2026-10-04T00:00:00.000Z';
 const none = { oauthClient: false, serviceAccount: false, any: false };
 const sa = { oauthClient: false, serviceAccount: true, any: true };
 
-function opts(reportOnly: boolean) {
+const off: ReportOnlyPolicy = () => false;
+const on: ReportOnlyPolicy = () => true;
+
+function opts(reportOnly: ReportOnlyPolicy) {
   return {
     account: 'me@example.com',
     threadId: 't1',
@@ -44,7 +48,7 @@ const action: EmailUpdateAction = {
 describe('enqueueEmailUpdates', () => {
   it('enqueues each action with one createdAt stamp', () => {
     const client = { enqueue: vi.fn(() => 1) };
-    expect(enqueueEmailUpdates(client, [action, action], false)).toBe(STAMP);
+    expect(enqueueEmailUpdates(client, [action, action], off)).toBe(STAMP);
     expect(client.enqueue).toHaveBeenCalledTimes(2);
     expect(client.enqueue).toHaveBeenCalledWith(EMAIL_UPDATES_QUEUE, {
       ...action,
@@ -54,16 +58,30 @@ describe('enqueueEmailUpdates', () => {
 
   it('enqueues nothing in reportOnly or when there are no actions', () => {
     const client = { enqueue: vi.fn(() => 1) };
-    expect(enqueueEmailUpdates(client, [action], true)).toBeNull();
-    expect(enqueueEmailUpdates(client, [], false)).toBeNull();
+    expect(enqueueEmailUpdates(client, [action], on)).toBeNull();
+    expect(enqueueEmailUpdates(client, [], off)).toBeNull();
     expect(client.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("drops a report-only account's actions and keeps the others'", () => {
+    const client = { enqueue: vi.fn(() => 1) };
+    const shared = { ...action, account: 'shared@example.com' };
+    const policy: ReportOnlyPolicy = (a) => a === 'shared@example.com';
+    expect(enqueueEmailUpdates(client, [shared, action], policy)).toBe(STAMP);
+    expect(client.enqueue).toHaveBeenCalledTimes(1);
+    expect(client.enqueue).toHaveBeenCalledWith(EMAIL_UPDATES_QUEUE, {
+      ...action,
+      createdAt: STAMP,
+    });
+    expect(enqueueEmailUpdates(client, [shared], policy)).toBeNull();
+    expect(client.enqueue).toHaveBeenCalledTimes(1);
   });
 });
 
 describe('enqueueLabelActions', () => {
   it('enqueues one addLabel per label when not reportOnly', () => {
     const client = { enqueue: vi.fn(() => 1) };
-    const r = enqueueLabelActions(client, opts(false));
+    const r = enqueueLabelActions(client, opts(off));
     expect(client.enqueue).toHaveBeenCalledTimes(2);
     expect(client.enqueue).toHaveBeenCalledWith(EMAIL_UPDATES_QUEUE, {
       account: 'me@example.com',
@@ -84,16 +102,33 @@ describe('enqueueLabelActions', () => {
 
   it('enqueues nothing and records nothing in reportOnly', () => {
     const client = { enqueue: vi.fn(() => 1) };
-    const r = enqueueLabelActions(client, opts(true));
+    const r = enqueueLabelActions(client, opts(on));
+    expect(client.enqueue).not.toHaveBeenCalled();
+    expect(r).toEqual({ applied: {}, planned: 2, enqueued: 0 });
+  });
+
+  it("looks up the account's own flag", () => {
+    const client = { enqueue: vi.fn(() => 1) };
+    const seen: string[] = [];
+    const r = enqueueLabelActions(
+      client,
+      opts((a) => {
+        seen.push(a);
+        return a === 'me@example.com';
+      }),
+    );
+    expect(seen).toContain('me@example.com');
     expect(client.enqueue).not.toHaveBeenCalled();
     expect(r).toEqual({ applied: {}, planned: 2, enqueued: 0 });
   });
 
   it('reports nothing planned for an empty label list', () => {
     const client = { enqueue: vi.fn(() => 1) };
-    expect(enqueueLabelActions(client, { ...opts(false), labels: [] })).toEqual(
-      { applied: {}, planned: 0, enqueued: 0 },
-    );
+    expect(enqueueLabelActions(client, { ...opts(off), labels: [] })).toEqual({
+      applied: {},
+      planned: 0,
+      enqueued: 0,
+    });
   });
 });
 
