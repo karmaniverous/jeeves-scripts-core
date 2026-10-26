@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.2] - 2026-10-26
+
+### 💼 Other
+
+- [51] feat(email): per-account reportOnly (accounts[].reportOnly)
+
+Add optional pipeline.accounts[].reportOnly. An account's effective flag is emailConfig.reportOnly || accounts[].reportOnly === true, resolved by the new reportOnlyFor(pipeline) (config/report-only.ts) and used by every reader. The email-updates gate (label-actions enqueueEmailUpdates/enqueueLabelActions) drops each action whose own account is report-only; poll, backfill-historical, email-fetch, apply-labels, email-respond and meetings extract/catch-up all take the per-account policy. drain-updates drops (and logs) queued items for an account that is report-only on its own, without calling gog. email-apply-labels skips report-only accounts and refuses only when every target account is report-only.
+- [51] docs(email): per-account reportOnly in guides, meetings job and jeeves-email skill
 ## [0.2.1] - 2026-10-18
 
 ### 💼 Other
@@ -14,6 +22,10 @@ Closes #37
 - [37] fix(slack): read history a page at a time within the channel budget (#37)
 
 fetchHistory fetched every page (1.2 s apart) before writing anything, so a long backlog could still outlast the job timeout without saving a position. fetchHistoryPage reads one page just after oldest (Slack anchors to oldest when latest is unset); pollChannel fetches each next page from the position just saved and checks the budget between pages. Addresses Copilot review on #39.
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-scripts-core v0.2.1
 ## [0.2.0] - 2026-10-18
 
 ### 💼 Other
