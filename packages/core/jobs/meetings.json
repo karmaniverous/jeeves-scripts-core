@@ -1,7 +1,7 @@
 {
   "meetings-extract": {
     "name": "Meetings Extract",
-    "description": "Scan email cache for meeting-related threads and extract structured meeting packages. For each new meeting, enqueues the Gmail meeting label (and an archive if in the inbox and not watched) on email-updates; nothing when emailConfig.reportOnly is true.",
+    "description": "Scan email cache for meeting-related threads and extract structured meeting packages. For each new meeting, enqueues the Gmail meeting label (and an archive if in the inbox and not watched) on email-updates; nothing while the account is report-only (emailConfig.reportOnly or accounts[].reportOnly).",
     "schedule": {
       "freq": "minutely",
       "interval": 13,

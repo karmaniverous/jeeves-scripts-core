@@ -122,6 +122,12 @@ The schema rejects a literal secret value anywhere in the file, including under 
       "emailPolling": true
     },
     {
+      "email": "shared@example.com",
+      "type": "gmail",
+      "emailPolling": true,
+      "reportOnly": true
+    },
+    {
       "email": "user@imap.example.com",
       "type": "imap",
       "emailPolling": true,
@@ -147,14 +153,15 @@ The schema rejects a literal secret value anywhere in the file, including under 
 }
 ```
 
-- `accounts[]` (required): `email`, `type` (`gmail` | `imap`), `emailPolling` (required); `calendar`, `imap`, `folders` optional. An account with an `imap` block is polled over IMAP (a `gmail` one with Gmail extensions), the rest through gog. `folders` (IMAP only) defaults to `[Gmail]/All Mail`, `[Gmail]/Spam` and `[Gmail]/Trash` for `gmail` accounts and every listed folder otherwise. `imap.password` must be `{ "secretRef": "<name>" }` (a literal password is a config error); see [Secrets](#secrets) and [email](./email.md#imap-passwords).
+- `accounts[]` (required): `email`, `type` (`gmail` | `imap`), `emailPolling` (required); `calendar`, `imap`, `folders`, `reportOnly` optional. An account with an `imap` block is polled over IMAP (a `gmail` one with Gmail extensions), the rest through gog. `folders` (IMAP only) defaults to `[Gmail]/All Mail`, `[Gmail]/Spam` and `[Gmail]/Trash` for `gmail` accounts and every listed folder otherwise. `imap.password` must be `{ "secretRef": "<name>" }` (a literal password is a config error); see [Secrets](#secrets) and [email](./email.md#imap-passwords).
+- `accounts[].reportOnly` (optional boolean): `true` ingests this one account but never writes back to its mailbox, while the others are still labelled; use it for a mailbox authorised with a read-only token, or one other people watch. It can only opt an account in: an account's effective flag is `emailConfig.reportOnly || accounts[].reportOnly === true` (`reportOnlyFor(pipeline)` resolves it; every email and meetings job uses it). Unlike the global flag, `drain-updates` drops (and logs) any item already queued for such an account instead of leaving it pending, since a read-only token would fail it on every run. See [email](./email.md#report-only).
 - `accounts[].calendar`: `{ "serviceAccount": "auto" }` (Workspace mailbox, gog's service account) or `{ "tokenFile": "<path relative to credentialsDir>" }` (OAuth refresh token). See [calendar](./calendar.md#account-configuration).
 - `buckets.domains[]` maps email domains (`pattern`, case-insensitive) to buckets; `buckets.priority` orders bucket names (first = highest). Bucket names are also the Gmail labels classification applies (`getBucketNames()`); none is hard-coded.
 - `refs`: dotted key → string, read with `getRef(key)` (throws when missing) or `tryGetRef(key)` (`''` when missing). Refs are per-instance ids and settings (Slack channel ids, Notion database ids, `digest.timezone`); there are no defaults and they are not secrets. Every ref is read with a literal key or a `*_REF` constant, so the refs an instance needs can be listed from an instance or core checkout with `grep -rhoE "(try)?[gG]etRef\('[^']+'\)|[A-Z_]+_REF = '[^']+'" src --include='*.ts' --exclude='*.test.ts' | sort -u`.
-- `emailConfig.reportOnly` (required): when `true`, mail is ingested but no Gmail mutation happens (no label actions from poll and historical backfill, no `meeting` label or archive from meeting extraction, none applied by drain-updates). Skipped actions are dropped, except meeting extraction's, which are caught up once `reportOnly` is off (see [meetings](./meetings.md#reportonly-catch-up)).
+- `emailConfig.reportOnly` (required): when `true`, every account is report-only: mail is ingested but no Gmail mutation happens (no label actions from poll and historical backfill, no `meeting` label or archive from meeting extraction, none applied by drain-updates, whose queue is left untouched). Skipped actions are dropped, except meeting extraction's, which are caught up once the account is no longer report-only (see [meetings](./meetings.md#reportonly-catch-up)). `accounts[].reportOnly` makes a single account report-only while this is `false`.
 - `emailConfig.digest` (required): `slackChannelId` for email digest delivery.
 - `emailConfig.backfill` (optional): `{ "accounts": [...], "lookbackDays": 90, "windowDays": 7 }`, all required when present, no defaults. Paced historical Gmail backfill (`email/backfill-historical`); each run searches one window per account, walking back until `lookbackDays`, then no-ops. `--accounts`, `--lookback-days`, `--window-days` override. Backfill accounts are included in `getGmailAccounts()`.
-- `emailConfig.meetings` (optional): `{ "archive": boolean }`, the Gmail action on a meeting's source email (`false`: label only; `true`: label and archive out of `INBOX`, never a watched one). Absent means `archive: true`. `reportOnly` overrides both.
+- `emailConfig.meetings` (optional): `{ "archive": boolean }`, the Gmail action on a meeting's source email (`false`: label only; `true`: label and archive out of `INBOX`, never a watched one). Absent means `archive: true`. A report-only account (either flag) overrides both.
 - `googleDrive` (optional): passed through unvalidated here and validated by the Drive job (`loadGoogleDriveConfig()`, `google-drive/lib/config`), so a mistake fails only that job. See [google-drive](./google-drive.md#configuration).
 
 ## Getters
@@ -167,6 +174,7 @@ The schema rejects a literal secret value anywhere in the file, including under 
 | `pipeline(options?)` | The `pipeline` block. Throws when the config has none. |
 | `getRef(key)` / `tryGetRef(key)` | A `pipeline.refs` value; `getRef` throws when missing, `tryGetRef` returns `''`. |
 | `getEmailAccounts()`, `getGmailAccounts()`, `getCalendarAccounts()` | Account lists from `pipeline.accounts`. |
+| `reportOnlyFor(pipeline)` | `(account) => boolean`: each account's effective report-only flag (`emailConfig.reportOnly \|\| accounts[].reportOnly === true`), matched on the trimmed, lowercased address; an address not in `accounts` follows the global flag. Pure. |
 | `getBucketNames()`, `getBucketForDomain(domain)`, `getBucketPriority(bucket)` | Bucket routing. |
 | `derivePaths(config)`, `deriveIntegrations(config)` | The same values from a config object, without the loader (pure; for tests). |
 

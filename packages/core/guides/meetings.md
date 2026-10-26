@@ -10,7 +10,7 @@ Meeting extraction from three independent sources — Google Meet (via email), F
 
 | Script | Description |
 | --- | --- |
-| `extract.ts` | Scans the email cache for meeting-related threads, detects source (Google Meet, Fathom), creates meeting packages with metadata and artifacts. For each new meeting it enqueues the Gmail `meeting` label (plus an archive if the message is in the inbox and not labelled `watch`, unless `emailConfig.meetings.archive` is `false`; see [the `pipeline` block](./config.md#the-pipeline-block)) on `email-updates` through the email pipeline's `label-actions.ts`, so nothing is enqueued when `emailConfig.reportOnly` is true. Those actions are deferred, not dropped: see [reportOnly catch-up](#reportonly-catch-up). Gemini transcripts are not fetched here; the package gets `gemini_link.txt` and `fetch-notes.ts` exports the Doc |
+| `extract.ts` | Scans the email cache for meeting-related threads, detects source (Google Meet, Fathom), creates meeting packages with metadata and artifacts. For each new meeting it enqueues the Gmail `meeting` label (plus an archive if the message is in the inbox and not labelled `watch`, unless `emailConfig.meetings.archive` is `false`; see [the `pipeline` block](./config.md#the-pipeline-block)) on `email-updates` through the email pipeline's `label-actions.ts`, so nothing is enqueued while the message's account is report-only (`emailConfig.reportOnly` or its own `accounts[].reportOnly`; see [email](./email.md#report-only)). Those actions are deferred, not dropped: see [reportOnly catch-up](#reportonly-catch-up). Gemini transcripts are not fetched here; the package gets `gemini_link.txt` and `fetch-notes.ts` exports the Doc |
 | `fetch-notes.ts` | Walks meeting directories, fetches Gemini doc transcripts (exported as the meeting's source mailbox, `meeting.json` `sources[0].account`) and Fathom transcripts for meetings that need them |
 | `ingest-notion.ts` | Polls a Notion inbox database, fetches meeting content via browser extraction, stages artifacts locally, archives the inbox page |
 
@@ -63,8 +63,8 @@ Each meeting lives in a directory under `{silo}/meetings/{meetingId}/`:
 | --- | --- |
 | `lib/meeting-schema.ts` | Canonical meeting.json Zod schema, `writeMeetingMeta()`, sort timestamp computation |
 | `lib/detect.ts` | Meeting detection — subject matching, title normalization, participant extraction, Fathom URL detection, meeting ID generation |
-| `lib/email-actions.ts` | Gmail actions for a new meeting (`meeting` label, archive if in the inbox and not `watch`ed; archive switchable via `emailConfig.meetings.archive`), enqueued via `enqueueEmailUpdates` (the `reportOnly` gate) |
-| `lib/pending-actions.ts` | Enqueues a new meeting's Gmail actions, or defers them while `reportOnly` is on (`handleNewMeetingEmailActions`), and catches them up afterwards (see [reportOnly catch-up](#reportonly-catch-up)) |
+| `lib/email-actions.ts` | Gmail actions for a new meeting (`meeting` label, archive if in the inbox and not `watch`ed; archive switchable via `emailConfig.meetings.archive`), enqueued via `enqueueEmailUpdates` (the per-account report-only gate) |
+| `lib/pending-actions.ts` | Enqueues a new meeting's Gmail actions, or defers them while its account is report-only (`handleNewMeetingEmailActions`), and catches them up once it is not (see [reportOnly catch-up](#reportonly-catch-up)) |
 | `lib/package.ts` | Creates/updates meeting package directories and artifacts, manages runner-state index |
 | `lib/meetings-dirs.ts` | Discovers all meetings directories across silos via `getEntityDirs()` |
 | `lib/doc-fetch.ts` | Fetches Google Doc transcripts via `gog` CLI for meetings with `gemini_link.txt` |
@@ -78,12 +78,12 @@ Each meeting lives in a directory under `{silo}/meetings/{meetingId}/`:
 
 ## reportOnly catch-up
 
-While `emailConfig.reportOnly` is `true`, `extract.ts` still packages new meetings but enqueues none of their Gmail actions. Instead it records each new meeting as pending (runner state namespace `meetings`, collection `pendingEmailActions`, keyed by source key).
+While a meeting's account is report-only (`emailConfig.reportOnly` is `true`, or the account's own `accounts[].reportOnly` is), `extract.ts` still packages its new meetings but enqueues none of their Gmail actions. Instead it records each new meeting as pending (runner state namespace `meetings`, collection `pendingEmailActions`, keyed by source key).
 
-Once `reportOnly` is `false`, each run catches up to 20 pending meetings (`CATCH_UP_PER_RUN` in `lib/pending-actions.ts`), so a long `reportOnly` window drains gradually:
+Each run catches up to 20 pending meetings whose account is no longer report-only (`CATCH_UP_PER_RUN` in `lib/pending-actions.ts`), so a long report-only window drains gradually. Pending meetings of an account that is still report-only stay pending and do not count towards the 20:
 
 - Actions are built from the message's **current** labels in the thread cache. A message a human has since labelled `watch`, or already moved out of the inbox, is not archived. A message no longer in the cache gets the `meeting` label only.
 - The current `emailConfig.meetings.archive` setting applies.
-- Everything goes through `enqueueEmailUpdates`, the single `reportOnly` gate. A meeting's pending record is removed once its actions are enqueued, so nothing is enqueued twice.
+- Everything goes through `enqueueEmailUpdates`, the single per-account report-only gate. A meeting's pending record is removed once its actions are enqueued, so nothing is enqueued twice.
 
-Only meetings packaged under `reportOnly` after this behaviour was introduced are pending. Meetings packaged earlier have no record and are never caught up, so turning `reportOnly` off can't mass-archive old mail. A pending record that can't be read is moved, unchanged, to the `pendingEmailActionsInvalid` collection (same namespace) and named in a `WARNING` line in the run log. It is never retried: inspect it, then re-create or delete it by hand. To discard pending actions instead of applying them, delete the `pendingEmailActions` items in the `meetings` namespace before turning `reportOnly` off.
+Only meetings packaged while report-only after this behaviour was introduced are pending. Meetings packaged earlier have no record and are never caught up, so turning report-only off can't mass-archive old mail. A pending record that can't be read is moved, unchanged, to the `pendingEmailActionsInvalid` collection (same namespace) and named in a `WARNING` line in the run log. It is never retried: inspect it, then re-create or delete it by hand. To discard pending actions instead of applying them, delete the `pendingEmailActions` items in the `meetings` namespace before turning report-only off.
