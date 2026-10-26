@@ -119,6 +119,7 @@ const EXPECTED = [
   'readJsonFile',
   'readJsonFileIfExists',
   'relativeDays',
+  'reportOnlyFor',
   'requireTimeZone',
   'resetConfig',
   'resolveConfigPath',

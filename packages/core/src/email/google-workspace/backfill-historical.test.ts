@@ -29,10 +29,17 @@ let gogCalls: string[][];
 const deps = (
   over: Partial<BackfillHistoricalDeps> = {},
 ): BackfillHistoricalDeps => ({
-  emailConfig: () => ({
-    reportOnly: true,
-    digest: { slackChannelId: '' },
-    backfill: { accounts: ['me@example.com'], lookbackDays: 30, windowDays: 7 },
+  config: () => ({
+    accounts: [],
+    emailConfig: {
+      reportOnly: true,
+      digest: { slackChannelId: '' },
+      backfill: {
+        accounts: ['me@example.com'],
+        lookbackDays: 30,
+        windowDays: 7,
+      },
+    },
   }),
   requireGog: () => true,
   gog: (args) => {
@@ -65,7 +72,7 @@ describe('backfillHistorical', () => {
     expect(logs).toContain('Mode: DRY-RUN');
     expect(logs).toContain('Accounts: me@example.com');
     expect(logs).toContain('Lookback: 30 days, window: 7 days');
-    expect(logs).toContain('reportOnly: no Gmail label actions enqueued');
+    expect(logs).toContain('  reportOnly: no Gmail label actions enqueued');
     expect(logs).toContain('  Found:         1');
     expect(logs).toContain('\nRe-run with --live to process and advance.');
     expect(runner.state.size).toBe(0);
@@ -82,6 +89,40 @@ describe('backfillHistorical', () => {
     expect(logs).toContain('Accounts: other@example.com');
     expect(logs.some((l) => l.startsWith('  Cursor:'))).toBe(true);
     expect(gogCalls[0]).toContain('other@example.com');
+  });
+
+  it('resolves report-only per account', () => {
+    backfillHistorical(
+      flagsOf([
+        '--accounts',
+        'shared@example.com,other@example.com',
+        '--lookback-days',
+        '30',
+        '--window-days',
+        '7',
+      ]),
+      deps({
+        config: () => ({
+          accounts: [
+            {
+              email: 'shared@example.com',
+              type: 'gmail',
+              emailPolling: false,
+              reportOnly: true,
+            },
+          ],
+          emailConfig: { reportOnly: false, digest: { slackChannelId: '' } },
+        }),
+      }),
+    );
+    const at = (account: string) => logs.indexOf(`--- ${account} ---`);
+    const notice = logs.indexOf(
+      '  reportOnly: no Gmail label actions enqueued',
+    );
+    expect(notice).toBe(at('shared@example.com') + 1);
+    expect(
+      logs.lastIndexOf('  reportOnly: no Gmail label actions enqueued'),
+    ).toBe(notice);
   });
 
   it('stops at the lookback limit', () => {
@@ -108,6 +149,6 @@ describe('backfillHistorical', () => {
 
 describe('backfillHistoricalDeps', () => {
   it('reads the email config at run time', () => {
-    expect(backfillHistoricalDeps().emailConfig().reportOnly).toBe(true);
+    expect(backfillHistoricalDeps().config().emailConfig.reportOnly).toBe(true);
   });
 });

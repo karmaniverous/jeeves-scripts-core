@@ -13,7 +13,7 @@ describe('resolveDryRun', () => {
     ).toBe(false);
   });
 
-  it('treats emailConfig.reportOnly as a dry run', () => {
+  it("treats the mailbox's report-only flag as a dry run", () => {
     expect(
       resolveDryRun({
         respondDryRun: false,

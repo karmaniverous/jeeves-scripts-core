@@ -4,6 +4,10 @@ vi.mock('@karmaniverous/jeeves', () => ({
   nowIso: () => '2026-10-04T00:00:00.000Z',
 }));
 
+import {
+  noneReportOnly,
+  reportOnlyAccounts,
+} from '../../config/report-only.test-helper.js';
 import { EMAIL_UPDATES_QUEUE } from '../../email/google-workspace/label-actions.js';
 import {
   enqueueMeetingEmailActions,
@@ -56,9 +60,11 @@ describe('meetingEmailActions', () => {
 });
 
 describe('enqueueMeetingEmailActions', () => {
-  it('enqueues every action on email-updates when not reportOnly', () => {
+  it('enqueues every action on email-updates when not report-only', () => {
     const client = { enqueue: vi.fn(() => 1) };
-    expect(enqueueMeetingEmailActions(client, ref(['INBOX']), false)).toBe(2);
+    expect(
+      enqueueMeetingEmailActions(client, ref(['INBOX']), noneReportOnly),
+    ).toBe(2);
     expect(client.enqueue).toHaveBeenCalledTimes(2);
     expect(client.enqueue).toHaveBeenNthCalledWith(2, EMAIL_UPDATES_QUEUE, {
       ...base,
@@ -68,9 +74,15 @@ describe('enqueueMeetingEmailActions', () => {
     });
   });
 
-  it('enqueues nothing in reportOnly', () => {
+  it("enqueues nothing when the message's account is report-only", () => {
     const client = { enqueue: vi.fn(() => 1) };
-    expect(enqueueMeetingEmailActions(client, ref(['INBOX']), true)).toBe(0);
+    expect(
+      enqueueMeetingEmailActions(
+        client,
+        ref(['INBOX']),
+        reportOnlyAccounts(base.account),
+      ),
+    ).toBe(0);
     expect(client.enqueue).not.toHaveBeenCalled();
   });
 });
@@ -93,7 +105,7 @@ describe('meetingEmailActions with archive off', () => {
   it('enqueues only the label when archive is off', () => {
     const client = { enqueue: vi.fn(() => 1) };
     expect(
-      enqueueMeetingEmailActions(client, ref(['INBOX']), false, {
+      enqueueMeetingEmailActions(client, ref(['INBOX']), noneReportOnly, {
         archive: false,
       }),
     ).toBe(1);

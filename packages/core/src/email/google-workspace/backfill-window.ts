@@ -24,6 +24,7 @@
 
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';
 
+import type { ReportOnlyPolicy } from '../../config/index.js';
 import {
   type EmailStoreClient,
   getThreadState,
@@ -107,7 +108,8 @@ export interface BackfillDeps {
   gog: GogRunner;
   now: Date;
   live: boolean;
-  reportOnly: boolean;
+  /** Effective report-only flag per account (`reportOnlyFor`). */
+  reportOnly: ReportOnlyPolicy;
   fetchMetadata?: typeof fetchThreadMetadata;
   pageSize?: number;
 }

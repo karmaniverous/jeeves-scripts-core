@@ -31,6 +31,7 @@ const deps = (
   over: Partial<DrainUpdatesDeps> = {},
 ): DrainUpdatesDeps => ({
   reportOnly: false,
+  accountReportOnly: () => false,
   gmailAccounts: 1,
   gog: (args) => {
     gogCalls.push(args);
@@ -149,7 +150,43 @@ describe('drainUpdates', () => {
       processed: 3,
       succeeded: 3,
       failed: 0,
+      dropped: 0,
     });
+  });
+
+  it("drops a report-only account's queued items without calling gog, and applies the others", () => {
+    const SHARED = 'shared@example.com';
+    enqueue({ account: SHARED, action: 'addLabel', label: 'Receipts' });
+    enqueue({ account: SHARED, action: 'archive' });
+    enqueue({ action: 'archive' });
+    drainUpdates(deps(undefined, { accountReportOnly: (a) => a === SHARED }));
+    expect(gogCalls.every((c) => c.at(-1) === ACCOUNT)).toBe(true);
+    expect(gogCalls).toHaveLength(1);
+    expect(
+      (runner.queues.get(EMAIL_UPDATES_QUEUE) ?? []).map((i) => i.status),
+    ).toEqual(['done', 'done', 'done']);
+    expect(console.log).toHaveBeenCalledWith(
+      `[report-only] dropped addLabel Receipts on ${SHARED} thread t1 (account is report-only)`,
+    );
+    expect(console.log).toHaveBeenCalledWith(
+      `[report-only] dropped archive on ${SHARED} thread t1 (account is report-only)`,
+    );
+    const run = JSON.parse(
+      fs
+        .readFileSync(path.join(baseDir(), 'events', '_runs.jsonl'), 'utf8')
+        .trim()
+        .split('\n')
+        .at(-1) ?? '',
+    ) as Record<string, unknown>;
+    expect(run).toMatchObject({ processed: 1, succeeded: 1, dropped: 2 });
+    expect(sleeps).toEqual([]);
+  });
+
+  it('drops every item when all belong to report-only accounts', () => {
+    enqueue({ action: 'archive' });
+    drainUpdates(deps(undefined, { accountReportOnly: () => true }));
+    expect(gogCalls).toEqual([]);
+    expect(runner.queues.get(EMAIL_UPDATES_QUEUE)?.[0]?.status).toBe('done');
   });
 
   it('logs a failed label check and fails entries whose modify fails', () => {
@@ -174,6 +211,7 @@ describe('drainUpdatesDeps', () => {
   it('reads report-only and the accounts from config', () => {
     const live = drainUpdatesDeps();
     expect(live.reportOnly).toBe(true);
+    expect(live.accountReportOnly('anyone@example.com')).toBe(true);
     expect(live.gmailAccounts).toBe(0);
   });
 });

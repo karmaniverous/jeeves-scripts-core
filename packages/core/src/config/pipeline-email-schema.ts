@@ -85,7 +85,10 @@ export const respondConfigSchema = z
 
 /** The `pipeline.emailConfig` block. */
 export const emailConfigSchema = z.object({
-  /** Report Gmail changes (labels, archive) without making them. */
+  /**
+   * Report Gmail changes (labels, archive) without making them, for every
+   * account. `accounts[].reportOnly` opts a single account in.
+   */
   reportOnly: z.boolean(),
   /** Email digest. */
   digest: digestConfigSchema,

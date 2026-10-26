@@ -6,6 +6,11 @@
 
 import { describe, expect, it } from 'vitest';
 
+import {
+  allReportOnly,
+  noneReportOnly,
+  reportOnlyAccounts,
+} from '../../config/report-only.test-helper.js';
 import { setThreadState, type ThreadState } from '../email-state.js';
 import {
   type ApplyLabelsClient,
@@ -73,7 +78,11 @@ describe('pendingLabels', () => {
 });
 
 describe('applyPendingLabels', () => {
-  const base = { buckets: ['clients'], dryRun: false, reportOnly: false };
+  const base = {
+    buckets: ['clients'],
+    dryRun: false,
+    reportOnly: noneReportOnly,
+  };
 
   it('enqueues pending labels, records them, and is idempotent', () => {
     const { client, queue } = memoryClient();
@@ -93,6 +102,7 @@ describe('applyPendingLabels', () => {
     expect(r.accounts).toEqual([
       {
         account: A,
+        reportOnly: false,
         scanned: 2,
         threads: 1,
         labels: { receipt: 1, clients: 1 },
@@ -141,18 +151,58 @@ describe('applyPendingLabels', () => {
     expect(items).toEqual(before);
   });
 
-  it('reportOnly is always a dry run', () => {
+  it('skips a report-only account and catches up the others', () => {
+    const { client, queue } = memoryClient();
+    seed(client, A, 't1', { receiptCandidate: true });
+    seed(client, B, 't2', { receiptCandidate: true });
+    const r = applyPendingLabels({
+      ...base,
+      client,
+      accounts: [A, B],
+      reportOnly: reportOnlyAccounts(A),
+    });
+    expect(r).toMatchObject({ dryRun: false, labels: 1 });
+    expect(r.accounts).toEqual([
+      { account: A, reportOnly: true, scanned: 0, threads: 0, labels: {} },
+      {
+        account: B,
+        reportOnly: false,
+        scanned: 1,
+        threads: 1,
+        labels: { receipt: 1 },
+      },
+    ]);
+    expect(queue.map((q) => q.payload.account)).toEqual([B]);
+    expect(read(client, A, 't1').labelApplied).toBeUndefined();
+  });
+
+  it('with every account report-only enqueues and records nothing', () => {
     const { client, queue } = memoryClient();
     seed(client, A, 't1', { receiptCandidate: true });
     const r = applyPendingLabels({
       ...base,
       client,
       accounts: [A],
-      reportOnly: true,
+      reportOnly: allReportOnly,
     });
-    expect(r).toMatchObject({ dryRun: true, labels: 1 });
+    expect(r.labels).toBe(0);
     expect(queue).toEqual([]);
     expect(read(client, A, 't1').labelApplied).toBeUndefined();
+  });
+
+  it('a dry run still plans a report-only account, and marks it', () => {
+    const { client, queue } = memoryClient();
+    seed(client, A, 't1', { receiptCandidate: true });
+    const r = applyPendingLabels({
+      ...base,
+      client,
+      accounts: [A],
+      dryRun: true,
+      reportOnly: allReportOnly,
+    });
+    expect(r).toMatchObject({ dryRun: true, labels: 1 });
+    expect(r.accounts[0]).toMatchObject({ reportOnly: true, threads: 1 });
+    expect(queue).toEqual([]);
   });
 
   it('since keeps threads dated (else last seen) on or after it', () => {

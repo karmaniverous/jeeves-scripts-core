@@ -12,10 +12,11 @@
  * For IMAP accounts: connects, fetches, parses MIME, writes directly to disk.
  * Trims old JSONL logs after 7 days (trim-jsonl.ts).
  *
- * Depends on EMAIL_EVENTS_DIR, emailConfig.reportOnly, and bucket domain
- * config from the `pipeline` block. Missing config causes classification to
- * return null buckets (labels skipped). When reportOnly is true, threads
- * are still ingested but no Gmail label actions (classification or
+ * Depends on EMAIL_EVENTS_DIR, the report-only flags (`reportOnlyFor`), and
+ * bucket domain config from the `pipeline` block. Missing config causes
+ * classification to return null buckets (labels skipped). For a report-only
+ * account (`emailConfig.reportOnly` or its own `accounts[].reportOnly`),
+ * threads are still ingested but no Gmail label actions (classification or
  * curation-signal) are enqueued. Search output is schema-validated by
  * google-workspace/gmail-search.ts. gog
  * accounts work with an OAuth client or service-account mailboxes; if
@@ -34,6 +35,7 @@ import {
   type AccountConfig,
   pipeline,
   type PipelineConfig,
+  reportOnlyFor,
 } from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
@@ -44,7 +46,7 @@ import { trimJsonlFiles } from './trim-jsonl.js';
 
 /** What {@link pollEmail} reads and calls. */
 export interface EmailPollDeps {
-  /** Accounts and `emailConfig.reportOnly` (the `pipeline` block). */
+  /** Accounts and the report-only flags (the `pipeline` block). */
   config: () => Pick<PipelineConfig, 'accounts' | 'emailConfig'>;
   /** `EMAIL_EVENTS_DIR`. */
   eventsDir: string;
@@ -105,7 +107,7 @@ export async function pollEmail(deps: EmailPollDeps): Promise<void> {
   const allAccounts = config.accounts.filter((a) => a.emailPolling);
   const gogAccounts = allAccounts.filter((a) => !a.imap);
   const imapAccounts = allAccounts.filter((a) => a.imap);
-  const reportOnly = config.emailConfig.reportOnly;
+  const reportOnly = reportOnlyFor(config);
   const client = deps.runner();
 
   try {
@@ -115,10 +117,12 @@ export async function pollEmail(deps: EmailPollDeps): Promise<void> {
     // Throws (failed run) when Gmail accounts exist but gog has neither
     // an OAuth client nor service-account mailboxes.
     const hasGog = deps.requireGog(gogAccounts.length);
-    if (reportOnly && hasGog)
-      console.log('[gog] reportOnly: no Gmail label actions will be enqueued');
 
-    for (const acctCfg of hasGog ? gogAccounts : [])
+    for (const acctCfg of hasGog ? gogAccounts : []) {
+      if (reportOnly(acctCfg.email))
+        console.log(
+          `[gog] ${acctCfg.email} reportOnly: no Gmail label actions will be enqueued`,
+        );
       deps.pollGog({
         account: acctCfg.email,
         client,
@@ -126,6 +130,7 @@ export async function pollEmail(deps: EmailPollDeps): Promise<void> {
         query: 'in:anywhere',
         max: 100,
       });
+    }
 
     trimJsonlFiles(deps.eventsDir, 7);
   } finally {

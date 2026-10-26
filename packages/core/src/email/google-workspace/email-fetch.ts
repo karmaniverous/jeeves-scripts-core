@@ -6,8 +6,8 @@
  *
  * Called by poll.ts and backfill-window.ts. Fetches via
  * `gog gmail thread get`, builds CacheMessages (gmail-message), detects
- * human label curation signals (enqueued on `email-updates` unless
- * `emailConfig.reportOnly`, via label-actions.ts), manages pending
+ * human label curation signals (enqueued on `email-updates` unless the
+ * account is report-only, via label-actions.ts), manages pending
  * follow-up tracking (pending-followups), and enqueues to `email-pending`
  * for download.
  *
@@ -19,6 +19,7 @@ import path from 'node:path';
 
 import { appendJsonl, ensureDir, nowIso } from '@karmaniverous/jeeves';
 
+import type { ReportOnlyPolicy } from '../../config/index.js';
 import { constants } from '../../lib/constants.js';
 import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
 import { emailPeopleFields } from '../../lib/people.js';
@@ -65,8 +66,11 @@ export interface FetchThreadParams {
   labels: string[];
   query: string;
   client: EmailStoreClient;
-  /** When true, curation signals are detected but not enqueued. */
-  reportOnly: boolean;
+  /**
+   * Effective report-only flag per account (`reportOnlyFor`): when on for
+   * `account`, curation signals are detected but not enqueued.
+   */
+  reportOnly: ReportOnlyPolicy;
   /** gog (default: the live runner with retry). */
   gog?: GogRunner;
 }

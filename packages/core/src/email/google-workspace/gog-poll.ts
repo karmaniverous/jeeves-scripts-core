@@ -4,7 +4,7 @@
  * Poll one gog (Gmail) account for `email/poll`: search recent threads,
  * classify each (receipt, junk, bucket), log new and updated threads,
  * enqueue classification labels when the classification changed (unless
- * reportOnly), record thread state, and deep-fetch new or updated threads
+ * the account is report-only), record thread state, and deep-fetch new or updated threads
  * that look important. Appends a per-account run summary.
  */
 
@@ -12,6 +12,7 @@ import path from 'node:path';
 
 import { appendJsonl, nowIso } from '@karmaniverous/jeeves';
 
+import type { ReportOnlyPolicy } from '../../config/index.js';
 import { constants } from '../../lib/constants.js';
 import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
 import {
@@ -40,8 +41,11 @@ import { enqueueLabelActions } from './label-actions.js';
 export interface GogPollContext {
   account: string;
   client: EmailStoreClient;
-  /** Detect and log, but enqueue no Gmail label actions. */
-  reportOnly: boolean;
+  /**
+   * Effective report-only flag per account (`reportOnlyFor`): when on for
+   * `account`, detect and log, but enqueue no Gmail label actions.
+   */
+  reportOnly: ReportOnlyPolicy;
   /** Gmail search query. */
   query: string;
   /** Threads per search. */
@@ -262,7 +266,7 @@ export function pollGogAccount(ctx: GogPollContext): void {
       deepFetchedThreads: fetchC,
       newMessages: msgC,
       labelsEnqueued: lblC,
-      reportOnly,
+      reportOnly: reportOnly(account),
       query,
       max,
     },

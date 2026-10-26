@@ -17,6 +17,9 @@
  * no OAuth client and no service-account mailboxes, whether or not
  * reportOnly is set. Applies nothing (and dequeues nothing) when
  * emailConfig.reportOnly is true. See label-actions.ts planDrain().
+ * Otherwise queued items for an account that is report-only on its own
+ * (`accounts[].reportOnly`) are dropped and logged, with no gog call, so
+ * items enqueued before the flag was set never fail on every run.
  */
 
 import path from 'node:path';
@@ -27,7 +30,12 @@ import {
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
 
-import { getGmailAccounts, pipeline } from '../../config/index.js';
+import {
+  getGmailAccounts,
+  pipeline,
+  reportOnlyFor,
+  type ReportOnlyPolicy,
+} from '../../config/index.js';
 import { defineJob } from '../../jobs/define-job.js';
 import { constants } from '../../lib/constants.js';
 import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
@@ -45,8 +53,10 @@ export const MAX_CALLS_PER_MINUTE = 60;
 
 /** What {@link drainUpdates} reads and calls. */
 export interface DrainUpdatesDeps {
-  /** `emailConfig.reportOnly`. */
+  /** `emailConfig.reportOnly`: apply nothing, leave the queue untouched. */
   reportOnly: boolean;
+  /** Effective per-account flag (`reportOnlyFor`): drop that account's items. */
+  accountReportOnly: ReportOnlyPolicy;
   /** Configured Gmail accounts (polled plus backfill). */
   gmailAccounts: number;
   /** gog. */
@@ -62,15 +72,19 @@ export interface DrainUpdatesDeps {
 }
 
 /** The live collaborators, from config. */
-export const drainUpdatesDeps = (): DrainUpdatesDeps => ({
-  reportOnly: pipeline().emailConfig.reportOnly,
-  gmailAccounts: getGmailAccounts().length,
-  gog: gogWithRetry,
-  runner: () => getRunnerClient(),
-  eventsDir: constants().EMAIL_EVENTS_DIR,
-  now: nowIso,
-  sleep: sleepMs,
-});
+export const drainUpdatesDeps = (): DrainUpdatesDeps => {
+  const config = pipeline();
+  return {
+    reportOnly: config.emailConfig.reportOnly,
+    accountReportOnly: reportOnlyFor(config),
+    gmailAccounts: getGmailAccounts().length,
+    gog: gogWithRetry,
+    runner: () => getRunnerClient(),
+    eventsDir: constants().EMAIL_EVENTS_DIR,
+    now: nowIso,
+    sleep: sleepMs,
+  };
+};
 
 interface UpdateEntry {
   account: string;
@@ -131,6 +145,28 @@ function processEntry(
   }
 }
 
+/**
+ * Mark done, without touching Gmail, every item whose account is
+ * report-only, logging each.
+ *
+ * @returns The items left to apply.
+ */
+function dropReportOnlyItems<T extends { id: number; payload: unknown }>(
+  items: readonly T[],
+  client: Pick<RunnerClient, 'done'>,
+  reportOnly: ReportOnlyPolicy,
+): T[] {
+  return items.filter(({ id, payload }) => {
+    const e = payload as UpdateEntry;
+    if (!reportOnly(e.account)) return true;
+    client.done(id);
+    console.log(
+      `[report-only] dropped ${e.action}${e.label ? ` ${e.label}` : ''} on ${e.account} thread ${e.threadId} (account is report-only)`,
+    );
+    return false;
+  });
+}
+
 /** Apply the queued label changes (unless report-only), rate-limited, and log the run. */
 export function drainUpdates(deps: DrainUpdatesDeps): void {
   const plan = planDrain(deps.reportOnly, deps.gmailAccounts);
@@ -147,11 +183,13 @@ export function drainUpdates(deps: DrainUpdatesDeps): void {
 
   const client = deps.runner();
   try {
-    const items = client.dequeue(EMAIL_UPDATES_QUEUE, 100);
-    if (items.length === 0) {
+    const dequeued = client.dequeue(EMAIL_UPDATES_QUEUE, 100);
+    if (dequeued.length === 0) {
       console.log('Queue is empty');
       return;
     }
+    const items = dropReportOnlyItems(dequeued, client, deps.accountReportOnly);
+    const dropped = dequeued.length - items.length;
 
     // Pre-flight: ensure labels exist
     const labelActions = items.filter(
@@ -219,6 +257,7 @@ export function drainUpdates(deps: DrainUpdatesDeps): void {
       processed,
       succeeded,
       failed,
+      dropped,
     };
     appendJsonl(path.join(deps.eventsDir, '_runs.jsonl'), stats);
     console.log(JSON.stringify(stats, null, 2));

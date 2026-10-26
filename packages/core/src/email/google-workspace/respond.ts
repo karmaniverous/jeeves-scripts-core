@@ -17,8 +17,8 @@
  * guides/email.md, "Auto-reply (email-respond)". Gmail only: the mailbox
  * must be a `gmail` account (replies go out through `gog gmail send`).
  *
- * Flags: `--dry-run` (or `emailConfig.respond.dryRun`, or
- * `emailConfig.reportOnly`): discovery and qualification only; no
+ * Flags: `--dry-run` (or `emailConfig.respond.dryRun`, or the mailbox
+ * being report-only, see `reportOnlyFor`): discovery and qualification only; no
  * dispatch, no send, no labels, no Slack post, no state writes.
  *
  * Exits non-zero when a message fails permanently, so the runner records
@@ -42,7 +42,11 @@ import {
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
 
-import { pipeline, type PipelineConfig } from '../../config/index.js';
+import {
+  pipeline,
+  type PipelineConfig,
+  reportOnlyFor,
+} from '../../config/index.js';
 import { defineJob } from '../../jobs/define-job.js';
 import { argFlag } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
@@ -83,7 +87,7 @@ const liveGog: GogRunner = (args) =>
 /** What {@link emailRespond} reads and calls (seams for tests). */
 export interface EmailRespondEnv {
   /** The `pipeline` block. */
-  pipeline: () => Pick<PipelineConfig, 'emailConfig'>;
+  pipeline: () => Pick<PipelineConfig, 'accounts' | 'emailConfig'>;
   /** gog. */
   gog: GogRunner;
   /** Runner state. */
@@ -204,8 +208,8 @@ export async function emailRespond(
   flags: { dryRun: boolean },
   env: EmailRespondEnv = emailRespondEnv(),
 ): Promise<void> {
-  const { emailConfig } = env.pipeline();
-  const { respond } = emailConfig;
+  const config = env.pipeline();
+  const { respond } = config.emailConfig;
   if (!respond) {
     env.log(
       '[email-respond] emailConfig.respond is not configured; nothing to do',
@@ -214,7 +218,7 @@ export async function emailRespond(
   }
   const dryRun = resolveDryRun({
     respondDryRun: respond.dryRun,
-    reportOnly: emailConfig.reportOnly,
+    reportOnly: reportOnlyFor(config)(respond.mailbox),
     dryRunFlag: flags.dryRun,
   });
   const { mailbox, label } = respond;

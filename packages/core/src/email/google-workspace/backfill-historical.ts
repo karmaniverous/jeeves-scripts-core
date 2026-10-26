@@ -4,8 +4,9 @@
  * Paced historical Gmail backfill: each run searches ONE window per
  * account (all result pages), walking back from the newest unprocessed
  * point until the lookback limit, then no-ops. New threads are
- * classified, fetched (enqueued for download) and, unless
- * `emailConfig.reportOnly`, label actions are enqueued.
+ * classified, fetched (enqueued for download) and, unless the account is
+ * report-only (`emailConfig.reportOnly` or `accounts[].reportOnly`), label
+ * actions are enqueued.
  *
  * Settings come from `pipeline.emailConfig.backfill` in jeeves-scripts.json
  * (`accounts`, `lookbackDays`, `windowDays`), overridable per field with
@@ -27,7 +28,11 @@ import {
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
 
-import { pipeline, type PipelineConfig } from '../../config/index.js';
+import {
+  pipeline,
+  type PipelineConfig,
+  reportOnlyFor,
+} from '../../config/index.js';
 import { defineJob } from '../../jobs/define-job.js';
 import { argFlag, type ParsedArgs } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
@@ -41,8 +46,8 @@ import { backfillAccount } from './backfill-window.js';
 
 /** What {@link backfillHistorical} reads and calls. */
 export interface BackfillHistoricalDeps {
-  /** `pipeline.emailConfig`. */
-  emailConfig: () => PipelineConfig['emailConfig'];
+  /** `pipeline.emailConfig` and the accounts (for their report-only flags). */
+  config: () => Pick<PipelineConfig, 'accounts' | 'emailConfig'>;
   /** Throws when accounts exist and gog has no credential. */
   requireGog: (accounts: number) => boolean;
   /** gog. */
@@ -57,7 +62,7 @@ export interface BackfillHistoricalDeps {
 
 /** The live collaborators, from config. */
 export const backfillHistoricalDeps = (): BackfillHistoricalDeps => ({
-  emailConfig: () => pipeline().emailConfig,
+  config: () => pipeline(),
   requireGog: (n) => requireGogCredentials('email/backfill-historical', n),
   gog: gogWithRetry,
   runner: () => getRunnerClient(),
@@ -77,16 +82,15 @@ export function backfillHistorical(
   deps: BackfillHistoricalDeps,
 ): void {
   const { live } = flags;
-  const emailConfig = deps.emailConfig();
-  const settings = resolveBackfillSettings(emailConfig.backfill, flags);
-  const reportOnly = emailConfig.reportOnly;
+  const config = deps.config();
+  const settings = resolveBackfillSettings(config.emailConfig.backfill, flags);
+  const reportOnly = reportOnlyFor(config);
 
   console.log(`Mode: ${live ? 'LIVE' : 'DRY-RUN'}`);
   console.log(`Accounts: ${settings.accounts.join(', ')}`);
   console.log(
     `Lookback: ${String(settings.lookbackDays)} days, window: ${String(settings.windowDays)} days`,
   );
-  if (reportOnly) console.log('reportOnly: no Gmail label actions enqueued');
 
   deps.requireGog(settings.accounts.length);
 
@@ -97,6 +101,8 @@ export function backfillHistorical(
 
     for (const account of settings.accounts) {
       console.log(`--- ${account} ---`);
+      if (reportOnly(account))
+        console.log('  reportOnly: no Gmail label actions enqueued');
       const r = backfillAccount(account, settings, {
         client,
         gog: (gogArgs) => deps.gog(gogArgs, { retries: 2, backoffMs: 5000 }),

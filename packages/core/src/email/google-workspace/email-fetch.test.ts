@@ -16,6 +16,12 @@ vi.mock('./email-triage.js', () => ({
   shouldExpectResponse: () => false,
 }));
 
+import type { ReportOnlyPolicy } from '../../config/index.js';
+import {
+  allReportOnly,
+  noneReportOnly,
+  reportOnlyAccounts,
+} from '../../config/report-only.test-helper.js';
 import { gogWithRetry } from '../../lib/gog.js';
 import { loadCache } from '../email-cache.js';
 import type { EmailStoreClient } from '../email-state.js';
@@ -45,7 +51,7 @@ function fakeClient() {
   return { client, items, queue };
 }
 
-function run(client: EmailStoreClient, reportOnly: boolean) {
+function run(client: EmailStoreClient, reportOnly: ReportOnlyPolicy) {
   return fetchThreadMetadata({
     account: ACCOUNT,
     threadId: 't1',
@@ -106,10 +112,13 @@ function seed(items: Map<string, string>): void {
 }
 
 describe('fetchThreadMetadata curation signals', () => {
-  it('enqueues the curation action when not reportOnly', () => {
+  it.each([
+    ['no account is', noneReportOnly],
+    ['another account is', reportOnlyAccounts('other@example.com')],
+  ])('enqueues the curation action when %s report-only', (_, policy) => {
     const { client, items, queue } = fakeClient();
     seed(items);
-    run(client, false);
+    run(client, policy);
     expect(queue.map((q) => q.name)).toEqual([EMAIL_UPDATES_QUEUE]);
     expect(queue[0]!.payload).toMatchObject({
       action: 'addLabel',
@@ -118,10 +127,10 @@ describe('fetchThreadMetadata curation signals', () => {
     });
   });
 
-  it('enqueues nothing on email-updates in reportOnly', () => {
+  it('enqueues nothing on email-updates when the account is report-only', () => {
     const { client, items, queue } = fakeClient();
     seed(items);
-    run(client, true);
+    run(client, reportOnlyAccounts(ACCOUNT));
     expect(queue.filter((q) => q.name === EMAIL_UPDATES_QUEUE)).toEqual([]);
     // Ingest still happens: thread state is written.
     expect(
@@ -131,7 +140,7 @@ describe('fetchThreadMetadata curation signals', () => {
 
   it('still queues a new message for download in reportOnly', () => {
     const { client, queue } = fakeClient();
-    const r = run(client, true);
+    const r = run(client, allReportOnly);
     expect(r.newMessages).toBe(1);
     expect(queue.map((q) => q.name)).toEqual(['email-pending']);
   });
@@ -149,7 +158,7 @@ describe('fetchThreadMetadata state', () => {
       `email|${ACCOUNT}.seenThreadIds|t1`,
       JSON.stringify({ seenMessageIds: seen }),
     );
-    run(client, true);
+    run(client, allReportOnly);
     const state = JSON.parse(
       items.get(`email|${ACCOUNT}.seenThreadIds|t1`) ?? '{}',
     ) as {
@@ -164,7 +173,7 @@ describe('fetchThreadMetadata state', () => {
   it('treats an empty gog reply as a thread with no messages', () => {
     vi.mocked(gogWithRetry).mockReturnValue('');
     const { client, queue } = fakeClient();
-    expect(run(client, false).newMessages).toBe(0);
+    expect(run(client, noneReportOnly).newMessages).toBe(0);
     expect(queue).toEqual([]);
   });
 });

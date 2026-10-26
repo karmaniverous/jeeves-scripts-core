@@ -10,6 +10,10 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getEmailBaseForAccount } from '../config/index.js';
+import {
+  noneReportOnly,
+  reportOnlyAccounts,
+} from '../config/report-only.test-helper.js';
 import { getThreadsPath } from '../email/email-cache.js';
 import { fakeRunnerClient } from '../lib/fake-runner-client.test-helper.js';
 import { useTempConfig } from '../lib/temp-config.test-helper.js';
@@ -49,7 +53,11 @@ const thread = (
 };
 
 const deps = (over: Partial<ExtractDeps> = {}): ExtractDeps => ({
-  settings: () => ({ accounts: [ACCOUNT], reportOnly: false, archive: true }),
+  settings: () => ({
+    accounts: [ACCOUNT],
+    reportOnly: noneReportOnly,
+    archive: true,
+  }),
   runner: () => runner.client,
   now: () => '2026-03-03T00:00:00.000Z',
   ...over,
@@ -132,7 +140,7 @@ describe('extractMeetings', () => {
     );
   });
 
-  it('defers label actions under reportOnly and catches up once it is off', () => {
+  it('defers label actions while the account is report-only and catches up once it is not', () => {
     thread('t5', 'Notes: Planning', {
       m1: {
         from: 'gemini-notes@google.com',
@@ -143,23 +151,38 @@ describe('extractMeetings', () => {
       deps({
         settings: () => ({
           accounts: [ACCOUNT],
-          reportOnly: true,
+          reportOnly: reportOnlyAccounts(ACCOUNT),
           archive: false,
         }),
       }),
     );
     expect(logs).toContain(
-      '[meetings] reportOnly: Gmail label actions deferred, not enqueued',
+      `[meetings] Scanning cache: ${ACCOUNT} (reportOnly: Gmail label actions deferred, not enqueued)`,
     );
     expect(logs.find((l) => l.startsWith('[meetings] Done:'))).toContain(
       'queued=0 deferred=1',
     );
+    // Still report-only: the pending meeting is not caught up.
     logs = [];
     extractMeetings(
       deps({
         settings: () => ({
           accounts: [ACCOUNT],
-          reportOnly: false,
+          reportOnly: reportOnlyAccounts(ACCOUNT),
+          archive: false,
+        }),
+      }),
+    );
+    expect(logs.find((l) => l.startsWith('[meetings] Done:'))).toContain(
+      'queued=0',
+    );
+    expect(logs.some((l) => l.includes('catch-up'))).toBe(false);
+    logs = [];
+    extractMeetings(
+      deps({
+        settings: () => ({
+          accounts: [ACCOUNT],
+          reportOnly: noneReportOnly,
           archive: false,
         }),
       }),
@@ -175,12 +198,30 @@ describe('extractMeetings', () => {
   });
 });
 
+describe('extractMeetings catch-up of unreadable pending records', () => {
+  it.each([
+    ['no account', noneReportOnly],
+    ['the account', reportOnlyAccounts(ACCOUNT)],
+  ])('quarantines and warns with %s report-only', (_, reportOnly) => {
+    runner.client.setItem('meetings', 'pendingEmailActions', 'bad', 'nope');
+    extractMeetings(
+      deps({
+        settings: () => ({ accounts: [ACCOUNT], reportOnly, archive: true }),
+      }),
+    );
+    expect(console.warn).toHaveBeenCalledWith(
+      '[meetings] WARNING: 1 unreadable pending record(s) moved to meetings/pendingEmailActionsInvalid: bad',
+    );
+    expect(
+      runner.client.hasItem('meetings', 'pendingEmailActionsInvalid', 'bad'),
+    ).toBe(true);
+  });
+});
+
 describe('extractDeps', () => {
   it('reads the accounts and email settings from config', () => {
-    expect(extractDeps().settings()).toEqual({
-      accounts: [],
-      reportOnly: true,
-      archive: true,
-    });
+    const settings = extractDeps().settings();
+    expect(settings).toMatchObject({ accounts: [], archive: true });
+    expect(settings.reportOnly('anyone@example.com')).toBe(true);
   });
 });

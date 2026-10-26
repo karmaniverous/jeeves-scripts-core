@@ -13,9 +13,10 @@
  * For each new meeting it enqueues the `meeting` label (and an archive when
  * the message is in the inbox and not `watch`ed, unless
  * `emailConfig.meetings.archive` is false) on `email-updates` through
- * label-actions, so nothing is enqueued when `emailConfig.reportOnly` is
- * true. Those actions are deferred, not dropped: the meeting is recorded as
- * pending, and once reportOnly is off each run catches up to
+ * label-actions, so nothing is enqueued while its account is report-only
+ * (`emailConfig.reportOnly` or `accounts[].reportOnly`). Those actions are
+ * deferred, not dropped: the meeting is recorded as pending, and once the
+ * account is no longer report-only each run catches up to
  * `CATCH_UP_PER_RUN` pending meetings using the messages' current labels
  * (see lib/pending-actions.ts).
  */
@@ -26,7 +27,12 @@ import {
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
 
-import { getEmailAccounts, pipeline } from '../config/index.js';
+import {
+  getEmailAccounts,
+  pipeline,
+  reportOnlyFor,
+  type ReportOnlyPolicy,
+} from '../config/index.js';
 import { defineJob } from '../jobs/define-job.js';
 import {
   detectFathomFromBodies,
@@ -49,8 +55,8 @@ import {
 export interface ExtractSettings {
   /** Email accounts with polling on. */
   accounts: string[];
-  /** `emailConfig.reportOnly`. */
-  reportOnly: boolean;
+  /** Effective report-only flag per account (`reportOnlyFor`). */
+  reportOnly: ReportOnlyPolicy;
   /** `emailConfig.meetings.archive` (default true). */
   archive: boolean;
 }
@@ -68,11 +74,11 @@ export interface ExtractDeps {
 /** The live collaborators, from config. */
 export const extractDeps = (): ExtractDeps => ({
   settings: () => {
-    const { emailConfig } = pipeline();
+    const config = pipeline();
     return {
       accounts: getEmailAccounts(),
-      reportOnly: emailConfig.reportOnly,
-      archive: emailConfig.meetings?.archive ?? true,
+      reportOnly: reportOnlyFor(config),
+      archive: config.emailConfig.meetings?.archive ?? true,
     };
   },
   runner: () => getRunnerClient(),
@@ -82,7 +88,7 @@ export const extractDeps = (): ExtractDeps => ({
 /** Scan every account's cache and record new meetings. */
 export function extractMeetings(deps: ExtractDeps): void {
   let accounts: string[];
-  let reportOnly: boolean;
+  let reportOnly: ReportOnlyPolicy;
   let archiveMeetingEmails: boolean;
   try {
     ({ accounts, reportOnly, archive: archiveMeetingEmails } = deps.settings());
@@ -100,11 +106,7 @@ export function extractMeetings(deps: ExtractDeps): void {
     return;
   }
 
-  if (reportOnly)
-    console.log(
-      '[meetings] reportOnly: Gmail label actions deferred, not enqueued',
-    );
-  else if (!archiveMeetingEmails)
+  if (!archiveMeetingEmails)
     console.log('[meetings] emailConfig.meetings.archive is false: label only');
 
   const client = deps.runner();
@@ -120,7 +122,9 @@ export function extractMeetings(deps: ExtractDeps): void {
 
   try {
     for (const account of accounts) {
-      console.log(`[meetings] Scanning cache: ${account}`);
+      console.log(
+        `[meetings] Scanning cache: ${account}${reportOnly(account) ? ' (reportOnly: Gmail label actions deferred, not enqueued)' : ''}`,
+      );
 
       const candidates = scanCache(account);
       scanned += candidates.length;
@@ -216,7 +220,7 @@ export function extractMeetings(deps: ExtractDeps): void {
           added++;
 
           // `meeting` label (+ archive if enabled, in inbox and not watched).
-          // Under reportOnly they are deferred for a later catch-up.
+          // For a report-only account they are deferred for a later catch-up.
           const handled = handleNewMeetingEmailActions(client, sourceKey, c, {
             reportOnly,
             archive: archiveMeetingEmails,
@@ -232,20 +236,20 @@ export function extractMeetings(deps: ExtractDeps): void {
       }
     }
 
-    if (!reportOnly) {
-      const catchUp = catchUpMeetingEmailActions(client, currentLabels, {
-        archive: archiveMeetingEmails,
-      });
-      queued += catchUp.queued;
-      if (catchUp.caughtUp > 0 || catchUp.remaining > 0)
-        console.log(
-          `[meetings] reportOnly catch-up: ${String(catchUp.caughtUp)} meetings, ${String(catchUp.queued)} actions queued, ${String(catchUp.remaining)} still pending`,
-        );
-      if (catchUp.invalid.length)
-        console.warn(
-          `[meetings] WARNING: ${String(catchUp.invalid.length)} unreadable pending record(s) moved to meetings/pendingEmailActionsInvalid: ${catchUp.invalid.join(', ')}`,
-        );
-    }
+    // Pending meetings of accounts still report-only stay pending.
+    const catchUp = catchUpMeetingEmailActions(client, currentLabels, {
+      archive: archiveMeetingEmails,
+      reportOnly,
+    });
+    queued += catchUp.queued;
+    if (catchUp.caughtUp > 0)
+      console.log(
+        `[meetings] reportOnly catch-up: ${String(catchUp.caughtUp)} meetings, ${String(catchUp.queued)} actions queued, ${String(catchUp.remaining)} still pending`,
+      );
+    if (catchUp.invalid.length)
+      console.warn(
+        `[meetings] WARNING: ${String(catchUp.invalid.length)} unreadable pending record(s) moved to meetings/pendingEmailActionsInvalid: ${catchUp.invalid.join(', ')}`,
+      );
 
     // Save state
     client.setState(

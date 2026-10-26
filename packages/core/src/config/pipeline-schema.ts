@@ -70,6 +70,12 @@ export const accountSchema = z
     imap: imapConnectionSchema.optional(),
     /** IMAP folders to poll. */
     folders: z.array(z.string()).optional(),
+    /**
+     * Ingest this account but never write back to its mailbox (no label
+     * or archive). Opt-in only: `emailConfig.reportOnly` applies to every
+     * account regardless (see `reportOnlyFor`).
+     */
+    reportOnly: z.boolean().optional(),
   })
   .superRefine((data, ctx) => {
     if (data.type === 'imap' && !data.imap) {

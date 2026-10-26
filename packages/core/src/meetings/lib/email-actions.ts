@@ -9,11 +9,12 @@
  * (labels only); it is on when the block is absent.
  *
  * The actions are enqueued through `enqueueEmailUpdates` (label-actions),
- * the single `emailConfig.reportOnly` gate for `email-updates` writes.
+ * the single per-account report-only gate for `email-updates` writes.
  */
 
 import type { RunnerClient } from '@karmaniverous/jeeves-runner';
 
+import type { ReportOnlyPolicy } from '../../config/index.js';
 import {
   type EmailUpdateAction,
   enqueueEmailUpdates,
@@ -70,14 +71,16 @@ export function meetingEmailActions(
 }
 
 /**
- * Enqueue {@link meetingEmailActions} for `ref`, unless `reportOnly`.
+ * Enqueue {@link meetingEmailActions} for `ref`, unless its account is
+ * report-only.
  *
- * @returns The number of actions enqueued (0 in reportOnly).
+ * @param reportOnly - effective report-only flag per account (`reportOnlyFor`).
+ * @returns The number of actions enqueued (0 when report-only).
  */
 export function enqueueMeetingEmailActions(
   client: Pick<RunnerClient, 'enqueue'>,
   ref: MeetingMessageRef,
-  reportOnly: boolean,
+  reportOnly: ReportOnlyPolicy,
   options: MeetingEmailActionOptions = {},
 ): number {
   const actions = meetingEmailActions(ref, options);
