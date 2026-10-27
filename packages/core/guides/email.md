@@ -235,6 +235,59 @@ Accounts are the entries of `pipeline.accounts` in `jeeves-scripts.json` (schema
 
 Provisioning: on a jeeves-tools-managed instance, put each password in the instance config's `secrets` map under the same name as the `secretRef`; deploy writes it to `IMAP_SECRETS_DIR/<name>` (owner jeeves, mode 0600) and never logs it (see [jeeves-tools#178](https://github.com/karmaniverous/jeeves-tools/issues/178)). On a standalone instance, create the file yourself with the same owner and mode. The password is never logged, written to runner state or included in an error.
 
+## Adding a mailbox
+
+Do these in order. Each step has a check. Ask the operator first whether labels may be written to the mailbox (for a shared mailbox, or one other people watch, the answer is usually no: step 3) and whether its owner knows it is being ingested.
+
+1. **Choose the transport.**
+   - **Workspace mailbox** in a domain the instance's service account has domain-wide delegation for: gog with a service-account registration.
+   - **Personal Gmail** (or any Google account outside that domain): gog with an OAuth token, read-only when labels may not be written.
+   - **Any other IMAP mailbox**, or Gmail with an app password: an `imap` block with a `secretRef` ([IMAP passwords](#imap-passwords)). Gmail accepts IMAP password login only with an app password, which needs 2-Step Verification on the account; without one, use gog OAuth.
+2. **Register the credential in the jobs' gog home.** The jobs use `GOG_HOME` when it is set in the runner's environment, else `paths.gogHome` in `jeeves-scripts.json`, else `{configDir}/gogcli` (`paths().gogHome`; [config.md](./config.md#environment-overrides)), and `gogWithRetry` passes it to gog as `GOG_HOME`. Read it from the instance's config and register there (`gog --home <gog home> ...`): a credential in your own shell's default gog home is invisible to the jobs.
+   - Service account: `gog --home <gog home> auth service-account set <email> --key <key file>`, with the instance's delegation key (deploy writes it to `<GOG_CONFIG_DIR>/service-account.json`). Check: `gog --home <gog home> auth service-account status <email>`.
+   - OAuth, in two steps (the mailbox owner's browser and gog are on different machines). Step 1 prints a consent URL:
+     ```bash
+     gog --home <gog home> auth add <email> --services gmail --gmail-scope readonly --readonly --remote --step 1
+     ```
+     Send it privately to the mailbox owner. After consenting (an unverified OAuth client shows a warning: Advanced, then continue) their browser is sent to a `127.0.0.1` callback address that does not load; they send back that whole address, and step 2 exchanges it:
+     ```bash
+     gog --home <gog home> auth add <email> --services gmail --gmail-scope readonly --readonly --remote --step 2 --auth-url "<callback address>"
+     ```
+     Leave out `--gmail-scope readonly --readonly` when labels are wanted. The address carries a one-time code: if step 2 fails, start again at step 1.
+   - **OAuth token expiry.** While the Google OAuth client's publishing status is Testing (Google Auth Platform, Audience), Google expires its refresh tokens after 7 days and every gog call for the account then fails with `invalid_grant`. Tell the operator: publishing the app (Audience, Publish app) stops the expiry; otherwise the OAuth steps have to be repeated weekly. Check the account again after a week.
+   - Check (any gog credential): `gog --home <gog home> gmail search "newer_than:3d" --account <email> --max 1 --json` exits 0.
+3. **Read-only: set the account's `reportOnly`** (`accounts[].reportOnly: true`, core 0.2.2 or later; [Report-only](#report-only)). Without it, every label action enqueued for a read-only mailbox fails in `drain-updates`. List the account in `accounts` even if it is only backfilled: an address that is not in `accounts` follows `emailConfig.reportOnly` alone.
+4. **Add the account, and the backfill for its history**, in `jeeves-scripts.json` (merged into the existing `pipeline` block; `reportOnly` only from step 3):
+   ```json
+   {
+     "pipeline": {
+       "accounts": [
+         {
+           "email": "user@example.com",
+           "type": "gmail",
+           "emailPolling": true,
+           "reportOnly": true
+         }
+       ],
+       "emailConfig": {
+         "backfill": {
+           "accounts": ["user@example.com"],
+           "lookbackDays": 90,
+           "windowDays": 7
+         }
+       }
+     }
+   }
+   ```
+   `backfill` has no defaults: all three keys are required ([Historical backfill](#historical-backfill)). `lookbackDays` is the operator's call. An account whose cursor already reached the lookback limit does nothing on later runs. Check: `node bin/jeeves-scripts.js config check` prints `config check: OK`.
+5. **Make sure the runner jobs are on.** A `jobs.<id>` delta (including `enabled`) shapes registration only and does not change a runner job that already exists ([jobs.md](./jobs.md#instance-deltas)). After the config change, look at each email job in the runner (`runner_job_detail`, e.g. `email-backfill-historical`): enable a disabled one with `runner_enable`, and register a missing one (every email manifest carries a `prerequisite`, so deploy skips them). Remove any `jobs.<id>: { "enabled": false }` delta too, so a later registration doesn't disable the job again. Check: `runner_job_detail` shows the job enabled.
+6. **Dry run the backfill** from the scripts repo with the runner database set (the runner sets `JR_DB_PATH` for its jobs; a manual run needs it):
+   ```bash
+   JR_DB_PATH=<runner.sqlite> node bin/jeeves-scripts.js run email-backfill-historical
+   ```
+   Without `--live` it searches and classifies and writes nothing. Check: `Mode: DRY-RUN`, the new account in `Accounts:`, and for a report-only account the line `reportOnly: no Gmail label actions enqueued`.
+7. **First live run and verification.** `runner_trigger` the job (the manifest passes `--live`). Check: exit 0; per account `Found`, `New` and `Cursor`; for a report-only account `Labels: 0 enqueued / <n> planned`, and no `email-updates` queue item with its `account` (`runner_queue_peek`; its threads go only to `email-pending` for download). Threads then appear under `{siloBase}/email/threads/<account>/`, and the cursor (runner state `email-backfill`, `cursor-<email>`) moves back one window per hourly run until the lookback limit.
+
 ---
 
 ## imap/
