@@ -141,7 +141,7 @@ Core's jobs have a manifest in core, `jobs/<domain>.json`: an object keyed by ru
 | RRStack, flat: `freq` and `timezone` plus any RRule option (`interval`, `byhour`, `byminute`, `byweekday`, ...) | `{ "freq": "daily", "byhour": 6, "byminute": 0, "timezone": "UTC" }` | `timezone` (an IANA zone), required |
 | RRStack, full: `timezone`, optional `timeUnit`, `rules` | `{ "timezone": "UTC", "timeUnit": "ms", "rules": [{ "effect": "event", "options": { "freq": "minutely", "interval": 11 } }] }` | `timezone`, required |
 
-An RRStack schedule may also be written as its JSON string. The runner stores a schedule as a string: a string as written, an object as its JSON (`scheduleText`). An invalid schedule fails with the runner's message. `timeout_seconds` is optional, as in the runner: without it the job has no timeout. A non-null `prerequisite` says what must be set up first; deploy registers only jobs without one. Every manifest is validated with Zod; an invalid entry or an id in two files fails with the file name.
+An RRStack schedule may also be written as its JSON string. The runner stores a schedule as a string: a string as written, an object as its JSON (`scheduleText`). An invalid schedule fails with the runner's message. `timeout_seconds` is optional, as in the runner: without it the job has no timeout. `on_failure` is optional too: the Slack target (channel, DM or user id) the runner alerts when a run fails or times out; omitted or `null` leaves the runner's `notifications.defaultOnFailure` in charge, which is what core's own manifests do (#36). A non-null `prerequisite` says what must be set up first; deploy registers only jobs without one. Every manifest is validated with Zod; an invalid entry or an id in two files fails with the file name.
 
 An instance's own manifests are `{root}/jobs/*.json` in the same format. Each id must be a registered runnable that has no core manifest: an instance runnable, or a core runnable that ships without one (for example `x-post`, Decision 50). A core manifest is changed only by a delta (below). `list` fails, naming the file, on an instance manifest that breaks these rules.
 
@@ -165,13 +165,13 @@ An instance never copies a core manifest. It adjusts a runnable's manifest (core
 
 | Field | Effect |
 | --- | --- |
-| `enabled`, `timeout_seconds`, `schedule` | Replace the manifest's value (a schedule wholesale); a delta's `timeout_seconds` also sets one on a manifest that has none. |
+| `enabled`, `timeout_seconds`, `schedule`, `on_failure` | Replace the manifest's value (a schedule wholesale); a delta's `timeout_seconds` or `on_failure` also sets one on a manifest that has none, and `on_failure: null` clears the manifest's back to the runner default. |
 | `env` | Merged key by key over the manifest's; the delta wins. |
 | `args` | Appended to the manifest's. |
 | `silo`, `taskFile` | Read by the runnable itself (task-file dispatchers); no runner effect. |
 | `extraDirs` | Read by `admin-sweep-orphaned-tmp`: absolute directories it sweeps besides the content and scripts directories ([admin](./admin.md#prerequisites)); no runner effect. |
 
-A delta for an id that is neither a core nor an instance runnable is an error, and so is a delta that sets `enabled`, `schedule`, `timeout_seconds`, `env` or `args` on a runnable with no manifest (where they would have no effect; give the runnable a manifest instead). The runnable-read fields (`silo`, `taskFile`, `extraDirs`) need no manifest. `src/runnables/manifest.ts` (`readCoreManifests`, `applyDelta`, `effectiveManifests`) and `src/runnables/runnables.ts` (`registeredManifests`) implement this; `jeeves-scripts list --json` prints the effective set ([cli](./cli.md#listing-runnables)). Deltas shape what registration uses; they do not change a runner job that already exists.
+A delta for an id that is neither a core nor an instance runnable is an error, and so is a delta that sets `enabled`, `schedule`, `timeout_seconds`, `on_failure`, `env` or `args` on a runnable with no manifest (where they would have no effect; give the runnable a manifest instead). The runnable-read fields (`silo`, `taskFile`, `extraDirs`) need no manifest. `src/runnables/manifest.ts` (`readCoreManifests`, `applyDelta`, `effectiveManifests`) and `src/runnables/runnables.ts` (`registeredManifests`) implement this; `jeeves-scripts list --json` prints the effective set ([cli](./cli.md#listing-runnables)). Deltas shape what registration uses; they do not change a runner job that already exists.
 
 ## Instance runnables and overrides
 

@@ -155,6 +155,26 @@ describe('listRunnables', () => {
     );
   });
 
+  it('carries the effective on_failure from manifests and deltas (#36)', async () => {
+    setup({ 'email-poll': { on_failure: 'C0123456789' } });
+    fs.mkdirSync(path.join(root, 'jobs'));
+    fs.writeFileSync(
+      path.join(root, 'jobs', 'acme.json'),
+      JSON.stringify({
+        'acme-report': { ...fields, on_failure: 'U0123456789' },
+      }),
+    );
+    const entries = await listRunnables(
+      root,
+      '*',
+      options(definePlugin({ jobs: [job('acme-report', 'acme')] })),
+    );
+    const onFailure = (id: string) =>
+      entries.find((e) => e.id === id)?.manifest?.on_failure;
+    expect(onFailure('email-poll')).toBe('C0123456789');
+    expect(onFailure('acme-report')).toBe('U0123456789');
+  });
+
   it('filters by glob', async () => {
     setup();
     const entries = await listRunnables(root, 'email-*', options());

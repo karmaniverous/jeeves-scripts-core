@@ -84,6 +84,21 @@ describe('readCoreManifests (fixtures)', () => {
     expect(readCoreManifests(dir)[0]).not.toHaveProperty('timeout_seconds');
   });
 
+  it('accepts an on_failure target or null, and rejects an empty one (#36)', () => {
+    write('acme.json', {
+      'acme-poll': { ...entry, on_failure: 'C0123456789' },
+      'acme-push': { ...entry, on_failure: null },
+    });
+    expect(readCoreManifests(dir).map((m) => m.on_failure)).toEqual([
+      'C0123456789',
+      null,
+    ]);
+    write('acme.json', { 'acme-poll': { ...entry, on_failure: '' } });
+    expect(() => readCoreManifests(dir)).toThrow(
+      /[\\/]acme\.json[\s\S]*on_failure/,
+    );
+  });
+
   it('names the file and the position on a JSON syntax error', () => {
     fs.writeFileSync(path.join(dir, 'acme.json'), '{ "acme-poll": { ,} }');
     expect(() => readCoreManifests(dir)).toThrow(
@@ -135,6 +150,22 @@ describe('applyDelta', () => {
     });
   });
 
+  it('replaces on_failure, and null clears it to the runner default (#36)', () => {
+    const routed: JobManifest = { ...base, on_failure: 'C0123456789' };
+    expect(applyDelta(base, { on_failure: 'U0123456789' })).toEqual({
+      ...base,
+      on_failure: 'U0123456789',
+    });
+    expect(applyDelta(routed, { on_failure: null })).toEqual({
+      ...base,
+      on_failure: null,
+    });
+    expect(applyDelta(routed, { enabled: false })).toEqual({
+      ...routed,
+      enabled: false,
+    });
+  });
+
   it('ignores delta fields that are not runner fields (silo, taskFile)', () => {
     expect(applyDelta(base, { silo: 'acme', taskFile: 'a/TASK.md' })).toEqual(
       base,
@@ -171,12 +202,19 @@ describe('effectiveManifests', () => {
         deltas: {
           'acme-drain': { schedule: '0 * * * *' },
           'acme-pull': { enabled: false, silo: 'acme' },
+          'acme-alert': { on_failure: 'C0123456789' },
           'acme-ok': { taskFile: 'a/TASK.md' },
         },
-        knownIds: new Set(['acme-poll', 'acme-drain', 'acme-pull', 'acme-ok']),
+        knownIds: new Set([
+          'acme-poll',
+          'acme-drain',
+          'acme-pull',
+          'acme-alert',
+          'acme-ok',
+        ]),
       }),
     ).toThrow(
-      /enabled\/schedule\/timeout_seconds\/env\/args on runnable id\(s\) with no manifest, where they have no effect: acme-drain, acme-pull\./,
+      /enabled\/schedule\/timeout_seconds\/on_failure\/env\/args on runnable id\(s\) with no manifest, where they have no effect: acme-drain, acme-pull, acme-alert\./,
     );
   });
 

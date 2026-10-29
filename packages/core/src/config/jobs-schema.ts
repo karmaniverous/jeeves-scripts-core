@@ -15,6 +15,14 @@ import { z } from 'zod';
 import { isAbsolutePath } from './absolute-path.js';
 import { scheduleSchema } from './schedule-schema.js';
 
+/**
+ * A runner `on_failure` target: the Slack channel, DM or user id the runner
+ * alerts on a failed or timed-out run. `null` means the runner default
+ * (`notifications.defaultOnFailure`); in a delta it clears a manifest value
+ * (#36). Shared by manifests and deltas.
+ */
+export const onFailureSchema = z.string().min(1).nullable().optional();
+
 /** An instance's changes to one core job (Decision 5). */
 export const jobDeltaSchema = z.object({
   /** Turn the job on or off for this instance. */
@@ -27,6 +35,8 @@ export const jobDeltaSchema = z.object({
   args: z.array(z.string()).optional(),
   /** Run timeout in seconds (replaces the manifest's). */
   timeout_seconds: z.number().int().positive().optional(),
+  /** Failure alert target (replaces the manifest's; `null` clears it). */
+  on_failure: onFailureSchema,
   /** Data silo this job's dispatcher reads and writes under (Decision 28). */
   silo: z.string().optional(),
   /** Task file path, relative to the job's silo (Decisions 23, 28). */
