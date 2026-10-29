@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### 📚 Documentation
+
+- *(email)* Add the adding-a-mailbox procedure to the email guide and skill
+- *(email)* Address review on adding a mailbox
 ## [0.2.2] - 2026-10-26
 
 ### 💼 Other
@@ -10,6 +16,10 @@ All notable changes to this project will be documented in this file.
 
 Add optional pipeline.accounts[].reportOnly. An account's effective flag is emailConfig.reportOnly || accounts[].reportOnly === true, resolved by the new reportOnlyFor(pipeline) (config/report-only.ts) and used by every reader. The email-updates gate (label-actions enqueueEmailUpdates/enqueueLabelActions) drops each action whose own account is report-only; poll, backfill-historical, email-fetch, apply-labels, email-respond and meetings extract/catch-up all take the per-account policy. drain-updates drops (and logs) queued items for an account that is report-only on its own, without calling gog. email-apply-labels skips report-only accounts and refuses only when every target account is report-only.
 - [51] docs(email): per-account reportOnly in guides, meetings job and jeeves-email skill
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-scripts-core v0.2.2
 ## [0.2.1] - 2026-10-18
 
 ### 💼 Other
