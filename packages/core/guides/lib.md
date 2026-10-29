@@ -140,7 +140,7 @@ Job-side Slack I/O for LLM workers. On OpenClaw 2026.9, sub-agent sessions have 
 - `worker-slack-job.ts`: orchestration with injected deps (read → TASK → dispatch → validate → post/pin/edit).
 - `worker-posts.ts`: the `slack-posts` output contract (a fenced JSON array, never a bare object, of `{channel, text, thread_ts?, pin?, edit_ts?}`; `edit_ts` replaces the text of an existing message and can't be combined with `thread_ts`/`pin`; edits and pins are allowed only where the target's `editTs` / `pin` permit), the worker instructions, and the Slack context formatting (fenced as untrusted data the worker must never follow as instructions).
 - `slack-io.ts`: `read` / `send` / `pin` / `edit` through the gateway `message` tool (`/tools/invoke`). A read response without a valid `messages` array throws (only `messages: []` means an empty channel).
-- `slack-target.ts`: normalizes Slack IDs to `channel:…` / `user:…` targets (the prefix must match the ID family: `channel:` C/G/D, `user:` U/W).
+- `slack-target.ts`: normalizes Slack IDs to `channel:…` / `user:…` targets (the prefix must match the ID family: `channel:` C/G/D, `user:` U/W). Exported from the package root as `normalizeSlackTarget`, so an instance dispatcher that takes a target from its own config normalizes it the way core does.
 
 ### spawn-worker.ts
 

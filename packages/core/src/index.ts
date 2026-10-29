@@ -93,6 +93,7 @@ export {
   type SlackResponse,
 } from './lib/slack-client.js';
 export { dispatchWithSlack } from './lib/worker-slack/run.js';
+export { normalizeSlackTarget } from './lib/worker-slack/slack-target.js';
 export * from './lib/worker-slack/worker-slack-config.js';
 export type { WorkerSlackResult } from './lib/worker-slack/worker-slack-job.js';
 export {

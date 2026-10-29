@@ -98,6 +98,7 @@ const EXPECTED = [
   'metaConfig',
   'metaConfigSchema',
   'metaUrl',
+  'normalizeSlackTarget',
   'notionIntegrationSchema',
   'openclawConfigPaths',
   'openclawConfigSchema',
