@@ -15,7 +15,9 @@ import { argFlag, type ParsedArgs } from './args.js';
 
 /** The flags every dispatcher accepts. */
 export const dispatcherFlags = {
+  /** `--print-task`: print the full TASK and dispatch nothing. */
   printTask: argFlag('--print-task', 'Print the full TASK; dispatch nothing'),
+  /** `--dry-run`: report what would be dispatched (job, task length, post targets) and dispatch nothing. */
   dryRun: argFlag(
     '--dry-run',
     'Report what would be dispatched (job, task length, post targets); dispatch nothing',

@@ -93,6 +93,7 @@ export type { WorkerSlackResult } from './lib/worker-slack/worker-slack-job.js';
 export {
   defineRunnable,
   isJobModule,
+  type JobCallContext,
   type JobContext,
   jobContextSchema,
   type JobDeclaration,
