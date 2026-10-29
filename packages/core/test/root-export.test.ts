@@ -100,6 +100,7 @@ const EXPECTED = [
   'metaUrl',
   'normalizeSlackTarget',
   'notionIntegrationSchema',
+  'onFailureSchema',
   'openclawConfigPaths',
   'openclawConfigSchema',
   'openclawStateDirs',
