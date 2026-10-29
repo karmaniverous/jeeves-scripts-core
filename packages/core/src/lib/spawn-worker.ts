@@ -19,8 +19,8 @@
  */
 
 import { sleepAsync } from '@karmaniverous/jeeves';
+import { exponentialBackoff, retryAsync } from '@karmaniverous/jeeves';
 
-import { exponentialBackoff, retryAsync } from './retry.js';
 import {
   type GatewayDetails,
   type GatewayResponse,

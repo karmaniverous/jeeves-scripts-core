@@ -15,10 +15,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 
 import { sleepAsync as sleep } from '@karmaniverous/jeeves';
+import { retryAsync } from '@karmaniverous/jeeves';
 import type { Page } from 'puppeteer-core';
 import puppeteer from 'puppeteer-core';
 
-import { retryAsync } from '../../lib/retry.js';
 import type { FathomShareContent } from './fathom-share-dom.js';
 import {
   COLLECT_DOM_SNAPSHOT_JS,

@@ -162,9 +162,9 @@ YAML frontmatter for generated Markdown: builds the `---` block (every value JSO
 
 Waits for a spawned worker: polls the gateway's `sessions_list` for the child session until its run ends, then reads token usage from the transcript (`waitForWorkerCompletion`, `findSession`, `sessionTokens`, `getTokensFromTranscript`). `spawn-worker.ts` uses it.
 
-### retry.ts
+### Retry (from `@karmaniverous/jeeves`)
 
-The one retry helper, on the root export: `retryAsync(fn, policy)` and `retrySync(fn, policy)` try up to `policy.attempts` times, waiting `policy.delayMs(attempt)` (`exponentialBackoff(baseMs)` for doubling waits) after a failure `policy.isRetryable` accepts, and rethrow the last error. The worker spawn, the Drive rename, the Fathom share fetch and the Notion page reader use it.
+Core has no retry module of its own (#24): it imports the platform's from `@karmaniverous/jeeves` and keeps it on its root export so instance code is unchanged. `retryAsync(fn, policy)` and `retrySync(fn, policy)` try up to `policy.attempts` times, waiting `policy.delayMs(attempt)` (`exponentialBackoff(baseMs)` for doubling waits) after a failure `policy.isRetryable` accepts, and rethrow the last error. The worker spawn, the Slack client's 429 handling, the Drive rename, the Fathom share fetch and the Notion page reader use it.
 
 ### json-file.ts
 

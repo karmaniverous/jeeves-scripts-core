@@ -75,12 +75,6 @@ export {
 } from './lib/json-file.js';
 export * from './lib/meta-config.js';
 export * from './lib/openclaw-config.js';
-export {
-  exponentialBackoff,
-  retryAsync,
-  type RetryPolicy,
-  retrySync,
-} from './lib/retry.js';
 export * from './lib/runner-config.js';
 export {
   createSlackClient,
@@ -123,3 +117,9 @@ export {
   type PluginDeclaration,
   pluginDeclarationSchema,
 } from './runnables/plugin.js';
+export {
+  exponentialBackoff,
+  retryAsync,
+  type RetryPolicy,
+  retrySync,
+} from '@karmaniverous/jeeves';

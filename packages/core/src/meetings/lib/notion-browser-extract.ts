@@ -6,9 +6,9 @@
  */
 
 import { sleepAsync } from '@karmaniverous/jeeves';
+import { retryAsync } from '@karmaniverous/jeeves';
 
 import { gatewayInvoke, unwrapResult } from '../../lib/gateway-client.js';
-import { retryAsync } from '../../lib/retry.js';
 
 // ── Types ──────────────────────────────────────────────────────────────
 

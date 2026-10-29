@@ -6,13 +6,12 @@
  * methods, `chat.postMessage`, `conversations.open`, the external file
  * upload flow and authenticated file downloads. Every Web API call throws
  * a {@link SlackApiError} unless Slack answers `ok`, and retries an HTTP 429
- * after its `Retry-After` (lib/retry). Network I/O only; the token always
+ * after its `Retry-After` (`retryAsync` from `@karmaniverous/jeeves`). Network I/O only; the token always
  * comes from the caller.
  */
 
+import { retryAsync } from '@karmaniverous/jeeves';
 import { z } from 'zod';
-
-import { retryAsync } from './retry.js';
 
 /** The Slack Web API base URL. */
 const SLACK_API = 'https://slack.com/api/';
