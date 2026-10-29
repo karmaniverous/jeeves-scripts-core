@@ -16,8 +16,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { getEntityDirs } from '../config/index.js';
-import { defineJob } from '../jobs/define-job.js';
 import { ENTITY_TYPES, type EntityTypeConfig } from '../lib/constants.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 
 /** Extract a parseable date from meta fields or _content header. */
 function getEntityDate(meta: Record<string, unknown>): Date | null {
@@ -138,7 +138,7 @@ export function disableOldMeta(deps: DisableOldMetaDeps): void {
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'meta-disable-old',
   domain: 'meta',
   flags: {},

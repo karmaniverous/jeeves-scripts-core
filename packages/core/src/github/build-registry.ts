@@ -13,7 +13,7 @@ import fs from 'node:fs';
 
 import { ensureDir } from '@karmaniverous/jeeves';
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   ghApiVia,
   ghReady,
@@ -204,7 +204,7 @@ export function buildRegistry(deps: GitHubJobDeps): void {
   );
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'github-build-registry',
   domain: 'github',
   flags: {},

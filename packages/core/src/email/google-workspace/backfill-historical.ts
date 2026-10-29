@@ -33,11 +33,11 @@ import {
   type PipelineConfig,
   reportOnlyFor,
 } from '../../config/index.js';
-import { defineJob } from '../../jobs/define-job.js';
 import { argFlag, type ParsedArgs } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
 import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
 import { requireGogCredentials } from '../../lib/gog-credentials.js';
+import { defineRunnable } from '../../runnables/define-runnable.js';
 import {
   backfillSettingsFlags,
   resolveBackfillSettings,
@@ -133,7 +133,7 @@ export function backfillHistorical(
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'email-backfill-historical',
   domain: 'email',
   name: 'email/backfill-historical',

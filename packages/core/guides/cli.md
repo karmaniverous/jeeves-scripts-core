@@ -43,7 +43,7 @@ jeeves-scripts --dir ./new-instance init        # no repo yet
 | --- | --- |
 | `run <id> [args...]` | Run a runnable by id (below), checking the arguments against the flags it declares. `run <id> --help` prints its usage, flags and effective manifest and runs nothing. Exit 0 when done or skipped; 1 on a crash, an unknown id, a registration error or an undeclared option; a runnable may set another code with `process.exitCode`. |
 | `list [glob] [--json]` | Every registered runnable whose id matches the glob ([below](#listing-runnables)). Exit 1 on an invalid manifest, delta or registration. |
-| `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references, then load and register the instance plugin as `list` does: its `configSchema` validates the `local` block ([jobs](./jobs.md#instance-runnables-and-overrides)), and registration checks unique ids, the naming rule and core domains, the instance manifests and the `jobs` deltas (an unknown id fails). A plugin that fails to load or register, an invalid manifest or delta, or a rejected `local` is a problem like any other. Silo references are `jobs.<id>.silo` and `integrations.x.accounts.<handle>.silo`. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
+| `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references, then load and register the instance plugin as `list` does: its `configSchema` validates the `local` block ([jobs](./runnables.md#instance-runnables-and-overrides)), and registration checks unique ids, the naming rule and core domains, the instance manifests and the `jobs` deltas (an unknown id fails). A plugin that fails to load or register, an invalid manifest or delta, or a rejected `local` is a problem like any other. Silo references are `jobs.<id>.silo` and `integrations.x.accounts.<handle>.silo`. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
 | `doctor` | Report on the instance ([below](#doctor)). Informational: always exits 0. |
 | `--version`, `--help` | The core version; usage (there is no `help` verb; `<verb> --help` gives a verb's usage). |
 | `init [--name <pkg>] [--core <version>]` | Write an instance repo into the root from the template bundled in core ([below](#init)). Exit 1 on an invalid name or version. |
@@ -57,18 +57,18 @@ Domain work is never a CLI verb (Decision 49): it is a runnable, run with `run <
 
 ## How `run` resolves a runnable
 
-Before resolving, `run` sets `JEEVES_SCRIPTS_CONFIG` to `{root}/jeeves-scripts.json` (unless it is already set) and loads the instance plugin, `{root}/jeeves-scripts.plugin.ts`, in its own process with tsx ([jobs](./jobs.md#instance-runnables-and-overrides)). Then:
+Before resolving, `run` sets `JEEVES_SCRIPTS_CONFIG` to `{root}/jeeves-scripts.json` (unless it is already set) and loads the instance plugin, `{root}/jeeves-scripts.plugin.ts`, in its own process with tsx ([jobs](./runnables.md#instance-runnables-and-overrides)). Then:
 
 1. **A plugin override** for `<id>` runs instead of core's runnable.
 2. Else **a core id** runs core's runnable, its module loaded through the registry.
 3. Else **a plugin runnable** id runs the instance runnable.
 4. Else `run` fails: unknown id.
 
-Every runnable runs in the CLI's process ([`defineJob`](./jobs.md#declaring-a-job): `process.argv` is `[node, <id>, ...args]`, a crash exits 1 through `runScript`). `run` resolves when the body has finished. A plugin that fails to load, or breaks a registration rule (a core id or core domain reused, an override of an unknown id), fails `run` before anything runs.
+Every runnable runs in the CLI's process ([`defineRunnable`](./runnables.md#declaring-a-job): `process.argv` is `[node, <id>, ...args]`, a crash exits 1 through `runScript`). `run` resolves when the body has finished. A plugin that fails to load, or breaks a registration rule (a core id or core domain reused, an override of an unknown id), fails `run` before anything runs.
 
 `run` never adds a manifest's `args`: a registered runner job's args are `["run", <id>, ...effective manifest args]`, so a person typing `run <id>` gets exactly what was typed.
 
-The runnable gets everything after the id as `ctx.args`, and its declared flags parsed as `ctx.flags`. When it declares `flags`, `run` first rejects any option it does not declare (exit 1, `Unknown option <flag> for <id> (see run <id> --help)`), before the body runs; when it declares none, the arguments pass unchecked with a deprecation warning, until a later minor release makes the check apply to every runnable. `run <id> --help` (or `-h`) prints the usage, description, declared flags and effective manifest, and exits 0 without running the body. Every runnable follows one convention: bare boolean flags (`--live`, `--dry-run`), valued options as `--name value` or `--name=value`, and positionals; for example `run jira-backfill --project=ACME --live` ([jobs](./jobs.md#arguments)).
+The runnable gets everything after the id as `ctx.args`, and its declared flags parsed as `ctx.flags`. When it declares `flags`, `run` first rejects any option it does not declare (exit 1, `Unknown option <flag> for <id> (see run <id> --help)`), before the body runs; when it declares none, the arguments pass unchecked with a deprecation warning, until a later minor release makes the check apply to every runnable. `run <id> --help` (or `-h`) prints the usage, description, declared flags and effective manifest, and exits 0 without running the body. Every runnable follows one convention: bare boolean flags (`--live`, `--dry-run`), valued options as `--name value` or `--name=value`, and positionals; for example `run jira-backfill --project=ACME --live` ([jobs](./runnables.md#arguments)).
 
 Running a core module by path (`node dist/<domain>/<module>.js`) runs nothing: runnable modules only declare themselves.
 
@@ -82,9 +82,9 @@ Running a core module by path (`node dist/<domain>/<module>.js`) runs nothing: r
 | `source` | `core`, `instance`, or `override` (a plugin override of a core id) |
 | `schedule` | The effective schedule after instance deltas, as the runner stores it (a cron string as written, an RRStack object as compact JSON), when it has a manifest; blank otherwise |
 | `enabled` | The effective `enabled` after deltas, when it has a manifest; blank otherwise |
-| `description` | The manifest's `description`, else the `defineJob` one |
+| `description` | The manifest's `description`, else the `defineRunnable` one |
 
-`--json` prints an array with one object per runnable: the same fields (`schedule` and `enabled` are `null` without a manifest) plus `domain` and `manifest` (the effective manifest after deltas, or `null`). `schedule` is as written: a string (cron, or RRStack JSON) or an RRStack object ([jobs](./jobs.md#manifests)); the runner job's `schedule` is the string, or the object's JSON. A manifest without `timeout_seconds` registers a job with no timeout. jeeves-tools registers runner jobs from it: every entry with a manifest whose `prerequisite` is `null`. `list` reads the instance config (for deltas), loads the plugin, reads core's and the instance's manifests, and imports the modules of runnables without a manifest to read their descriptions.
+`--json` prints an array with one object per runnable: the same fields (`schedule` and `enabled` are `null` without a manifest) plus `domain` and `manifest` (the effective manifest after deltas, or `null`). `schedule` is as written: a string (cron, or RRStack JSON) or an RRStack object ([jobs](./runnables.md#manifests)); the runner job's `schedule` is the string, or the object's JSON. A manifest without `timeout_seconds` registers a job with no timeout. jeeves-tools registers runner jobs from it: every entry with a manifest whose `prerequisite` is `null`. `list` reads the instance config (for deltas), loads the plugin, reads core's and the instance's manifests, and imports the modules of runnables without a manifest to read their descriptions.
 
 ## Init
 
@@ -125,7 +125,7 @@ Core ships its skills in the package (`skills/<name>/SKILL.md`); they are wired 
 | `core:` | The installed core version |
 | `config:` | The config file location and `OK` or `FAILED`, with one indented line per problem (as `config check`) |
 | `plugin:` | `jeeves-scripts.plugin.ts` with its runnable and override counts, `none`, or `FAILED` with the load or registration error |
-| `manifests:` | A count of met, not met and manual prerequisites, then every effective manifest (core's and the instance's, deltas applied): enabled or disabled, and its prerequisite state: `met` or `not met: <reason>` from the runnable's `defineJob` prerequisite check when it has one; else `met` when the manifest's `prerequisite` is `null` (deploy registers it), or `manual: <text>` |
+| `manifests:` | A count of met, not met and manual prerequisites, then every effective manifest (core's and the instance's, deltas applied): enabled or disabled, and its prerequisite state: `met` or `not met: <reason>` from the runnable's `defineRunnable` prerequisite check when it has one; else `met` when the manifest's `prerequisite` is `null` (deploy registers it), or `manual: <text>` |
 | `overrides:` | Every declared override with the core version it was written for; one whose `writtenFor` differs from the installed core is marked `DRIFT` with its issue to recheck |
 
 Use it after an upgrade (override drift) and when a runnable won't register.
@@ -161,5 +161,5 @@ The CLI is also importable from `@karmaniverous/jeeves-scripts-core/cli`: `main(
 | `src/cli/package-info.ts` | The running core's package directory and version |
 | `src/cli/load-plugin.ts` | `loadPlugin`: imports `jeeves-scripts.plugin.ts` with tsx |
 | `src/cli/run.ts` | `registerInstance`, `resolveRunnable`, `runJob` |
-| `src/jobs/` | `defineJob`, the runnable registry and manifests ([jobs](./jobs.md)) |
+| `src/runnables/` | `defineRunnable`, the runnable registry and manifests ([jobs](./runnables.md)) |
 | `src/cli/bin.ts` | Package `bin`: the global hand-off |

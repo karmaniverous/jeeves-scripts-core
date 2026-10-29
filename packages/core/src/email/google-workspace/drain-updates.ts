@@ -36,9 +36,9 @@ import {
   reportOnlyFor,
   type ReportOnlyPolicy,
 } from '../../config/index.js';
-import { defineJob } from '../../jobs/define-job.js';
 import { constants } from '../../lib/constants.js';
 import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
+import { defineRunnable } from '../../runnables/define-runnable.js';
 import { loadCache, saveCache } from '../email-cache.js';
 import {
   EMAIL_UPDATES_QUEUE,
@@ -266,7 +266,7 @@ export function drainUpdates(deps: DrainUpdatesDeps): void {
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'email-drain-updates',
   domain: 'email',
   flags: {},

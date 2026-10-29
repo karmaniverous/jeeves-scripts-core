@@ -9,12 +9,12 @@
  * into the x-mentions-\{handle\} runner queue for drain-queues to flush to disk.
  */
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { pollXFlags, runXPoller } from './lib/poll-x-items.js';
 import { xJobDeps } from './lib/x-deps.js';
 import { pollUserMentions } from './lib/x-timelines.js';
 
-export default defineJob({
+export default defineRunnable({
   id: 'x-poll-mentions',
   domain: 'x',
   name: 'x/poll-mentions',

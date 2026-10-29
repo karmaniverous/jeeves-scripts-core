@@ -15,7 +15,7 @@ import { pathToFileURL } from 'node:url';
 import { tsImport } from 'tsx/esm/api';
 
 import { getLoadedConfigPath, loadConfig } from '../config/loader.js';
-import { isPlugin, type Plugin, setLocalConfig } from '../jobs/plugin.js';
+import { isPlugin, type Plugin, setLocalConfig } from '../runnables/plugin.js';
 
 /** The plugin file name, at the instance root (a fixed contract). */
 export const PLUGIN_FILE = 'jeeves-scripts.plugin.ts';

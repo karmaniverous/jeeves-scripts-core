@@ -25,7 +25,6 @@ import path from 'node:path';
 import { nowIso } from '@karmaniverous/jeeves';
 
 import { getBasePathForJira, integrations } from '../config/index.js';
-import { defineJob } from '../jobs/define-job.js';
 import { readStdinJson } from '../lib/entity-store.js';
 import {
   applyDrainRoute,
@@ -33,6 +32,7 @@ import {
   objectField,
   type WebhookBody,
 } from '../lib/webhook-drain.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 
 /** Custom field id to display name, from `_fields.json`. */
 type FieldMap = Record<string, string>;
@@ -202,7 +202,7 @@ export const jiraDrainDeps = (): JiraDrainDeps => {
   };
 };
 
-export default defineJob({
+export default defineRunnable({
   id: 'jira-drain',
   domain: 'jira',
   flags: {},

@@ -1,9 +1,9 @@
 /**
- * @module jobs/registry-scheduled
+ * @module runnables/registry-scheduled
  *
  * Core's scheduled runnables: every core runnable with a manifest in
  * `jobs/<domain>.json`, which jeeves-runner runs (Decisions 4, 40, 49).
- * Entries only; {@link coreJobs} in `jobs/registry` joins them with the
+ * Entries only; {@link coreJobs} in `runnables/registry` joins them with the
  * on-demand runnables. Importing this module imports no runnable.
  */
 

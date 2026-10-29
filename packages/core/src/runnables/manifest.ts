@@ -1,5 +1,5 @@
 /**
- * @module jobs/manifest
+ * @module runnables/manifest
  *
  * Core's runnable manifests (Decisions 5, 40, 49): `jobs/<domain>.json`
  * in the package, each an object keyed by runnable id holding the runner
@@ -53,7 +53,7 @@ export type ManifestEntry = z.infer<typeof manifestEntrySchema>;
 /** A manifest entry with its id and domain (the file it came from). */
 export type JobManifest = ManifestEntry & { id: string; domain: string };
 
-/** Core's `jobs/` directory: two levels up from `src/jobs` or `dist/jobs`. */
+/** Core's `jobs/` directory: two levels up from `src/runnables` or `dist/runnables`. */
 export const coreManifestDir = (): string =>
   path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),

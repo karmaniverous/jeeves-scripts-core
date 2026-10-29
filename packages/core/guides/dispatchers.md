@@ -17,10 +17,10 @@ Framework for autonomous LLM task dispatchers that read Markdown task files and 
 
 Core ships no dispatcher runnable: a daily digest or briefing is an instance's choice of what to summarise and where to post it, so it is instance code (Decision 44). Core provides the machinery below. To add a dispatcher to an instance:
 
-1. Write it as an instance runnable with `defineJob`, in an instance domain, registered by the instance plugin ([jobs](./jobs.md#instance-runnables-and-overrides)), calling `dispatchTaskFile` (below) or building its task at runtime.
+1. Write it as an instance runnable with `defineRunnable`, in an instance domain, registered by the instance plugin ([jobs](./runnables.md#instance-runnables-and-overrides)), calling `dispatchTaskFile` (below) or building its task at runtime.
 2. Task-file dispatchers: write the TASK file with your standing orders. Dynamic dispatchers: set the `pipeline.refs` they read in `jeeves-scripts.json`.
-3. Give it a manifest in the instance's `jobs/*.json` (see [jobs](./jobs.md#manifests)) so the runner can schedule it as `["run", "<id>"]`, on a jeeves-runner schedule (e.g. `{"freq":"daily","byhour":6,"byminute":30,"timezone":"America/Chicago"}`).
-4. Test with `--print-task`, then `--dry-run`, before enabling it: `node bin/jeeves-scripts.js run acme-generate-digest --print-task`. Both flags work for every `dispatchTaskFile` dispatcher: `--print-task` prints the full TASK and dispatches nothing; `--dry-run` reports what it would dispatch (job, task length and, with `slack`, the allowed post targets) and dispatches nothing. Neither flag ever starts a worker session, with or without `slack`. Either way `dispatchTaskFile` resolves `'previewed'`. Declare them with `flags: dispatcherFlags` (root export) on the dispatcher's `defineJob`: `run` then rejects any other option, and `taskFileDispatcher` passes the parsed `ctx.flags` on as `options.flags` (each must be a boolean, else a `TypeError`). A dispatcher that declares no flags still works: `dispatchTaskFile` reads them from `options.args` (`taskFileDispatcher` passes `ctx.args`), or from `process.argv` when it gets neither. `dispatchWithSlack` takes the same parsed flags or raw arguments as its fourth parameter.
+3. Give it a manifest in the instance's `jobs/*.json` (see [jobs](./runnables.md#manifests)) so the runner can schedule it as `["run", "<id>"]`, on a jeeves-runner schedule (e.g. `{"freq":"daily","byhour":6,"byminute":30,"timezone":"America/Chicago"}`).
+4. Test with `--print-task`, then `--dry-run`, before enabling it: `node bin/jeeves-scripts.js run acme-generate-digest --print-task`. Both flags work for every `dispatchTaskFile` dispatcher: `--print-task` prints the full TASK and dispatches nothing; `--dry-run` reports what it would dispatch (job, task length and, with `slack`, the allowed post targets) and dispatches nothing. Neither flag ever starts a worker session, with or without `slack`. Either way `dispatchTaskFile` resolves `'previewed'`. Declare them with `flags: dispatcherFlags` (root export) on the dispatcher's `defineRunnable`: `run` then rejects any other option, and `taskFileDispatcher` passes the parsed `ctx.flags` on as `options.flags` (each must be a boolean, else a `TypeError`). A dispatcher that declares no flags still works: `dispatchTaskFile` reads them from `options.args` (`taskFileDispatcher` passes `ctx.args`), or from `process.argv` when it gets neither. `dispatchWithSlack` takes the same parsed flags or raw arguments as its fourth parameter.
 
 ## Slack: the job script does it, not the worker
 
@@ -54,16 +54,16 @@ await dispatchWithSlack(
 
 ### Task-file dispatcher (reads a TASK.md file)
 
-Use `dispatchTaskFile` inside a runnable, or pass `taskFileDispatcher(options)` (a `run` function that calls it) to `defineJob`, both exported from `@karmaniverous/jeeves-scripts-core`. It reads `<silo>/<taskFile>` (`siloPath`, Decision 28; `silo` omitted = the default silo), `[skip]`s with exit 0 when the file is missing, optionally prefixes the date, and dispatches through `dispatchWithSlack` (with `slack`) or jeeves-runner's `runDispatcher` and core's `spawn-worker` (without). `jobs.<jobId>.silo` / `.taskFile` in `jeeves-scripts.json` override the values in code, so an instance can move a TASK without code.
+Use `dispatchTaskFile` inside a runnable, or pass `taskFileDispatcher(options)` (a `run` function that calls it) to `defineRunnable`, both exported from `@karmaniverous/jeeves-scripts-core`. It reads `<silo>/<taskFile>` (`siloPath`, Decision 28; `silo` omitted = the default silo), `[skip]`s with exit 0 when the file is missing, optionally prefixes the date, and dispatches through `dispatchWithSlack` (with `slack`) or jeeves-runner's `runDispatcher` and core's `spawn-worker` (without). `jobs.<jobId>.silo` / `.taskFile` in `jeeves-scripts.json` override the values in code, so an instance can move a TASK without code.
 
 ```typescript
 import {
-  defineJob,
+  defineRunnable,
   dispatchTaskFile,
   getRef,
 } from '@karmaniverous/jeeves-scripts-core';
 
-export default defineJob({
+export default defineRunnable({
   id: 'acme-generate-briefing',
   domain: 'acme',
   description: 'Dispatch the daily briefing task.',
@@ -93,12 +93,12 @@ An instance runnable that builds its task text at runtime from `pipeline.refs` (
 
 ```typescript
 import {
-  defineJob,
+  defineRunnable,
   dispatchWithSlack,
   tryGetRef,
 } from '@karmaniverous/jeeves-scripts-core';
 
-export default defineJob({
+export default defineRunnable({
   id: 'acme-generate-summary',
   domain: 'acme',
   description: 'Dispatch a worker to write the results summary.',

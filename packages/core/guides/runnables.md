@@ -2,7 +2,7 @@
 title: Runnables
 ---
 
-# jobs/
+# runnables/
 
 The runnable registry (Decisions 4, 5, 40, 49, 50): core's runnables, their ids, their manifests, and how an instance adds to and adjusts them through its plugin, its manifests and its deltas.
 
@@ -26,16 +26,16 @@ A job id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/bin/j
 | `x` | `x-poll-posts`, `x-poll-mentions`, `x-poll-feed`, `x-poll-likes`, `x-poll-bookmarks`, `x-drain-queues` | `x-post`, `x-refresh-token`, `x-like`, `x-repost` (kept, Decision 50) |
 | `people` |  | `people-propose` |
 
-The scheduled ids are the template's manifest ids. `src/jobs/registry-scheduled.ts` and `src/jobs/registry-on-demand.ts` hold the lists (`src/jobs/registry.ts` joins them); each domain's guide says what its jobs do.
+The scheduled ids are the template's manifest ids. `src/runnables/registry-scheduled.ts` and `src/runnables/registry-on-demand.ts` hold the lists (`src/runnables/registry.ts` joins them); each domain's guide says what its jobs do.
 
 ## Declaring a job
 
-Every job module default-exports `defineJob(...)`, exported from the package root:
+Every job module default-exports `defineRunnable(...)`, exported from the package root:
 
 ```ts
-import { defineJob } from '@karmaniverous/jeeves-scripts-core';
+import { defineRunnable } from '@karmaniverous/jeeves-scripts-core';
 
-export default defineJob({
+export default defineRunnable({
   id: 'acme-report', // domain-verb[-modifier][-object][-specifier]
   domain: 'acme', // the top-level source folder
   description: 'Report on acme.', // one line for list; registration fails without it when there's no manifest
@@ -55,7 +55,7 @@ The declaration is validated with Zod (Decision 31) and returned frozen: the id 
 2. checks `prerequisite`: anything but `true` logs `[skip] <reason>` and the run exits 0;
 3. runs `run` inside `runScript(name ?? id, ..., crashDir)` from `@karmaniverous/jeeves`: an uncaught error is logged, appended to `_crash.log`, and exits 1.
 
-Core's jobs keep the crash labels and crash directories they had before the registry (`email/poll`, `x/poll-posts`, ...; the two that named the removed `core` domain are `admin/qdrant-health-check` and `admin/sweep-orphaned-tmp`), and their inline `[skip]` guards; `prerequisite` is for new jobs (the X handle check is one). No job module reads config when imported: each `run` builds its collaborators from config when it runs, and hands its work back (returns or awaits it). `src/jobs/registry-runs.test.ts` imports and runs every core job with no loadable config to pin both (Decision 58).
+Core's jobs keep the crash labels and crash directories they had before the registry (`email/poll`, `x/poll-posts`, ...; the two that named the removed `core` domain are `admin/qdrant-health-check` and `admin/sweep-orphaned-tmp`), and their inline `[skip]` guards; `prerequisite` is for new jobs (the X handle check is one). No job module reads config when imported: each `run` builds its collaborators from config when it runs, and hands its work back (returns or awaits it). `src/runnables/registry-runs.test.ts` imports and runs every core job with no loadable config to pin both (Decision 58).
 
 ### Failures, skips and exit codes
 
@@ -70,7 +70,7 @@ A job's logic takes its config values, file roots, clients, clock and arguments 
 
 ### Arguments
 
-A runnable declares the flags it accepts as `defineJob({ flags })`, and reads them, parsed, from `ctx.flags`; positionals come from `ctx.args` (everything after `run <id>`). Core's runnables and instance runnables use one convention and one parser from the root export (Decision 59):
+A runnable declares the flags it accepts as `defineRunnable({ flags })`, and reads them, parsed, from `ctx.flags`; positionals come from `ctx.args` (everything after `run <id>`). Core's runnables and instance runnables use one convention and one parser from the root export (Decision 59):
 
 - **Boolean options are bare flags:** `--live`, `--dry-run`. Present means `true`; `--live=true` is rejected as an unknown option.
 - **Valued options** are `--name value` or `--name=value` (the first `=` splits, so `--services=a=b` gives `a=b`), optionally with a short alias written `-e value`. The first occurrence wins.
@@ -81,7 +81,7 @@ import {
   argFlag,
   argOptional,
   argValue,
-  defineJob,
+  defineRunnable,
   positionalArgs,
 } from '@karmaniverous/jeeves-scripts-core';
 
@@ -91,7 +91,7 @@ const flags = {
   env: argOptional('--env', { alias: '-e' }), // string | undefined
 };
 
-export default defineJob({
+export default defineRunnable({
   id: 'acme-report',
   domain: 'acme',
   description: 'Report on acme.',
@@ -169,7 +169,7 @@ An instance never copies a core manifest. It adjusts a runnable's manifest (core
 | `silo`, `taskFile` | Read by the job itself (task-file dispatchers); no runner effect. |
 | `extraDirs` | Read by `admin-sweep-orphaned-tmp`: absolute directories it sweeps besides the content and scripts directories ([admin](./admin.md#prerequisites)); no runner effect. |
 
-A delta for an id that is neither a core nor an instance runnable is an error, and so is a delta that sets `enabled`, `schedule`, `timeout_seconds`, `env` or `args` on a runnable with no manifest (where they would have no effect; give the runnable a manifest instead). The runnable-read fields (`silo`, `taskFile`, `extraDirs`) need no manifest. `src/jobs/manifest.ts` (`readCoreManifests`, `applyDelta`, `effectiveManifests`) and `src/jobs/runnables.ts` (`registeredManifests`) implement this; `jeeves-scripts list --json` prints the effective set ([cli](./cli.md#listing-runnables)). Deltas shape what registration uses; they do not change a runner job that already exists.
+A delta for an id that is neither a core nor an instance runnable is an error, and so is a delta that sets `enabled`, `schedule`, `timeout_seconds`, `env` or `args` on a runnable with no manifest (where they would have no effect; give the runnable a manifest instead). The runnable-read fields (`silo`, `taskFile`, `extraDirs`) need no manifest. `src/runnables/manifest.ts` (`readCoreManifests`, `applyDelta`, `effectiveManifests`) and `src/runnables/runnables.ts` (`registeredManifests`) implement this; `jeeves-scripts list --json` prints the effective set ([cli](./cli.md#listing-runnables)). Deltas shape what registration uses; they do not change a runner job that already exists.
 
 ## Instance runnables and overrides
 
@@ -183,7 +183,7 @@ import acmeReport from './src/acme/report.js';
 import { pollMyWay } from './src/acme/poll.js';
 
 export default definePlugin({
-  // Instance runnables: defineJob modules, exactly like core's.
+  // Instance runnables: defineRunnable modules, exactly like core's.
   jobs: [acmeReport],
   // Declared replacements of core runnables (R20).
   overrides: [
@@ -206,7 +206,7 @@ Registration (plugin load) fails, listing every problem with its id and domain, 
 - a plugin runnable reuses a core id (declare an override instead), or uses a core domain (`admin`, `email`, `x`, ...; instance domains never reuse one), or two plugin runnables share an id;
 - an override names no core runnable, or two overrides name the same one.
 
-`defineJob` itself already rejects an id that doesn't start with its domain and a dash. `definePlugin` and `override` validate their declarations with Zod and return them frozen; an unknown field (there is no `extensions` field, Decision 50) is an error.
+`defineRunnable` itself already rejects an id that doesn't start with its domain and a dash. `definePlugin` and `override` validate their declarations with Zod and return them frozen; an unknown field (there is no `extensions` field, Decision 50) is an error.
 
 An override runs instead of core's runnable, under core's id and domain, and with core's crash label, crash directory and description; `list` shows its source as `override`. It needs unit tests in the instance repo. `writtenFor` records the exact core version (semver, no range) it was written for, so a core upgrade can review every override whose core has moved on: `doctor` marks each one whose `writtenFor` differs from the installed core as `DRIFT` ([cli](./cli.md#doctor)); it never fails a run.
 
@@ -226,12 +226,12 @@ const { reportChannel } = localConfig<typeof configSchema>();
 
 | File | Purpose |
 | --- | --- |
-| `src/jobs/define-job.ts` | `defineJob`, `isJobModule`, `runJobModule` |
-| `src/jobs/registry.ts` | `coreJobs`, `coreDomains`, `loadJob` |
-| `src/jobs/plugin.ts` | `definePlugin`, `override`, `localConfig` |
-| `src/jobs/runnables.ts` | Registration: `buildRunnables`, `readInstanceManifests`, `registeredManifests` |
+| `src/runnables/define-runnable.ts` | `defineRunnable`, `isJobModule`, `runJobModule` |
+| `src/runnables/registry.ts` | `coreJobs`, `coreDomains`, `loadJob` |
+| `src/runnables/plugin.ts` | `definePlugin`, `override`, `localConfig` |
+| `src/runnables/runnables.ts` | Registration: `buildRunnables`, `readInstanceManifests`, `registeredManifests` |
 | `src/cli/load-plugin.ts` | Loads `jeeves-scripts.plugin.ts` with tsx |
-| `src/jobs/manifest.ts` | Manifest schema, `readCoreManifests`, `applyDelta`, `effectiveManifests` |
+| `src/runnables/manifest.ts` | Manifest schema, `readCoreManifests`, `applyDelta`, `effectiveManifests` |
 | `src/config/jobs-schema.ts` | The `jobs` delta schema |
 | `src/config/schedule-schema.ts` | The schedule schema (the runner's `validateSchedule`) and `scheduleText` |
 | `jobs/<domain>.json` | Core's manifests |

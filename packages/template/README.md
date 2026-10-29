@@ -25,6 +25,6 @@ npm run lint && npm run typecheck && npm test   # npm test also writes coverage/
 
 ## Docs
 
-Core's guides ship in the installed package, under `node_modules/@karmaniverous/jeeves-scripts-core/guides/`: start with `cli.md`, `config.md` and `jobs.md`. They are also published at <https://docs.karmanivero.us/jeeves-scripts-core>.
+Core's guides ship in the installed package, under `node_modules/@karmaniverous/jeeves-scripts-core/guides/`: start with `cli.md`, `config.md` and `runnables.md`. They are also published at <https://docs.karmanivero.us/jeeves-scripts-core>.
 
 Fix shared behaviour in core (issue, PR, release, then bump the pin here), never by editing `node_modules` or copying core code into `src/`.

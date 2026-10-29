@@ -36,9 +36,9 @@
 
 import fs from 'node:fs';
 
-import { defineJob } from '../jobs/define-job.js';
 import { argFlag, argValue, type ParsedArgs } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { userCacheFile } from '../slack/lib/slack-cache.js';
 import {
   bucketPath,
@@ -117,7 +117,7 @@ export async function regenerate(
   process.exitCode = await runRegen(flags, deps);
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'admin-regenerate-token-metrics',
   domain: 'admin',
   description:

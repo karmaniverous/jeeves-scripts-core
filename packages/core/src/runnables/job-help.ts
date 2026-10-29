@@ -1,5 +1,5 @@
 /**
- * @module jobs/job-help
+ * @module runnables/job-help
  *
  * What `run <id>` checks and prints about a runnable's arguments (#14):
  *
@@ -15,7 +15,7 @@
  */
 
 import { type ArgSpec, unknownArgs, valuelessArgs } from '../lib/args.js';
-import type { JobModule } from './define-job.js';
+import type { JobModule } from './define-runnable.js';
 import type { JobManifest } from './manifest.js';
 
 /** True when `args` asks for help (`--help` or `-h`). */

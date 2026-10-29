@@ -14,7 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { createPost } from './lib/x-actions.js';
 import { xHandlePrerequisite } from './lib/x-api.js';
 import { xConfig, type XJobDeps, xJobDeps } from './lib/x-deps.js';
@@ -133,7 +133,7 @@ export async function postQueue(
   );
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'x-post',
   domain: 'x',
   description:

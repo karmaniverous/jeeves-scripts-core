@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { defineJob } from './define-job.js';
+import { defineRunnable } from './define-runnable.js';
 import {
   definePlugin,
   isJobOverride,
@@ -56,7 +56,7 @@ describe('override', () => {
 });
 
 describe('definePlugin', () => {
-  const job = defineJob({
+  const job = defineRunnable({
     id: 'acme-report',
     domain: 'acme',
     run: () => undefined,
@@ -77,9 +77,9 @@ describe('definePlugin', () => {
 
   it.each([
     [
-      'a job not made with defineJob',
+      'a job not made with defineRunnable',
       { jobs: [{ id: 'acme-x' }] },
-      /defineJob/,
+      /defineRunnable/,
     ],
     ['an override not made with override', { overrides: [ov] }, /override/],
     ['a configSchema that is not a schema', { configSchema: {} }, /Zod schema/],

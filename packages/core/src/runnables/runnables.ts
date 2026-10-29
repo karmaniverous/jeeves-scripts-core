@@ -1,5 +1,5 @@
 /**
- * @module jobs/runnables
+ * @module runnables/runnables
  *
  * Registration (Decisions 6, 27, 49, 50; R19, R20, R45): core's registry
  * plus the instance plugin's runnables and overrides, checked against each
@@ -14,7 +14,7 @@
  * - an instance manifest names a registered runnable that has no core
  *   manifest: an instance runnable, or a manifest-less core runnable
  *   (Decision 50); a core manifest changes only through deltas;
- * - an instance runnable without a manifest has a `defineJob` description
+ * - an instance runnable without a manifest has a `defineRunnable` description
  *   (`list` shows it; Decision 57).
  *
  * An override runs under the core runnable's crash label and crash
@@ -26,10 +26,10 @@ import path from 'node:path';
 
 import type { JobDelta } from '../config/jobs-schema.js';
 import {
-  defineJob,
+  defineRunnable,
   type JobDeclaration,
   type JobModule,
-} from './define-job.js';
+} from './define-runnable.js';
 import {
   effectiveManifests,
   type JobManifest,
@@ -56,7 +56,7 @@ export interface Runnable {
   source: RunnableSource;
   /** Core's registry entry (core runnables and overrides). */
   core?: RegistryEntry;
-  /** An instance runnable's `defineJob` description, known at registration. */
+  /** An instance runnable's `defineRunnable` description, known at registration. */
   description?: string;
   /** The runnable to run. */
   load: () => Promise<JobModule>;
@@ -137,7 +137,7 @@ export const buildRunnables = ({
         source: 'override',
         core: entry,
         load: async () =>
-          defineJob({
+          defineRunnable({
             id: entry.id,
             domain: entry.domain,
             ...(await coreLabels(entry)),
@@ -247,7 +247,7 @@ export const registeredManifests = ({
       `Invalid jeeves-scripts.plugin.ts:\n${undescribed
         .map(
           (r) =>
-            `- runnable "${r.id}" has no manifest and no description; add description to its defineJob`,
+            `- runnable "${r.id}" has no manifest and no description; add description to its defineRunnable`,
         )
         .join('\n')}`,
     );

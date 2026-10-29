@@ -9,8 +9,8 @@
  * to process.
  */
 
-import { defineJob } from '../jobs/define-job.js';
 import type { ParsedArgs } from '../lib/args.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   collabArgs,
   collabFlags,
@@ -121,7 +121,7 @@ export function pollCollabs(
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'github-poll-collabs',
   domain: 'github',
   name: 'github/poll-collabs',

@@ -15,9 +15,9 @@
  *   --live       Perform actual writes (default: dry run)
  */
 
-import { defineJob } from '../jobs/define-job.js';
 import { argFlag, argValue, type ParsedArgs } from '../lib/args.js';
 import { backfillEntity } from '../lib/entity-store.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   forEachLinearEntity,
   linearConfigOrSkip,
@@ -94,7 +94,7 @@ export async function linearBackfill(
   if (tally.failed > 0) process.exitCode = 1;
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'linear-backfill',
   domain: 'linear',
   description:

@@ -25,7 +25,6 @@ import path from 'node:path';
 import { nowIso } from '@karmaniverous/jeeves';
 
 import { getBasePathForLinear, integrations } from '../config/index.js';
-import { defineJob } from '../jobs/define-job.js';
 import { readStdinJson } from '../lib/entity-store.js';
 import {
   applyDrainRoute,
@@ -33,6 +32,7 @@ import {
   objectField,
   type WebhookBody,
 } from '../lib/webhook-drain.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { enrichComment } from './lib/linear-client.js';
 
 const data = objectField('data');
@@ -161,7 +161,7 @@ export const linearDrainDeps = (): LinearDrainDeps => ({
   },
 });
 
-export default defineJob({
+export default defineRunnable({
   id: 'linear-drain',
   domain: 'linear',
   flags: {},

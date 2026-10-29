@@ -9,7 +9,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   hasJiraCredentials,
   jiraConnection,
@@ -45,7 +45,7 @@ export async function refreshJiraFields(deps: JiraJobDeps): Promise<void> {
   );
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'jira-refresh-fields',
   domain: 'jira',
   flags: {},

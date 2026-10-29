@@ -10,9 +10,9 @@
 
 import crypto from 'node:crypto';
 
-import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { gatewayInvoke } from '../lib/gateway-client.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   sessionRefresh,
   type SessionRefreshDeps,
@@ -28,7 +28,7 @@ export const sessionRefreshDeps = (): SessionRefreshDeps => ({
   settings: sessionRefreshSettings(process.env),
 });
 
-export default defineJob({
+export default defineRunnable({
   id: 'admin-refresh-sessions',
   domain: 'admin',
   flags: {},

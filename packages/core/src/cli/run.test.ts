@@ -3,10 +3,10 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CONFIG_PATH_ENV } from '../config/loader.js';
-import { defineJob } from '../jobs/define-job.js';
-import { definePlugin, override, type Plugin } from '../jobs/plugin.js';
-import type { RegistryEntry } from '../jobs/registry.js';
 import { argFlag, argValue } from '../lib/args.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
+import { definePlugin, override, type Plugin } from '../runnables/plugin.js';
+import type { RegistryEntry } from '../runnables/registry.js';
 import { registerInstance, resolveRunnable, runJob } from './run.js';
 
 const root = path.resolve('/instance');
@@ -18,7 +18,7 @@ const ran: {
 }[] = [];
 
 const job = (id: string, domain: string, by = 'core') =>
-  defineJob({
+  defineRunnable({
     id,
     domain,
     run: ({ args }) => {
@@ -195,7 +195,7 @@ describe('runJob', () => {
 
 describe('runJob: declared flags (#14)', () => {
   const seen: unknown[] = [];
-  const strict = defineJob({
+  const strict = defineRunnable({
     id: 'acme-strict',
     domain: 'acme',
     flags: {

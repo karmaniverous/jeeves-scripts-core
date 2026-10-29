@@ -92,7 +92,7 @@ function onwarn(warning: RollupLog, defaultHandler: (w: RollupLog) => void) {
 /**
  * Every non-test module under src is an entry (Decision 32), so each keeps
  * its own output file: the registry loads each runnable module lazily by
- * dynamic import (`jobs/registry-*.ts`), and nothing imports a runnable
+ * dynamic import (`runnables/registry-*.ts`), and nothing imports a runnable
  * module it doesn't run.
  */
 const input = readdirSync('src', { recursive: true, encoding: 'utf8' })

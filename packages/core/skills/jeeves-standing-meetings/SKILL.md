@@ -23,5 +23,5 @@ Two task-file dispatcher jobs for a recurring meeting between known participants
 1. A content directory (in the right silo) with `standing-orders.md` (participants, zones, channel rules); seed `.meta/` with `meta_seed`.
 2. TASK files for both jobs, following the anatomy in dispatchers.md.
 3. The quick-links message: post, pin, record its timestamp.
-4. Two dispatcher runnables in the instance (`defineJob` calling core's `dispatchTaskFile`, with `silo` and `taskFile`), registered by the instance plugin with manifests in `jobs/*.json`, Slack reads of the channel and posts allowed to edit the quick-links message; commit and push (see `jeeves-scripts`).
+4. Two dispatcher runnables in the instance (`defineRunnable` calling core's `dispatchTaskFile`, with `silo` and `taskFile`), registered by the instance plugin with manifests in `jobs/*.json`, Slack reads of the channel and posts allowed to edit the quick-links message; commit and push (see `jeeves-scripts`).
 5. Register both with the runner, running the launcher (`run <id>`), in the meeting's time zone; test with the no-post mode before enabling.

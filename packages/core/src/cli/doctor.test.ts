@@ -5,16 +5,16 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
-import { defineJob } from '../jobs/define-job.js';
-import type { JobManifest } from '../jobs/manifest.js';
-import { definePlugin, override, type Plugin } from '../jobs/plugin.js';
-import type { RegistryEntry } from '../jobs/registry.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
+import type { JobManifest } from '../runnables/manifest.js';
+import { definePlugin, override, type Plugin } from '../runnables/plugin.js';
+import type { RegistryEntry } from '../runnables/registry.js';
 import { doctorReport } from './doctor.js';
 import { buildProgram } from './index.js';
 import { coreVersion } from './package-info.js';
 
 const job = (id: string, domain: string) =>
-  defineJob({ id, domain, description: 'A job.', run: () => undefined });
+  defineRunnable({ id, domain, description: 'A job.', run: () => undefined });
 
 const registry: RegistryEntry[] = [
   {
@@ -122,7 +122,7 @@ describe('doctorReport', () => {
       id: string,
       prerequisite: (ctx: { args: readonly string[] }) => true | string,
     ) =>
-      defineJob({
+      defineRunnable({
         id,
         domain: 'acme',
         prerequisite: (ctx) => {

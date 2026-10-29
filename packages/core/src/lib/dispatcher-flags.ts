@@ -2,7 +2,7 @@
  * @module lib/dispatcher-flags
  *
  * The flags every dispatcher accepts (`--print-task`, `--dry-run`), for
- * `defineJob({ flags: dispatcherFlags })`, and their resolution for the
+ * `defineRunnable({ flags: dispatcherFlags })`, and their resolution for the
  * dispatch helpers.
  *
  * A dispatcher that declares them passes the parsed `ctx.flags`. One that

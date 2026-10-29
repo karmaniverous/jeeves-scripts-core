@@ -29,8 +29,8 @@
 
 import { execSync } from 'node:child_process';
 
-import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -266,7 +266,7 @@ async function main(): Promise<void> {
   await runHealthCheck(constants().QDRANT_API_URL);
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'admin-check-qdrant-health',
   domain: 'admin',
   flags: {},

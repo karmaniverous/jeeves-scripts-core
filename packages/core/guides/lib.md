@@ -172,7 +172,7 @@ Validated JSON file I/O, on the root export: `readJsonFile(file, schema)` parses
 
 ### args.ts
 
-The one argument parser for runnables, core's and instances', on the root export (Decision 59): `argFlag(name, description?)`, `argValue(name, fallback?, { alias?, description? })` and `argOptional(name, { alias?, description? })` build the spec a runnable declares as `defineJob({ flags })`; `run` checks the arguments against it with `unknownArgs(args, spec, positionals?)` and the job reads `ctx.flags` (`parseRunnableArgs(args, spec)`), plus `positionalArgs(ctx.args, spec?)`. The convention (bare flags, `--name value` and `--name=value`, positionals) and the checks are in [jobs.md](./jobs.md#arguments).
+The one argument parser for runnables, core's and instances', on the root export (Decision 59): `argFlag(name, description?)`, `argValue(name, fallback?, { alias?, description? })` and `argOptional(name, { alias?, description? })` build the spec a runnable declares as `defineRunnable({ flags })`; `run` checks the arguments against it with `unknownArgs(args, spec, positionals?)` and the job reads `ctx.flags` (`parseRunnableArgs(args, spec)`), plus `positionalArgs(ctx.args, spec?)`. The convention (bare flags, `--name value` and `--name=value`, positionals) and the checks are in [runnables.md](./runnables.md#arguments).
 
 ### is-record.ts
 
@@ -180,7 +180,7 @@ The one argument parser for runnables, core's and instances', on the root export
 
 ### dispatcher-flags.ts
 
-`dispatcherFlags` (`--print-task`, `--dry-run`), for a dispatcher's `defineJob({ flags })`, on the root export. `resolveDispatcherFlags` reads them from parsed flags or, for dispatchers that declare none, from raw arguments (default `process.argv`).
+`dispatcherFlags` (`--print-task`, `--dry-run`), for a dispatcher's `defineRunnable({ flags })`, on the root export. `resolveDispatcherFlags` reads them from parsed flags or, for dispatchers that declare none, from raw arguments (default `process.argv`).
 
 ### slack-client.ts
 

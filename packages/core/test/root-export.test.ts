@@ -33,6 +33,7 @@ const EXPECTED = [
   'dayOfWeek',
   'defineJob',
   'definePlugin',
+  'defineRunnable',
   'deriveIntegrations',
   'derivePaths',
   'digestConfigSchema',

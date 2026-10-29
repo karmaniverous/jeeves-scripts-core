@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { argFlag, argOptional, argValue } from '../lib/args.js';
-import { defineJob } from './define-job.js';
+import { defineRunnable } from './define-runnable.js';
 import {
   argsError,
   flagsDeprecation,
@@ -10,7 +10,7 @@ import {
 } from './job-help.js';
 import type { JobManifest } from './manifest.js';
 
-const job = defineJob({
+const job = defineRunnable({
   id: 'acme-report',
   domain: 'acme',
   description: 'Report on acme.',
@@ -23,7 +23,7 @@ const job = defineJob({
   run: () => undefined,
 });
 
-const loose = defineJob({
+const loose = defineRunnable({
   id: 'acme-loose',
   domain: 'acme',
   run: () => undefined,
@@ -48,7 +48,7 @@ describe('argsError', () => {
     expect(argsError(job, ['--nope'])).toBe(
       'Unknown option --nope for acme-report (see run acme-report --help)',
     );
-    const noPositionals = defineJob({
+    const noPositionals = defineRunnable({
       id: 'acme-np',
       domain: 'acme',
       flags: {},

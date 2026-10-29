@@ -33,9 +33,9 @@
 
 import fs from 'node:fs';
 
-import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { triggerRunnerJob } from '../lib/runner-config.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { userCacheFile } from '../slack/lib/slack-cache.js';
 import { currentHourBoundaryMs, flushBuckets } from './lib/bucket-io.js';
 import { scanClaudeCodeSessions } from './lib/claude-code-session-scan.js';
@@ -119,7 +119,7 @@ export async function collect(
   if (code !== 0) process.exitCode = code;
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'admin-collect-token-metrics',
   domain: 'admin',
   flags: {},

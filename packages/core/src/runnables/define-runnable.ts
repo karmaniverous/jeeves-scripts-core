@@ -1,7 +1,7 @@
 /**
- * @module jobs/define-job
+ * @module runnables/define-runnable
  *
- * `defineJob` (Decisions 4, 40, 49): declares a runnable (a job module)
+ * `defineRunnable` (Decisions 4, 40, 49): declares a runnable (a job module)
  * without running it, and `runJobModule`, which runs one the way every
  * entry point used to run itself. Importing a job module has no side
  * effects; the CLI's `run`
@@ -38,7 +38,7 @@ export type NoFlags = Record<string, never>;
 export interface JobContext<S extends ArgSpec = ArgSpec> {
   /** The job's command-line arguments (also in `process.argv.slice(2)`). */
   args: readonly string[];
-  /** The declared flags, parsed (`defineJob({ flags })`); `{}` when none are declared. */
+  /** The declared flags, parsed (`defineRunnable({ flags })`); `{}` when none are declared. */
   flags: ParsedArgs<S>;
 }
 
@@ -71,7 +71,7 @@ export const slugSchema = (what: string) =>
     );
 
 /**
- * A job declaration (Zod-validated by {@link defineJob}).
+ * A job declaration (Zod-validated by {@link defineRunnable}).
  */
 export const jobDeclarationSchema = z
   .object({
@@ -140,7 +140,7 @@ export interface JobCallContext {
   flags?: ParsedArgs<ArgSpec>;
 }
 
-/** A declared job, as `defineJob` returns it. */
+/** A declared job, as `defineRunnable` returns it. */
 export type JobModule = Readonly<
   Omit<z.infer<typeof jobDeclarationSchema>, 'prerequisite' | 'run'>
 > & {
@@ -150,7 +150,7 @@ export type JobModule = Readonly<
   ) => true | string | Promise<true | string>;
   /** The job body. */
   readonly run: (ctx: JobCallContext) => void | Promise<void>;
-  /** Brand set by {@link defineJob}; see {@link isJobModule}. */
+  /** Brand set by {@link defineRunnable}; see {@link isJobModule}. */
   readonly [JOB]: true;
 };
 
@@ -160,7 +160,7 @@ export type JobModule = Readonly<
  *
  * @example
  * ```ts
- * export default defineJob({
+ * export default defineRunnable({
  *   id: 'acme-report',
  *   domain: 'acme',
  *   prerequisite: () => hasAcmeConfig() || 'no acme block in jeeves-scripts.json',
@@ -170,7 +170,7 @@ export type JobModule = Readonly<
  * ```
  * @throws When the declaration is invalid (bad id, missing `run`, ...).
  */
-export const defineJob = <S extends ArgSpec = NoFlags>(
+export const defineRunnable = <S extends ArgSpec = NoFlags>(
   declaration: JobDeclaration<S>,
 ): JobModule => {
   const result = jobDeclarationSchema.safeParse(declaration);
@@ -201,7 +201,7 @@ export const defineJob = <S extends ArgSpec = NoFlags>(
   });
 };
 
-/** Whether a value is a job declared with {@link defineJob}. */
+/** Whether a value is a runnable declared with {@link defineRunnable}. */
 export const isJobModule = (value: unknown): value is JobModule =>
   typeof value === 'object' &&
   value !== null &&

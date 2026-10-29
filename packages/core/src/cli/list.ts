@@ -7,7 +7,7 @@
  * id. Each shows its source (`core`, `instance` or `override`), its
  * effective schedule and `enabled` after the instance's deltas when it has
  * a manifest, and one line of description: the manifest's, else the one
- * in `defineJob`. `--json` adds `domain` and the effective `manifest`
+ * in `defineRunnable`. `--json` adds `domain` and the effective `manifest`
  * (or `null`); jeeves-tools registers runner jobs from it.
  *
  * Reads the instance config, its plugin and its `jobs/*.json`; loads the
@@ -16,15 +16,15 @@
 
 import { loadConfig } from '../config/loader.js';
 import { scheduleText } from '../config/schedule-schema.js';
-import { formatJobHelp } from '../jobs/job-help.js';
-import { type JobManifest, readCoreManifests } from '../jobs/manifest.js';
-import { loadJob } from '../jobs/registry.js';
+import { formatJobHelp } from '../runnables/job-help.js';
+import { type JobManifest, readCoreManifests } from '../runnables/manifest.js';
+import { loadJob } from '../runnables/registry.js';
 import {
   readInstanceManifests,
   registeredManifests,
   type Runnable,
   type RunnableSource,
-} from '../jobs/runnables.js';
+} from '../runnables/runnables.js';
 import {
   registerInstance,
   type RegisterOptions,
@@ -43,7 +43,7 @@ export interface ListEntry {
   schedule: JobManifest['schedule'] | null;
   /** Effective `enabled`, or `null` without a manifest. */
   enabled: boolean | null;
-  /** The manifest's description, else the `defineJob` one. */
+  /** The manifest's description, else the `defineRunnable` one. */
   description: string;
   /** The effective manifest after deltas, or `null`. */
   manifest: JobManifest | null;

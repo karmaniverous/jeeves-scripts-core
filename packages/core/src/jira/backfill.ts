@@ -14,9 +14,9 @@
  *   --live           Perform actual writes (default: dry run)
  */
 
-import { defineJob } from '../jobs/define-job.js';
 import { argFlag, argValue, type ParsedArgs } from '../lib/args.js';
 import { backfillEntity } from '../lib/entity-store.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   hasJiraCredentials,
   type JiraConnection,
@@ -127,7 +127,7 @@ export async function jiraBackfill(
   if (failed > 0) process.exitCode = 1;
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'jira-backfill',
   domain: 'jira',
   description:

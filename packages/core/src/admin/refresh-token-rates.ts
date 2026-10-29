@@ -18,9 +18,9 @@
 
 import { atomicWrite } from '@karmaniverous/jeeves';
 
-import { defineJob } from '../jobs/define-job.js';
 import { argFlag } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { fetchOpenRouterRates, httpGetJson } from './lib/openrouter-pricing.js';
 import {
   readPendingModels,
@@ -33,7 +33,7 @@ import {
   refreshTokenRatesMain,
 } from './lib/refresh-rates-run.js';
 
-export default defineJob({
+export default defineRunnable({
   id: 'admin-refresh-token-rates',
   domain: 'admin',
   name: 'admin/refresh-token-rates',

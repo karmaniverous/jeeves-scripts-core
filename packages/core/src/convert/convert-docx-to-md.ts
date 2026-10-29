@@ -7,11 +7,11 @@
  * `<out>`.
  */
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { extractDocx } from './docx-to-md.js';
 import { convertFileArgs } from './lib/convert-files.js';
 
-export default defineJob({
+export default defineRunnable({
   id: 'convert-docx-to-md',
   domain: 'convert',
   description: 'Convert one .docx file to Markdown: <in> <out>.',

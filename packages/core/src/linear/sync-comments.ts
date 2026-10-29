@@ -9,10 +9,10 @@
  * `jeeves-scripts run linear-sync-comments`.
  */
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { linearJobDeps, syncLinear } from './lib/linear-sync.js';
 
-export default defineJob({
+export default defineRunnable({
   id: 'linear-sync-comments',
   domain: 'linear',
   flags: {},

@@ -32,10 +32,10 @@ import {
 } from '@karmaniverous/jeeves-runner';
 
 import { getGmailAccounts } from '../../config/index.js';
-import { defineJob } from '../../jobs/define-job.js';
 import { constants } from '../../lib/constants.js';
 import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
 import { requireGogCredentials } from '../../lib/gog-credentials.js';
+import { defineRunnable } from '../../runnables/define-runnable.js';
 import { getThreadsPath } from '../email-cache.js';
 import { messageRecord, messageSummary } from './message-record.js';
 
@@ -322,7 +322,7 @@ export function downloadThreads(deps: DownloadDeps): void {
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'email-download',
   domain: 'email',
   flags: {},

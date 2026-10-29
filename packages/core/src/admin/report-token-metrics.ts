@@ -8,8 +8,8 @@
  * Reads the token-metrics buckets and the rate card; writes nothing.
  */
 
-import { defineJob } from '../jobs/define-job.js';
 import { argOptional, type ParsedArgs } from '../lib/args.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { getTokenMetrics, type TokenMetricsOptions } from './token-metrics.js';
 
 /** Seams for tests. */
@@ -75,7 +75,7 @@ export const runReport = (
   deps.out(JSON.stringify(deps.report(options), null, 2));
 };
 
-export default defineJob({
+export default defineRunnable({
   id: ID,
   domain: 'admin',
   description:

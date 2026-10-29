@@ -13,8 +13,8 @@
  * Decision 53); without one the run fails (exit 1) before anything else.
  */
 
-import { defineJob } from '../jobs/define-job.js';
 import { argFlag, type ParsedArgs } from '../lib/args.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { agilePut, fetchBacklog } from './lib/agile-api.js';
 import {
   printChangeSummary,
@@ -125,7 +125,7 @@ export async function sortJiraBacklog(
   await sortBoard(jiraConnection(deps.settings, deps.fetch), boardId, live);
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'jira-sort-backlog',
   domain: 'jira',
   name: 'jira/sort-backlog',

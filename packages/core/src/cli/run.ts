@@ -26,10 +26,10 @@
 import path from 'node:path';
 
 import { CONFIG_PATH_ENV } from '../config/loader.js';
-import { runJobModule } from '../jobs/define-job.js';
-import { argsError, flagsDeprecation } from '../jobs/job-help.js';
-import type { RegistryEntry } from '../jobs/registry.js';
-import { buildRunnables, type Runnable } from '../jobs/runnables.js';
+import { runJobModule } from '../runnables/define-runnable.js';
+import { argsError, flagsDeprecation } from '../runnables/job-help.js';
+import type { RegistryEntry } from '../runnables/registry.js';
+import { buildRunnables, type Runnable } from '../runnables/runnables.js';
 import { loadPlugin } from './load-plugin.js';
 
 /** Seams for tests. */

@@ -7,13 +7,16 @@
  * caps; default 50) through `drain-x-queue`.
  */
 
-import type { JobContext, JobPrerequisite } from '../../jobs/define-job.js';
 import {
   argOptional,
   argValue,
   type ParsedArgs,
   positionalArgs,
 } from '../../lib/args.js';
+import type {
+  JobContext,
+  JobPrerequisite,
+} from '../../runnables/define-runnable.js';
 import { drainXQueue } from './drain-x-queue.js';
 import { xHandlePrerequisite } from './x-api.js';
 import type { XClient } from './x-client.js';
