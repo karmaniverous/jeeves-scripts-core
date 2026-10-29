@@ -4,6 +4,7 @@ import {
   appendBlocks,
   chunkText,
   headingBlock,
+  type NotionRequest,
   paragraphBlock,
 } from './notion-blocks.js';
 
@@ -36,7 +37,7 @@ describe('paragraphBlock / headingBlock', () => {
 
 describe('appendBlocks', () => {
   it('appends in batches of 50 under the block', async () => {
-    const request = vi.fn(() => Promise.resolve({}));
+    const request = vi.fn<NotionRequest>(() => Promise.resolve({}));
     const blocks = Array.from({ length: 120 }, (_, i) =>
       paragraphBlock(String(i)),
     );
@@ -55,7 +56,7 @@ describe('appendBlocks', () => {
   });
 
   it('makes no request for no blocks', async () => {
-    const request = vi.fn(() => Promise.resolve({}));
+    const request = vi.fn<NotionRequest>(() => Promise.resolve({}));
     await appendBlocks('page-1', [], request);
     expect(request).not.toHaveBeenCalled();
   });
