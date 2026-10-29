@@ -31,6 +31,17 @@ Runnables declare their flags: `run <id> --help` prints a runnable's usage, flag
 
 How `run` resolves an id and every other command: [cli.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/cli.md).
 
+## Core package rules
+
+What goes into core, and how (for changes to `@karmaniverous/jeeves-scripts-core` itself):
+
+- **Prove it in an instance, then hoist it.** Core holds behaviour any instance may use, and a feature enters core only after it has run on an instance. Build it in the instance's `src/` first; once it works on real data, hoist it.
+- **A hoisted feature is generic and opt-in:** no instance names, ids, hosts, channels, paths or people in its code, docs, tests or manifests. It does nothing until the instance configures it (an unconfigured runnable logs one skip line and exits 0), and its manifests ship disabled.
+- **One-off migrations never ship in core.** A cutover or remediation of one instance's history is a dry-run script in that instance's project archive.
+- **Patching OpenClaw's files is not core's job.** Anything that edits OpenClaw's own files belongs in `jeeves install` / `jeeves update` (the `jeeves` package), not in a runnable.
+- **Neutral fixtures.** Tests and examples use invented names, never a real client, instance or person.
+- **Docs:** TypeDoc runs from the repo root only. Authored docs live in `packages/<pkg>/guides/` and ship with the package: a domain's docs are `guides/<domain>.md`, never `src/<domain>/README.md`.
+
 ## Operator rules
 
 - **Run `config check` after every edit** to `jeeves-scripts.json`; it must pass before anything runs.
@@ -42,4 +53,4 @@ How `run` resolves an id and every other command: [cli.md]($JEEVES_SCRIPTS_DIR/n
 
 ## Domain skills
 
-`jeeves-email`, `jeeves-slack`, `jeeves-calendar`, `jeeves-github`, `jeeves-jira`, `jeeves-linear`, `jeeves-x`, `jeeves-token-metrics`, `jeeves-daily-briefings`, `jeeves-standing-meetings`, `jeeves-dates`.
+`jeeves-email`, `jeeves-slack`, `jeeves-calendar`, `jeeves-github`, `jeeves-jira`, `jeeves-linear`, `jeeves-x`, `jeeves-token-metrics`, `jeeves-daily-briefings`, `jeeves-standing-meetings`, `jeeves-dates`, `channel-status-recap`.

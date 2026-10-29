@@ -22,6 +22,7 @@ const skillsDir = path.join(pkgRoot, 'skills');
 
 /** The skills core ships, in order. */
 const EXPECTED = [
+  'channel-status-recap',
   'jeeves-calendar',
   'jeeves-daily-briefings',
   'jeeves-dates',

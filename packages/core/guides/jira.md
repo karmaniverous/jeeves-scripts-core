@@ -212,6 +212,40 @@ node bin/jeeves-scripts.js run jira-backfill --project ACME --type issue --live
 
 **Skip behaviour:** The backfill skips any entity file that already exists on disk. This ensures webhook-delivered data (which is fresher) is never overwritten by the backfill.
 
+## Editing and restructuring tickets
+
+For an assistant changing tickets through the REST API (#47). Work from the live ticket: the archive lags.
+
+### Edit part of an ADF description
+
+1. Back up `.fields.description` (an ADF doc; its nodes are under `.content`).
+2. Map the nodes: `jq -c '.content | to_entries[] | {i:.key, type:.value.type, t:([.value|..|.text?]|map(select(.!=null))|join(" | ")|.[0:200])}'`. For lists and tables, map their children too.
+3. Make the smallest splice that does the job:
+   - a whole section: `jq --slurpfile n new.json '.content = (.content[0:<s>] + $n[0] + .content[<e>:])'`;
+   - one bullet: set `.content[i].content[j].content[0].content`;
+   - table rows: `tableRow` > `tableCell` > `paragraph`.
+
+   Add a line in italics saying who asked for the change and when.
+4. Map the result again and diff it against the backup. Restore any node changed by mistake from the backup.
+5. PUT `{fields:{description:...}}` (expect 204). Re-GET and confirm the old values are gone and the new ones are present.
+6. Bring any spec or handoff docs that repeat the rule into line, backing each up first. Ask about other stale copies, such as closed sibling tickets or test cases someone else owns; don't edit them.
+
+REST v2 accepts plain wiki markup as `description`, which is simpler than ADF for a full rewrite.
+
+### Restructure tickets
+
+Merging, rescoping, closing as duplicate or superseded, fixing link direction:
+
+- **Map the current links with their ids:** `jq -r '.fields.issuelinks[]|"\(.id) \(.type.name) \(.inwardIssue.key // "SELF") -> \(.outwardIssue.key // "SELF")"'`. An `if … end` inside a jq string interpolation must be wrapped in parentheses, or jq fails to compile.
+- **Link direction** for `POST /rest/api/3/issueLink`: `{type:{name:"Blocks"},inwardIssue:{key:A},outwardIssue:{key:B}}` means _A blocks B_; the same shape with `Duplicates` means _A duplicates B_. If unsure, GET an existing link and compare it with how the ticket displays it. The `jeeves-jira` skill's Links section has the full check.
+- **Merging tickets into one PR:** replace every `Blocks` link between the group's members with `Relates`, checking each member's links, not just the anchor ticket's.
+- **Closing a duplicate:** add a `Duplicates` link to the ticket that stays, then close with resolution `Duplicate`.
+- **Closing a superseded ticket:** add `Relates` links to its replacements, then close with resolution `Won't Do`.
+- **Transitions:** check `GET /rest/api/3/issue/<K>/transitions?expand=transitions.fields`; a Closed transition can require `fields.resolution` in the same POST.
+- **Ask before removing links** from closed tickets that weren't part of the request.
+- **One dry-run script:** put every operation in one script whose API helper only prints unless `--live` is passed. Run it dry, compare the list with what was agreed, run it `--live` (exit on any non-2xx), then re-GET every ticket it touched.
+- **The user decides** how tickets get merged: propose groupings, and apply only the ones they accept.
+
 ## Prerequisites
 
 | Prerequisite | Where to configure |

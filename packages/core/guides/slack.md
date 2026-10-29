@@ -102,6 +102,31 @@ Code reads an entry with `getChannelConfig(channelId)` (`lib/channel-config.ts`)
 
 No config file, or no token in it, fails the run. Each channel is read with the token of its account (`_account`, else its Slack Connect `sharedTeams`, else whichever token can resolve it).
 
+## Channel Status Recaps
+
+How an assistant answers "where are we", "gather context" or "summarize last progress" in a channel, from the archive this pipeline writes (#47; the `channel-status-recap` skill points here).
+
+**Rules**
+
+- Limit the recap to the asking channel's work, identified by the inbound `chat_id`. Leave out other channels' projects unless the user names them.
+- Read the channel archive, not memory search. Daily memory notes are only leads: they are written mid-day and go stale (PRs logged as open get merged, tickets logged as blocked get closed). Check every status against Jira or GitHub before posting.
+- Watch for user lines that cancel earlier context, such as "/new", "change of plans" or "all the context before this is false". They replace earlier plans.
+- If an earlier recap was wrong, say which items were wrong and give the checked values in a table. Don't quietly restate it.
+
+**Procedure**
+
+1. Read the archive at `content/slack/<name> (<ID>)/<ts>.json` (`.user .date .text`), sorted by number, covering about the last week. Print human messages in full and the bot's cut short; take the bot's user id from the instance config or `auth.test`, never a hardcoded id. Then read the bot's last summary and its next-session plan in full. Done when you can name the active ticket, the latest plan and any changes to it.
+
+   ```bash
+   for f in $(ls | sort -n | awk -F. '$1>=<since_epoch>'); do
+     jq -r --arg bot "$BOT" 'if .user==$bot then "\(.date[5:16]) BOT: \(.text|.[0:160]|gsub("\n";" "))"
+       else "\(.date[5:16]) \(.user): \(.text|.[0:400]|gsub("\n";" "))" end' "$f"; done
+   ```
+
+2. Check PRs with `gh pr list --state all --json number,title,state,mergedAt,headRefName` and `gh pr view <n> --json commits,mergeable,reviewDecision`. If an item is said to still be open in code, read the file on that branch: `gh api "repos/<repo>/contents/<path>?ref=<branch>" -H "Accept: application/vnd.github.raw"`.
+3. Check Jira in the archive (fields under `.current.fields`): `jq -r '.current|"\(.key) [\(.fields.status.name)] \(.fields.assignee.displayName) upd=\(.fields.updated[0:10]) :: \(.fields.summary)"' content/jira/issue/<KEY>.json`. Done when every ticket and PR in the recap has a checked state.
+4. Write the recap in this order: the active item and exactly what is left on it; what comes next, or what it's blocked on; infrastructure state; a table of Jira states (in a code block on Slack); housekeeping (stale ticket titles, duplicate tickets, secrets pasted in the channel that need rotating, never repeating the values). Mark anything not checked as unconfirmed, and end with one offer for the next action.
+
 ## Prerequisites
 
 - A Slack bot token (above). The `pipeline` block is not read.

@@ -485,7 +485,6 @@ Example: `account: "assistant@example.com"`, `domains: ["example.com"]`.
 
 ```
 src/google-drive/
-  README.md              domain doc (behaviour lives here, not in a skill)
   sync.ts                entry point: runScript, prerequisite guard, --live/--dry-run
   lib/
     config.ts            googleDrive block → validated config (the domain validates it, not
@@ -511,9 +510,9 @@ jobs/google-drive.json   job "google-drive-sync", every 13 min, overlap skip, ti
 
 Tests co-located for `naming`, `classify`, `plan` (including the §7 tree cases and the worked example), `resolve-path` (with a fake drive client), `config`. All files < 300 LOC, quality gates clean.
 
-### 9.1 `src/google-drive/README.md` (assistant-facing)
+### 9.1 `guides/google-drive.md` (assistant-facing)
 
-Same standard as the other domain READMEs (e.g. `email/`, `meetings/`). It is the authoritative behaviour doc, and the repo root README's domain table links to it. Required sections:
+Same standard as the other domain guides (e.g. `email.md`, `meetings.md`); domain docs ship in `guides/`, never as `src/<domain>/README.md`. It is the authoritative behaviour doc, and the package README's domain table links to it. Required sections:
 
 1. **Overview:** what it syncs, from where, to where, and what it never does (read-only, no write-back).
 2. **Onboarding:** the per-instance setup steps in §11, in order, with exact commands, plus a verification for each step (e.g. `gog auth service-account status <account>`, then a read-only `sharedWithMe` list as the account).

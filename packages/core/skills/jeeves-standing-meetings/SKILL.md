@@ -11,6 +11,7 @@ Two task-file dispatcher jobs for a recurring meeting between known participants
 ## Operator rules
 
 - **Workers have no `message` tool.** The job script reads the meeting channel (manual overrides, feedback) and posts, pins and edits for the worker; a TASK file never tells the worker to use it.
+- **A job that DMs someone is a dispatcher too:** a runnable in the instance's `src/<domain>/` using core's worker-slack dispatcher, registered by the plugin with a manifest in `jobs/*.json` and synced with `sync-jobs`. Never a hand-made inline `session` job in the runner: it has no Slack access, and one observed in use failed every run (`response.result.find is not a function`) while its dispatcher-based sibling ran fine.
 - **Detect by participants, not title:** titles change, participants don't. A participant's override in the channel ("that 2pm call was our standup") beats detection.
 - **Stop quietly** when no meeting is on the calendar today or it hasn't finished yet.
 - **Checkbox state wins:** unchecked items under Completed reopen; checked open items move to Completed.
