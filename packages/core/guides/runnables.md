@@ -6,9 +6,11 @@ title: Runnables
 
 The runnable registry (Decisions 4, 5, 40, 49, 50): core's runnables, their ids, their manifests, and how an instance adds to and adjusts them through its plugin, its manifests and its deltas.
 
-## Job ids
+**Runnable or job (Decision 73).** A _runnable_ is anything `jeeves-scripts run <id>` starts. A _job_ is a runnable registered in jeeves-runner: one with a manifest, scheduled or not. Manifests (`jobs/*.json`), the `jobs.<id>` deltas in `jeeves-scripts.json` and runner job ids keep the word because they describe runner jobs. `defineJob` is the pre-0.3.0 name of `defineRunnable`, still exported and deprecated.
 
-A job id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js run <id> [args...]` (see [cli](./cli.md)). Core's ids:
+## Runnable ids
+
+A runnable id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js run <id> [args...]` (see [cli](./cli.md)). Core's ids:
 
 | Domain | Scheduled (manifest in core) | Manual or event-driven (no manifest) |
 | --- | --- | --- |
@@ -28,9 +30,9 @@ A job id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/bin/j
 
 The scheduled ids are the template's manifest ids. `src/runnables/registry-scheduled.ts` and `src/runnables/registry-on-demand.ts` hold the lists (`src/runnables/registry.ts` joins them); each domain's guide says what its jobs do.
 
-## Declaring a job
+## Declaring a runnable
 
-Every job module default-exports `defineRunnable(...)`, exported from the package root:
+Every runnable module default-exports `defineRunnable(...)`, exported from the package root:
 
 ```ts
 import { defineRunnable } from '@karmaniverous/jeeves-scripts-core';
@@ -51,22 +53,22 @@ export default defineRunnable({
 
 The declaration is validated with Zod (Decision 31) and returned frozen: the id and domain are lowercase words separated by dashes, and the id starts with its domain and a dash (`acme-report` in `acme`, `google-drive-sync-files` in `google-drive`), so `acme` alone or `report-acme` throws. A runnable without a manifest needs a `description`: core's registry tests check every core one. Importing a job module never runs the job. Running it (`run <id>`):
 
-1. sets `process.argv` to `[node, <id>, ...args]` (job code may read `process.argv.slice(2)` as before) and passes the args as `ctx.args`;
+1. sets `process.argv` to `[node, <id>, ...args]` (runnable code may read `process.argv.slice(2)` as before) and passes the args as `ctx.args`;
 2. checks `prerequisite`: anything but `true` logs `[skip] <reason>` and the run exits 0;
 3. runs `run` inside `runScript(name ?? id, ..., crashDir)` from `@karmaniverous/jeeves`: an uncaught error is logged, appended to `_crash.log`, and exits 1.
 
-Core's jobs keep the crash labels and crash directories they had before the registry (`email/poll`, `x/poll-posts`, ...; the two that named the removed `core` domain are `admin/qdrant-health-check` and `admin/sweep-orphaned-tmp`), and their inline `[skip]` guards; `prerequisite` is for new jobs (the X handle check is one). No job module reads config when imported: each `run` builds its collaborators from config when it runs, and hands its work back (returns or awaits it). `src/runnables/registry-runs.test.ts` imports and runs every core job with no loadable config to pin both (Decision 58).
+Core's runnables keep the crash labels and crash directories they had before the registry (`email/poll`, `x/poll-posts`, ...; the two that named the removed `core` domain are `admin/qdrant-health-check` and `admin/sweep-orphaned-tmp`), and their inline `[skip]` guards; `prerequisite` is for new jobs (the X handle check is one). No job module reads config when imported: each `run` builds its collaborators from config when it runs, and hands its work back (returns or awaits it). `src/runnables/registry-runs.test.ts` imports and runs every core job with no loadable config to pin both (Decision 58).
 
 ### Failures, skips and exit codes
 
-A job never ends the process itself (`process.exit` is a lint error in core). It reports through the framework (Decision 58):
+A runnable never ends the process itself (`process.exit` is a lint error in core). It reports through the framework (Decision 58):
 
-- **Failure:** throw. `runScript` writes the `CRASH (<label>)` line and the job's `_crash.log`, and the process exits 1.
+- **Failure:** throw. `runScript` writes the `CRASH (<label>)` line and the runnable's `_crash.log`, and the process exits 1.
 - **Clean skip** (a credential or input that isn't configured): an unmet `prerequisite`, or a `[skip] <reason>` line and a return; exit 0.
 - **Usage error** (a missing or invalid argument): the usage message on stderr and `process.exitCode = 1`, then return.
 - **Partial failure** (some items failed, the rest were processed): `process.exitCode = 1` after the run's summary.
 
-A job's logic takes its config values, file roots, clients, clock and arguments as parameters; its `run` builds the live ones from `ctx.args` and config when it runs (`run: ({ args }) => main(args, liveDeps())`), so tests pass their own.
+A runnable's logic takes its config values, file roots, clients, clock and arguments as parameters; its `run` builds the live ones from `ctx.args` and config when it runs (`run: ({ args }) => main(args, liveDeps())`), so tests pass their own.
 
 ### Arguments
 
@@ -115,7 +117,7 @@ Every core runnable declares its flags (a test enforces it, and that no core sou
 
 ## Manifests
 
-Scheduled core jobs have a manifest in core, `jobs/<domain>.json`: an object keyed by job id with the runner fields and no `script` (runner jobs run the launcher with `run <id>`):
+Core's jobs have a manifest in core, `jobs/<domain>.json`: an object keyed by runnable id (which is also the runner job id) with the runner fields and no `script` (runner jobs run the launcher with `run <id>`):
 
 ```json
 {
@@ -166,7 +168,7 @@ An instance never copies a core manifest. It adjusts a runnable's manifest (core
 | `enabled`, `timeout_seconds`, `schedule` | Replace the manifest's value (a schedule wholesale); a delta's `timeout_seconds` also sets one on a manifest that has none. |
 | `env` | Merged key by key over the manifest's; the delta wins. |
 | `args` | Appended to the manifest's. |
-| `silo`, `taskFile` | Read by the job itself (task-file dispatchers); no runner effect. |
+| `silo`, `taskFile` | Read by the runnable itself (task-file dispatchers); no runner effect. |
 | `extraDirs` | Read by `admin-sweep-orphaned-tmp`: absolute directories it sweeps besides the content and scripts directories ([admin](./admin.md#prerequisites)); no runner effect. |
 
 A delta for an id that is neither a core nor an instance runnable is an error, and so is a delta that sets `enabled`, `schedule`, `timeout_seconds`, `env` or `args` on a runnable with no manifest (where they would have no effect; give the runnable a manifest instead). The runnable-read fields (`silo`, `taskFile`, `extraDirs`) need no manifest. `src/runnables/manifest.ts` (`readCoreManifests`, `applyDelta`, `effectiveManifests`) and `src/runnables/runnables.ts` (`registeredManifests`) implement this; `jeeves-scripts list --json` prints the effective set ([cli](./cli.md#listing-runnables)). Deltas shape what registration uses; they do not change a runner job that already exists.

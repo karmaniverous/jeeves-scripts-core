@@ -155,7 +155,7 @@ Add this block to your jeeves-server Event Gateway configuration:
 ```
 
 - `$JEEVES_SCRIPTS_DIR` - absolute path to the instance repo (`paths().scriptsDir`)
-- `jira-drain`: a registered core job with no manifest (event-driven: the event gateway runs `run jira-drain`)
+- `jira-drain`: a core runnable with no manifest (event-driven: the event gateway runs `run jira-drain`)
 - `schema` - JSON Schema validated against the POST body (ajv, first match wins across all configured events); `webhookEvent` tells Jira's payloads apart from Linear's (`action` + `type`)
 - `cmd` - the server spawns this command and pipes the request body JSON to stdin
 - `timeoutMs` - kill timeout for the drain process (falls back to global `eventTimeoutMs`); 10 seconds is ample for this I/O-only drain
@@ -187,7 +187,7 @@ The map is updated daily by `refresh-fields.ts` (scheduled runner job). After an
 
 ## Backfill
 
-Run the backfill once after setting up the webhook to populate historical data: run the registered core job `jira-backfill` (no manifest needed):
+Run the backfill once after setting up the webhook to populate historical data: run the core runnable `jira-backfill` (no manifest needed):
 
 ```bash
 # Dry run (preview — no writes)

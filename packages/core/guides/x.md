@@ -59,11 +59,11 @@ flowchart TD
 | `x-poll-bookmarks` | `poll-bookmarks.ts` | Every 13 min |
 | `x-drain-queues`   | `drain-queues.ts`   | Every 11 min |
 
-All entries in core's manifest `jobs/x.json` carry a non-null `prerequisite` (`X_ACCOUNTS` plus each handle's OAuth file). `x-post`, `x-like`, `x-repost` and `x-refresh-token` are registered without a manifest (kept in core, Decision 50: an instance that wants to publish, like or repost schedules them in its own `jobs/*.json`, see [jobs](./runnables.md)); they take the handle as their first argument (`run x-post <handle>`).
+All entries in core's manifest `jobs/x.json` carry a non-null `prerequisite` (`X_ACCOUNTS` plus each handle's OAuth file). `x-post`, `x-like`, `x-repost` and `x-refresh-token` are registered without a manifest (kept in core, Decision 50: an instance that wants to publish, like or repost schedules them in its own `jobs/*.json`, see [runnables](./runnables.md)); they take the handle as their first argument (`run x-post <handle>`).
 
 **Handles come from `X_ACCOUNTS`, the one list of the instance's X accounts.** The manifest entries pass no arguments, so as registered:
 
-- each poll script (`poll-posts`, `poll-mentions`, `poll-feed`, `poll-likes`, `poll-bookmarks`) polls every handle in `integrations.x.accounts`, one after another (`lib/poll-handles.ts`). A handle argument (`node bin/jeeves-scripts.js run <poll job id> <handle>`) narrows a run to that handle. Only a first argument that is not an option is a handle: options (`--count N`, `--queue NAME`) follow the handle or stand alone, so `run x-poll-posts --count 10` polls every handle. `--queue` replaces the queue name for every handle polled, so give it with a handle.
+- each poll script (`poll-posts`, `poll-mentions`, `poll-feed`, `poll-likes`, `poll-bookmarks`) polls every handle in `integrations.x.accounts`, one after another (`lib/poll-handles.ts`). A handle argument (`node bin/jeeves-scripts.js run <poll id> <handle>`) narrows a run to that handle. Only a first argument that is not an option is a handle: options (`--count N`, `--queue NAME`) follow the handle or stand alone, so `run x-poll-posts --count 10` polls every handle. `--queue` replaces the queue name for every handle polled, so give it with a handle.
 - a handle is polled only if it is in `X_ACCOUNTS` (otherwise `drain-queues` would never drain its items) and its OAuth file exists; any other handle is logged as `[skip] @<handle>: <reason>`. With `X_ACCOUNTS` empty (the template default) the job logs `[skip]` and exits 0.
 - an API error for one handle is logged and the next handle is still polled. `poll-feed` then fails the run; the queue pollers log the error and exit 0.
 - `drain-queues` iterates over every handle in `X_ACCOUNTS`.

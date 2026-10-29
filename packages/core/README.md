@@ -13,7 +13,7 @@ Everything below ships in the npm package. From an instance repo, the package ro
 | `skills/<name>/SKILL.md` | The assistant skills core ships ([Skills](#skills)). |
 | `schema/jeeves-scripts.schema.json` | JSON Schema for `jeeves-scripts.json`, generated from the Zod config schema. |
 | `config/token-rates.seed.json` | The token rate card seed (`constants().TOKEN_RATES_SEED_PATH`). |
-| `jobs/<domain>.json` | Core's job manifests, keyed by job id ([`guides/runnables.md`](guides/runnables.md)). |
+| `jobs/<domain>.json` | Core's job manifests, keyed by runnable id ([`guides/runnables.md`](guides/runnables.md)). |
 | `presets/`, `dist/presets/` | The presets an instance repo's one-line tool configs extend: TypeScript (`presets/tsconfig.base.json`, JSON because TypeScript reads only JSON tsconfigs) and the ESLint and Vitest presets, authored in TypeScript and shipped compiled with their types (`dist/presets/eslint.js`, `dist/presets/vitest.js`). All three are imported as `@karmaniverous/jeeves-scripts-core/presets/<file>` (`eslint.js`, `vitest.js`, `tsconfig.base.json`). The TypeScript and ESLint presets both leave out the instance's `coverage/`, `dist/` and `node_modules/`. |
 | `template/` | The instance repo `jeeves-scripts init` writes ([`guides/cli.md`](guides/cli.md#init)). |
 | `CHANGELOG.md` | Release notes. |
@@ -27,7 +27,7 @@ node -p "path.dirname(require.resolve('@karmaniverous/jeeves-scripts-core/packag
 
 The `exports` map publishes `./package.json`, `./guides/*`, `./skills/*`, `./schema/*`, `./config/*` and `./presets/*` (with `./presets/*.js` mapped to the compiled presets in `dist/presets/`), so `require.resolve('@karmaniverous/jeeves-scripts-core/guides/<domain>.md')` (or `import.meta.resolve`) returns a doc's absolute path from anywhere in the instance repo. `test/package-docs.test.ts` keeps this true: every doc and guide ships, resolves, and is indexed below.
 
-Job ids named in the docs are core's registered ids ([`guides/runnables.md`](guides/runnables.md)): `jeeves-scripts run <id>` runs any of them. Scheduled jobs have a manifest in core (`jobs/<domain>.json`); an instance adjusts them with `jobs.<id>` deltas in `jeeves-scripts.json` and never copies them. `jeeves-scripts list` shows every registered runnable.
+Runnable ids named in the docs are core's registered ids ([`guides/runnables.md`](guides/runnables.md)): `jeeves-scripts run <id>` runs any of them. Scheduled jobs have a manifest in core (`jobs/<domain>.json`); an instance adjusts them with `jobs.<id>` deltas in `jeeves-scripts.json` and never copies them. `jeeves-scripts list` shows every registered runnable.
 
 ### Domain docs
 
@@ -76,7 +76,7 @@ node bin/jeeves-scripts.js doctor
 
 `init` never overwrites a file, and wires core's skills into OpenClaw when it is on the host ([`guides/cli.md`](guides/cli.md#init)). Installed globally (`npm install -g @karmaniverous/jeeves-scripts-core`), `jeeves-scripts` only hands off to a repo's launcher ([`guides/cli.md`](guides/cli.md#the-global-hand-off)).
 
-## Running jobs
+## Running runnables
 
 The instance repo carries a launcher, `bin/jeeves-scripts.js`:
 
