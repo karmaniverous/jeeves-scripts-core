@@ -160,7 +160,11 @@ YAML frontmatter for generated Markdown: builds the `---` block (every value JSO
 
 ### worker-session.ts
 
-Waits for a spawned worker: polls the gateway's `sessions_list` for the child session until its run ends, then reads token usage from the transcript (`waitForWorkerCompletion`, `findSession`, `sessionTokens`, `getTokensFromTranscript`). `spawn-worker.ts` uses it.
+Waits for a spawned worker: polls the gateway's `sessions_list` for the child session until its run ends, then reads token usage from the transcript (`waitForWorkerCompletion`, `findSession`, `sessionTokens`). `spawn-worker.ts` uses it.
+
+### worker-transcript.ts
+
+`getTokensFromTranscript(path)` sums `message.usage.totalTokens` over a session transcript's JSON lines (0 for a missing or unreadable file, which it logs). `worker-session.ts` uses it.
 
 ### Retry (from `@karmaniverous/jeeves`)
 

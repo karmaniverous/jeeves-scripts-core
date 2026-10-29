@@ -6,7 +6,8 @@
  * config files, scripts and tests in every workspace. No file is excluded
  * from type-aware linting and no `eslint-disable` is permitted anywhere in
  * the repo (Decision 22). `max-lines` enforces R34's 300-line limit
- * in code lines (blank lines and comments not counted).
+ * in code lines (blank lines and comments not counted) everywhere, and
+ * in raw lines for core's non-test source (#17).
  *
  * @module eslint.config
  */
@@ -118,6 +119,20 @@ export default [
           message:
             'Throw, skip through a prerequisite, or set process.exitCode (Decision 58).',
         },
+      ],
+    },
+  },
+  {
+    // #17: core's non-test source stays under 300 raw lines, comments and
+    // blank lines included, so a file is split along its seams rather than
+    // trimmed of its documentation. Tests and test helpers keep the
+    // code-line limit above.
+    files: ['packages/core/src/**/*.ts'],
+    ignores: ['**/*.test.ts', '**/*.test-helper.ts', '**/test-helpers/**'],
+    rules: {
+      'max-lines': [
+        'error',
+        { max: 300, skipBlankLines: false, skipComments: false },
       ],
     },
   },

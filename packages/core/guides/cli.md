@@ -155,7 +155,8 @@ The CLI is also importable from `@karmaniverous/jeeves-scripts-core/cli`: `main(
 | `src/cli/list.ts` | `listRunnables`, `formatList` |
 | `src/cli/doctor.ts` | `doctorReport` |
 | `src/cli/init.ts` | `initRepo`, `formatInit` |
-| `src/cli/skills.ts` | `skills install \| uninstall \| status`: the changes, the status report, the confirmation |
+| `src/cli/skills.ts` | `skills install \| uninstall \| status`: the status report, the confirmation, applying a change |
+| `src/cli/skills-change.ts` | What `skills install` and `skills uninstall` change (OpenClaw's `skills` block, the sets and unsets) |
 | `src/cli/hand-off.ts` | The global hand-off: `--dir`, `JEEVES_SCRIPTS_DIR`, walk-up, delegation to the repo's launcher |
 | `src/cli/openclaw.ts` | The `openclaw` CLI calls (config get, batch set, unset, skills list) |
 | `src/cli/package-info.ts` | The running core's package directory and version |

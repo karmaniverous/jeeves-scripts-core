@@ -70,10 +70,12 @@ Each meeting lives in a directory under `{silo}/meetings/{meetingId}/`:
 | `lib/doc-fetch.ts` | Fetches Google Doc transcripts via `gog` CLI for meetings with `gemini_link.txt` |
 | `lib/fathom-extract.ts` | Extracts transcripts from `fathom-*.html` files into `transcript.txt` |
 | `lib/fathom-share-fetch.ts` | Fetches summary/transcript from public Fathom share pages using puppeteer-core |
+| `lib/chrome-path.ts` | The Chrome/Chromium executable for puppeteer-core (`PUPPETEER_EXECUTABLE_PATH`, `CHROME_PATH`, well-known paths) |
 | `lib/fathom-share-dom.ts` | Pure DOM extraction helpers for Fathom share page content |
 | `lib/fathom-share-ingest.ts` | Pipeline for Fathom share meetings needing transcript fetching |
 | `lib/notion-api.ts` | Notion API HTTP helpers with authentication |
 | `lib/notion-browser-extract.ts` | Extracts meeting content from Notion public pages via gateway browser tool |
+| `lib/notion-blocks.ts` | Notion block building: paragraph and heading blocks, text chunks, batched append |
 | `lib/notion-inbox-processor.ts` | Processes a Notion inbox page end-to-end: fetch, extract, stage, archive |
 
 ## reportOnly catch-up

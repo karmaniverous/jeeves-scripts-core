@@ -10,9 +10,9 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { resolveChromePath } from './chrome-path.js';
 import {
   fetchFathomSharePage,
-  resolveChromePath,
   type ShareFetchBrowserDeps,
   type SharePage,
 } from './fathom-share-fetch.js';

@@ -122,7 +122,8 @@ Each run searches the mailbox for `in:inbox newer_than:2d`, reads every message'
 | `google-workspace/respond/slack-directory.ts` | Slack Web API lookups for the mirror (user by email, channel, membership) |
 | `google-workspace/respond/candidates.ts` | gog args, metadata parsing, thread discovery and rendering |
 | `google-workspace/respond/state.ts` | Runner-state outcomes and per-thread reply timestamps |
-| `google-workspace/respond/task.ts` | Worker TASK builder and contract parser (`email-reply` / `email-no-reply`, optional `email-slack-channel`) |
+| `google-workspace/respond/task.ts` | Worker TASK builder and the contract's fence info strings |
+| `google-workspace/respond/reply-contract.ts` | Contract parser (`email-reply` / `email-no-reply`, optional `email-slack-channel`) |
 | `google-workspace/respond/run-mode.ts` | Dry-run decision (flag, `respond.dryRun`, the mailbox's report-only flag) |
 | `google-workspace/respond/schemas.ts` | Zod schemas for gog JSON (search, message, thread, labels) |
 | `google-workspace/respond/plan.ts` | Qualify candidates and pick this run's messages (oldest first, caps, one per thread) |
@@ -337,10 +338,11 @@ Gmail polling via the `gog` CLI (OAuth client or service-account mailboxes). Han
 | Script | Description |
 | --- | --- |
 | `download.ts` | Dequeues threads from `email-pending` and downloads full message bodies, headers, and attachments |
+| `download-thread.ts` | One queued thread: fetch it (`gog gmail thread`, or `gog gmail get` per cached id), save the new message records, give `thread.json` its messages map |
 | `drain-updates.ts` | Dequeues label-change actions from `email-updates` and applies them to Gmail via `gog gmail thread modify` |
 | `email-fetch.ts` | Fetch full thread metadata from Gmail, update cache/provenance, enqueue for download; curation signals are enqueued via `label-actions.ts` (none for a report-only account) |
 | `gmail-search.ts` | Zod-validated parsing of `gog gmail search --json` pages (`parseSearchPage`) and lazy paging over `nextPageToken` (`searchThreadPages`, throws on a repeated token). Used by `poll.ts` and `backfill-window.ts` |
-| `message-record.ts` | Builds the per-message JSON record and `thread.json` summary that `download.ts` writes |
+| `message-record.ts` | Builds the per-message JSON record and `thread.json` summary that `download-thread.ts` writes |
 | `email-triage.ts` | Pure-function classification helpers (receipt, junk, bucket, importance); `classifyCandidates()` is the one receipt/junk rule every classifying path uses |
 | `backfill-historical.ts` | Paced job: each run searches one window per account (all result pages), walking back from the newest unprocessed point to the lookback limit, then no-ops. Settings from `emailConfig.backfill` (`accounts`, `lookbackDays`, `windowDays`) or `--accounts` / `--lookback-days` / `--window-days`; no defaults. Dry-run unless `--live`. Cursor: runner state `email-backfill` / `cursor-<email>`. Settings in `backfill-settings.ts`, window processing in `backfill-window.ts` |
 | `backfill-settings.ts` | `resolveBackfillSettings()`: CLI args over `emailConfig.backfill`, per field; throws when any field is missing |

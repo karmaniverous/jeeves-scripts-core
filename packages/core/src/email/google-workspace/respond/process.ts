@@ -17,13 +17,10 @@
 import { parseFirstAddress } from './address.js';
 import type { PlannedCandidate } from './plan.js';
 import { addressingOf, buildReplyRecipients } from './recipients.js';
+import { parseReplyContract } from './reply-contract.js';
 import type { MirrorPostInput } from './slack-mirror.js';
 import { MAX_ATTEMPTS, type MessageState } from './state.js';
-import {
-  buildRespondTask,
-  parseReplyContract,
-  type ThreadMessage,
-} from './task.js';
+import { buildRespondTask, type ThreadMessage } from './task.js';
 
 /** Injected side effects for {@link processCandidate}. */
 export interface RunDeps {

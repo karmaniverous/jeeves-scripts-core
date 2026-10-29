@@ -2,9 +2,9 @@ import fs from 'node:fs';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import { resolveChromePath } from './chrome-path.js';
 import {
   extractAfterMarker,
-  resolveChromePath,
   setFathomShareTab,
   stripLeadingTranscriptChrome,
 } from './fathom-share-fetch.js';

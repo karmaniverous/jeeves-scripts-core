@@ -6,7 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getPath } from './fake-openclaw.test-helper.js';
 import { buildProgram } from './index.js';
-import { shippedSkills, skillsDirFor } from './skills.js';
+import { shippedSkills } from './skills.js';
+import { skillsDirFor } from './skills-change.js';
 
 afterEach(() => {
   vi.restoreAllMocks();
