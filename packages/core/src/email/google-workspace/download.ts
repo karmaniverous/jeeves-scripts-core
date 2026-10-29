@@ -20,6 +20,7 @@ import path from 'node:path';
 import {
   appendJsonl,
   ensureDir,
+  getErrorMessage,
   nowIso,
   readJson,
   sleepMs,
@@ -37,7 +38,6 @@ import { defineRunnable } from '../../runnables/define-runnable.js';
 import { getThreadsPath } from '../email-cache.js';
 import {
   downloadByIds,
-  errText,
   fetchThread,
   saveThread,
   type Tally,
@@ -129,8 +129,8 @@ export function downloadThreads(deps: DownloadDeps): void {
           failTh++;
         }
       } catch (e) {
-        console.error(`Failed thread ${threadId}:`, errText(e));
-        client.fail(qId, errText(e));
+        console.error(`Failed thread ${threadId}:`, getErrorMessage(e));
+        client.fail(qId, getErrorMessage(e));
         failTh++;
       }
     }

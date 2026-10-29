@@ -11,7 +11,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { ensureDir, readJson, writeJsonAtomic } from '@karmaniverous/jeeves';
+import {
+  ensureDir,
+  getErrorMessage,
+  readJson,
+  writeJsonAtomic,
+} from '@karmaniverous/jeeves';
 
 import type { GogRunner } from '../../lib/gog.js';
 import { getThreadsPath } from '../email-cache.js';
@@ -43,10 +48,6 @@ export interface ThreadTally {
   downloaded: number;
   failed: number;
 }
-
-/** An error's message. */
-export const errText = (e: unknown): string =>
-  e instanceof Error ? e.message : String(e);
 
 const messagePath = (account: string, threadId: string, messageId: string) =>
   path.join(getThreadsPath(account, threadId), `${messageId}.json`);
@@ -86,9 +87,9 @@ export function fetchThread(
     );
   } catch (e) {
     console.error(
-      `Failed to fetch thread ${account}/${threadId}: ${errText(e)}`,
+      `Failed to fetch thread ${account}/${threadId}: ${getErrorMessage(e)}`,
     );
-    return errText(e);
+    return getErrorMessage(e);
   }
   if (!raw) {
     console.error(`Null response fetching thread ${account}/${threadId}`);
@@ -136,7 +137,7 @@ export function saveThread(
       );
       messagesMap[messageId] = messageSummary(messageId, message);
     } catch (e) {
-      console.error(`Failed ${messageId}:`, errText(e));
+      console.error(`Failed ${messageId}:`, getErrorMessage(e));
       tally.failMsg++;
       thread.failed++;
     }
@@ -189,7 +190,7 @@ export function downloadByIds(
       );
       deps.sleep(100);
     } catch (e) {
-      console.error(`Failed ${messageId}:`, errText(e));
+      console.error(`Failed ${messageId}:`, getErrorMessage(e));
       tally.failMsg++;
       thread.failed++;
     }
