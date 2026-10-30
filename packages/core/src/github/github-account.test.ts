@@ -110,18 +110,60 @@ describe('GitHub jobs stop when gh acts as the wrong account (#59)', () => {
     },
   );
 
-  it('github-drain-collabs fails the item it was on', () => {
+  it('github-drain-collabs fails the item it was on and hands back the rest, claiming none', () => {
     w = githubWorld(() => []);
     w.pinLogin('jane');
-    w.runner.client.enqueue('gh-collabs', {
-      kind: 'repo',
-      full_name: 'acme/a',
-    });
+    for (const name of ['a', 'b', 'c'])
+      w.runner.client.enqueue('gh-collabs', {
+        kind: 'repo',
+        full_name: `acme/${name}`,
+      });
     expect(() => {
       drainCollabs({}, w!.deps);
     }).toThrow(GhAccountMismatchError);
-    expect(
-      (w.runner.queues.get('gh-collabs') ?? []).map((i) => i.error),
-    ).toEqual(['acting gh login is "jane", expected "acme"']);
+    const queue = w.runner.queues.get('gh-collabs') ?? [];
+    const mismatch = 'acting gh login is "jane", expected "acme"';
+    expect(queue.map((i) => i.error)).toEqual([
+      mismatch,
+      `not attempted: ${mismatch}`,
+      `not attempted: ${mismatch}`,
+    ]);
+    expect(queue.filter((i) => i.status === 'claimed')).toEqual([]);
+  });
+
+  /** gh acts correctly as every login but the bot, which reports 'jane'. */
+  const wrongBot = (world: GitHubWorld) => {
+    const gh = world.deps.gh;
+    let acting = '';
+    world.deps.gh = (args, options) => {
+      if (args[0] === 'auth') acting = args[3] ?? '';
+      if (args.join(' ') === LOGIN_CALL.join(' ') && acting.endsWith('bot'))
+        return { ok: true, status: 0, out: 'jane', err: '' };
+      return gh(args, options);
+    };
+  };
+
+  it.each([
+    [
+      'github-poll-collabs',
+      (d: GitHubJobDeps) => {
+        pollCollabs({}, d);
+      },
+    ],
+    [
+      'github-drain-collabs (invite)',
+      (d: GitHubJobDeps) => {
+        drainCollabs({}, d);
+      },
+    ],
+  ])('%s checks the account after switching to the bot', (_id, job) => {
+    w = githubWorld(() => []);
+    w.runner.client.enqueue('gh-collabs', { kind: 'invite', id: 7 });
+    wrongBot(w);
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    expect(() => {
+      job(w!.deps);
+    }).toThrow(/acting gh login is "jane", expected ".*bot"/);
+    expect(w.ghCalls.some((c) => c.includes('PATCH'))).toBe(false);
   });
 });
