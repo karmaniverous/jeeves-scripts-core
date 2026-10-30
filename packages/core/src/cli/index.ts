@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { Command } from '@commander-js/extra-typings';
 
+import { describeConfigSource } from '../config/check.js';
 import { wantsHelp } from '../runnables/job-help.js';
 import { instanceConfigCheck } from './config-check.js';
 import { doctorReport } from './doctor.js';
@@ -67,8 +68,11 @@ const buildConfigCommand = (root: string) => {
     )
     .action(async (options) => {
       const result = await instanceConfigCheck(root, options.config);
+      const from = describeConfigSource(result.source);
       const where =
-        result.configPath === undefined ? '' : ` (${result.configPath})`;
+        result.configPath === undefined
+          ? ''
+          : ` (${result.configPath}${from ? `, from ${from}` : ''})`;
       if (result.ok) {
         console.log(`config check: OK${where}`);
         return;

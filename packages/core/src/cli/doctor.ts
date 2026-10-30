@@ -20,7 +20,7 @@
 
 import path from 'node:path';
 
-import { configCheck } from '../config/check.js';
+import { configCheck, describeConfigSource } from '../config/check.js';
 import { loadConfig, setConfigRoot } from '../config/loader.js';
 import { jobContext, type JobModule } from '../runnables/define-runnable.js';
 import { type JobManifest, readCoreManifests } from '../runnables/manifest.js';
@@ -130,7 +130,10 @@ export const doctorReport = async (
   setConfigRoot(root);
   const check = configCheck({ root });
   const where = check.configPath ?? path.join(root, 'jeeves-scripts.json');
-  lines.push(`config: ${where}: ${check.ok ? 'OK' : 'FAILED'}`);
+  const from = describeConfigSource(check.source);
+  lines.push(
+    `config: ${where}${from ? ` (from ${from})` : ''}: ${check.ok ? 'OK' : 'FAILED'}`,
+  );
   for (const error of check.errors) lines.push(...indent(error));
 
   let plugin: Plugin | undefined;
