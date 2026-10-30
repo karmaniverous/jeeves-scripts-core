@@ -30,8 +30,8 @@ import {
 
 import { loadConfig } from '../config/loader.js';
 import type { SlackConfig } from '../config/slack-schema.js';
-import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { accountTeams } from './lib/account-teams.js';
 import { resolveChannelDir } from './lib/channel-dir.js';
 import type { ChannelInfo } from './lib/channel-info.js';
@@ -273,7 +273,7 @@ export async function pollSlack(deps: SlackPollDeps): Promise<void> {
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'slack-poll',
   domain: 'slack',
   flags: {},

@@ -12,8 +12,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { defineJob } from '../jobs/define-job.js';
 import { argFlag, argOptional, type ParsedArgs } from '../lib/args.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { proposeFromSlack } from './propose.js';
 
 /** Collaborators of {@link peoplePropose}, injectable for tests. */
@@ -59,7 +59,7 @@ export async function peoplePropose(
   deps.write(json);
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'people-propose',
   domain: 'people',
   description:

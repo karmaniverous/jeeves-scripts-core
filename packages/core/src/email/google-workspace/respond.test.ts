@@ -1,8 +1,8 @@
 import type * as Runner from '@karmaniverous/jeeves-runner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { argsError } from '../../jobs/job-help.js';
 import { constants } from '../../lib/constants.js';
+import { argsError } from '../../runnables/job-help.js';
 import type { RunSummary } from './respond/orchestrate.js';
 
 const mocks = vi.hoisted(() => ({

@@ -20,8 +20,8 @@ import path from 'node:path';
 import { readJson } from '@karmaniverous/jeeves';
 
 import { getEntityDirs } from '../config/index.js';
-import { defineJob } from '../jobs/define-job.js';
 import { ENTITY_TYPES, type EntityTypeConfig } from '../lib/constants.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 
 /** All case variants of "duplicateOf" that builders might emit. */
 const DUPLICATE_KEY_VARIANTS = new Set(['duplicateof', 'duplicate_of']);
@@ -222,7 +222,7 @@ export function sweepDuplicates(deps: SweepDuplicatesDeps): void {
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'meta-sweep-duplicates',
   domain: 'meta',
   flags: {},

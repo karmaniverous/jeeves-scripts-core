@@ -1,5 +1,5 @@
 /**
- * @module jobs/plugin
+ * @module runnables/plugin
  *
  * The instance plugin (Decisions 6, 7, 27, 49, 50; design §3):
  * `definePlugin` declares what an instance adds to core (its runnables,
@@ -9,7 +9,7 @@
  *
  * Declarations are validated with Zod and returned frozen; nothing runs
  * when they are made. The CLI loads `{root}/jeeves-scripts.plugin.ts`,
- * checks it against core's registry (`jobs/runnables`) and, when the plugin
+ * checks it against core's registry (`runnables/runnables`) and, when the plugin
  * has a `configSchema`, parses `local` with it before any runnable runs.
  *
  * Brands use `Symbol.for` and the parsed `local` block lives on
@@ -26,7 +26,7 @@ import {
   type JobPrerequisite,
   type JobRun,
   slugSchema,
-} from './define-job.js';
+} from './define-runnable.js';
 
 /** An exact semver version (no range), e.g. `0.1.0` or `1.0.0-rc.1`. */
 export const EXACT_SEMVER =
@@ -101,11 +101,11 @@ export type LocalConfigSchema = Pick<z.ZodType, 'safeParse'>;
 
 /** A plugin declaration (Zod-validated by {@link definePlugin}). */
 export const pluginDeclarationSchema = z.strictObject({
-  /** Instance runnables (`defineJob`); a core id or a core domain is an error. */
+  /** Instance runnables (`defineRunnable`); a core id or a core domain is an error. */
   jobs: z
     .array(
       z.custom<JobModule>(isJobModule, {
-        message: 'jobs[] entries must come from defineJob',
+        message: 'jobs[] entries must come from defineRunnable',
       }),
     )
     .readonly()
@@ -164,7 +164,7 @@ export const isPlugin = (value: unknown): value is Plugin =>
  * });
  * ```
  * @throws When the declaration is invalid (unknown field, an entry not
- *   made with `defineJob` or `override`, ...).
+ *   made with `defineRunnable` or `override`, ...).
  */
 export const definePlugin = (declaration: PluginDeclaration): Plugin => {
   const result = pluginDeclarationSchema.safeParse(declaration);

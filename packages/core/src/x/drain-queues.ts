@@ -12,8 +12,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { defineJob } from '../jobs/define-job.js';
 import { argValue, type ParsedArgs } from '../lib/args.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { type XJobDeps, xJobDeps } from './lib/x-deps.js';
 
 /** The queues each account drains, with the subdirectory they flush to. */
@@ -73,7 +73,7 @@ export function drainXQueues(
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'x-drain-queues',
   domain: 'x',
   name: 'x/drain-queues',

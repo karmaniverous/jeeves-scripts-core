@@ -12,7 +12,7 @@
  *   to `cli/hand-off` (tested there) at import.
  * - `src/index.ts`, `src/config/index.ts`: re-export barrels with no
  *   statements of their own (the root export test pins the names).
- * - `src/x/like.ts`, `src/x/repost.ts`: declarative `defineJob` calls with
+ * - `src/x/like.ts`, `src/x/repost.ts`: declarative `defineRunnable` calls with
  *   no statements of their own; their behaviour is `run-x-queue-action`'s,
  *   tested there and through the registry test.
  *

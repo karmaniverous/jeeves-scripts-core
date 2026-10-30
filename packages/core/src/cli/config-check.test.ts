@@ -6,8 +6,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
-import { defineJob } from '../jobs/define-job.js';
-import { definePlugin, resetLocalConfig } from '../jobs/plugin.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
+import { definePlugin, resetLocalConfig } from '../runnables/plugin.js';
 import { instanceConfigCheck } from './config-check.js';
 import { loadPlugin, PLUGIN_FILE } from './load-plugin.js';
 
@@ -105,7 +105,7 @@ describe('instanceConfigCheck', () => {
 
   /** A plugin registering these runnables. */
   const pluginWith =
-    (...jobs: ReturnType<typeof defineJob>[]) =>
+    (...jobs: ReturnType<typeof defineRunnable>[]) =>
     () =>
       Promise.resolve(definePlugin({ jobs }));
 
@@ -113,7 +113,7 @@ describe('instanceConfigCheck', () => {
     writeConfig({});
     const result = await instanceConfigCheck(root, undefined, {
       loadPlugin: pluginWith(
-        defineJob({
+        defineRunnable({
           id: 'email-extra',
           domain: 'email',
           description: 'Extra.',
@@ -145,7 +145,11 @@ describe('instanceConfigCheck', () => {
     writeConfig({});
     const result = await instanceConfigCheck(root, undefined, {
       loadPlugin: pluginWith(
-        defineJob({ id: 'acme-bare', domain: 'acme', run: () => undefined }),
+        defineRunnable({
+          id: 'acme-bare',
+          domain: 'acme',
+          run: () => undefined,
+        }),
       ),
     });
     expect(result.errors.join('\n')).toMatch(

@@ -5,7 +5,7 @@
  * deltas per job id (Decisions 5, 40). There is no `extensions` block
  * (Decision 50): a seam and its config arrive only on evidence (Decision
  * 8). The schedule is the runner's (`config/schedule-schema`), shared
- * with core's job manifests (`jobs/manifest`). Like `silo` and `taskFile`,
+ * with core's job manifests (`runnables/manifest`). Like `silo` and `taskFile`,
  * `extraDirs` is read by the runnable itself (`admin-sweep-orphaned-tmp`,
  * Decision 55) and has no runner effect.
  */
@@ -14,6 +14,14 @@ import { z } from 'zod';
 
 import { isAbsolutePath } from './absolute-path.js';
 import { scheduleSchema } from './schedule-schema.js';
+
+/**
+ * A runner `on_failure` target: the Slack channel, DM or user id the runner
+ * alerts on a failed or timed-out run. `null` means the runner default
+ * (`notifications.defaultOnFailure`); in a delta it clears a manifest value
+ * (#36). Shared by manifests and deltas.
+ */
+export const onFailureSchema = z.string().min(1).nullable().optional();
 
 /** An instance's changes to one core job (Decision 5). */
 export const jobDeltaSchema = z.object({
@@ -27,6 +35,8 @@ export const jobDeltaSchema = z.object({
   args: z.array(z.string()).optional(),
   /** Run timeout in seconds (replaces the manifest's). */
   timeout_seconds: z.number().int().positive().optional(),
+  /** Failure alert target (replaces the manifest's; `null` clears it). */
+  on_failure: onFailureSchema,
   /** Data silo this job's dispatcher reads and writes under (Decision 28). */
   silo: z.string().optional(),
   /** Task file path, relative to the job's silo (Decisions 23, 28). */

@@ -37,9 +37,9 @@ import {
   type PipelineConfig,
   reportOnlyFor,
 } from '../config/index.js';
-import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import { requireGogCredentials } from '../lib/gog-credentials.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { pollGogAccount } from './google-workspace/gog-poll.js';
 import { pollImapAccount } from './imap/poll.js';
 import { trimJsonlFiles } from './trim-jsonl.js';
@@ -138,7 +138,7 @@ export async function pollEmail(deps: EmailPollDeps): Promise<void> {
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'email-poll',
   domain: 'email',
   flags: {},

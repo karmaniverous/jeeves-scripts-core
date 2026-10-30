@@ -1,11 +1,11 @@
 /**
- * @module jobs/registry-on-demand
+ * @module runnables/registry-on-demand
  *
  * Core's on-demand runnables: core runnables without a manifest, run by a
  * person, the assistant or a jeeves-server webhook (drains, backfills,
  * X actions, `people-propose`, conversions, the token cost report;
  * Decisions 49, 50, 51, 57). Each
- * describes itself in `defineJob`. Entries only; importing this module
+ * describes itself in `defineRunnable`. Entries only; importing this module
  * imports no runnable.
  */
 

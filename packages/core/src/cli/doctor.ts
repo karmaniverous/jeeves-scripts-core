@@ -9,7 +9,7 @@
  * problems as lines and never throws, so the command always exits 0.
  *
  * A prerequisite's state (Decision 57): `met` or `not met: <reason>` from
- * the runnable's `defineJob` prerequisite check when it declares one, else
+ * the runnable's `defineRunnable` prerequisite check when it declares one, else
  * `met` when the manifest has no prerequisite, else `manual: <text>` (set
  * up by a person; no check can tell).
  *
@@ -22,15 +22,15 @@ import path from 'node:path';
 
 import { configCheck } from '../config/check.js';
 import { CONFIG_PATH_ENV, loadConfig } from '../config/loader.js';
-import { jobContext, type JobModule } from '../jobs/define-job.js';
-import { type JobManifest, readCoreManifests } from '../jobs/manifest.js';
-import type { Plugin } from '../jobs/plugin.js';
+import { jobContext, type JobModule } from '../runnables/define-runnable.js';
+import { type JobManifest, readCoreManifests } from '../runnables/manifest.js';
+import type { Plugin } from '../runnables/plugin.js';
 import {
   buildRunnables,
   readInstanceManifests,
   registeredManifests,
   type Runnable,
-} from '../jobs/runnables.js';
+} from '../runnables/runnables.js';
 import type { ListOptions } from './list.js';
 import { loadPlugin, PLUGIN_FILE } from './load-plugin.js';
 import { CORE_PACKAGE, coreVersion } from './package-info.js';

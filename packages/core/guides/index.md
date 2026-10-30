@@ -3,7 +3,7 @@ title: Guides
 children:
   - ./cli.md
   - ./config.md
-  - ./jobs.md
+  - ./runnables.md
   - ./lib.md
   - ./admin.md
   - ./calendar.md
@@ -31,7 +31,7 @@ Hand-written references for `@karmaniverous/jeeves-scripts-core`: the framework 
 
 - [CLI](./cli.md): The `jeeves-scripts` CLI and the instance launcher
 - [Configuration](./config.md): `jeeves-scripts.json`: schema, resolution, getters, silos
-- [Runnables](./jobs.md): The runnable registry: ids, `defineJob`, manifests, instance deltas, the instance plugin
+- [Runnables](./runnables.md): The runnable registry: ids, `defineRunnable`, manifests, instance deltas, the instance plugin
 - [Shared Library](./lib.md): Shared infrastructure: constants, gateway, workers, gh, gog, entity store
 
 ## Domains

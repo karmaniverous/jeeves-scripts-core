@@ -17,7 +17,7 @@ This repository is a private workspace root. It holds two packages:
 
 ## Status
 
-Every shared domain from [`jeeves-scripts-template`](https://github.com/karmaniverous/jeeves-scripts-template) (`main` at `322054c`) is in `packages/core/src` and passes the strict gates below, behind the runnable registry: `defineJob`, core's manifests, instance plugins with runnables and declared overrides, and the CLI verbs `run`, `list`, `config check`, `doctor`, `init` and `skills`, with the global hand-off ([`guides/cli.md`](packages/core/guides/cli.md)). CI also packs core, runs `init` from the tarball outside the repo and runs the new instance's `doctor`, sample runnable and gates on Ubuntu and Windows. Not released yet: the next release is v0.1.0.
+Every shared domain from [`jeeves-scripts-template`](https://github.com/karmaniverous/jeeves-scripts-template) (`main` at `322054c`) is in `packages/core/src` and passes the strict gates below, behind the runnable registry: `defineRunnable`, core's manifests, instance plugins with runnables and declared overrides, and the CLI verbs `run`, `list`, `config check`, `doctor`, `init` and `skills`, with the global hand-off ([`guides/cli.md`](packages/core/guides/cli.md)). CI also packs core, runs `init` from the tarball outside the repo and runs the new instance's `doctor`, sample runnable and gates on Ubuntu and Windows. Published on npm; the release notes are in [`packages/core/CHANGELOG.md`](packages/core/CHANGELOG.md).
 
 ## Documentation
 

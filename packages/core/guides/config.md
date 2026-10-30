@@ -14,7 +14,7 @@ Resolution never depends on the working directory. The first that applies wins:
 2. The `JEEVES_SCRIPTS_CONFIG` environment variable (`CONFIG_PATH_ENV`).
 3. `{root}/jeeves-scripts.json`, where `root` is the instance repo root the launcher passes.
 
-`jeeves-scripts run` sets `JEEVES_SCRIPTS_CONFIG` to `{root}/jeeves-scripts.json` (unless already set) before it runs a job, so every core module and instance script reads the same file.
+`jeeves-scripts run` sets `JEEVES_SCRIPTS_CONFIG` to `{root}/jeeves-scripts.json` (unless already set) before it runs a runnable, so every core module and instance script reads the same file.
 
 The loader is lazy and cached: nothing touches the filesystem until the first getter call, and later calls return the cached config regardless of options. `resetConfig()` clears the cache (tests). `getLoadedConfigPath()` returns the file that was loaded.
 
@@ -66,8 +66,8 @@ This example passes `config check` as it stands. A `jobs` key must be the id of 
 | `siloRouting` | `siloRoutingSchema` | `defaultBasePath` (default: `paths().contentDir`) and named `silos.<name>`: `basePath`, `emailDomains`, `githubOrgs`, `slackWorkspaces`, `jira`, `linear`. |
 | `slack` | `slackConfigSchema` | `channels.<channelId>`: `project`, `homeDir` (absolute path). What this instance decides about a channel; see [Slack channels](#slack-channels). |
 | `people` | `peopleSchema` | `<personId>` (slug): `name`, `emails?`, `accounts?: { channel, account, id }[]`. Which accounts and addresses belong to one person; see [People](#people). |
-| `jobs` | `jobsSchema` | Per-job deltas by job id: `enabled`, `schedule`, `env`, `args`, `timeout_seconds`, `silo`, `taskFile`, `extraDirs`. `silo` and `taskFile` are read by the task-file dispatcher (see [dispatchers](./dispatchers.md)) and `silo` is checked by `config check`; `extraDirs` (absolute paths) is read by `admin-sweep-orphaned-tmp`, which sweeps those directories with the same rules as the content and scripts directories ([admin](./admin.md#prerequisites)); the rest shape the effective manifest `list --json` prints ([jobs](./jobs.md#instance-deltas)). |
-| `local` | none (any JSON) | The instance's own block. Core never reads it; the instance plugin's `configSchema` validates it at plugin load and runnables read it with `localConfig` ([jobs](./jobs.md#instance-runnables-and-overrides)). |
+| `jobs` | `jobsSchema` | Per-runnable deltas by runnable id: `enabled`, `schedule`, `env`, `args`, `timeout_seconds`, `on_failure`, `silo`, `taskFile`, `extraDirs`. `on_failure` is validated by `onFailureSchema`, which manifests share. `silo` and `taskFile` are read by the task-file dispatcher (see [dispatchers](./dispatchers.md)) and `silo` is checked by `config check`; `extraDirs` (absolute paths) is read by `admin-sweep-orphaned-tmp`, which sweeps those directories with the same rules as the content and scripts directories ([admin](./admin.md#prerequisites)); the rest shape the effective manifest `list --json` prints ([runnables](./runnables.md#instance-deltas)). |
+| `local` | none (any JSON) | The instance's own block. Core never reads it; the instance plugin's `configSchema` validates it at plugin load and runnables read it with `localConfig` ([runnables](./runnables.md#instance-runnables-and-overrides)). |
 
 Every schema is exported (Zod 4), with its `z.infer` type (`Config`, `PathsConfigInput`, `IntegrationsConfig`, `PipelineConfig`, `SiloRoutingConfig`, `JobDelta`, ...).
 
@@ -110,7 +110,7 @@ The schema rejects a literal secret value anywhere in the file, including under 
 
 ## The pipeline block
 
-`pipeline` is optional as a whole (getters throw a config error naming it when a job needs it), but when present every field below is validated by `pipelineSchema`; unknown keys are stripped except under `googleDrive`.
+`pipeline` is optional as a whole (getters throw a config error naming it when a runnable needs it), but when present every field below is validated by `pipelineSchema`; unknown keys are stripped except under `googleDrive`.
 
 ```json
 {

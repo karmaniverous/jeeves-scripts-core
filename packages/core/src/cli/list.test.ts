@@ -5,14 +5,14 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
-import { defineJob } from '../jobs/define-job.js';
-import type { JobManifest } from '../jobs/manifest.js';
-import { definePlugin, override, type Plugin } from '../jobs/plugin.js';
-import type { RegistryEntry } from '../jobs/registry.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
+import type { JobManifest } from '../runnables/manifest.js';
+import { definePlugin, override, type Plugin } from '../runnables/plugin.js';
+import type { RegistryEntry } from '../runnables/registry.js';
 import { formatList, globToRegExp, listRunnables } from './list.js';
 
 const job = (id: string, domain: string, description?: string) =>
-  defineJob({
+  defineRunnable({
     id,
     domain,
     ...(description ? { description } : {}),
@@ -153,6 +153,26 @@ describe('listRunnables', () => {
     expect(process.env[CONFIG_PATH_ENV]).toBe(
       path.join(root, 'jeeves-scripts.json'),
     );
+  });
+
+  it('carries the effective on_failure from manifests and deltas (#36)', async () => {
+    setup({ 'email-poll': { on_failure: 'C0123456789' } });
+    fs.mkdirSync(path.join(root, 'jobs'));
+    fs.writeFileSync(
+      path.join(root, 'jobs', 'acme.json'),
+      JSON.stringify({
+        'acme-report': { ...fields, on_failure: 'U0123456789' },
+      }),
+    );
+    const entries = await listRunnables(
+      root,
+      '*',
+      options(definePlugin({ jobs: [job('acme-report', 'acme')] })),
+    );
+    const onFailure = (id: string) =>
+      entries.find((e) => e.id === id)?.manifest?.on_failure;
+    expect(onFailure('email-poll')).toBe('C0123456789');
+    expect(onFailure('acme-report')).toBe('U0123456789');
   });
 
   it('filters by glob', async () => {

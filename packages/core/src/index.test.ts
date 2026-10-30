@@ -40,7 +40,7 @@ describe('package entry point', () => {
     const core: Record<string, unknown> = await import('./index.js');
     const utilities = [
       'constants',
-      'defineJob',
+      'defineRunnable',
       'isJobModule',
       'definePlugin',
       'override',

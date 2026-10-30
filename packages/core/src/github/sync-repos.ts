@@ -13,7 +13,7 @@ import path from 'node:path';
 
 import { ensureDir, readJson } from '@karmaniverous/jeeves';
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   ghReady,
   type GitHubJobDeps,
@@ -155,7 +155,7 @@ export function syncRepos(deps: GitHubJobDeps): void {
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'github-sync-repos',
   domain: 'github',
   flags: {},

@@ -12,7 +12,7 @@ import fs from 'node:fs';
 
 import { ApiError, Client } from '@xdevplatform/xdk';
 
-import type { JobContext } from '../../jobs/define-job.js';
+import type { JobContext } from '../../runnables/define-runnable.js';
 import type { XClient, XUserLookupClient } from './x-client.js';
 import {
   getOAuthPath,

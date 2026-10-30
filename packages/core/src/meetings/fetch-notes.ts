@@ -11,8 +11,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { defineJob } from '../jobs/define-job.js';
 import { argFlag, type ParsedArgs } from '../lib/args.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { runDocFetch } from './lib/doc-fetch.js';
 import type { DocFetchOptions } from './lib/doc-fetch-scan.js';
 import { runFathomExtract } from './lib/fathom-extract.js';
@@ -153,7 +153,7 @@ export async function fetchNotes(
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'meetings-fetch-notes',
   domain: 'meetings',
   name: 'meetings/fetch-notes',

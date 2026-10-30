@@ -13,7 +13,7 @@
  * This script remains useful for manual/diagnostic token refresh.
  */
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { xHandlePrerequisite } from './lib/x-api.js';
 import { xConfig, type XJobDeps, xJobDeps } from './lib/x-deps.js';
 import { getOAuthPath } from './lib/x-oauth.js';
@@ -34,7 +34,7 @@ export async function refreshXToken(
   console.log(`Written to: ${getOAuthPath(deps.oauthDir, handle)}`);
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'x-refresh-token',
   domain: 'x',
   description:

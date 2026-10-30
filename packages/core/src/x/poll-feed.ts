@@ -15,7 +15,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { pollHandles } from './lib/poll-x-items.js';
 import { type XJobDeps, xJobDeps } from './lib/x-deps.js';
 import type { XTweet } from './lib/x-timelines.js';
@@ -108,7 +108,7 @@ export async function pollFeeds(
     throw new Error(`poll-feed failed for @${failed.join(', @')}`);
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'x-poll-feed',
   domain: 'x',
   name: 'x/poll-feed',

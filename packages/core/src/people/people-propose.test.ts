@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { argsError } from '../jobs/job-help.js';
+import { argsError } from '../runnables/job-help.js';
 import peopleProposeJob, { peoplePropose } from './people-propose.js';
 import type { PeopleProposal } from './propose.js';
 

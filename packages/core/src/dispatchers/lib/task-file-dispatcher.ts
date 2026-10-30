@@ -166,12 +166,12 @@ export const dispatchTaskFile = async (
 
 /**
  * A runnable's `run` that dispatches the task file: {@link dispatchTaskFile}
- * with these options. Pass it to `defineJob`, which runs it under the
+ * with these options. Pass it to `defineRunnable`, which runs it under the
  * crash handler (Decision 57); nothing runs until the job does.
  *
  * @example
  * ```ts
- * export default defineJob({
+ * export default defineRunnable({
  *   id: 'acme-daily-briefing',
  *   domain: 'acme',
  *   flags: dispatcherFlags,

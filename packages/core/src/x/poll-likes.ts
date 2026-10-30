@@ -9,12 +9,12 @@
  * into the x-likes-\{handle\} runner queue for drain-queues to flush to disk.
  */
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { pollXFlags, runXPoller } from './lib/poll-x-items.js';
 import { xJobDeps } from './lib/x-deps.js';
 import { pollLikedTweets } from './lib/x-timelines.js';
 
-export default defineJob({
+export default defineRunnable({
   id: 'x-poll-likes',
   domain: 'x',
   name: 'x/poll-likes',

@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   ghReady,
   type GitHubJobDeps,
@@ -247,7 +247,7 @@ export function watchNotifications(deps: GitHubJobDeps): void {
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'github-watch',
   domain: 'github',
   flags: {},

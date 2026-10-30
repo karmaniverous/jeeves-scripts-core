@@ -31,12 +31,12 @@ import {
   getBasePathForEmailDomain,
   getCalendarAccounts,
 } from '../config/index.js';
-import { defineJob } from '../jobs/define-job.js';
 import { constants } from '../lib/constants.js';
 import {
   detectGogCredentials,
   findServiceAccountFile,
 } from '../lib/gog-credentials.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   type CalendarAccountResolution,
   resolveCalendarAccounts,
@@ -215,7 +215,7 @@ export async function pollCalendars(deps: CalendarPollDeps): Promise<void> {
     );
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'calendar-poll',
   domain: 'calendar',
   flags: {},

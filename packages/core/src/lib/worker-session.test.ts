@@ -7,7 +7,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   findSession,
   type GatewaySession,
-  getTokensFromTranscript,
   isSessionCompleted,
   parseResultLine,
   sessionTokens,
@@ -139,13 +138,7 @@ describe('parseResultLine', () => {
   });
 });
 
-describe('getTokensFromTranscript', () => {
-  it('returns 0 for non-existent file', () => {
-    expect(getTokensFromTranscript('/nonexistent/path.jsonl')).toBe(0);
-  });
-});
-
-describe('transcript tokens and session lookup', () => {
+describe('session tokens and session lookup', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'worker-session-'));
   const transcript = path.join(dir, 't.jsonl');
   fs.writeFileSync(
@@ -158,10 +151,6 @@ describe('transcript tokens and session lookup', () => {
       '',
     ].join('\n'),
   );
-
-  it('sums totalTokens over the JSON lines of a transcript', () => {
-    expect(getTokensFromTranscript(transcript)).toBe(15);
-  });
 
   it('prefers transcript usage, resolving a relative path under the sessions dir', () => {
     expect(
@@ -180,17 +169,6 @@ describe('transcript tokens and session lookup', () => {
       ),
     ).toBe(3);
     expect(sessionTokens({ key: 'k' })).toBe(0);
-  });
-
-  it('logs and counts nothing when the transcript cannot be read', () => {
-    const error = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => undefined);
-    expect(getTokensFromTranscript(dir)).toBe(0);
-    expect(error).toHaveBeenCalledWith(
-      expect.stringContaining('Failed to read transcript'),
-    );
-    error.mockRestore();
   });
 
   it.each([

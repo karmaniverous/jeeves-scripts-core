@@ -16,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 
 import { Command } from '@commander-js/extra-typings';
 
-import { wantsHelp } from '../jobs/job-help.js';
+import { wantsHelp } from '../runnables/job-help.js';
 import { instanceConfigCheck } from './config-check.js';
 import { doctorReport } from './doctor.js';
 import { describeError, formatInit, initRepo } from './init.js';

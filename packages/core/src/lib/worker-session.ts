@@ -2,8 +2,8 @@
  * @module lib/worker-session
  *
  * Worker session tracking for `spawn-worker`: gateway response shapes,
- * run-status decisions from the `sessions_list` row, token totals from
- * the transcript, polling until the run ends, and the `WORKER_RESULT:`
+ * run-status decisions from the `sessions_list` row, token totals (from
+ * the transcript, lib/worker-transcript), polling until the run ends, and the `WORKER_RESULT:`
  * line format other modules parse. Side effects: gateway calls and
  * transcript reads in the default deps only.
  */
@@ -15,6 +15,7 @@ import { sleepAsync } from '@karmaniverous/jeeves';
 
 import { gatewayInvoke } from './gateway-client.js';
 import { openclawStateDirs } from './openclaw-config.js';
+import { getTokensFromTranscript } from './worker-transcript.js';
 
 /**
  * Log a warning (never a completion) when a running session has not
@@ -103,51 +104,6 @@ export function isSessionCompleted(
     return { completed: true, error: `Worker run ended: status=${status}` };
   }
   return { completed: false };
-}
-
-/**
- * Sum totalTokens from each JSON-Lines entry in a transcript file.
- */
-export function getTokensFromTranscript(transcriptPath: string): number {
-  try {
-    if (!fs.existsSync(transcriptPath)) return 0;
-
-    const lines = fs
-      .readFileSync(transcriptPath, 'utf8')
-      .split('\n')
-      .filter((l) => l.trim());
-    let total = 0;
-
-    for (const line of lines) {
-      try {
-        const entry: unknown = JSON.parse(line);
-        if (
-          entry &&
-          typeof entry === 'object' &&
-          'message' in entry &&
-          entry.message &&
-          typeof entry.message === 'object' &&
-          'usage' in entry.message &&
-          entry.message.usage &&
-          typeof entry.message.usage === 'object' &&
-          'totalTokens' in entry.message.usage &&
-          typeof entry.message.usage.totalTokens === 'number'
-        ) {
-          total += entry.message.usage.totalTokens;
-        }
-      } catch {
-        /* skip non-JSON lines */
-      }
-    }
-
-    return total;
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error(
-      `[${new Date().toISOString()}] Failed to read transcript: ${msg}`,
-    );
-    return 0;
-  }
 }
 
 /**

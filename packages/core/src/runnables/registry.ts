@@ -1,5 +1,5 @@
 /**
- * @module jobs/registry
+ * @module runnables/registry
  *
  * The core runnable registry (Decisions 4, 40, 49): every core runnable id
  * with its domain, its module path under `src/` and a lazy loader, with or
@@ -8,13 +8,13 @@
  * the id it is registered under.
  *
  * Ids are the public contract (`jeeves-scripts run <id>`): the scheduled
- * runnables (`jobs/registry-scheduled`) have manifests in
- * `jobs/<domain>.json`; the on-demand ones (`jobs/registry-on-demand`:
+ * runnables (`runnables/registry-scheduled`) have manifests in
+ * `jobs/<domain>.json`; the on-demand ones (`runnables/registry-on-demand`:
  * drains, backfills, X actions, `people-propose`, ...) have none and
- * describe themselves in `defineJob`.
+ * describe themselves in `defineRunnable`.
  */
 
-import { isJobModule, type JobModule } from './define-job.js';
+import { isJobModule, type JobModule } from './define-runnable.js';
 import { onDemandJobs } from './registry-on-demand.js';
 import { scheduledJobs } from './registry-scheduled.js';
 
@@ -32,7 +32,7 @@ export interface RegistryEntry {
 
 /**
  * Core's domains: its top-level domain source folders (R45). An instance
- * domain never reuses one. `cli`, `config`, `jobs`, `lib` and `presets`
+ * domain never reuses one. `cli`, `config`, `lib`, `presets` and `runnables`
  * are framework folders, not domains.
  */
 export const coreDomains: readonly string[] = [
@@ -59,17 +59,17 @@ export const coreJobs: readonly RegistryEntry[] = [
 ];
 
 /**
- * Import a registered runnable and check it is a `defineJob` module with the
+ * Import a registered runnable and check it is a `defineRunnable` module with the
  * registered id and domain.
  *
- * @throws When the module's default export is not a `defineJob` module, or declares a
+ * @throws When the module's default export is not a `defineRunnable` module, or declares a
  *   different id or domain.
  */
 export const loadJob = async (entry: RegistryEntry): Promise<JobModule> => {
   const job = (await entry.load()).default;
   if (!isJobModule(job))
     throw new Error(
-      `Job "${entry.id}": ${entry.module} does not default-export defineJob(...).`,
+      `Job "${entry.id}": ${entry.module} does not default-export defineRunnable(...).`,
     );
   if (job.id !== entry.id || job.domain !== entry.domain)
     throw new Error(

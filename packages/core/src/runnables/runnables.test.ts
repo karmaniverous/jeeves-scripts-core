@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { defineJob } from './define-job.js';
+import { defineRunnable } from './define-runnable.js';
 import type { JobManifest } from './manifest.js';
 import { definePlugin, override } from './plugin.js';
 import type { RegistryEntry } from './registry.js';
@@ -15,7 +15,7 @@ import {
 } from './runnables.js';
 
 const job = (id: string, domain: string, description?: string) =>
-  defineJob({
+  defineRunnable({
     id,
     domain,
     ...(description ? { description } : {}),
@@ -218,7 +218,7 @@ describe('registeredManifests', () => {
     ).toThrow(
       [
         'Invalid jeeves-scripts.plugin.ts:',
-        '- runnable "acme-bare" has no manifest and no description; add description to its defineJob',
+        '- runnable "acme-bare" has no manifest and no description; add description to its defineRunnable',
       ].join('\n'),
     );
     expect(
@@ -237,7 +237,7 @@ describe('overrides', () => {
     module: 'email/poll',
     load: () =>
       Promise.resolve({
-        default: defineJob({
+        default: defineRunnable({
           id: 'email-poll',
           domain: 'email',
           description: 'Poll mail.',

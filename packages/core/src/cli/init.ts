@@ -17,7 +17,7 @@ import path from 'node:path';
 
 import { z } from 'zod';
 
-import { EXACT_SEMVER } from '../jobs/plugin.js';
+import { EXACT_SEMVER } from '../runnables/plugin.js';
 import { CORE_PACKAGE, corePackageDir, coreVersion } from './package-info.js';
 
 /** Template files stored under another name, so npm packs them (top level only). */

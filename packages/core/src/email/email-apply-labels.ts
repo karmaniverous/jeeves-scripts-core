@@ -22,8 +22,8 @@ import {
   reportOnlyFor,
   resetConfig,
 } from '../config/index.js';
-import { defineJob } from '../jobs/define-job.js';
 import { argFlag, argOptional, type ParsedArgs } from '../lib/args.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   APPLY_LABELS_MAX_THREADS,
   type ApplyLabelsClient,
@@ -164,7 +164,7 @@ export function emailApplyLabels(
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'email-apply-labels',
   domain: 'email',
   description: `Enqueue classification labels thread state calls for but that were never applied (e.g. while reportOnly was on); drain-updates applies them. Default --max ${String(APPLY_LABELS_MAX_THREADS)}.`,

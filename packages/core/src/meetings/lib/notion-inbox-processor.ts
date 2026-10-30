@@ -15,6 +15,14 @@ import { constants } from '../../lib/constants.js';
 import { writeMeetingMeta } from './meeting-schema.js';
 import { notionRequest } from './notion-api.js';
 import {
+  appendBlocks,
+  chunkText,
+  headingBlock,
+  type NotionBlock,
+  type NotionRequest,
+  paragraphBlock,
+} from './notion-blocks.js';
+import {
   type ExtractedContent,
   extractFromPublicPage,
 } from './notion-browser-extract.js';
@@ -24,7 +32,7 @@ import {
 /** What {@link processNotionInboxMeeting} reads and calls. */
 export interface NotionInboxDeps {
   /** Notion REST call. */
-  request: (method: string, path: string, body: unknown) => Promise<unknown>;
+  request: NotionRequest;
   /** Read a published page's tabs. */
   extract: (publicUrl: string) => Promise<ExtractedContent>;
   /** The default meetings directory (holds `index.json`). */
@@ -97,56 +105,6 @@ export function cleanTitle(s: string | null | undefined): string {
 
 export function sha1Prefix(s: string, len = 12): string {
   return crypto.createHash('sha1').update(s).digest('hex').slice(0, len);
-}
-
-export function chunkText(s: string, max = 1200): string[] {
-  const out: string[] = [];
-  let i = 0;
-  while (i < s.length) {
-    out.push(s.slice(i, i + max));
-    i += max;
-  }
-  return out;
-}
-
-// ── Notion block helpers ───────────────────────────────────────────────
-
-interface NotionBlock {
-  object: string;
-  type: string;
-  [key: string]: unknown;
-}
-
-function paragraphBlock(text: string): NotionBlock {
-  return {
-    object: 'block',
-    type: 'paragraph',
-    paragraph: { rich_text: [{ type: 'text', text: { content: text } }] },
-  };
-}
-
-function headingBlock(text: string, level: 1 | 2 | 3 = 2): NotionBlock {
-  const type =
-    level === 1 ? 'heading_1' : level === 3 ? 'heading_3' : 'heading_2';
-  return {
-    object: 'block',
-    type,
-    [type]: { rich_text: [{ type: 'text', text: { content: text } }] },
-  };
-}
-
-async function appendBlocks(
-  blockId: string,
-  blocks: NotionBlock[],
-  request: NotionInboxDeps['request'],
-): Promise<void> {
-  const batchSize = 50;
-  for (let i = 0; i < blocks.length; i += batchSize) {
-    const slice = blocks.slice(i, i + batchSize);
-    await request('PATCH', `/v1/blocks/${blockId}/children`, {
-      children: slice,
-    });
-  }
 }
 
 // ── Index helpers ──────────────────────────────────────────────────────

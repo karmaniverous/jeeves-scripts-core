@@ -13,7 +13,7 @@
 
 import { loadConfig } from '../config/loader.js';
 import { paths } from '../config/paths.js';
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { sweepDirs } from './lib/sweep-tmp.js';
 
 /** The runnable id; its `jobs.<id>` delta carries `extraDirs`. */
@@ -31,7 +31,7 @@ export function sweepOrphanedTmp(now: number = Date.now()): void {
   sweepDirs(sweepTargets(), now);
 }
 
-export default defineJob({
+export default defineRunnable({
   id: JOB_ID,
   domain: 'admin',
   flags: {},

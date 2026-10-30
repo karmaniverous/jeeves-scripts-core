@@ -6,15 +6,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
-import { isJobModule } from '../jobs/define-job.js';
-import { localConfig, resetLocalConfig } from '../jobs/plugin.js';
+import { isJobModule } from '../runnables/define-runnable.js';
+import { localConfig, resetLocalConfig } from '../runnables/plugin.js';
 import { loadPlugin, PLUGIN_FILE } from './load-plugin.js';
 
-const jobsDir = path.resolve(
+const runnablesDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
-  '../jobs',
+  '../runnables',
 );
-const url = (file: string) => pathToFileURL(path.join(jobsDir, file)).href;
+const url = (file: string) => pathToFileURL(path.join(runnablesDir, file)).href;
 
 let root: string;
 const saved = process.env[CONFIG_PATH_ENV];
@@ -55,7 +55,7 @@ describe('loadPlugin', () => {
     // TypeScript syntax (types, an interface) proves tsx compiled it.
     fs.writeFileSync(
       path.join(root, PLUGIN_FILE),
-      `import { defineJob } from '${url('define-job.ts')}';
+      `import { defineRunnable } from '${url('define-runnable.ts')}';
 import { definePlugin } from '${url('plugin.ts')}';
 
 interface Local { channel: string; seen: boolean }
@@ -68,7 +68,7 @@ const configSchema = {
 };
 
 export default definePlugin({
-  jobs: [defineJob({ id: 'acme-report', domain: 'acme', run: (): void => undefined })],
+  jobs: [defineRunnable({ id: 'acme-report', domain: 'acme', run: (): void => undefined })],
   configSchema,
 });
 `,
@@ -99,7 +99,7 @@ export default definePlugin({
         },
       }),
     };
-    const { definePlugin } = await import('../jobs/plugin.js');
+    const { definePlugin } = await import('../runnables/plugin.js');
     fs.writeFileSync(path.join(root, PLUGIN_FILE), '');
     await expect(
       loadPlugin(root, {

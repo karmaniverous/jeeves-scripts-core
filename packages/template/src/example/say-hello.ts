@@ -8,9 +8,9 @@
  * @packageDocumentation
  */
 
-import { defineJob, loadConfig } from '@karmaniverous/jeeves-scripts-core';
+import { defineRunnable, loadConfig } from '@karmaniverous/jeeves-scripts-core';
 
-export default defineJob({
+export default defineRunnable({
   id: 'example-say-hello',
   domain: 'example',
   description: 'Print a greeting from this instance (the template sample).',

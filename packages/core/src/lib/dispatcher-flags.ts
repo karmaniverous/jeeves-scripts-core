@@ -2,7 +2,7 @@
  * @module lib/dispatcher-flags
  *
  * The flags every dispatcher accepts (`--print-task`, `--dry-run`), for
- * `defineJob({ flags: dispatcherFlags })`, and their resolution for the
+ * `defineRunnable({ flags: dispatcherFlags })`, and their resolution for the
  * dispatch helpers.
  *
  * A dispatcher that declares them passes the parsed `ctx.flags`. One that
@@ -15,7 +15,9 @@ import { argFlag, type ParsedArgs } from './args.js';
 
 /** The flags every dispatcher accepts. */
 export const dispatcherFlags = {
+  /** `--print-task`: print the full TASK and dispatch nothing. */
   printTask: argFlag('--print-task', 'Print the full TASK; dispatch nothing'),
+  /** `--dry-run`: report what would be dispatched (job, task length, post targets) and dispatch nothing. */
   dryRun: argFlag(
     '--dry-run',
     'Report what would be dispatched (job, task length, post targets); dispatch nothing',

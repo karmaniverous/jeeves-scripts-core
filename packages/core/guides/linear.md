@@ -188,7 +188,7 @@ Add this block to your jeeves-server Event Gateway configuration:
 ```
 
 - `$JEEVES_SCRIPTS_DIR` — absolute path to the instance repo (`paths().scriptsDir`)
-- `linear-drain`: a registered core job with no manifest (event-driven: the event gateway runs `run linear-drain`)
+- `linear-drain`: a core runnable with no manifest (event-driven: the event gateway runs `run linear-drain`)
 - `schema` — JSON Schema validated against the POST body (ajv, first match wins across all configured events)
 - `cmd` — the server spawns this command and pipes the request body JSON to stdin
 - `timeoutMs` — kill timeout for the drain process (falls back to global `eventTimeoutMs`)
@@ -208,7 +208,7 @@ On first run (no cursor), all issues/comments are fetched from the beginning. On
 
 ## Backfill
 
-Run the backfill once after setting up the webhook to populate historical data: run the registered core job `linear-backfill` (no manifest needed):
+Run the backfill once after setting up the webhook to populate historical data: run the core runnable `linear-backfill` (no manifest needed):
 
 ```bash
 # Dry run (preview — no writes)

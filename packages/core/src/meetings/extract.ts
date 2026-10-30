@@ -33,7 +33,7 @@ import {
   reportOnlyFor,
   type ReportOnlyPolicy,
 } from '../config/index.js';
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   detectFathomFromBodies,
   detectMeetingSource,
@@ -270,7 +270,7 @@ export function extractMeetings(deps: ExtractDeps): void {
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'meetings-extract',
   domain: 'meetings',
   flags: {},

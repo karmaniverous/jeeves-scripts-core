@@ -11,6 +11,7 @@ Two task-file dispatcher jobs for a recurring meeting between known participants
 ## Operator rules
 
 - **Workers have no `message` tool.** The job script reads the meeting channel (manual overrides, feedback) and posts, pins and edits for the worker; a TASK file never tells the worker to use it.
+- **A job that DMs someone is a dispatcher too:** a runnable in the instance's `src/<domain>/` using core's worker-slack dispatcher, registered by the plugin with a manifest in `jobs/*.json` and synced with `sync-jobs`. Never a hand-made inline `session` job in the runner: it has no Slack access, and one observed in use failed every run (`response.result.find is not a function`) while its dispatcher-based sibling ran fine.
 - **Detect by participants, not title:** titles change, participants don't. A participant's override in the channel ("that 2pm call was our standup") beats detection.
 - **Stop quietly** when no meeting is on the calendar today or it hasn't finished yet.
 - **Checkbox state wins:** unchecked items under Completed reopen; checked open items move to Completed.
@@ -23,5 +24,5 @@ Two task-file dispatcher jobs for a recurring meeting between known participants
 1. A content directory (in the right silo) with `standing-orders.md` (participants, zones, channel rules); seed `.meta/` with `meta_seed`.
 2. TASK files for both jobs, following the anatomy in dispatchers.md.
 3. The quick-links message: post, pin, record its timestamp.
-4. Two dispatcher runnables in the instance (`defineJob` calling core's `dispatchTaskFile`, with `silo` and `taskFile`), registered by the instance plugin with manifests in `jobs/*.json`, Slack reads of the channel and posts allowed to edit the quick-links message; commit and push (see `jeeves-scripts`).
+4. Two dispatcher runnables in the instance (`defineRunnable` calling core's `dispatchTaskFile`, with `silo` and `taskFile`), registered by the instance plugin with manifests in `jobs/*.json`, Slack reads of the channel and posts allowed to edit the quick-links message; commit and push (see `jeeves-scripts`).
 5. Register both with the runner, running the launcher (`run <id>`), in the meeting's time zone; test with the no-post mode before enabling.

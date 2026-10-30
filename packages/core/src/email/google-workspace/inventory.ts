@@ -24,7 +24,7 @@ import {
   getEmailAccounts,
   getEmailBaseForAccount,
 } from '../../config/index.js';
-import { defineJob } from '../../jobs/define-job.js';
+import { defineRunnable } from '../../runnables/define-runnable.js';
 import { seenKey } from '../email-state.js';
 
 function countFiles(dir: string): number {
@@ -145,7 +145,7 @@ export function emailInventory(deps: InventoryDeps): void {
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'email-inventory',
   domain: 'email',
   flags: {},

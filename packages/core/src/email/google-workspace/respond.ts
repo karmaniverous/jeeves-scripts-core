@@ -47,7 +47,6 @@ import {
   type PipelineConfig,
   reportOnlyFor,
 } from '../../config/index.js';
-import { defineJob } from '../../jobs/define-job.js';
 import { argFlag } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
 import { gatewayInvoke } from '../../lib/gateway-client.js';
@@ -55,6 +54,7 @@ import { gatewayRpc } from '../../lib/gateway-rpc.js';
 import { gogWithRetry } from '../../lib/gog.js';
 import { readWorkerFinalText } from '../../lib/worker-output.js';
 import { gatewaySlackIo } from '../../lib/worker-slack/slack-io.js';
+import { defineRunnable } from '../../runnables/define-runnable.js';
 import { type GogRunner } from './gmail-search.js';
 import {
   type CandidateMessage,
@@ -269,7 +269,7 @@ export async function emailRespond(
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'email-respond',
   domain: 'email',
   name: 'email/respond',

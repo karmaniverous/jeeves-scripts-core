@@ -4,7 +4,7 @@
  * The one argument parser for runnables, core's and instances' (root
  * export): a typed spec of bare boolean flags, valued options
  * (`--name value` or `--name=value`, optionally a short alias) and
- * positionals. A runnable declares its spec as `defineJob({ flags })`; the
+ * positionals. A runnable declares its spec as `defineRunnable({ flags })`; the
  * CLI checks the arguments against it ({@link unknownArgs}) and the job
  * reads the parsed values from `ctx.flags`. Pure.
  */

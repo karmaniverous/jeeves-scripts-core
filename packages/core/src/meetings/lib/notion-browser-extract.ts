@@ -5,10 +5,9 @@
  * page using the Gateway browser tool.
  */
 
-import { sleepAsync } from '@karmaniverous/jeeves';
+import { retryAsync, sleepAsync } from '@karmaniverous/jeeves';
 
 import { gatewayInvoke, unwrapResult } from '../../lib/gateway-client.js';
-import { retryAsync } from '../../lib/retry.js';
 
 // ── Types ──────────────────────────────────────────────────────────────
 

@@ -10,7 +10,7 @@ vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
   runScript,
 }));
 
-import { defineJob } from './define-job.js';
+import { defineRunnable } from './define-runnable.js';
 import { readCoreManifests } from './manifest.js';
 import {
   coreDomains,
@@ -38,7 +38,7 @@ describe('core runnable registry', () => {
   });
 
   it('names every top-level domain folder as a core domain, and only those', () => {
-    const framework = new Set(['cli', 'config', 'jobs', 'lib', 'presets']);
+    const framework = new Set(['cli', 'config', 'lib', 'presets', 'runnables']);
     const folders = fs
       .readdirSync(srcDir, { withFileTypes: true })
       .filter((d) => d.isDirectory() && !framework.has(d.name))
@@ -69,7 +69,7 @@ describe('core runnable registry', () => {
     expect(coreJobs).toHaveLength(scheduledJobs.length + onDemandJobs.length);
   });
 
-  it('loads every job module as defineJob(...) with its id, running nothing on import', async () => {
+  it('loads every job module as defineRunnable(...) with its id, running nothing on import', async () => {
     const scheduled = new Set(readCoreManifests().map((m) => m.id));
     const undescribed: string[] = [];
     for (const e of coreJobs) {
@@ -77,7 +77,7 @@ describe('core runnable registry', () => {
       expect(job.id).toBe(e.id);
       if (!scheduled.has(e.id) && !job.description) undescribed.push(e.id);
     }
-    // A runnable without a manifest takes its `list` line from defineJob.
+    // A runnable without a manifest takes its `list` line from defineRunnable.
     expect(undescribed).toEqual([]);
     expect(runScript).not.toHaveBeenCalled();
   }, 120_000);
@@ -93,12 +93,16 @@ describe('loadJob', () => {
 
   it('rejects a module that does not default-export a job', async () => {
     await expect(loadJob(entry({ id: 'acme-report' }))).rejects.toThrow(
-      /acme\/report does not default-export defineJob/,
+      /acme\/report does not default-export defineRunnable/,
     );
   });
 
   it('rejects a module that declares a different id or domain', async () => {
-    const other = defineJob({ id: 'acme-other', domain: 'acme', run: vi.fn() });
+    const other = defineRunnable({
+      id: 'acme-other',
+      domain: 'acme',
+      run: vi.fn(),
+    });
     await expect(loadJob(entry(other))).rejects.toThrow(
       /Job "acme-report" \(acme\): acme\/report declares "acme-other" \(acme\)/,
     );

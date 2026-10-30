@@ -1,5 +1,5 @@
 /**
- * @module jobs/manifest
+ * @module runnables/manifest
  *
  * Core's runnable manifests (Decisions 5, 40, 49): `jobs/<domain>.json`
  * in the package, each an object keyed by runnable id holding the runner
@@ -7,8 +7,8 @@
  * instance launcher with `run <id>`). Reads and validates them with Zod, and applies an
  * instance's `jobs` deltas from `jeeves-scripts.json`.
  *
- * Delta rules: `enabled`, `timeout_seconds` and `schedule` replace the
- * manifest's; `env` merges key by key (the delta wins); `args` are
+ * Delta rules: `enabled`, `timeout_seconds`, `schedule` and `on_failure`
+ * replace the manifest's (`on_failure: null` clears it); `env` merges key by key (the delta wins); `args` are
  * appended. A delta naming an id that is neither a core nor an
  * instance runnable is an error.
  */
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 import { z } from 'zod';
 
-import type { JobDelta } from '../config/jobs-schema.js';
+import { type JobDelta, onFailureSchema } from '../config/jobs-schema.js';
 import { scheduleSchema } from '../config/schedule-schema.js';
 
 /** One scheduled core job, as its manifest file holds it. */
@@ -38,6 +38,13 @@ export const manifestEntrySchema = z.strictObject({
   overlap_policy: z.string().min(1),
   /** Run timeout in seconds; omitted means none, as in the runner (Decision 54). */
   timeout_seconds: z.number().int().positive().optional(),
+  /**
+   * Slack target the runner alerts when a run fails or times out (a channel,
+   * DM or user id, as the runner expects). `null` clears it to the runner's
+   * `notifications.defaultOnFailure`; omitted leaves an existing runner job's
+   * target unchanged (the runner's sync writes only present keys) (#36).
+   */
+  on_failure: onFailureSchema,
   /** Enabled by default. */
   enabled: z.boolean(),
   /** What must be set up first; `null` when nothing (deploy registers only these). */
@@ -53,7 +60,7 @@ export type ManifestEntry = z.infer<typeof manifestEntrySchema>;
 /** A manifest entry with its id and domain (the file it came from). */
 export type JobManifest = ManifestEntry & { id: string; domain: string };
 
-/** Core's `jobs/` directory: two levels up from `src/jobs` or `dist/jobs`. */
+/** Core's `jobs/` directory: two levels up from `src/runnables` or `dist/runnables`. */
 export const coreManifestDir = (): string =>
   path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
@@ -110,6 +117,7 @@ const RUNNER_FIELDS = [
   'enabled',
   'schedule',
   'timeout_seconds',
+  'on_failure',
   'env',
   'args',
 ] as const;
@@ -133,6 +141,7 @@ export const applyDelta = (
       ? {}
       : { timeout_seconds: delta.timeout_seconds }),
     ...(delta.schedule === undefined ? {} : { schedule: delta.schedule }),
+    ...(delta.on_failure === undefined ? {} : { on_failure: delta.on_failure }),
     ...(env === undefined ? {} : { env }),
     ...(args === undefined ? {} : { args }),
   };
@@ -152,7 +161,7 @@ export interface EffectiveManifestsInput {
  * Core manifests with the instance's deltas applied.
  *
  * @throws When a delta names an unknown runnable id, or sets a runner field
- *   (`enabled`, `schedule`, `timeout_seconds`, `env`, `args`) on a runnable
+ *   (`enabled`, `schedule`, `timeout_seconds`, `on_failure`, `env`, `args`) on a runnable
  *   with no manifest, where it would have no effect (listing every such id;
  *   Decision 58).
  */

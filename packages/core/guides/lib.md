@@ -140,7 +140,7 @@ Job-side Slack I/O for LLM workers. On OpenClaw 2026.9, sub-agent sessions have 
 - `worker-slack-job.ts`: orchestration with injected deps (read → TASK → dispatch → validate → post/pin/edit).
 - `worker-posts.ts`: the `slack-posts` output contract (a fenced JSON array, never a bare object, of `{channel, text, thread_ts?, pin?, edit_ts?}`; `edit_ts` replaces the text of an existing message and can't be combined with `thread_ts`/`pin`; edits and pins are allowed only where the target's `editTs` / `pin` permit), the worker instructions, and the Slack context formatting (fenced as untrusted data the worker must never follow as instructions).
 - `slack-io.ts`: `read` / `send` / `pin` / `edit` through the gateway `message` tool (`/tools/invoke`). A read response without a valid `messages` array throws (only `messages: []` means an empty channel).
-- `slack-target.ts`: normalizes Slack IDs to `channel:…` / `user:…` targets (the prefix must match the ID family: `channel:` C/G/D, `user:` U/W).
+- `slack-target.ts`: normalizes Slack IDs to `channel:…` / `user:…` targets (the prefix must match the ID family: `channel:` C/G/D, `user:` U/W). Exported from the package root as `normalizeSlackTarget`, so an instance dispatcher that takes a target from its own config normalizes it the way core does.
 
 ### spawn-worker.ts
 
@@ -160,11 +160,15 @@ YAML frontmatter for generated Markdown: builds the `---` block (every value JSO
 
 ### worker-session.ts
 
-Waits for a spawned worker: polls the gateway's `sessions_list` for the child session until its run ends, then reads token usage from the transcript (`waitForWorkerCompletion`, `findSession`, `sessionTokens`, `getTokensFromTranscript`). `spawn-worker.ts` uses it.
+Waits for a spawned worker: polls the gateway's `sessions_list` for the child session until its run ends, then reads token usage from the transcript (`waitForWorkerCompletion`, `findSession`, `sessionTokens`). `spawn-worker.ts` uses it.
 
-### retry.ts
+### worker-transcript.ts
 
-The one retry helper, on the root export: `retryAsync(fn, policy)` and `retrySync(fn, policy)` try up to `policy.attempts` times, waiting `policy.delayMs(attempt)` (`exponentialBackoff(baseMs)` for doubling waits) after a failure `policy.isRetryable` accepts, and rethrow the last error. The worker spawn, the Drive rename, the Fathom share fetch and the Notion page reader use it.
+`getTokensFromTranscript(path)` sums `message.usage.totalTokens` over a session transcript's JSON lines (0 for a missing or unreadable file, which it logs). `worker-session.ts` uses it.
+
+### Retry (from `@karmaniverous/jeeves`)
+
+Core has no retry module of its own (#24): it imports the platform's from `@karmaniverous/jeeves` and keeps the same names on its root export. One difference from the old copy: `policy.attempts` must be an integer of at least 1, or the helper throws `RangeError` before calling `fn` (the old copy ran `fn` once). `retryAsync(fn, policy)` and `retrySync(fn, policy)` try up to `policy.attempts` times, waiting `policy.delayMs(attempt)` (`exponentialBackoff(baseMs)` for doubling waits) after a failure `policy.isRetryable` accepts, and rethrow the last error. The worker spawn, the Slack client's 429 handling, the Drive rename, the Fathom share fetch and the Notion page reader use it.
 
 ### json-file.ts
 
@@ -172,7 +176,7 @@ Validated JSON file I/O, on the root export: `readJsonFile(file, schema)` parses
 
 ### args.ts
 
-The one argument parser for runnables, core's and instances', on the root export (Decision 59): `argFlag(name, description?)`, `argValue(name, fallback?, { alias?, description? })` and `argOptional(name, { alias?, description? })` build the spec a runnable declares as `defineJob({ flags })`; `run` checks the arguments against it with `unknownArgs(args, spec, positionals?)` and the job reads `ctx.flags` (`parseRunnableArgs(args, spec)`), plus `positionalArgs(ctx.args, spec?)`. The convention (bare flags, `--name value` and `--name=value`, positionals) and the checks are in [jobs.md](./jobs.md#arguments).
+The one argument parser for runnables, core's and instances', on the root export (Decision 59): `argFlag(name, description?)`, `argValue(name, fallback?, { alias?, description? })` and `argOptional(name, { alias?, description? })` build the spec a runnable declares as `defineRunnable({ flags })`; `run` checks the arguments against it with `unknownArgs(args, spec, positionals?)` and the job reads `ctx.flags` (`parseRunnableArgs(args, spec)`), plus `positionalArgs(ctx.args, spec?)`. The convention (bare flags, `--name value` and `--name=value`, positionals) and the checks are in [runnables.md](./runnables.md#arguments).
 
 ### is-record.ts
 
@@ -180,7 +184,7 @@ The one argument parser for runnables, core's and instances', on the root export
 
 ### dispatcher-flags.ts
 
-`dispatcherFlags` (`--print-task`, `--dry-run`), for a dispatcher's `defineJob({ flags })`, on the root export. `resolveDispatcherFlags` reads them from parsed flags or, for dispatchers that declare none, from raw arguments (default `process.argv`).
+`dispatcherFlags` (`--print-task`, `--dry-run`), for a dispatcher's `defineRunnable({ flags })`, on the root export. `resolveDispatcherFlags` reads them from parsed flags or, for dispatchers that declare none, from raw arguments (default `process.argv`).
 
 ### slack-client.ts
 

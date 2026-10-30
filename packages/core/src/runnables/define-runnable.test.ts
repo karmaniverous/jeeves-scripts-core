@@ -2,11 +2,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { argFlag, argValue } from '../lib/args.js';
 import {
-  defineJob,
+  defineRunnable,
   isJobModule,
   type RunJobDeps,
   runJobModule,
-} from './define-job.js';
+} from './define-runnable.js';
+import * as deprecated from './deprecated.js';
 
 const savedArgv = process.argv;
 afterEach(() => {
@@ -27,10 +28,17 @@ const fakeDeps = () => {
   return { calls, log, deps };
 };
 
-describe('defineJob', () => {
+describe('defineJob (deprecated alias)', () => {
+  it('is defineRunnable, so instance plugins written against 0.2 keep working', () => {
+    // Read by name: the deprecated symbol is never referenced directly in core.
+    expect(deprecated).toHaveProperty('defineJob', defineRunnable);
+  });
+});
+
+describe('defineRunnable', () => {
   it('returns the declaration frozen and marked as a job, running nothing', () => {
     const run = vi.fn();
-    const job = defineJob({ id: 'acme-report', domain: 'acme', run });
+    const job = defineRunnable({ id: 'acme-report', domain: 'acme', run });
     expect(isJobModule(job)).toBe(true);
     expect(Object.isFrozen(job)).toBe(true);
     expect(job).toMatchObject({ id: 'acme-report', domain: 'acme' });
@@ -38,7 +46,7 @@ describe('defineJob', () => {
   });
 
   it('keeps a one-line description for list', () => {
-    const job = defineJob({
+    const job = defineRunnable({
       id: 'google-drive-report',
       domain: 'google-drive',
       description: 'Report on the drive.',
@@ -48,8 +56,12 @@ describe('defineJob', () => {
   });
 
   it.each([
-    ['an id with capitals', { id: 'Acme', domain: 'acme' }, /job id/],
-    ['an id with a trailing dash', { id: 'acme-', domain: 'acme' }, /job id/],
+    ['an id with capitals', { id: 'Acme', domain: 'acme' }, /runnable id/],
+    [
+      'an id with a trailing dash',
+      { id: 'acme-', domain: 'acme' },
+      /runnable id/,
+    ],
     ['an empty domain', { id: 'acme', domain: '' }, /domain/],
     [
       'an id that does not start with its domain',
@@ -67,14 +79,14 @@ describe('defineJob', () => {
       /description/,
     ],
   ])('rejects %s', (_label, fields, message) => {
-    expect(() => defineJob({ ...fields, run: () => undefined })).toThrow(
+    expect(() => defineRunnable({ ...fields, run: () => undefined })).toThrow(
       message,
     );
   });
 
   it('rejects a declaration without a run function', () => {
     expect(() =>
-      defineJob({ id: 'acme', domain: 'acme', run: 'nope' } as never),
+      defineRunnable({ id: 'acme', domain: 'acme', run: 'nope' } as never),
     ).toThrow(/run must be a function/);
   });
 
@@ -90,7 +102,7 @@ describe('defineJob', () => {
 describe('runJobModule', () => {
   it('parses flags itself when a caller passes only args', async () => {
     const run = vi.fn();
-    const job = defineJob({
+    const job = defineRunnable({
       id: 'acme-direct',
       domain: 'acme',
       flags: { live: argFlag('--live') },
@@ -105,7 +117,7 @@ describe('runJobModule', () => {
 
   it('parses declared flags into ctx.flags (#14)', async () => {
     const run = vi.fn();
-    const job = defineJob({
+    const job = defineRunnable({
       id: 'acme-flags',
       domain: 'acme',
       flags: { live: argFlag('--live'), max: argValue('--max', '5') },
@@ -122,7 +134,7 @@ describe('runJobModule', () => {
     const run = vi.fn();
     const { deps } = fakeDeps();
     await runJobModule(
-      defineJob({ id: 'acme-report', domain: 'acme', run }),
+      defineRunnable({ id: 'acme-report', domain: 'acme', run }),
       ['--live', 'x'],
       deps,
     );
@@ -133,7 +145,7 @@ describe('runJobModule', () => {
   it('wraps the run in runScript under the job name, or the id, with its crash dir', async () => {
     const { calls, deps } = fakeDeps();
     await runJobModule(
-      defineJob({
+      defineRunnable({
         id: 'acme-report',
         domain: 'acme',
         name: 'acme/report',
@@ -144,7 +156,11 @@ describe('runJobModule', () => {
       deps,
     );
     await runJobModule(
-      defineJob({ id: 'acme-other', domain: 'acme', run: () => undefined }),
+      defineRunnable({
+        id: 'acme-other',
+        domain: 'acme',
+        run: () => undefined,
+      }),
       [],
       deps,
     );
@@ -158,7 +174,7 @@ describe('runJobModule', () => {
     const order: string[] = [];
     const { deps } = fakeDeps();
     await runJobModule(
-      defineJob({
+      defineRunnable({
         id: 'acme-slow',
         domain: 'acme',
         run: async () => {
@@ -177,7 +193,7 @@ describe('runJobModule', () => {
     const run = vi.fn();
     const { deps, log } = fakeDeps();
     await runJobModule(
-      defineJob({
+      defineRunnable({
         id: 'acme-report',
         domain: 'acme',
         prerequisite: () => 'no acme block in jeeves-scripts.json',
@@ -196,7 +212,7 @@ describe('runJobModule', () => {
     const run = vi.fn();
     const { deps, log } = fakeDeps();
     await runJobModule(
-      defineJob({
+      defineRunnable({
         id: 'acme-report',
         domain: 'acme',
         prerequisite: () => Promise.resolve(true as const),

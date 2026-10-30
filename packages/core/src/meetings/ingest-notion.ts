@@ -12,9 +12,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { getRef } from '../config/index.js';
-import { defineJob } from '../jobs/define-job.js';
 import { argFlag, argOptional, type ParsedArgs } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { notionRequest } from './lib/notion-api.js';
 import { processNotionInboxMeeting } from './lib/notion-inbox-processor.js';
 
@@ -143,7 +143,7 @@ export async function ingestNotion(
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'meetings-ingest-notion',
   domain: 'meetings',
   name: 'meetings/ingest-notion',

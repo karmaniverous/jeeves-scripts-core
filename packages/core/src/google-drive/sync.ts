@@ -4,7 +4,7 @@
  * Runner entry point: mirror Google Drive content shared to the
  * configured Workspace account(s) into the content tree as text.
  * Behaviour, configuration and operations are documented in
- * `src/google-drive/README.md`; the design is
+ * `guides/google-drive.md`; the design is
  * `guides/google-drive-spec.md` (`§` references in lib/ point there).
  *
  * Flags:
@@ -23,7 +23,6 @@ import {
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
 
-import { defineJob } from '../jobs/define-job.js';
 import {
   argFlag,
   argOptional,
@@ -31,6 +30,7 @@ import {
   type ParsedArgs,
 } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   assertDisjointTargets,
   type BudgetConfig,
@@ -134,7 +134,7 @@ export async function googleDriveSync(
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'google-drive-sync',
   domain: 'google-drive',
   name: 'google-drive/sync',

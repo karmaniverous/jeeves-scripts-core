@@ -8,11 +8,11 @@
  * for each one, reporting success and failure counts.
  */
 
-import { defineJob } from '../jobs/define-job.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import { xQueueAction } from './lib/run-x-queue-action.js';
 import { likePost } from './lib/x-actions.js';
 
-export default defineJob({
+export default defineRunnable({
   id: 'x-like',
   domain: 'x',
   description:

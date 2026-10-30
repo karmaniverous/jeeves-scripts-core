@@ -7,7 +7,7 @@
  *
  * Before resolving anything, the config location is pinned to
  * `{root}/jeeves-scripts.json` (unless `JEEVES_SCRIPTS_CONFIG` is set) and
- * the instance plugin is loaded and registered (`jobs/runnables`).
+ * the instance plugin is loaded and registered (`runnables/runnables`).
  * Resolution:
  *
  * 1. a plugin override for `<id>` runs instead of core's runnable;
@@ -17,7 +17,7 @@
  *
  * Every runnable runs in this process through `runJobModule`, with the
  * arguments after the id. A runnable that declares `flags` gets them
- * checked first (`jobs/job-help`): an undeclared option exits 1 before
+ * checked first (`runnables/job-help`): an undeclared option exits 1 before
  * the body runs. One that declares none gets them unchecked, with a
  * deprecation warning. `run <id> --help` is handled by `cli/list`
  * ({@link jobHelp}).
@@ -26,10 +26,10 @@
 import path from 'node:path';
 
 import { CONFIG_PATH_ENV } from '../config/loader.js';
-import { runJobModule } from '../jobs/define-job.js';
-import { argsError, flagsDeprecation } from '../jobs/job-help.js';
-import type { RegistryEntry } from '../jobs/registry.js';
-import { buildRunnables, type Runnable } from '../jobs/runnables.js';
+import { runJobModule } from '../runnables/define-runnable.js';
+import { argsError, flagsDeprecation } from '../runnables/job-help.js';
+import type { RegistryEntry } from '../runnables/registry.js';
+import { buildRunnables, type Runnable } from '../runnables/runnables.js';
 import { loadPlugin } from './load-plugin.js';
 
 /** Seams for tests. */

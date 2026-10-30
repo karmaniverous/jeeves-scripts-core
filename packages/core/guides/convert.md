@@ -37,7 +37,7 @@ node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js run convert-pdf-to-md /base/conte
 node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js run convert-docx-to-md report.docx report.md
 ```
 
-Each takes exactly `<in> <out>` (anything else fails the run: a `CRASH` line with the usage error on stderr, exit 1), writes `<out>` with the same frontmatter as the utilities (`source`, `converted`, and `pages` for a PDF), overwriting it, and exits 1 when the input can't be read or converted. Neither has a manifest; an instance that wants one scheduled adds a manifest in its own `jobs/*.json` ([jobs.md](jobs.md)).
+Each takes exactly `<in> <out>` (anything else fails the run: a `CRASH` line with the usage error on stderr, exit 1), writes `<out>` with the same frontmatter as the utilities (`source`, `converted`, and `pages` for a PDF), overwriting it, and exits 1 when the input can't be read or converted. Neither has a manifest; an instance that wants one scheduled adds a manifest in its own `jobs/*.json` ([runnables.md](runnables.md)).
 
 ## Data Flow
 

@@ -8,8 +8,8 @@
  * and the bot user (to accept invitations) as needed.
  */
 
-import { defineJob } from '../jobs/define-job.js';
 import { argValue, type ParsedArgs } from '../lib/args.js';
+import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   collabArgs,
   collabFlags,
@@ -104,7 +104,7 @@ export function drainCollabs(
   }
 }
 
-export default defineJob({
+export default defineRunnable({
   id: 'github-drain-collabs',
   domain: 'github',
   name: 'github/drain-collabs',
