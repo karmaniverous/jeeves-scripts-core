@@ -215,6 +215,39 @@ describe('initRepo', () => {
     ).toThrow(/no config\.sample\.json/);
   });
 
+  it('refuses a config dir inside the repo', () => {
+    expect(() =>
+      initRepo(root, {
+        core: '0.1.0',
+        templateDir: fixture,
+        configDir: path.join(root, 'cfg'),
+      }),
+    ).toThrow(/must be outside the instance repo/);
+    expect(() =>
+      initRepo(root, { core: '0.1.0', templateDir: fixture, configDir: root }),
+    ).toThrow(/must be outside/);
+  });
+
+  it('writes no sample config for a repo that still holds its full config', () => {
+    write(
+      root,
+      'jeeves-scripts.json',
+      JSON.stringify({ instance: { name: 'x', baseDir: '/b' } }),
+    );
+    const result = initRepo(root, {
+      core: '0.1.0',
+      templateDir: fixture,
+      configDir: cfg,
+    });
+    expect(fs.existsSync(path.join(cfg, 'config.json'))).toBe(false);
+    expect(result.skipped).toEqual(
+      expect.arrayContaining([
+        path.join(cfg, 'config.json'),
+        'jeeves-scripts.json',
+      ]),
+    );
+  });
+
   it('rejects an invalid package name', () => {
     expect(() =>
       initRepo(root, {

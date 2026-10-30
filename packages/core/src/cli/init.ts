@@ -17,10 +17,15 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 import { z } from 'zod';
 
-import { CONFIG_FILE_NAME, type Pointer } from '../config/pointer.js';
+import {
+  CONFIG_FILE_NAME,
+  type Pointer,
+  pointerSchema,
+} from '../config/pointer.js';
 import { EXACT_SEMVER } from '../runnables/plugin.js';
 import { CORE_PACKAGE, corePackageDir, coreVersion } from './package-info.js';
 
@@ -85,10 +90,32 @@ export interface InitResult {
   skipped: string[];
 }
 
-/** The POSIX path from `from` to `to`, starting `./` or `../`. */
-const relativeRef = (from: string, to: string): string => {
-  const rel = path.relative(from, to).split(path.sep).join('/');
-  return rel.startsWith('.') ? rel : `./${rel}`;
+/**
+ * A `$schema` reference from a file in `from` to `to`: the POSIX relative
+ * path (`./` or `../`), or a `file:` URL when no relative path exists (the
+ * two are on different Windows drives; #62 review).
+ */
+export const schemaRef = (
+  from: string,
+  to: string,
+  paths: typeof path = path,
+): string => {
+  const rel = paths.relative(from, to);
+  if (paths.isAbsolute(rel))
+    return pathToFileURL(to, { windows: paths === path.win32 }).href;
+  const posix = rel.split(paths.sep).join('/');
+  return posix.startsWith('.') ? posix : `./${posix}`;
+};
+
+/** Whether `file` exists and is not a config pointer (a legacy full config). */
+const isLegacyRepoConfig = (file: string): boolean => {
+  if (!fs.existsSync(file)) return false;
+  try {
+    return !pointerSchema.safeParse(JSON.parse(fs.readFileSync(file, 'utf8')))
+      .success;
+  } catch {
+    return true;
+  }
 };
 
 /** The sample config, its `$schema` re-pointed from the config directory. */
@@ -98,7 +125,7 @@ const sampleConfig = (
   configDir: string,
 ): string => {
   const config = z.looseObject({}).parse(JSON.parse(text));
-  config.$schema = relativeRef(
+  config.$schema = schemaRef(
     configDir,
     path.join(root, SCHEMA_DIR, 'jeeves-scripts.schema.json'),
   );
@@ -137,6 +164,11 @@ export const initRepo = (root: string, options: InitOptions): InitResult => {
   if (!options.configDir)
     throw new Error('the config directory (--config-dir <dir>) is required');
   const configDir = path.resolve(options.configDir);
+  const fromRoot = path.relative(path.resolve(root), configDir);
+  if (!fromRoot.startsWith('..') && !path.isAbsolute(fromRoot))
+    throw new Error(
+      `the config directory (--config-dir ${configDir}) must be outside the instance repo`,
+    );
   const name = checked(
     options.name ?? path.basename(path.resolve(root)),
     PACKAGE_NAME,
@@ -176,7 +208,11 @@ export const initRepo = (root: string, options: InitOptions): InitResult => {
   }
 
   const configFile = path.join(configDir, CONFIG_FILE_NAME);
-  if (fs.existsSync(configFile)) result.skipped.push(configFile);
+  const pointerFile = path.join(root, POINTER_FILE);
+  // A repo that already keeps its full config in jeeves-scripts.json (legacy)
+  // gets no unused sample config (#62 review); move it with the runbook.
+  if (fs.existsSync(configFile) || isLegacyRepoConfig(pointerFile))
+    result.skipped.push(configFile);
   else {
     fs.mkdirSync(configDir, { recursive: true });
     fs.writeFileSync(
@@ -190,7 +226,6 @@ export const initRepo = (root: string, options: InitOptions): InitResult => {
     result.created.push(configFile);
   }
 
-  const pointerFile = path.join(root, POINTER_FILE);
   if (fs.existsSync(pointerFile)) result.skipped.push(POINTER_FILE);
   else {
     const pointer: Pointer = {
