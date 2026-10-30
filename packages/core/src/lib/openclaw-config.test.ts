@@ -171,3 +171,32 @@ describe('gatewayPort', () => {
     expect(gatewayPort([primary, legacy])).toBe(18789);
   });
 });
+
+describe('SecretRefs in token fields (#61 review)', () => {
+  const ref = { source: 'env', provider: 'default', id: 'SLACK_BOT_TOKEN' };
+
+  it('reads the rest of a config whose tokens are SecretRefs', () => {
+    write(primary, {
+      gateway: { port: 19001, auth: { token: ref } },
+      channels: { slack: { botToken: ref } },
+    });
+    expect(gatewayPort([primary])).toBe(19001);
+    expect(gatewayToken([primary])).toBeNull();
+  });
+
+  it('skips a SecretRef bot token and keeps the plain ones', () => {
+    write(primary, {
+      channels: {
+        slack: {
+          accounts: { a: { botToken: ref }, b: { botToken: 'xoxb-b' } },
+        },
+      },
+    });
+    expect(slackBotTokens([primary])).toEqual({ b: 'xoxb-b' });
+  });
+
+  it('still rejects a token that is neither a string nor a SecretRef', () => {
+    write(primary, { gateway: { auth: { token: { id: 'x' } } } });
+    expect(() => gatewayPort([primary])).toThrow(/Invalid OpenClaw config/);
+  });
+});

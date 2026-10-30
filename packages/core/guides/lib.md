@@ -88,7 +88,7 @@ Gateway RPC caller for methods that are not HTTP tools, or whose tool wrapper li
 
 ### openclaw-config.ts
 
-Reads the gateway port and credentials from the local OpenClaw config, `~/.openclaw/openclaw.json`, then the legacy `~/.clawdbot/clawdbot.json` (home: `USERPROFILE`, else the OS home dir). Files are JSON5, as OpenClaw reads them; only the fields read here are validated (`openclawConfigSchema`, Zod 4; `gateway.port` 1-65535). A missing file is skipped; a file that exists but can't be read, isn't JSON5 or is invalid throws, naming the file and the cause (#42). Never logs a token. Exported from the package root.
+Reads the gateway port and credentials from the local OpenClaw config, `~/.openclaw/openclaw.json`, then the legacy `~/.clawdbot/clawdbot.json` (home: `USERPROFILE`, else the OS home dir). Files are JSON5, as OpenClaw reads them; only the fields read here are validated (`openclawConfigSchema`, Zod 4; `gateway.port` 1-65535). A missing file is skipped; a file that exists but can't be read, isn't JSON5 or is invalid throws, naming the file and the cause (#42). Token fields (`channels.slack.botToken`, `accounts.<id>.botToken`, `gateway.auth.token`) may be OpenClaw SecretRefs (`{ source, provider, id }`), as OpenClaw allows; core does not resolve them, so a SecretRef token reads as unset (`CLAWDBOT_GATEWAY_TOKEN` still supplies the gateway token). Never logs a token. Exported from the package root.
 
 - `gatewayPort(files?)` — `gateway.port`, else OpenClaw's default `18789` (`OPENCLAW_DEFAULT_GATEWAY_PORT`)
 - `gatewayToken(files?)` — a non-empty `CLAWDBOT_GATEWAY_TOKEN`, else `gateway.auth.token`; `null` when neither exists

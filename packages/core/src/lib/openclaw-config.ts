@@ -19,10 +19,29 @@ import { z } from 'zod';
 
 import { isEnoent } from './fs-errors.js';
 
+/**
+ * An OpenClaw SecretRef (`{ source, provider, id }`), which OpenClaw
+ * accepts wherever a credential may be a plain string. Core doesn't resolve
+ * SecretRefs: a field holding one reads as unset.
+ */
+export const secretRefSchema = z.looseObject({
+  /** Where OpenClaw resolves the secret from. */
+  source: z.enum(['env', 'file', 'exec', 'store']),
+  /** The secret's id within its source. */
+  id: z.string().min(1),
+});
+
+/** A credential: a plain string or a {@link secretRefSchema | SecretRef} (#61 review). */
+const secretInputSchema = z.union([z.string().min(1), secretRefSchema]);
+
+/** The plain-string value of a credential; `undefined` for a SecretRef or unset. */
+const plain = (value: z.infer<typeof secretInputSchema> | undefined) =>
+  typeof value === 'string' ? value : undefined;
+
 /** A Slack account block: `channels.slack` or `channels.slack.accounts.<id>`. */
 const slackAccountSchema = z.looseObject({
-  /** The account's Slack bot token (`xoxb-...`). */
-  botToken: z.string().min(1).optional(),
+  /** The account's Slack bot token (`xoxb-...`), or a SecretRef. */
+  botToken: secretInputSchema.optional(),
 });
 
 /** The parts of `openclaw.json` core reads. */
@@ -33,8 +52,8 @@ export const openclawConfigSchema = z.looseObject({
       /** Gateway auth. */
       auth: z
         .looseObject({
-          /** Bearer token for the gateway HTTP API. */
-          token: z.string().min(1).optional(),
+          /** Bearer token for the gateway HTTP API, or a SecretRef. */
+          token: secretInputSchema.optional(),
         })
         .optional(),
       /** Port the gateway listens on. */
@@ -128,14 +147,16 @@ export const findInOpenclawConfig = <T>(
   return undefined;
 };
 
-/** Every Slack bot token by account id (`channels.slack.accounts`, else the flat `channels.slack.botToken` as `default`). */
+/** Every plain-string Slack bot token by account id (`channels.slack.accounts`, else the flat `channels.slack.botToken` as `default`). */
 const slackBotTokensOf = (config: OpenclawConfig): Record<string, string> => {
   const slack = config.channels?.slack;
   const tokens: Record<string, string> = {};
-  for (const [id, account] of Object.entries(slack?.accounts ?? {}))
-    if (account.botToken) tokens[id] = account.botToken;
-  if (Object.keys(tokens).length === 0 && slack?.botToken)
-    tokens.default = slack.botToken;
+  for (const [id, account] of Object.entries(slack?.accounts ?? {})) {
+    const token = plain(account.botToken);
+    if (token) tokens[id] = token;
+  }
+  const flat = plain(slack?.botToken);
+  if (Object.keys(tokens).length === 0 && flat) tokens.default = flat;
   return tokens;
 };
 
@@ -178,14 +199,17 @@ export const slackBotToken = (
   return token;
 };
 
-/** The gateway bearer token: a non-empty `CLAWDBOT_GATEWAY_TOKEN`, else `gateway.auth.token`; `null` when neither exists. */
+/** The gateway bearer token: a non-empty `CLAWDBOT_GATEWAY_TOKEN`, else a plain-string `gateway.auth.token`; `null` when neither exists (a SecretRef counts as unset). */
 export const gatewayToken = (
   files: readonly string[] = openclawConfigPaths(),
 ): string | null => {
   const fromEnv = process.env.CLAWDBOT_GATEWAY_TOKEN;
   if (fromEnv) return fromEnv;
   return (
-    findInOpenclawConfig((config) => config.gateway?.auth?.token, files) ?? null
+    findInOpenclawConfig(
+      (config) => plain(config.gateway?.auth?.token),
+      files,
+    ) ?? null
   );
 };
 
