@@ -18,7 +18,7 @@ Framework for autonomous LLM task dispatchers that read Markdown task files and 
 Core ships no dispatcher runnable: a daily digest or briefing is an instance's choice of what to summarise and where to post it, so it is instance code (Decision 44). Core provides the machinery below. To add a dispatcher to an instance:
 
 1. Write it as an instance runnable with `defineRunnable`, in an instance domain, registered by the instance plugin ([runnables](./runnables.md#instance-runnables-and-overrides)), calling `dispatchTaskFile` (below) or building its task at runtime.
-2. Task-file dispatchers: write the TASK file with your standing orders. Dynamic dispatchers: set the `pipeline.refs` they read in `jeeves-scripts.json`.
+2. Task-file dispatchers: write the TASK file with your standing orders. Dynamic dispatchers: set the `pipeline.refs` they read in the instance config.
 3. Give it a manifest in the instance's `jobs/*.json` (see [runnables](./runnables.md#manifests)) so the runner can schedule it as `["run", "<id>"]`, on a jeeves-runner schedule (e.g. `{"freq":"daily","byhour":6,"byminute":30,"timezone":"America/Chicago"}`).
 4. Test with `--print-task`, then `--dry-run`, before enabling it: `node bin/jeeves-scripts.js run acme-generate-digest --print-task`. Both flags work for every `dispatchTaskFile` dispatcher: `--print-task` prints the full TASK and dispatches nothing; `--dry-run` reports what it would dispatch (job, task length and, with `slack`, the allowed post targets) and dispatches nothing. Neither flag ever starts a worker session, with or without `slack`. Either way `dispatchTaskFile` resolves `'previewed'`. Declare them with `flags: dispatcherFlags` (root export) on the dispatcher's `defineRunnable`: `run` then rejects any other option, and `taskFileDispatcher` passes the parsed `ctx.flags` on as `options.flags` (each must be a boolean, else a `TypeError`). A dispatcher that declares no flags still works: `dispatchTaskFile` reads them from `options.args` (`taskFileDispatcher` passes `ctx.args`), or from `process.argv` when it gets neither. `dispatchWithSlack` takes the same parsed flags or raw arguments as its fourth parameter.
 
@@ -54,7 +54,7 @@ await dispatchWithSlack(
 
 ### Task-file dispatcher (reads a TASK.md file)
 
-Use `dispatchTaskFile` inside a runnable, or pass `taskFileDispatcher(options)` (a `run` function that calls it) to `defineRunnable`, both exported from `@karmaniverous/jeeves-scripts-core`. It reads `<silo>/<taskFile>` (`siloPath`, Decision 28; `silo` omitted = the default silo), `[skip]`s with exit 0 when the file is missing, optionally prefixes the date, and dispatches through `dispatchWithSlack` (with `slack`) or jeeves-runner's `runDispatcher` and core's `spawn-worker` (without). `jobs.<jobId>.silo` / `.taskFile` in `jeeves-scripts.json` override the values in code, so an instance can move a TASK without code.
+Use `dispatchTaskFile` inside a runnable, or pass `taskFileDispatcher(options)` (a `run` function that calls it) to `defineRunnable`, both exported from `@karmaniverous/jeeves-scripts-core`. It reads `<silo>/<taskFile>` (`siloPath`, Decision 28; `silo` omitted = the default silo), `[skip]`s with exit 0 when the file is missing, optionally prefixes the date, and dispatches through `dispatchWithSlack` (with `slack`) or jeeves-runner's `runDispatcher` and core's `spawn-worker` (without). `jobs.<jobId>.silo` / `.taskFile` in the instance config override the values in code, so an instance can move a TASK without code.
 
 ```typescript
 import {
@@ -105,7 +105,7 @@ export default defineRunnable({
   // tryGetRef returns '' (never undefined) for a missing ref.
   prerequisite: () =>
     tryGetRef('slack.myChannel') !== '' ||
-    'set pipeline.refs["slack.myChannel"] in jeeves-scripts.json',
+    'set pipeline.refs["slack.myChannel"] in the instance config',
   run: async () => {
     const channel = tryGetRef('slack.myChannel');
     const task = 'Do the work, then return a results summary as a Slack post.';
@@ -141,7 +141,7 @@ import {
 
 const tz = requireTimeZone(
   tryGetRef('myDomain.timezone'),
-  'pipeline.refs["myDomain.timezone"] in jeeves-scripts.json',
+  'pipeline.refs["myDomain.timezone"] in the instance config',
 );
 task = withDateContext(task, new Date(), tz);
 // > **Today is Monday, 2026-05-11 (America/Chicago).** Use this as the authoritative date reference for all dates in this report.

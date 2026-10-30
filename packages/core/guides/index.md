@@ -30,7 +30,7 @@ Hand-written references for `@karmaniverous/jeeves-scripts-core`: the framework 
 ## Framework
 
 - [CLI](./cli.md): The `jeeves-scripts` CLI and the instance launcher
-- [Configuration](./config.md): `jeeves-scripts.json`: schema, resolution, getters, silos
+- [Configuration](./config.md): the instance config and its pointer: schema, resolution, editing, moving, getters, silos
 - [Runnables](./runnables.md): The runnable registry: ids, `defineRunnable`, manifests, instance deltas, the instance plugin
 - [Shared Library](./lib.md): Shared infrastructure: constants, gateway, workers, gh, gog, entity store
 

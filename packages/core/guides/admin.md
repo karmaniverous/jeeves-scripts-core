@@ -37,7 +37,7 @@ flowchart LR
 
 ### Storage
 
-- Buckets: `TOKEN_METRICS_DIR` (`paths.tokenMetricsDir` in `jeeves-scripts.json`, default `{stateDir}/jeeves-runner/token-metrics`; the `TOKEN_METRICS_DIR` environment variable wins), one file per UTC hour at `<yyyy>/<mm>/<hour>.json`.
+- Buckets: `TOKEN_METRICS_DIR` (`paths.tokenMetricsDir` in the instance config, default `{stateDir}/jeeves-runner/token-metrics`; the `TOKEN_METRICS_DIR` environment variable wins), one file per UTC hour at `<yyyy>/<mm>/<hour>.json`.
 - Rate card: `token-rates.json` in that directory ($/MTok per model per token category), seeded from `config/token-rates.seed.json` when missing (never overwritten). `admin-refresh-token-rates` refreshes it from OpenRouter (base tier; prompt-length overrides and 1-hour cache writes ignored) and fails if a model can't be resolved or the card is missing or invalid. Token metrics are estimates; they are normalized against provider billing before invoicing.
 - Cursors: runner state namespace `token-metrics`, keys `cursors` (legacy transcripts), `cursors-openclaw-db` (agent DB) and `cursors-claude-code`. A file cursor stops at the first record in the current (still-open) UTC hour, so the next run counts it once the hour closes; without one it stops at the end of the last complete line (an unterminated last line counts only once it parses). Each record is counted exactly once.
 
@@ -49,7 +49,7 @@ flowchart LR
 - a live `--from` earlier than it is refused unless `--allow-pre-upgrade` is given (owner-approved only);
 - `--out` scratch runs never touch the live store (an `--out` that resolves to `TOKEN_METRICS_DIR`, directly or through a symlink, is refused), so they ignore it: no variable or flag is needed to scan pre-upgrade hours into a scratch directory.
 
-It is an environment variable rather than a `jeeves-scripts.json` key because it is a one-off operator setting for a manually run CLI, with no sensible default to ship. `admin-collect-token-metrics`, `admin-report-token-metrics` and the other runnables never read it.
+It is an environment variable rather than an instance config key because it is a one-off operator setting for a manually run CLI, with no sensible default to ship. `admin-collect-token-metrics`, `admin-report-token-metrics` and the other runnables never read it.
 
 ## Querying Costs
 
@@ -77,7 +77,7 @@ Most jobs need only the local filesystem and the gateway. `admin-check-qdrant-he
 | `admin-sweep-orphaned-tmp`    | Every 59 min    |
 | `admin-check-qdrant-health`   | Every 4 h       |
 
-The sweep reads `paths().contentDir`, `paths().scriptsDir` and `jobs.admin-sweep-orphaned-tmp.extraDirs` from `jeeves-scripts.json` when it runs. `extraDirs` lists other directories to sweep with the same rules, as absolute paths (for example a workspace where another tool writes atomically):
+The sweep reads `paths().contentDir`, `paths().scriptsDir` and `jobs.admin-sweep-orphaned-tmp.extraDirs` from the instance config when it runs. `extraDirs` lists other directories to sweep with the same rules, as absolute paths (for example a workspace where another tool writes atomically):
 
 ```json
 { "jobs": { "admin-sweep-orphaned-tmp": { "extraDirs": ["D:/workspace"] } } }

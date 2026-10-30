@@ -10,11 +10,11 @@ Shared infrastructure consumed by every domain: config-derived constants, CLI wr
 
 ### constants.ts
 
-Fixed values plus the template's config-derived names, now read from `jeeves-scripts.json` (Decision 3). Nothing here is edited per instance: set the value in the config file.
+Fixed values plus the template's config-derived names, now read from the instance config (Decision 3). Nothing here is edited per instance: set the value in the config file.
 
 - **Fixed exports** (plain constants): `TOKEN_METRICS_NAMESPACE`, `TOKEN_METRICS_CURSOR_KEY`, `TOKEN_METRICS_DB_CURSOR_KEY`, `TOKEN_METRICS_CC_CURSOR_KEY`, `SESSION_REFRESH_CACHE_READ_THRESHOLD` (150,000), `SESSION_REFRESH_IDLE_MINUTES` (60), `OPENCLAW_UPGRADE_CUTOFF_ENV`, and `ENTITY_TYPES` (`subdir`, `rejectionKeys`, `maxAgeDays` per entity type in the meta lifecycle).
 - **`constants()`** returns every config-derived value under its template name, computed from the loaded config on first call and cached until the config is reset. Importing the module reads nothing.
-  - Paths (from `paths()`): `JEEVES_BASE_DIR`, `CONFIG_DIR`, `CONTENT_DIR`, `SCRIPTS_DIR`, `CREDENTIALS_DIR`, `IMAP_SECRETS_DIR`, `GOG_CONFIG_DIR` (`paths().gogHome`), `TOKEN_METRICS_DIR`. `PIPELINE_CONFIG_PATH` and `SILO_ROUTING_CONFIG_PATH` both name the loaded `jeeves-scripts.json`.
+  - Paths (from `paths()`): `JEEVES_BASE_DIR`, `CONFIG_DIR`, `CONTENT_DIR`, `SCRIPTS_DIR`, `CREDENTIALS_DIR`, `IMAP_SECRETS_DIR`, `GOG_CONFIG_DIR` (`paths().gogHome`), `TOKEN_METRICS_DIR`. `PIPELINE_CONFIG_PATH` and `SILO_ROUTING_CONFIG_PATH` both name the loaded instance config file.
   - Derived from the content dir: `GITHUB_DIR`, `GITHUB_REGISTRY_PATH`, `DEFAULT_MEETINGS_DIR`, `SLACK_DOMAIN_DIR`; from the state dir: `EMAIL_EVENTS_DIR`; from the credentials dir: `NOTION_API_KEY_PATH`, `X_OAUTH_DIR`; from the gog home: `GOG_CLIENT_PATH`.
   - Integrations (from `integrations()`): `INSTANCE_NAME`, `QDRANT_API_URL`, `QDRANT_SERVICE_NAME`, `GATEWAY_HOST`, `GATEWAY_PORT`, `GH_BIN`, `GH_CONFIG_DIR`, `GH_ACCOUNT`, `GH_BOT_USER`, `GOG_BIN`, `NOTION_VERSION`, `JIRA_SITE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN_PATH`, `JIRA_FIELDS_FILENAME`, `JIRA_MAX_HISTORY`, `LINEAR_CONFIG_PATH`, `LINEAR_MAX_HISTORY`.
   - `X_ACCOUNTS`: handle → content directory, each resolved through the account's silo (`integrations.x.accounts.<handle>.silo`, default silo) and `relativePath` (default `x/<handle>`).
@@ -101,7 +101,7 @@ Used by `gateway-client` (and so `spawn-worker`), `slack/poll` and instance code
 
 ### component-config.ts
 
-Another Jeeves component's settings belong in that component's config file, not in `jeeves-scripts.json`: code locates the file and reads from it. The layout is the platform's (`@karmaniverous/jeeves`): `{configRoot}/jeeves-<name>/config.json`, where the platform config root is `paths().configDir`. Exported from the package root.
+Another Jeeves component's settings belong in that component's config file, not in the instance config: code locates the file and reads from it. The layout is the platform's (`@karmaniverous/jeeves`): `{configRoot}/jeeves-<name>/config.json`, where the platform config root is `paths().configDir`. Exported from the package root.
 
 - `componentConfigPath(name, configRoot?)` — e.g. `componentConfigPath('runner')` is `{configDir}/jeeves-runner/config.json`
 - `readComponentConfig(name, schema, file?)` — the file validated with a Zod schema for the parts the caller reads; `undefined` when it does not exist; throws on bad JSON or a schema mismatch
@@ -216,4 +216,4 @@ History entries are reverse-diff patches (JSON Patch format) — apply newest-to
 
 ## Configuration
 
-`jeeves-scripts.json` (pipeline accounts, buckets, refs, email and Drive settings, silo routing) is documented in [config.md](./config.md), including [the `pipeline` block](./config.md#the-pipeline-block) and [silos](./config.md#silos).
+The instance config (pipeline accounts, buckets, refs, email and Drive settings, silo routing) is documented in [config.md](./config.md), including [the `pipeline` block](./config.md#the-pipeline-block) and [silos](./config.md#silos).

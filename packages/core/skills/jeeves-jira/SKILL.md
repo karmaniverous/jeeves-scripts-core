@@ -10,7 +10,7 @@ Read [jira.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-co
 
 ## Prerequisites
 
-- Site, email, token file and board are `integrations.jira` in `jeeves-scripts.json` ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md)). The token is a file in the credentials folder, never a config value or a repo file.
+- Site, email, token file and board are `integrations.jira` in the instance config ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md)). The token is a file in the credentials folder, never a config value or a repo file.
 - Webhooks reach the drain through the jeeves-server Event Gateway ([Event Gateway Config]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/jira.md#event-gateway-config)). The route lives in the instance's server config: ask the operator to change it rather than editing the live file.
 
 ## Ticket creation conventions

@@ -21,12 +21,19 @@ describe('parseConfigPath', () => {
     expect(parseConfigPath(formatConfigPath(keys))).toEqual(keys);
   });
 
-  it.each(['', 'a..b', 'a.', '.a', 'a[b]', 'a["b"', 'a[""]', 'a["b"]c', 'a["\\q"]'])(
-    'rejects %j',
-    (text) => {
-      expect(() => parseConfigPath(text)).toThrow(/Invalid config path/);
-    },
-  );
+  it.each([
+    '',
+    'a..b',
+    'a.',
+    '.a',
+    'a[b]',
+    'a["b"',
+    'a[""]',
+    'a["b"]c',
+    'a["\\q"]',
+  ])('rejects %j', (text) => {
+    expect(() => parseConfigPath(text)).toThrow(/Invalid config path/);
+  });
 });
 
 describe('formatConfigPath', () => {

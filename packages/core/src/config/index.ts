@@ -1,4 +1,4 @@
-﻿/**
+/**
  * @module config
  *
  * Public config API (Decision 3, Decision 19, Decision 28): schema,
@@ -25,14 +25,24 @@ export {
 } from './integrations.js';
 export * from './integrations-schema.js';
 export * from './jobs-schema.js';
-export { generateJsonSchema } from './json-schema.js';
+export {
+  generateJsonSchema,
+  generatePointerJsonSchema,
+} from './json-schema.js';
 export {
   CONFIG_PATH_ENV,
+  type ConfigSource,
+  getConfigRoot,
   getLoadedConfigPath,
+  getLoadedConfigSource,
+  LEGACY_CONFIG_WARNING,
   loadConfig,
   type LoadConfigOptions,
   resetConfig,
+  resolveConfig,
   resolveConfigPath,
+  type ResolvedConfig,
+  setConfigRoot,
 } from './loader.js';
 export { derivePaths, paths, type ResolvedPaths } from './paths.js';
 export * from './paths-schema.js';
@@ -50,6 +60,7 @@ export {
 } from './pipeline-accessors.js';
 export * from './pipeline-email-schema.js';
 export * from './pipeline-schema.js';
+export { type Pointer, pointerSchema } from './pointer.js';
 export {
   type ReportOnlyConfig,
   reportOnlyFor,

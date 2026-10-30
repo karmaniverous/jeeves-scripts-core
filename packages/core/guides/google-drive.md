@@ -27,7 +27,7 @@ Do these in order on a new instance. Each step has a check.
    Check: `gog auth service-account status assistant@example.com`, then `gog --readonly -a assistant@example.com drive ls --all --query "sharedWithMe" --max 5 --json` returns without an auth error.
 2. **Confirm the DWD grant.** In the Admin console (Security → Access and data control → API controls → Manage Domain Wide Delegation), the service account's client ID must be granted the scopes **gog requests**: `https://www.googleapis.com/auth/drive` and `https://www.googleapis.com/auth/spreadsheets`. These are _full_ scopes because gog has no read-only variants (`gog auth services`). Docs and Slides are exported through the Drive API, so they need no `documents`/`presentations` scope. Check: a `gog --readonly -a <account> sheets metadata <some shared sheet id> --json` call succeeds.
 3. **Sharing settings.** For external shares: Apps → Google Workspace → Drive and Docs → Sharing settings → _"Allow users … to receive files from users or shared drives outside of …"_ must be on for the assistant's org unit. For shared drives: each drive whose items should reach the assistant needs _"Allow people who aren't shared drive members to access files"_ switched on (otherwise items can only be shared with members).
-4. **Add the `googleDrive` block** as `pipeline.googleDrive` in `jeeves-scripts.json` ([Configuration](#configuration)). Start from the example under [Configuration](#configuration) and fill in `account` and `pathResolution.domains`.
+4. **Add the `googleDrive` block** as `pipeline.googleDrive` in the instance config ([Configuration](#configuration)). Start from the example under [Configuration](#configuration) and fill in `account` and `pathResolution.domains`.
 5. **Do not exclude the mirror from watcher version tracking yet.** The intent is to exclude it (Drive is the system of record, and versioning the mirror duplicates its history), but `watcher_vcs_exclude` works by writing a `.gitignore`, and with `watch.respectGitignore` on, that **also removes the files from the search index**. Wait for [jeeves-watcher#253](https://github.com/karmaniverous/jeeves-watcher/issues/253) (VCS-only exclusion).
 6. **Dry run** and review the plan ([Running](#running)).
 7. **Register the job**: core's `google-drive-sync` manifest (`jobs/google-drive.json`), run as `bin/jeeves-scripts.js run google-drive-sync` (see [cli](./cli.md)); adjust it with a `jobs.google-drive-sync` delta. Deploy skips manifests that carry a `prerequisite`.
@@ -35,7 +35,7 @@ Do these in order on a new instance. Each step has a check.
 
 ## Configuration
 
-Optional `pipeline.googleDrive` block in `jeeves-scripts.json`. The shared config schema (`config/pipeline-schema.ts`) passes it through unvalidated; this job validates it (`lib/config.ts`, Zod) when it starts, so a mistake in the block fails only the Drive job, never the other jobs that load the config. No block → the job logs `[skip]` and exits 0. Only `account` and `pathResolution.domains` normally need setting.
+Optional `pipeline.googleDrive` block in the instance config. The shared config schema (`config/pipeline-schema.ts`) passes it through unvalidated; this job validates it (`lib/config.ts`, Zod) when it starts, so a mistake in the block fails only the Drive job, never the other jobs that load the config. No block → the job logs `[skip]` and exits 0. Only `account` and `pathResolution.domains` normally need setting.
 
 ```json
 "googleDrive": {
@@ -228,7 +228,7 @@ JR_DB_PATH=… node bin/jeeves-scripts.js run google-drive-sync --live
 
 | Symptom | Diagnosis |
 | --- | --- |
-| `[skip] no googleDrive syncs configured` | No `googleDrive` block, or `--account` matched nothing. Check `pipeline.googleDrive` in `jeeves-scripts.json` |
+| `[skip] no googleDrive syncs configured` | No `googleDrive` block, or `--account` matched nothing. Check `pipeline.googleDrive` in the instance config |
 | gog error about missing credentials for the account | Onboarding step 1: `gog auth service-account status <account>` |
 | `unauthorized_client` / 403 on Drive or Sheets | DWD grant missing a scope gog requests (step 2): `gog auth services` lists them |
 | Files land flat under an email root | Owner outside `pathResolution.domains`, or impersonation off. Check `pathResolved` in frontmatter and `unresolvedShares` in the run state. A denied or failed impersonation shows up as an enumeration error instead (below) |

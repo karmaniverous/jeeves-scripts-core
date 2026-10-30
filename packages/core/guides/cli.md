@@ -27,7 +27,7 @@ The package `bin` (`jeeves-scripts ...` after `npm install -g @karmaniverous/jee
 
 1. a leading `--dir <path>` (or `--dir=<path>`), before the verb, so a runnable's own arguments are never taken;
 2. `JEEVES_SCRIPTS_DIR`;
-3. the nearest `jeeves-scripts.json` at or above the working directory;
+3. the nearest `jeeves-scripts.json` (the config pointer, or a legacy config) at or above the working directory;
 
 and runs that repo's `bin/jeeves-scripts.js` with the rest of the command line, so the repo's pinned core runs, whatever version is installed globally. With no repo found (or one without its launcher yet), it runs only `init`, `--help` and `--version` itself, in the named directory or the working directory; anything else exits 1 saying how to point it at a repo. A repo initialised but not yet installed (launcher present, core not resolvable) is treated the same, and the error says to run `npm install` there. Runner jobs never use it.
 
@@ -43,22 +43,23 @@ jeeves-scripts --dir ./new-instance init        # no repo yet
 | --- | --- |
 | `run <id> [args...]` | Run a runnable by id (below), checking the arguments against the flags it declares. `run <id> --help` prints its usage, flags and effective manifest and runs nothing. Exit 0 when done or skipped; 1 on a crash, an unknown id, a registration error or an undeclared option; a runnable may set another code with `process.exitCode`. |
 | `list [glob] [--json]` | Every registered runnable whose id matches the glob ([below](#listing-runnables)). Exit 1 on an invalid manifest, delta or registration. |
-| `config check [--config <file>]` | Validate `jeeves-scripts.json` against the schema and its silo references, then load and register the instance plugin as `list` does: its `configSchema` validates the `local` block ([runnables](./runnables.md#instance-runnables-and-overrides)), and registration checks unique ids, the naming rule and core domains, the instance manifests and the `jobs` deltas (an unknown id fails). A plugin that fails to load or register, an invalid manifest or delta, or a rejected `local` is a problem like any other. Silo references are `jobs.<id>.silo` and `integrations.x.accounts.<handle>.silo`. Prints `config check: OK (<path>)`, or `config check: FAILED (<path>)` and one line per problem with exit code 1. |
+| `config check [--config <file>]` | Validate the instance config ([config.md](./config.md#where-the-file-is)) against the schema and its silo references, then load and register the instance plugin as `list` does: its `configSchema` validates the `local` block ([runnables](./runnables.md#instance-runnables-and-overrides)), and registration checks unique ids, the naming rule and core domains, the instance manifests and the `jobs` deltas (an unknown id fails). A plugin that fails to load or register, an invalid manifest or delta, or a rejected `local` is a problem like any other. Silo references are `jobs.<id>.silo` and `integrations.x.accounts.<handle>.silo`. Prints `config check: OK (<path>, from <source>)` (`pointer <file>`, `JEEVES_SCRIPTS_CONFIG`, `--config` or `legacy repo file`), or `config check: FAILED (...)` and one line per problem with exit code 1. |
+| `config set <path> <value> [--live] [--config <file>]`, `config unset <path> [--live] [--config <file>]` | Change the instance config: dry run unless `--live`; the result is validated as `config check` validates it; `--live` writes a dated backup (newest 20 kept) and replaces the file atomically. Refused on a legacy config in the repo. Exit 1 on a bad path or an invalid result. See [config.md](./config.md#editing-the-config). |
 | `doctor` | Report on the instance ([below](#doctor)). Informational: always exits 0. |
 | `--version`, `--help` | The core version; usage (there is no `help` verb; `<verb> --help` gives a verb's usage). |
-| `init [--name <pkg>] [--core <version>]` | Write an instance repo into the root from the template bundled in core ([below](#init)). Exit 1 on an invalid name or version. |
+| `init --config-dir <dir> [--name <pkg>] [--core <version>]` | Write an instance repo into the root from the template bundled in core, and its `config.json` into `--config-dir` ([below](#init)). Exit 1 on an invalid name or version; `--config-dir` is required. |
 | `skills install \| uninstall [-y \| --yes]`, `skills status` | Wire core's shipped skills into OpenClaw through `openclaw config set` ([below](#skills)). Exit 1, with `skills <action>: FAILED: <reason>` on stderr, when `openclaw` fails. |
 | `run slack-backfill-history --channel <id> [--before <ts>]` | Runnable `slack-backfill-history` (no manifest): re-reads one Slack channel from its first message up to `--before` (default: the oldest message archived for it), resumably, without moving `slack-poll`'s read position. See [slack.md](./slack.md#re-reading-history). |
 | `run people-propose [--all] [--out <file>]` | Runnable `people-propose` (no manifest). Read-only: reads `users.list` for every gateway Slack bot account (`slackBotTokens`), skips bots, deactivated users and Slackbot, groups users across workspaces by email (case-insensitive) and real name, and prints `{ summary, people, uncertain }`: a proposed `people` block ([config.md](./config.md#people)) of people with more than one account (`--all`: everyone) and the matches to check by hand (grouped by name only; a name shared inside one workspace; one email on two users of a workspace). Never writes config; `--out` writes the same JSON (UTF-8) to a file and refuses `jeeves-scripts.json`. |
 | `run email-apply-labels [--since <date>] [--account <id>] [--max <n>] [--dry-run] [--config <file>]` | Runnable `email-apply-labels` (no manifest). Enqueue the classification labels stored thread state calls for but that were never applied (e.g. while the account was report-only); `drain-updates` applies them. Idempotent. Skips report-only accounts; refuses when every target account is report-only, unless `--dry-run`. See [email.md](./email.md#label-catch-up). |
 
-Domain work is never a CLI verb (Decision 49): it is a runnable, run with `run <id>`, like the last two rows. The CLI's own verbs are `run`, `list`, `config check`, `doctor`, `init` and `skills`.
+Domain work is never a CLI verb (Decision 49): it is a runnable, run with `run <id>`, like the last two rows. The CLI's own verbs are `run`, `list`, `config check|set|unset`, `doctor`, `init` and `skills`.
 
 `main()` resolves to the exit code and never calls `process.exit` itself. A verb that fails (an unknown id, a plugin that fails to load, an invalid manifest or delta) prints one line, `<verb>: FAILED: <reason>`, to stderr, with no stack trace, and resolves to 1. Commander's own parse errors (an unknown verb or option, a missing argument) print Commander's message and exit 1 through Commander.
 
 ## How `run` resolves a runnable
 
-Before resolving, `run` sets `JEEVES_SCRIPTS_CONFIG` to `{root}/jeeves-scripts.json` (unless it is already set) and loads the instance plugin, `{root}/jeeves-scripts.plugin.ts`, in its own process with tsx ([runnables](./runnables.md#instance-runnables-and-overrides)). Then:
+Before resolving, `run` registers the instance root with the config loader (`JEEVES_SCRIPTS_CONFIG` if set, else `{root}/jeeves-scripts.json`, the pointer or a legacy config; [config.md](./config.md#where-the-file-is)) and loads the instance plugin, `{root}/jeeves-scripts.plugin.ts`, in its own process with tsx ([runnables](./runnables.md#instance-runnables-and-overrides)). Then:
 
 1. **A plugin override** for `<id>` runs instead of core's runnable.
 2. Else **a core id** runs core's runnable, its module loaded through the registry.
@@ -99,8 +100,9 @@ node bin/jeeves-scripts.js config check
 node bin/jeeves-scripts.js doctor
 ```
 
-- It copies the template bundled in the package (`template/`, fewer than 15 files: the launcher, a sample `jeeves-scripts.json`, the plugin with the sample runnable `example-say-hello` and its manifest and test, one-line tool configs extending core's presets, and a README).
-- It **never overwrites** a file: every file that exists is reported as skipped, so running it again in a repo changes nothing.
+- It copies the template bundled in the package (`template/`, fewer than 15 files: the launcher, the plugin with the sample runnable `example-say-hello` and its manifest and test, one-line tool configs extending core's presets, and a README).
+- It writes the config outside the repo: `<--config-dir>/config.json` from the template's sample config (`config.sample.json`, not copied into the repo), and the repo's `jeeves-scripts.json` as a pointer to that directory ([config.md](./config.md#where-the-file-is)). `--config-dir` is required; a relative path resolves against the working directory.
+- It **never overwrites** a file, the config and the pointer included: every file that exists is reported as skipped, so running it again in a repo changes nothing.
 - `gitignore`, `npmrc` and `nvmrc` are stored renamed in the package (npm would drop or rename them) and written as `.gitignore`, `.npmrc` and `.nvmrc`.
 - `package.json` gets the package name (`--name`, default the name of the folder it writes into, which must then be a valid npm package name) and core pinned at an exact version (`--core`, default the running core's version); a range such as `^0.1.0` is refused.
 - At the end, when `openclaw` is on the host, it runs `skills install` (which shows the change and asks); otherwise it prints the command to run later.
