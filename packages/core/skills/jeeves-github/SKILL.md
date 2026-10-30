@@ -21,10 +21,15 @@ The `gh` CLI must be logged in as the instance's bot identity (`gh auth status`)
 
 ## Token requirements
 
-The jobs reach GitHub through `gh`, as two logins in `GH_CONFIG_DIR` (`integrations.gh`): the bot, and the owner account whose repos the collaborator jobs share with it.
+The jobs reach GitHub through `gh`, as two logins in `GH_CONFIG_DIR` (`integrations.gh`), switching between them and checking each switch:
 
-- **Bot: a classic PAT** with scopes `repo` and `read:org`. A fine-grained PAT can't do the bot's job: GitHub doesn't offer the notifications API to fine-grained tokens (`github-watch`), nor accepting a repository invitation (`PATCH /user/repository_invitations/{id}`, `github-drain-collabs`). `repo` covers private repos and their clones (`github-sync-repos`), issue search (`github-sync-issues`), the invitations and notifications; `read:org` lets `github-build-registry` list the repos of orgs the bot belongs to.
-- **Add `workflow`** when the bot pushes changes to `.github/workflows/` (e.g. PRs it opens). No job does.
-- **Owner account:** `github-poll-collabs` lists its own repos and `github-drain-collabs` adds the bot as a collaborator (`PUT /repos/{owner}/{repo}/collaborators/{bot}`): classic scope `repo`, or a fine-grained PAT with repository permission Administration read/write on those repos (Metadata read is added automatically).
+- `integrations.gh.account`: the account whose repos the instance syncs. `github-build-registry`, `github-sync-repos` and `github-sync-issues` run as it; `github-poll-collabs` lists its repos and `github-drain-collabs` adds the bot to them; `github-watch` reads its notifications.
+- `integrations.gh.botUser`: the bot. `github-watch` reads its notifications; `github-poll-collabs` and `github-drain-collabs` list and accept its repository invitations.
+
+**Both need a classic PAT.** Fine-grained tokens can't do what the jobs need: GitHub offers neither the notifications API (`github-watch`, both logins) nor accepting a repository invitation (`PATCH /user/repository_invitations/{id}`, the bot) to fine-grained tokens.
+
+- **Account:** scopes `repo` (private repos and their clones, issue search, notifications, adding collaborators, which also needs admin rights on the repo) and `read:org` (`github-build-registry` lists the repos of its orgs).
+- **Bot:** scope `repo` (invitations, notifications, and the repos it works in).
+- **Add `workflow`** to a login that pushes changes to `.github/workflows/` (e.g. PRs the bot opens). No job does.
 - **Creating repos** (e.g. an instance's scripts remote) also needs repo-creation rights in the org.
-- Tools that want `GH_TOKEN` get it inline from `gh auth token`; never print or log it.
+- A tool that wants `GH_TOKEN` takes it inline from `gh auth token --user <botUser>`: plain `gh auth token` gives whichever login the last job switched to. Never print or log it.
