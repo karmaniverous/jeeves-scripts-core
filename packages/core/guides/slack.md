@@ -184,7 +184,7 @@ try {
 | --- | --- |
 | `token` | The bot or user token. Required |
 | `fetch` | The `fetch` to use (tests inject one); default the global `fetch`, read at call time |
-| `rateLimitAttempts` | Tries per Web API call while Slack answers HTTP 429; default 3 |
+| `rateLimitAttempts` | Tries per Web API call while Slack answers HTTP 429 (an integer of at least 1; anything else throws `RangeError` on the first call); default 3 |
 | `sleep` | The wait between 429 retries; default `sleepAsync` from `@karmaniverous/jeeves` |
 
 | Method | Slack call |

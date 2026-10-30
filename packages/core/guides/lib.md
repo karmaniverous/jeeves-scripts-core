@@ -168,7 +168,7 @@ Waits for a spawned worker: polls the gateway's `sessions_list` for the child se
 
 ### Retry (from `@karmaniverous/jeeves`)
 
-Core has no retry module of its own (#24): it imports the platform's from `@karmaniverous/jeeves` and keeps it on its root export so instance code is unchanged. `retryAsync(fn, policy)` and `retrySync(fn, policy)` try up to `policy.attempts` times, waiting `policy.delayMs(attempt)` (`exponentialBackoff(baseMs)` for doubling waits) after a failure `policy.isRetryable` accepts, and rethrow the last error. The worker spawn, the Slack client's 429 handling, the Drive rename, the Fathom share fetch and the Notion page reader use it.
+Core has no retry module of its own (#24): it imports the platform's from `@karmaniverous/jeeves` and keeps the same names on its root export. One difference from the old copy: `policy.attempts` must be an integer of at least 1, or the helper throws `RangeError` before calling `fn` (the old copy ran `fn` once). `retryAsync(fn, policy)` and `retrySync(fn, policy)` try up to `policy.attempts` times, waiting `policy.delayMs(attempt)` (`exponentialBackoff(baseMs)` for doubling waits) after a failure `policy.isRetryable` accepts, and rethrow the last error. The worker spawn, the Slack client's 429 handling, the Drive rename, the Fathom share fetch and the Notion page reader use it.
 
 ### json-file.ts
 
