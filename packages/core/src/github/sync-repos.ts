@@ -119,8 +119,8 @@ function reclone(
 ): void {
   const fresh = `${repoDir}.fresh`;
   const old = `${repoDir}.old`;
-  fs.rmSync(fresh, { recursive: true, force: true });
-  fs.rmSync(old, { recursive: true, force: true });
+  removeQuietly(fresh);
+  removeQuietly(old);
   try {
     cloneInto(deps, url, branch, fresh);
   } catch (e) {

@@ -10,11 +10,11 @@ Read [github.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-
 
 ## Prerequisites
 
-The `gh` CLI must hold the instance's bot login and its account login (`gh auth status`; see Token requirements below). The jobs switch between them and leave `gh` on the account, so run `gh auth switch -u <botUser>` before acting as the bot. Which `gh` binary, config dir, account and bot user the jobs use is `integrations.gh` in `jeeves-scripts.json` ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md)).
+The `gh` CLI must hold the instance's bot login and its account login (`gh auth status`; see Token requirements below). The jobs switch the active login between them, so which one is active at any moment is unpredictable; never change it yourself (`gh auth switch` would also switch a job running at the time). Which `gh` binary, config dir, account and bot user the jobs use is `integrations.gh` in `jeeves-scripts.json` ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md)).
 
 ## Operator rules
 
-- **Use the bot identity** by default: switch to it first (`gh auth switch -u <botUser>`), since the jobs leave the account login active. Act as another identity only when the operator explicitly asks.
+- **Use the bot identity** by default, per command: `GH_TOKEN="$(gh auth token --user <botUser>)" gh ...` (PowerShell: set `$env:GH_TOKEN` the same way for that command). Act as another identity only when the operator explicitly asks.
 - **Never print a token.** When a tool needs one in the environment, take it from `gh auth token --user <botUser>` inline at the point of use.
 - **Authenticate through `gh`**, never by reading its files. A shell without the gateway's `GH_CONFIG_DIR` sees no login; export the same value.
 - **Missing or broken login:** escalate to the operator. The login lives in `GH_CONFIG_DIR` (provisioned with the instance); the operator repairs it there (`gh auth login` with `GH_CONFIG_DIR` set), never in the default `gh` profile.
@@ -32,4 +32,4 @@ The jobs reach GitHub through `gh`, as two logins in `GH_CONFIG_DIR` (`integrati
 - **Bot:** scope `repo` (invitations, notifications, and the repos it works in).
 - **Add `workflow`** to a login that pushes changes to `.github/workflows/` (e.g. PRs the bot opens). No job does.
 - **Creating repos** (e.g. an instance's scripts remote) also needs repo-creation rights in the org.
-- A tool that wants `GH_TOKEN` takes it inline from `gh auth token --user <botUser>`: plain `gh auth token` gives whichever login the last job switched to. Never print or log it.
+- A tool that wants `GH_TOKEN` takes it inline from `gh auth token --user <botUser>`: plain `gh auth token` gives whichever login a job last switched to. Never print or log it.

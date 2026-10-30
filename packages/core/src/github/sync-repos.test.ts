@@ -199,4 +199,19 @@ describe('syncRepos when the default branch changed (#48)', () => {
     expect(fs.existsSync(repoDir + '.fresh')).toBe(false);
     expect(fs.existsSync(path.join(repoDir, 'stale.txt'))).toBe(true);
   });
+
+  it('records the reclone error, not a failure clearing an old copy (third review)', () => {
+    world((args) => args.includes('checkout') || args[0] === 'clone');
+    const rm = fs.rmSync.bind(fs);
+    vi.spyOn(fs, 'rmSync').mockImplementation((target, options) => {
+      if (String(target).endsWith('.old')) throw new Error('EBUSY: locked');
+      rm(target, options);
+    });
+    expect(() => {
+      syncRepos(w.deps);
+    }).toThrow('[repo-sync] 1 of 1 repos failed to sync');
+    expect(stored()).toMatchObject({
+      lastError: expect.stringContaining('git clone') as unknown,
+    });
+  });
 });
