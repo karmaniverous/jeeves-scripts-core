@@ -42,6 +42,7 @@ export {
   resolveConfig,
   resolveConfigPath,
   type ResolvedConfig,
+  ROOT_ENV,
   setConfigRoot,
 } from './loader.js';
 export { derivePaths, paths, type ResolvedPaths } from './paths.js';

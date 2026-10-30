@@ -51,7 +51,7 @@ export const instanceConfigCheck = async (
     return {
       ok: false,
       configPath: result.configPath,
-      ...(result.source === undefined ? {} : { source: result.source }),
+      source: result.source,
       errors: [e instanceof Error ? e.message : String(e)],
     };
   }

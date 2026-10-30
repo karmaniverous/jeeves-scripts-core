@@ -51,22 +51,30 @@ export const LEGACY_CONFIG_WARNING =
 
 let _warnedLegacy = false;
 
-/** The instance root the launcher registered (#57); see {@link setConfigRoot}. */
-let _defaultRoot: string | undefined;
+/**
+ * Where {@link setConfigRoot} keeps the instance root: an environment
+ * variable, because the instance plugin imports its own copy of core (tsx
+ * loads it as a separate module instance) and child processes need it too.
+ */
+export const ROOT_ENV = 'JEEVES_SCRIPTS_ROOT';
 
 /**
  * Register the instance root, so a later `loadConfig()` with no location
  * resolves `{root}/jeeves-scripts.json` (pointer or legacy) when
  * `JEEVES_SCRIPTS_CONFIG` is unset. The launcher (`run`, `doctor`) calls
- * it instead of forcing the env var to the repo file. Not cleared by
- * {@link resetConfig}.
+ * it instead of pinning `JEEVES_SCRIPTS_CONFIG` to the repo file (#57).
+ * `undefined` clears it. Not cleared by {@link resetConfig}.
  */
 export const setConfigRoot = (root: string | undefined): void => {
-  _defaultRoot = root;
+  if (root === undefined) Reflect.deleteProperty(process.env, ROOT_ENV);
+  else process.env[ROOT_ENV] = root;
 };
 
 /** The registered instance root, if any. */
-export const getConfigRoot = (): string | undefined => _defaultRoot;
+export const getConfigRoot = (): string | undefined => {
+  const root = process.env[ROOT_ENV];
+  return root === undefined || root === '' ? undefined : root;
+};
 
 /** Read a JSON file, naming it in any error. */
 const readJson = (file: string): unknown => {
@@ -115,7 +123,7 @@ const locateConfig = (
   options: LoadConfigOptions,
 ): ResolvedConfig & { value?: unknown } => {
   const envPath = process.env[CONFIG_PATH_ENV];
-  const root = options.root ?? _defaultRoot;
+  const root = options.root ?? getConfigRoot();
   const [file, direct]: [string, ConfigSource | undefined] = options.configPath
     ? [options.configPath, 'option']
     : envPath

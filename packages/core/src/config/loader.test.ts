@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
   CONFIG_PATH_ENV,
+  getConfigRoot,
   getLoadedConfigPath,
   getLoadedConfigSource,
   LEGACY_CONFIG_WARNING,
@@ -13,6 +14,7 @@ import {
   resetConfig,
   resolveConfig,
   resolveConfigPath,
+  ROOT_ENV,
   setConfigRoot,
 } from './loader.js';
 
@@ -128,6 +130,17 @@ describe('resolveConfig (#57)', () => {
     } finally {
       setConfigRoot(undefined);
     }
+  });
+
+  it('keeps the root in the environment, so another copy of core sees it (#62 CI)', () => {
+    setConfigRoot('/inst');
+    try {
+      expect(process.env[ROOT_ENV]).toBe('/inst');
+      expect(getConfigRoot()).toBe('/inst');
+    } finally {
+      setConfigRoot(undefined);
+    }
+    expect(process.env[ROOT_ENV]).toBeUndefined();
   });
 
   it('lets JEEVES_SCRIPTS_CONFIG win over the registered root', () => {
