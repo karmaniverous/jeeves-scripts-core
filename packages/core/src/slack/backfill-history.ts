@@ -18,6 +18,7 @@ import {
   getRunnerClient,
   type RunnerClient,
 } from '@karmaniverous/jeeves-runner';
+import { z } from 'zod';
 
 import { loadConfig } from '../config/loader.js';
 import type { SlackConfig } from '../config/slack-schema.js';
@@ -27,6 +28,7 @@ import { defineRunnable } from '../runnables/define-runnable.js';
 import { accountTeams } from './lib/account-teams.js';
 import { resolveChannelDir } from './lib/channel-dir.js';
 import { getTokens, resolveChannelToken } from './lib/channel-token.js';
+import { slackTsSchema } from './lib/cursors.js';
 import { pollChannel } from './lib/read-channel.js';
 import { HISTORY_FLOOR } from './lib/slack-api.js';
 import {
@@ -50,10 +52,11 @@ export const backfillFlags = {
 };
 
 /** Saved progress: the bound and the newest top-level ts written. */
-interface Progress {
-  before: string;
-  position: string;
-}
+const progressSchema = z.object({
+  before: slackTsSchema,
+  position: slackTsSchema,
+});
+type Progress = z.infer<typeof progressSchema>;
 
 /** What {@link backfillHistory} reads and calls (Slack itself over `fetch`). */
 export interface SlackBackfillDeps {
@@ -88,12 +91,29 @@ export const oldestArchivedTs = (dir: string): string | undefined =>
         .sort()[0]
     : undefined;
 
+/**
+ * Saved progress for a channel, validated (#61 review).
+ *
+ * @throws When the stored value isn't valid progress, saying how to restart.
+ */
 const readProgress = (
   client: RunnerClient,
   channelId: string,
 ): Progress | undefined => {
   const raw = client.getState(BACKFILL_STATE_NAMESPACE, channelId);
-  return raw ? (JSON.parse(raw) as Progress) : undefined;
+  if (!raw) return undefined;
+  let value: unknown;
+  try {
+    value = JSON.parse(raw);
+  } catch {
+    value = undefined;
+  }
+  const parsed = progressSchema.safeParse(value);
+  if (!parsed.success)
+    throw new Error(
+      `Saved backfill progress for ${channelId} is invalid (${BACKFILL_STATE_NAMESPACE}/${channelId}); rerun with --before <ts> to restart`,
+    );
+  return parsed.data;
 };
 
 /**
@@ -112,6 +132,13 @@ export async function backfillHistory(
   }
   const channelId = flags.channel;
   if (!channelId) throw new Error('--channel <id> is required');
+  if (
+    flags.before !== undefined &&
+    !slackTsSchema.safeParse(flags.before).success
+  )
+    throw new Error(
+      `--before must be a Slack ts like 1700000000.000100, got "${flags.before}"`,
+    );
   const info = loadChannelCache()[channelId];
   if (!info)
     throw new Error(

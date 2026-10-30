@@ -24,7 +24,7 @@ vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
   sleepAsync: () => Promise.resolve(),
 }));
 
-const { api, deps, runner } = usePollFixture();
+const { api, deps, runner, histories } = usePollFixture();
 
 /** Serve C1 `n` messages, Slack-ordered (see `c1History`). */
 const backlog = (n: number, onFetch?: () => void) => {
@@ -158,5 +158,54 @@ describe('slack-backfill-history wiring', () => {
     const live = slackBackfillDeps();
     expect(live.slackDir).toBe(deps().slackDir);
     expect(live.config().backfillBudgetSeconds).toBe(60);
+  });
+});
+
+describe('slack-backfill-history validation and restarts (#61 review)', () => {
+  it('rejects a --before that is not a Slack ts, before calling Slack', async () => {
+    await seed(30, 10);
+    const calls = histories().length;
+    await expect(
+      backfillHistory({ channel: 'C1', before: '205' }, backfillDeps()),
+    ).rejects.toThrow(/--before must be a Slack ts/);
+    expect(histories()).toHaveLength(calls);
+  });
+
+  it('rejects corrupt saved progress, saying how to restart', async () => {
+    await seed(30, 10);
+    runner().client.setState(BACKFILL_STATE_NAMESPACE, 'C1', '{"before":"x"}');
+    await expect(
+      backfillHistory({ channel: 'C1' }, backfillDeps()),
+    ).rejects.toThrow(/is invalid .*rerun with --before <ts> to restart/);
+  });
+
+  it('restarts from the first message when --before is given over saved progress', async () => {
+    const dir = await seed(30, 10);
+    runner().client.setState(
+      BACKFILL_STATE_NAMESPACE,
+      'C1',
+      JSON.stringify({ before: '640.000001', position: '399.000001' }),
+    );
+    await backfillHistory(
+      { channel: 'C1', before: '205.000001' },
+      backfillDeps(),
+    );
+    expect(fs.readdirSync(dir).sort().slice(0, 5)).toEqual(
+      ['200', '201', '202', '203', '204'].map((t) => `${t}.000001.json`),
+    );
+    expect(progress()).toBeUndefined();
+  });
+
+  it('leaves the poll read position alone across a resumed backfill', async () => {
+    await seed(450, 10);
+    const position = runner().state.get('slack|lastTs-C1');
+    let clock = 0;
+    backlog(450, () => (clock += 30_000));
+    const run = backfillDeps({ now: () => clock });
+    await backfillHistory({ channel: 'C1' }, run);
+    expect(progress()).toBeDefined();
+    clock = 0;
+    await backfillHistory({ channel: 'C1' }, run);
+    expect(runner().state.get('slack|lastTs-C1')).toBe(position);
   });
 });
