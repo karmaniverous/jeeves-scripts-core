@@ -17,7 +17,7 @@ import {
   slackBackfillDeps,
 } from './backfill-history.js';
 import { pollSlack } from './poll.js';
-import { usePollFixture } from './poll.test-helper.js';
+import { c1History, usePollFixture } from './poll.test-helper.js';
 
 vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -26,25 +26,9 @@ vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
 
 const { api, deps, runner } = usePollFixture();
 
-/** C1 history of `n` messages (ts `200.000001` up), ordered as Slack orders it. */
+/** Serve C1 `n` messages, Slack-ordered (see `c1History`). */
 const backlog = (n: number, onFetch?: () => void) => {
-  api['conversations.history'] = (q) => {
-    if (q.get('channel') !== 'C1') return { ok: true, messages: [] };
-    onFetch?.();
-    const oldest = Number(q.get('oldest') ?? 0);
-    const after = Array.from({ length: n }, (_, i) => ({
-      ts: `${String(200 + i)}.000001`,
-      user: 'U1',
-      text: `m${String(i)}`,
-    })).filter((m) => Number(m.ts) > oldest);
-    const limit = Number(q.get('limit'));
-    const page = oldest > 0 ? after.slice(0, limit) : after.slice(-limit);
-    return {
-      ok: true,
-      messages: page.reverse(),
-      has_more: after.length > limit,
-    };
-  };
+  api['conversations.history'] = c1History(n, {}, onFetch);
 };
 
 /** Every directory under `root` holding `{ts}.json` files. */

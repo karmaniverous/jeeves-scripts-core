@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
 import { pollSlack } from './poll.js';
-import { usePollFixture } from './poll.test-helper.js';
+import { c1History, usePollFixture } from './poll.test-helper.js';
 
 vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -18,36 +18,13 @@ vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
 
 const { api, deps, fake, histories, runner } = usePollFixture();
 
-/**
- * C1 history: `n` top-level messages (ts `200.000001` up), ordered as Slack
- * orders them with no `latest` (#50): for a real `oldest`, the `limit`
- * messages just after it, newest first, `has_more` when newer ones remain;
- * for `oldest` unset or 0, the channel's newest `limit` messages, newest
- * first, `has_more` when older ones remain.
- */
+/** Serve C1 `n` messages, Slack-ordered (see `c1History`). */
 const backlog = (
   n: number,
   extra: Record<string, unknown> = {},
   onFetch?: () => void,
 ) => {
-  api['conversations.history'] = (q) => {
-    if (q.get('channel') !== 'C1') return { ok: true, messages: [] };
-    onFetch?.();
-    const oldest = Number(q.get('oldest') ?? 0);
-    const after = Array.from({ length: n }, (_, i) => ({
-      ts: `${String(200 + i)}.000001`,
-      user: 'U1',
-      text: `m${String(i)}`,
-      ...extra,
-    })).filter((m) => Number(m.ts) > oldest);
-    const limit = Number(q.get('limit'));
-    const page = oldest > 0 ? after.slice(0, limit) : after.slice(-limit);
-    return {
-      ok: true,
-      messages: page.reverse(),
-      has_more: after.length > limit,
-    };
-  };
+  api['conversations.history'] = c1History(n, extra, onFetch);
 };
 
 /** Record every C1 read position written to runner state. */
