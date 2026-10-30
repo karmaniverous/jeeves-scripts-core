@@ -40,8 +40,9 @@ export const manifestEntrySchema = z.strictObject({
   timeout_seconds: z.number().int().positive().optional(),
   /**
    * Slack target the runner alerts when a run fails or times out (a channel,
-   * DM or user id, as the runner expects); omitted or `null` means the
-   * runner's `notifications.defaultOnFailure` (#36).
+   * DM or user id, as the runner expects). `null` clears it to the runner's
+   * `notifications.defaultOnFailure`; omitted leaves an existing runner job's
+   * target unchanged (the runner's sync writes only present keys) (#36).
    */
   on_failure: onFailureSchema,
   /** Enabled by default. */
