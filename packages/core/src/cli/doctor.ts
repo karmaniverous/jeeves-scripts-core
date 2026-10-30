@@ -21,7 +21,7 @@
 import path from 'node:path';
 
 import { configCheck } from '../config/check.js';
-import { CONFIG_PATH_ENV, loadConfig } from '../config/loader.js';
+import { loadConfig, setConfigRoot } from '../config/loader.js';
 import { jobContext, type JobModule } from '../runnables/define-runnable.js';
 import { type JobManifest, readCoreManifests } from '../runnables/manifest.js';
 import type { Plugin } from '../runnables/plugin.js';
@@ -127,9 +127,9 @@ export const doctorReport = async (
     lines.push(`core: version unreadable: ${message(e)}`);
   }
 
-  process.env[CONFIG_PATH_ENV] ??= path.join(root, 'jeeves-scripts.json');
+  setConfigRoot(root);
   const check = configCheck({ root });
-  const where = check.configPath ?? process.env[CONFIG_PATH_ENV];
+  const where = check.configPath ?? path.join(root, 'jeeves-scripts.json');
   lines.push(`config: ${where}: ${check.ok ? 'OK' : 'FAILED'}`);
   for (const error of check.errors) lines.push(...indent(error));
 

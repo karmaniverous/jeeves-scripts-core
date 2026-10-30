@@ -51,6 +51,23 @@ export const LEGACY_CONFIG_WARNING =
 
 let _warnedLegacy = false;
 
+/** The instance root the launcher registered (#57); see {@link setConfigRoot}. */
+let _defaultRoot: string | undefined;
+
+/**
+ * Register the instance root, so a later `loadConfig()` with no location
+ * resolves `{root}/jeeves-scripts.json` (pointer or legacy) when
+ * `JEEVES_SCRIPTS_CONFIG` is unset. The launcher (`run`, `doctor`) calls
+ * it instead of forcing the env var to the repo file. Not cleared by
+ * {@link resetConfig}.
+ */
+export const setConfigRoot = (root: string | undefined): void => {
+  _defaultRoot = root;
+};
+
+/** The registered instance root, if any. */
+export const getConfigRoot = (): string | undefined => _defaultRoot;
+
 /** Read a JSON file, naming it in any error. */
 const readJson = (file: string): unknown => {
   let raw: string;
@@ -101,12 +118,13 @@ const locateConfig = (
   options: LoadConfigOptions,
 ): ResolvedConfig & { value?: unknown } => {
   const envPath = process.env[CONFIG_PATH_ENV];
+  const root = options.root ?? _defaultRoot;
   const [file, direct]: [string, ConfigSource | undefined] = options.configPath
     ? [options.configPath, 'option']
     : envPath
       ? [envPath, 'environment']
-      : options.root
-        ? [path.join(options.root, 'jeeves-scripts.json'), undefined]
+      : root
+        ? [path.join(root, 'jeeves-scripts.json'), undefined]
         : ['', undefined];
   if (!file)
     throw new Error(

@@ -5,8 +5,9 @@
  * command runner jobs, webhooks and people run through the instance
  * launcher.
  *
- * Before resolving anything, the config location is pinned to
- * `{root}/jeeves-scripts.json` (unless `JEEVES_SCRIPTS_CONFIG` is set) and
+ * Before resolving anything, the instance root is registered with the
+ * config loader (`setConfigRoot`: `JEEVES_SCRIPTS_CONFIG` if set, else
+ * `{root}/jeeves-scripts.json`, a pointer or a legacy full config; #57) and
  * the instance plugin is loaded and registered (`runnables/runnables`).
  * Resolution:
  *
@@ -23,9 +24,7 @@
  * ({@link jobHelp}).
  */
 
-import path from 'node:path';
-
-import { CONFIG_PATH_ENV } from '../config/loader.js';
+import { setConfigRoot } from '../config/loader.js';
 import { runJobModule } from '../runnables/define-runnable.js';
 import { argsError, flagsDeprecation } from '../runnables/job-help.js';
 import type { RegistryEntry } from '../runnables/registry.js';
@@ -41,7 +40,7 @@ export interface RegisterOptions {
 }
 
 /**
- * Pin the config location to the instance, load its plugin and register
+ * Register the instance root with the config loader, load its plugin and register
  * every runnable.
  *
  * @throws When the plugin fails to load or breaks a registration rule.
@@ -50,7 +49,7 @@ export const registerInstance = async (
   root: string,
   options: RegisterOptions = {},
 ): Promise<Runnable[]> => {
-  process.env[CONFIG_PATH_ENV] ??= path.join(root, 'jeeves-scripts.json');
+  setConfigRoot(root);
   const plugin = await (options.loadPlugin ?? loadPlugin)(root);
   return buildRunnables({ plugin, registry: options.registry });
 };

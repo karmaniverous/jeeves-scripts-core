@@ -4,7 +4,11 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
+import {
+  CONFIG_PATH_ENV,
+  getConfigRoot,
+  resetConfig,
+} from '../config/loader.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import type { JobManifest } from '../runnables/manifest.js';
 import { definePlugin, override, type Plugin } from '../runnables/plugin.js';
@@ -150,9 +154,8 @@ describe('listRunnables', () => {
     });
     expect(entries[0]?.manifest).toBeNull();
     expect(entries[0]?.schedule).toBeNull();
-    expect(process.env[CONFIG_PATH_ENV]).toBe(
-      path.join(root, 'jeeves-scripts.json'),
-    );
+    expect(getConfigRoot()).toBe(root);
+    expect(process.env[CONFIG_PATH_ENV]).toBeUndefined();
   });
 
   it('carries the effective on_failure from manifests and deltas (#36)', async () => {

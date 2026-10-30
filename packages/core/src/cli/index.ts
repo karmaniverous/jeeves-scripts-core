@@ -63,7 +63,7 @@ const buildConfigCommand = (root: string) => {
     )
     .option(
       '--config <file>',
-      'config file path (default: {root}/jeeves-scripts.json, or JEEVES_SCRIPTS_CONFIG)',
+      'config file: a full config or a pointer (default: JEEVES_SCRIPTS_CONFIG, else {root}/jeeves-scripts.json)',
     )
     .action(async (options) => {
       const result = await instanceConfigCheck(root, options.config);

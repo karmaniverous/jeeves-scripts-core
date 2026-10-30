@@ -2,7 +2,7 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { CONFIG_PATH_ENV } from '../config/loader.js';
+import { CONFIG_PATH_ENV, getConfigRoot } from '../config/loader.js';
 import { argFlag, argValue } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { definePlugin, override, type Plugin } from '../runnables/plugin.js';
@@ -57,16 +57,16 @@ afterEach(() => {
 });
 
 describe('registerInstance', () => {
-  it('pins the config to the instance root before loading the plugin', async () => {
-    let seen: string | undefined;
+  it('registers the instance root with the loader, not the env var, before loading the plugin (#57)', async () => {
+    let seen: [string | undefined, string | undefined] = [undefined, undefined];
     await registerInstance(root, {
       registry,
       loadPlugin: () => {
-        seen = process.env[CONFIG_PATH_ENV];
+        seen = [getConfigRoot(), process.env[CONFIG_PATH_ENV]];
         return Promise.resolve(undefined);
       },
     });
-    expect(seen).toBe(path.join(root, 'jeeves-scripts.json'));
+    expect(seen).toEqual([root, undefined]);
   });
 
   it('keeps an explicit JEEVES_SCRIPTS_CONFIG', async () => {

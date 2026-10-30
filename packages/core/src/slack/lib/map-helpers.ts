@@ -20,6 +20,7 @@ import path from 'node:path';
 
 import {
   CONFIG_PATH_ENV,
+  getConfigRoot,
   getLoadedConfigPath,
   loadConfig,
 } from '../../config/loader.js';
@@ -38,7 +39,7 @@ export function findInstanceConfig(dir: string): string | undefined {
 /** Load the instance config once, wherever this module runs. */
 function ensureConfig(): void {
   if (getLoadedConfigPath()) return;
-  if (process.env[CONFIG_PATH_ENV]) {
+  if (process.env[CONFIG_PATH_ENV] || getConfigRoot()) {
     loadConfig();
     return;
   }

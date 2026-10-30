@@ -13,6 +13,7 @@ import {
   resetConfig,
   resolveConfig,
   resolveConfigPath,
+  setConfigRoot,
 } from './loader.js';
 
 const VALID_CONFIG = JSON.stringify({
@@ -117,6 +118,28 @@ describe('resolveConfig (#57)', () => {
     expect(console.warn).toHaveBeenCalledWith(LEGACY_CONFIG_WARNING);
   });
 
+  it('resolves a bare loadConfig() from the root the launcher registered', () => {
+    const target = put('cfg/config.json', full);
+    put('repo/jeeves-scripts.json', { config: path.join(tmp, 'cfg') });
+    setConfigRoot(path.join(tmp, 'repo'));
+    try {
+      loadConfig();
+      expect(getLoadedConfigPath()).toBe(target);
+    } finally {
+      setConfigRoot(undefined);
+    }
+  });
+
+  it('lets JEEVES_SCRIPTS_CONFIG win over the registered root', () => {
+    const env = put('env.json', full);
+    process.env[CONFIG_PATH_ENV] = env;
+    setConfigRoot(path.join(tmp, 'nowhere'));
+    try {
+      expect(resolveConfig()).toEqual({ path: env, source: 'environment' });
+    } finally {
+      setConfigRoot(undefined);
+    }
+  });
   it('does not warn for a full config named directly', () => {
     resolveConfig({ configPath: put('c.json', full) });
     expect(console.warn).not.toHaveBeenCalled();
