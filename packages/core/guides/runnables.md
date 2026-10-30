@@ -6,7 +6,7 @@ title: Runnables
 
 The runnable registry (Decisions 4, 5, 40, 49, 50): core's runnables, their ids, their manifests, and how an instance adds to and adjusts them through its plugin, its manifests and its deltas.
 
-**Runnable or job (Decision 73).** A _runnable_ is anything `jeeves-scripts run <id>` starts. A _job_ is a runnable registered in jeeves-runner: one with a manifest, scheduled or not. Manifests (`jobs/*.json`), the `jobs.<id>` deltas in `jeeves-scripts.json` and runner job ids keep the word because they describe runner jobs. `defineJob` is the pre-0.3.0 name of `defineRunnable`, still exported and deprecated.
+**Runnable or job (Decision 73).** A _runnable_ is anything `jeeves-scripts run <id>` starts. A _job_ is a runnable registered in jeeves-runner: one with a manifest, scheduled or not. Manifests (`jobs/*.json`), the `jobs.<id>` deltas in `jeeves-scripts.json` and runner job ids keep the word because they describe runner jobs. `defineJob` is the pre-0.3.0 name of `defineRunnable`, still exported and deprecated. It runs unchanged, but core's ESLint preset (`strictTypeChecked`, so `@typescript-eslint/no-deprecated`) fails an instance's lint on every call, so upgrading an instance to 0.3.0 includes replacing `defineJob` with `defineRunnable` in its `src/` (same signature: a rename, nothing else).
 
 ## Runnable ids
 
