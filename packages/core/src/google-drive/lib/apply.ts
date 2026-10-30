@@ -12,8 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { sleepMs } from '@karmaniverous/jeeves';
-import { exponentialBackoff, retrySync } from '@karmaniverous/jeeves';
+import { exponentialBackoff, retrySync, sleepMs } from '@karmaniverous/jeeves';
 
 const META = '.meta';
 

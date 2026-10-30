@@ -11,8 +11,7 @@
  * Spec references: section 5, 7, 8.2.
  */
 
-import { sleepAsync as sleep } from '@karmaniverous/jeeves';
-import { retryAsync } from '@karmaniverous/jeeves';
+import { retryAsync, sleepAsync as sleep } from '@karmaniverous/jeeves';
 import type { Page } from 'puppeteer-core';
 import puppeteer from 'puppeteer-core';
 

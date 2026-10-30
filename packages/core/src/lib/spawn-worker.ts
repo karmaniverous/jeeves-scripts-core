@@ -18,8 +18,11 @@
  *   WORKER_RESULT:\{"sessionKey":"...","tokens":12345,"durationMs":123000\}
  */
 
-import { sleepAsync } from '@karmaniverous/jeeves';
-import { exponentialBackoff, retryAsync } from '@karmaniverous/jeeves';
+import {
+  exponentialBackoff,
+  retryAsync,
+  sleepAsync,
+} from '@karmaniverous/jeeves';
 
 import {
   type GatewayDetails,
