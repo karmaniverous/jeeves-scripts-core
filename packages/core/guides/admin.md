@@ -103,6 +103,7 @@ All five entries in core's manifest `jobs/admin.json` have `"prerequisite": null
 | `lib/subagent-label.ts` | Meta-synthesis phase and granular subagent label detection |
 | `lib/transcript-text.ts` | Extracts text chunks from session JSONL lines |
 | `lib/openclaw-db/channel-from-meta.ts` | 2026.9+ channel keys from recorded session metadata; text rules only as fallback; sanitized |
+| `lib/openclaw-db/schema-v24.ts` | Schema 24 (OpenClaw 2026.9.33): the schema-23 reader under version 24; 24 adds `session_nodes.snapshot_revision` and `session_entry_snapshots`, which token metrics doesn't read |
 | `lib/openclaw-db/schema-v23-meta.ts` | Loads schema-23 session keys and channel/peer/label names (read-only) |
 | `lib/regen-guard.ts` | Live regenerate guard: refuses when `OPENCLAW_UPGRADE_CUTOFF` is unset or invalid, and a `--from` before it without `--allow-pre-upgrade` |
 | `lib/regen-run.ts` | admin-regenerate-token-metrics orchestration: scratch / live / bounded (`--to`, counted-only, cursors untouched), backup → delete → flush → cursor replace; refuses a scratch `--out` that is the live store |
