@@ -56,7 +56,7 @@ describe('openAgentDb', () => {
     makeDb(file, 7);
     expect(() => openAgentDb(file)).toThrow(OpenClawSchemaMismatchError);
     expect(() => openAgentDb(file)).toThrow(
-      /expected user_version 23, found 7/,
+      /expected user_version 23 or 24, found 7/,
     );
   });
 });

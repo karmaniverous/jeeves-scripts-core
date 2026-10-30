@@ -94,7 +94,7 @@ describe('collectOpenClawDb', () => {
   });
 
   it('throws on a wrong-schema DB before collecting anything', async () => {
-    const fx = createV23Fixture(root(), 24);
+    const fx = createV23Fixture(root(), 25);
     fx.close();
     const { collectOpenClawDb } = await load();
 
@@ -107,6 +107,6 @@ describe('collectOpenClawDb', () => {
         buckets: new Map(),
         seenModels: new Set(),
       }),
-    ).toThrow(/expected user_version 23, found 24/);
+    ).toThrow(/expected user_version 23 or 24, found 25/);
   });
 });
