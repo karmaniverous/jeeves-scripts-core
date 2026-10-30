@@ -145,9 +145,17 @@ async function pollChannel(
   }
 }
 
-/** A Slack ts `days` before `now` (epoch ms), never before the epoch. */
+/**
+ * The earliest `oldest` to send. Slack treats `oldest: '0'` as unset and
+ * answers with the channel's newest messages, which would skip everything
+ * older; `'1'` is a real ts, so the first page is the channel's first
+ * messages (#50).
+ */
+export const HISTORY_FLOOR = '1';
+
+/** A Slack ts `days` before `now` (epoch ms), never before {@link HISTORY_FLOOR}. */
 const tsDaysBefore = (now: number, days: number): string =>
-  `${String(Math.max(0, Math.floor(now / 1000 - days * 86_400)))}.000000`;
+  `${String(Math.max(Number(HISTORY_FLOOR), Math.floor(now / 1000 - days * 86_400)))}.000000`;
 
 /** A channel Slack no longer lets this bot see (left, deleted, closed DM). */
 const isGone = (err: unknown): boolean =>
@@ -201,7 +209,7 @@ async function pollAll(
         token,
         teams,
         userMap,
-        oldest: oldest ?? '0',
+        oldest: oldest ?? HISTORY_FLOOR,
         advance,
         deadline: now() + config.backfillBudgetSeconds * 1000,
         now,
