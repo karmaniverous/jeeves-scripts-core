@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { generateJsonSchema } from './json-schema.js';
+import {
+  generateJsonSchema,
+  generatePointerJsonSchema,
+} from './json-schema.js';
 
 describe('generateJsonSchema', () => {
   it('generates a JSON Schema object with the top-level config properties', () => {
@@ -14,5 +17,20 @@ describe('generateJsonSchema', () => {
     expect(properties).toHaveProperty('siloRouting');
     expect(properties).toHaveProperty('jobs');
     expect(properties).not.toHaveProperty('extensions');
+  });
+});
+
+describe('generatePointerJsonSchema', () => {
+  it('describes { $schema?, config } and nothing else', () => {
+    const schema = generatePointerJsonSchema();
+    expect(schema).toMatchObject({
+      type: 'object',
+      required: ['config'],
+      additionalProperties: false,
+    });
+    expect(Object.keys(schema.properties as object).sort()).toEqual([
+      '$schema',
+      'config',
+    ]);
   });
 });

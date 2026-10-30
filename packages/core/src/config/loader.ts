@@ -11,6 +11,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { z } from 'zod';
+
+import { pointedConfigPath, pointerSchema } from './pointer.js';
 import { type Config, configSchema } from './schema.js';
 
 /** Env var that overrides the config file location (design §5). */
@@ -24,22 +27,127 @@ export interface LoadConfigOptions {
   configPath?: string;
 }
 
-/**
- * Resolve the config file path: explicit `configPath` wins, then
- * `JEEVES_SCRIPTS_CONFIG`, then `{root}/jeeves-scripts.json`.
- */
-export const resolveConfigPath = (options: LoadConfigOptions = {}): string => {
-  if (options.configPath) return options.configPath;
-  const envPath = process.env[CONFIG_PATH_ENV];
-  if (envPath) return envPath;
-  if (options.root) return path.join(options.root, 'jeeves-scripts.json');
-  throw new Error(
-    `Cannot resolve the config file location: pass { root } or { configPath }, or set ${CONFIG_PATH_ENV}.`,
-  );
+/** Where the config came from (#57). */
+export type ConfigSource = 'option' | 'environment' | 'pointer' | 'legacy';
+
+/** A resolved config location. */
+export interface ResolvedConfig {
+  /** The full config file to load. */
+  path: string;
+  /**
+   * `option` (`configPath`) or `environment` (`JEEVES_SCRIPTS_CONFIG`)
+   * naming a full config directly; `pointer` when a `jeeves-scripts.json`
+   * pointer named `<config>/config.json`; `legacy` for a full config still
+   * in the instance repo.
+   */
+  source: ConfigSource;
+  /** The pointer file, when `source` is `pointer`. */
+  pointer?: string;
+}
+
+/** The warning printed once per process for a config still in the repo. */
+export const LEGACY_CONFIG_WARNING =
+  'config is in the instance repo; move it (guides/config.md#moving-the-config)';
+
+let _warnedLegacy = false;
+
+/** Read a JSON file, naming it in any error. */
+const readJson = (file: string): unknown => {
+  let raw: string;
+  try {
+    raw = fs.readFileSync(file, 'utf8');
+  } catch (e) {
+    const code =
+      e instanceof Error && 'code' in e ? String(e.code) : 'read failed';
+    throw new Error(
+      `jeeves-scripts.json could not be read from ${file} (${code}).`,
+      {
+        cause: e,
+      },
+    );
+  }
+  try {
+    return JSON.parse(raw) as unknown;
+  } catch (e) {
+    throw new Error(`jeeves-scripts.json at ${file} is not valid JSON.`, {
+      cause: e,
+    });
+  }
 };
+
+/**
+ * Resolve the config (#57): explicit `configPath` wins, then
+ * `JEEVES_SCRIPTS_CONFIG`, then `{root}/jeeves-scripts.json`. A file that
+ * is a pointer (`{ "config": "<absolute dir>" }`) resolves to
+ * `<config>/config.json`, which must exist. A full config (has
+ * `instance`) is used as is; found in the repo, it is `legacy` and
+ * {@link LEGACY_CONFIG_WARNING} is printed once per process.
+ *
+ * @throws When no location is given, the pointed config file is missing,
+ *   or the file is neither a pointer nor a full config.
+ */
+export const resolveConfig = (
+  options: LoadConfigOptions = {},
+): ResolvedConfig => {
+  const { value: _value, ...resolved } = locateConfig(options);
+  return resolved;
+};
+
+/**
+ * {@link resolveConfig}, plus the parsed file when it is the full config
+ * itself (so {@link loadConfig} reads it once).
+ */
+const locateConfig = (
+  options: LoadConfigOptions,
+): ResolvedConfig & { value?: unknown } => {
+  const envPath = process.env[CONFIG_PATH_ENV];
+  const [file, direct]: [string, ConfigSource | undefined] = options.configPath
+    ? [options.configPath, 'option']
+    : envPath
+      ? [envPath, 'environment']
+      : options.root
+        ? [path.join(options.root, 'jeeves-scripts.json'), undefined]
+        : ['', undefined];
+  if (!file)
+    throw new Error(
+      `Cannot resolve the config file location: pass { root } or { configPath }, or set ${CONFIG_PATH_ENV}.`,
+    );
+  const value = readJson(file);
+  const pointer = pointerSchema.safeParse(value);
+  if (pointer.success) {
+    const target = pointedConfigPath(pointer.data);
+    if (!fs.existsSync(target))
+      throw new Error(
+        `${file} points at ${pointer.data.config}, but ${target} does not exist.`,
+      );
+    return { path: target, source: 'pointer', pointer: file };
+  }
+  const isFullConfig =
+    typeof value === 'object' && value !== null && 'instance' in value;
+  if (!isFullConfig) {
+    const why =
+      typeof value === 'object' && value !== null && 'config' in value
+        ? `: ${z.prettifyError(pointer.error)}`
+        : '';
+    throw new Error(
+      `${file} is neither a config pointer ({ "config": "<absolute dir>" }) nor a full config (no "instance")${why}`,
+    );
+  }
+  if (direct) return { path: file, source: direct, value };
+  if (!_warnedLegacy) {
+    _warnedLegacy = true;
+    console.warn(LEGACY_CONFIG_WARNING);
+  }
+  return { path: file, source: 'legacy', value };
+};
+
+/** The full config file path {@link resolveConfig} resolves to. */
+export const resolveConfigPath = (options: LoadConfigOptions = {}): string =>
+  resolveConfig(options).path;
 
 let _config: Config | null = null;
 let _configPath: string | null = null;
+let _configSource: ConfigSource | null = null;
 
 /**
  * Load, validate and cache `jeeves-scripts.json`. Subsequent calls
@@ -51,26 +159,9 @@ let _configPath: string | null = null;
  */
 export const loadConfig = (options: LoadConfigOptions = {}): Config => {
   if (_config) return _config;
-  const configPath = resolveConfigPath(options);
-  let raw: string;
-  try {
-    raw = fs.readFileSync(configPath, 'utf8');
-  } catch (e) {
-    const code =
-      e instanceof Error && 'code' in e ? String(e.code) : 'read failed';
-    throw new Error(
-      `jeeves-scripts.json could not be read from ${configPath} (${code}).`,
-      { cause: e },
-    );
-  }
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-  } catch (e) {
-    throw new Error(`jeeves-scripts.json at ${configPath} is not valid JSON.`, {
-      cause: e,
-    });
-  }
+  const { value, ...resolved } = locateConfig(options);
+  const configPath = resolved.path;
+  const parsed = value ?? readJson(configPath);
   const result = configSchema.safeParse(parsed);
   if (!result.success) {
     const issues = result.error.issues
@@ -82,14 +173,20 @@ export const loadConfig = (options: LoadConfigOptions = {}): Config => {
   }
   _config = result.data;
   _configPath = configPath;
+  _configSource = resolved.source;
   return _config;
 };
 
 /** The path the cached config was loaded from, or `null` before a load. */
 export const getLoadedConfigPath = (): string | null => _configPath;
 
+/** Where the cached config came from, or `null` before a load. */
+export const getLoadedConfigSource = (): ConfigSource | null => _configSource;
+
 /** Reset the cached config (for testing, or to reload after a change). */
 export const resetConfig = (): void => {
   _config = null;
   _configPath = null;
+  _configSource = null;
+  _warnedLegacy = false;
 };
