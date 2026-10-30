@@ -49,10 +49,15 @@ export function drainCollabs(
   const client = deps.runner();
 
   try {
-    const items = client.dequeue('gh-collabs', maxItems);
     let processed = 0;
 
-    for (const [index, { id, payload }] of items.entries()) {
+    // One item at a time: dequeue() spends an attempt, so a batch claimed up
+    // front would lose whatever an account mismatch stops before reaching
+    // (#61 review).
+    while (processed < maxItems) {
+      const [next] = client.dequeue('gh-collabs', 1);
+      if (!next) break;
+      const { id, payload } = next;
       const item = payload as CollabItem;
       try {
         if (item.kind === 'repo') {
@@ -101,14 +106,9 @@ export function drainCollabs(
       } catch (e) {
         client.fail(id, getErrorMessage(e));
         processed++;
-        // Acting as the wrong account: stop before anything else is written,
-        // handing the items not yet tried back to the queue (fail() retries
-        // them) rather than leaving them claimed.
-        if (e instanceof GhAccountMismatchError) {
-          for (const rest of items.slice(index + 1))
-            client.fail(rest.id, `not attempted: ${e.message}`);
-          throw e;
-        }
+        // Acting as the wrong account: stop before anything else is written;
+        // the items not yet dequeued stay pending.
+        if (e instanceof GhAccountMismatchError) throw e;
       }
     }
     console.log(`[drain-collabs] processed ${String(processed)} items`);
