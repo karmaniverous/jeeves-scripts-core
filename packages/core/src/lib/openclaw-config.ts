@@ -17,6 +17,8 @@ import { getErrorMessage } from '@karmaniverous/jeeves';
 import JSON5 from 'json5';
 import { z } from 'zod';
 
+import { isEnoent } from './fs-errors.js';
+
 /** A Slack account block: `channels.slack` or `channels.slack.accounts.<id>`. */
 const slackAccountSchema = z.looseObject({
   /** The account's Slack bot token (`xoxb-...`). */
@@ -73,10 +75,6 @@ export const openclawConfigPaths = (home?: string): string[] => {
   ];
 };
 
-/** True for a Node error whose code is `ENOENT` (the file does not exist). */
-const isMissing = (e: unknown): boolean =>
-  e instanceof Error && (e as NodeJS.ErrnoException).code === 'ENOENT';
-
 /**
  * Read and validate one config file; `undefined` when it does not exist.
  *
@@ -88,7 +86,7 @@ const readOpenclawConfig = (file: string): OpenclawConfig | undefined => {
   try {
     text = fs.readFileSync(file, 'utf8');
   } catch (e) {
-    if (isMissing(e)) return undefined;
+    if (isEnoent(e)) return undefined;
     throw new Error(
       `Cannot read OpenClaw config ${file}: ${getErrorMessage(e)}`,
       { cause: e },
