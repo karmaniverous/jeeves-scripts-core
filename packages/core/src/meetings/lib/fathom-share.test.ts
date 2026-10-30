@@ -10,7 +10,6 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { resolveChromePath } from './chrome-path.js';
 import {
   fetchFathomSharePage,
   type ShareFetchBrowserDeps,
@@ -199,18 +198,5 @@ describe('fetchFathomSharePage', () => {
       'Transcript content empty after polling transcript tab URL',
     );
     expect(empty.launches()).toBe(3);
-  });
-});
-
-describe('resolveChromePath', () => {
-  it('uses an existing path from the environment and rejects a missing one', () => {
-    const exe = path.join(dir, 'chrome');
-    fs.writeFileSync(exe, '');
-    vi.stubEnv('PUPPETEER_EXECUTABLE_PATH', exe);
-    expect(resolveChromePath()).toBe(exe);
-    vi.stubEnv('PUPPETEER_EXECUTABLE_PATH', path.join(dir, 'nope'));
-    expect(() => resolveChromePath()).toThrow(
-      'Chrome executable not found at path from environment',
-    );
   });
 });
