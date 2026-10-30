@@ -1,7 +1,7 @@
 /**
  * @module config/jobs-schema
  *
- * Zod schema for the `jobs` block of `jeeves-scripts.json`: instance
+ * Zod schema for the `jobs` block of the instance config: instance
  * deltas per job id (Decisions 5, 40). There is no `extensions` block
  * (Decision 50): a seam and its config arrive only on evidence (Decision
  * 8). The schedule is the runner's (`config/schedule-schema`), shared

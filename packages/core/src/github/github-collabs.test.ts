@@ -65,7 +65,7 @@ describe('buildRegistry', () => {
     w.deps.account = '';
     buildRegistry(w.deps);
     expect(logs).toContain(
-      '[skip] integrations.gh.account is not set in jeeves-scripts.json',
+      '[skip] integrations.gh.account is not set in the instance config',
     );
   });
 

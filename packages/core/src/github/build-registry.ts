@@ -109,7 +109,7 @@ export function buildRegistry(deps: GitHubJobDeps): void {
   const account = deps.account;
   if (!account) {
     console.log(
-      '[skip] integrations.gh.account is not set in jeeves-scripts.json',
+      '[skip] integrations.gh.account is not set in the instance config',
     );
     return;
   }

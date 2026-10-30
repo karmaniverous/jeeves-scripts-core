@@ -12,7 +12,7 @@
  * untouched. Config is read when gog is first run, never at import.
  *
  * Config dependencies: `integrations.gog.bin` and `paths.gogHome` (`GOG_HOME`
- * wins) in jeeves-scripts.json, through constants().
+ * wins) in the instance config, through constants().
  */
 
 import { runWithRetry } from '@karmaniverous/jeeves';

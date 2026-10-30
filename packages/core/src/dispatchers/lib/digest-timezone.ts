@@ -21,6 +21,6 @@ export const DIGEST_TIMEZONE_REF = 'digest.timezone';
 export function digestTimeZone(): string {
   return requireTimeZone(
     tryGetRef(DIGEST_TIMEZONE_REF),
-    `pipeline.refs["${DIGEST_TIMEZONE_REF}"] in jeeves-scripts.json`,
+    `pipeline.refs["${DIGEST_TIMEZONE_REF}"] in the instance config`,
   );
 }

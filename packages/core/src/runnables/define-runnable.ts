@@ -163,7 +163,7 @@ export type JobModule = Readonly<
  * export default defineRunnable({
  *   id: 'acme-report',
  *   domain: 'acme',
- *   prerequisite: () => hasAcmeConfig() || 'no acme block in jeeves-scripts.json',
+ *   prerequisite: () => hasAcmeConfig() || 'no acme block in the instance config',
  *   flags: { live: argFlag('--live', 'Write changes (default: dry run)') },
  *   run: async ({ flags }) => { await report(flags.live); },
  * });

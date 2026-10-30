@@ -97,9 +97,9 @@ const derive = () => {
     CONTENT_DIR: p.contentDir,
     /** `paths.scriptsDir`: the instance repo. */
     SCRIPTS_DIR: p.scriptsDir,
-    /** Pipeline config now lives in `jeeves-scripts.json`. */
+    /** Pipeline config now lives in the instance config. */
     PIPELINE_CONFIG_PATH: configPath,
-    /** Silo routing now lives in `jeeves-scripts.json`. */
+    /** Silo routing now lives in the instance config. */
     SILO_ROUTING_CONFIG_PATH: configPath,
     /** `paths.credentialsDir`. */
     CREDENTIALS_DIR: p.credentialsDir,

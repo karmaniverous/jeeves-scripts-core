@@ -125,7 +125,7 @@ export function eventEmails(event: CalendarEvent): string[] {
 }
 
 /**
- * The listed people on an event (`people` in jeeves-scripts.json), as the
+ * The listed people on an event (`people` in the instance config), as the
  * `_people` field of the stored event; `{}` when none are listed, so
  * events without listed people are stored as before.
  */

@@ -188,7 +188,7 @@ describe('registeredManifests', () => {
       [
         'Invalid instance manifests:',
         '- jobs/acme.json: "acme-gone" is not a registered runnable',
-        '- jobs/email.json: "email-poll" has a core manifest; change it with jobs.email-poll in jeeves-scripts.json',
+        '- jobs/email.json: "email-poll" has a core manifest; change it with jobs.email-poll in the instance config',
       ].join('\n'),
     );
   });

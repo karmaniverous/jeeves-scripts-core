@@ -76,17 +76,14 @@ const readJson = (file: string): unknown => {
   } catch (e) {
     const code =
       e instanceof Error && 'code' in e ? String(e.code) : 'read failed';
-    throw new Error(
-      `jeeves-scripts.json could not be read from ${file} (${code}).`,
-      {
-        cause: e,
-      },
-    );
+    throw new Error(`The config could not be read from ${file} (${code}).`, {
+      cause: e,
+    });
   }
   try {
     return JSON.parse(raw) as unknown;
   } catch (e) {
-    throw new Error(`jeeves-scripts.json at ${file} is not valid JSON.`, {
+    throw new Error(`The config at ${file} is not valid JSON.`, {
       cause: e,
     });
   }
@@ -192,7 +189,7 @@ export const loadConfig = (options: LoadConfigOptions = {}): Config => {
       .map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`)
       .join('\n');
     throw new Error(
-      `jeeves-scripts.json at ${configPath} failed validation:\n${issues}`,
+      `The config at ${configPath} failed validation:\n${issues}`,
     );
   }
   _config = result.data;

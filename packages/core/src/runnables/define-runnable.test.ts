@@ -196,7 +196,7 @@ describe('runJobModule', () => {
       defineRunnable({
         id: 'acme-report',
         domain: 'acme',
-        prerequisite: () => 'no acme block in jeeves-scripts.json',
+        prerequisite: () => 'no acme block in the instance config',
         run,
       }),
       [],
@@ -204,7 +204,7 @@ describe('runJobModule', () => {
     );
     expect(run).not.toHaveBeenCalled();
     expect(log).toHaveBeenCalledWith(
-      '[skip] no acme block in jeeves-scripts.json',
+      '[skip] no acme block in the instance config',
     );
   });
 

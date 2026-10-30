@@ -119,7 +119,7 @@ export const pluginDeclarationSchema = z.strictObject({
     )
     .readonly()
     .optional(),
-  /** Validates the instance's own `local` block in `jeeves-scripts.json`. */
+  /** Validates the instance's own `local` block in the instance config. */
   configSchema: z
     .custom<LocalConfigSchema>(
       (v) =>

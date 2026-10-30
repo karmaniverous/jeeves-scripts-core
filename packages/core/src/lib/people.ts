@@ -2,7 +2,7 @@
  * @module lib/people
  *
  * Who someone is (Decision 34): resolve a channel account or an email
- * address to a person in the `people` block of `jeeves-scripts.json`.
+ * address to a person in the `people` block of the instance config.
  * Unlisted accounts and addresses resolve to `undefined`, and callers
  * keep their channel-derived names for them.
  */

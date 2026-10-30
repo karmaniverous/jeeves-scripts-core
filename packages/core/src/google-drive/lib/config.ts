@@ -151,7 +151,7 @@ export function parseGoogleDriveConfig(raw: unknown): GoogleDriveConfig | null {
   const parsed = GoogleDriveConfigSchema.safeParse(raw);
   if (!parsed.success) {
     throw new Error(
-      `jeeves-scripts.json: invalid pipeline.googleDrive block: ${z.prettifyError(parsed.error)}`,
+      `instance config: invalid pipeline.googleDrive block: ${z.prettifyError(parsed.error)}`,
     );
   }
   return parsed.data;

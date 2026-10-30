@@ -1,7 +1,7 @@
 /**
  * @module config/silo-schema
  *
- * Zod schema for the `siloRouting` block of `jeeves-scripts.json`:
+ * Zod schema for the `siloRouting` block of the instance config:
  * multi-tenant data routing by email domain, GitHub org, Slack workspace,
  * Jira and Linear (Decision 3, Decision 19, Decision 28).
  *

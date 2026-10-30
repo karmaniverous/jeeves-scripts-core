@@ -1,7 +1,7 @@
 /**
  * @module config/pipeline-accessors
  *
- * Typed accessors over `jeeves-scripts.json`'s `pipeline` block — ported
+ * Typed accessors over the instance config's `pipeline` block — ported
  * from `jeeves-scripts-template` `src/lib/pipeline-config.ts` (template
  * `main` at `322054c`) as functions of the loaded config instead of a
  * standalone cached file load.
@@ -14,7 +14,7 @@ const requirePipeline = (options: LoadConfigOptions): PipelineConfig => {
   const config = loadConfig(options);
   if (!config.pipeline) {
     throw new Error(
-      'jeeves-scripts.json has no "pipeline" block, but a pipeline accessor was called.',
+      'The instance config has no "pipeline" block, but a pipeline accessor was called.',
     );
   }
   return config.pipeline;

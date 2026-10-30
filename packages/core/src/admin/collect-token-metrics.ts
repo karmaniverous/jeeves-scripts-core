@@ -27,7 +27,7 @@
  * TOKEN_METRICS_CURSOR_KEY, TOKEN_METRICS_DB_CURSOR_KEY,
  * TOKEN_METRICS_CC_CURSOR_KEY, constants().TOKEN_RATES_PATH, constants().TOKEN_RATES_PENDING_PATH,
  * constants().TOKEN_RATES_SEED_PATH,
- * constants().SLACK_DM_NAMES_CACHE_PATH (files under `paths.tokenMetricsDir` in jeeves-scripts.json (or `TOKEN_METRICS_DIR`)), and the Slack user
+ * constants().SLACK_DM_NAMES_CACHE_PATH (files under `paths.tokenMetricsDir` in the instance config (or `TOKEN_METRICS_DIR`)), and the Slack user
  * cache (slack/lib/slack-cache).
  */
 

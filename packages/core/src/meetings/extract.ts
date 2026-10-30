@@ -94,7 +94,7 @@ export function extractMeetings(deps: ExtractDeps): void {
     ({ accounts, reportOnly, archive: archiveMeetingEmails } = deps.settings());
   } catch {
     console.log(
-      '[skip] Meeting extraction not configured \u2014 no valid pipeline block in jeeves-scripts.json',
+      '[skip] Meeting extraction not configured \u2014 no valid pipeline block in the instance config',
     );
     return;
   }

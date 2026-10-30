@@ -27,7 +27,7 @@
  * Known limitation: a crash between sending a reply and recording it in
  * runner state can send that reply twice on the next run.
  *
- * Config dependencies: `pipeline.emailConfig.respond` (jeeves-scripts.json),
+ * Config dependencies: `pipeline.emailConfig.respond` (instance config),
  * `constants().SPAWN_WORKER_PATH`; runner state namespace `email-respond`.
  */
 
