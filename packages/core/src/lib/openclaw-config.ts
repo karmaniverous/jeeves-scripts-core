@@ -18,6 +18,7 @@ import JSON5 from 'json5';
 import { z } from 'zod';
 
 import { isEnoent } from './fs-errors.js';
+import { credentialEnv, resolveCredential } from './openclaw-credentials.js';
 
 /**
  * A credential as OpenClaw accepts it: a string, possibly holding env
@@ -26,38 +27,6 @@ import { isEnoent } from './fs-errors.js';
  * config invalid (#61 reviews).
  */
 const secretInputSchema = z.union([z.string().min(1), z.looseObject({})]);
-
-/** OpenClaw's env reference names (`[A-Z_][A-Z0-9_]*`). */
-const ENV_REF = /\$\$\{[A-Z_][A-Z0-9_]*\}|\$\{([A-Z_][A-Z0-9_]*)\}/g;
-const BARE_ENV_REF = /^\$([A-Z_][A-Z0-9_]*)$/;
-
-/**
- * The plain value of a credential, resolved as OpenClaw does: `${VAR}`
- * anywhere in the string, or a whole-string `$VAR`, from the environment;
- * `$${VAR}` is a literal `${VAR}`. `undefined` when unset, a SecretRef
- * (core doesn't resolve those) or a reference to a missing or empty
- * variable (OpenClaw leaves those unresolved).
- */
-const resolveCredential = (
-  value: unknown,
-  env: NodeJS.ProcessEnv = process.env,
-): string | undefined => {
-  if (typeof value !== 'string' || value === '') return undefined;
-  const nonEmpty = (name: string): string | undefined => {
-    const v = env[name];
-    return v === undefined || v === '' ? undefined : v;
-  };
-  const bare = BARE_ENV_REF.exec(value);
-  if (bare) return nonEmpty(bare[1] ?? '');
-  const missing: string[] = [];
-  const out = value.replace(ENV_REF, (match: string, name?: string) => {
-    if (name === undefined) return match.slice(1);
-    const v = nonEmpty(name);
-    if (v === undefined) missing.push(name);
-    return v ?? '';
-  });
-  return missing.length > 0 ? undefined : out;
-};
 
 /** A Slack account block: `channels.slack` or `channels.slack.accounts.<id>`. */
 const slackAccountSchema = z.looseObject({
@@ -79,6 +48,13 @@ export const openclawConfigSchema = z.looseObject({
         .optional(),
       /** Port the gateway listens on. */
       port: z.number().int().min(1).max(65535).optional(),
+    })
+    .optional(),
+  /** OpenClaw's inline env (`env.vars`), used for env references when the process env and `.env` lack a name. */
+  env: z
+    .looseObject({
+      /** Variables by name; non-string values are ignored. */
+      vars: z.record(z.string(), z.unknown()).optional(),
     })
     .optional(),
   /** Channel settings. */
@@ -151,32 +127,37 @@ const readOpenclawConfig = (file: string): OpenclawConfig | undefined => {
 
 /**
  * The first defined value `pick` returns across the config files, in
- * search order. A missing file is skipped.
+ * search order. A missing file is skipped. `pick` also gets the file's
+ * path (e.g. for its `.env`).
  *
  * @throws When a file exists but can't be read, isn't JSON5 or is invalid.
  */
 export const findInOpenclawConfig = <T>(
-  pick: (config: OpenclawConfig) => T | undefined,
+  pick: (config: OpenclawConfig, file: string) => T | undefined,
   files: readonly string[] = openclawConfigPaths(),
 ): T | undefined => {
   for (const file of files) {
     const config = readOpenclawConfig(file);
     if (!config) continue;
-    const value = pick(config);
+    const value = pick(config, file);
     if (value !== undefined) return value;
   }
   return undefined;
 };
 
 /** Every plain-string Slack bot token by account id (`channels.slack.accounts`, else the flat `channels.slack.botToken` as `default`). */
-const slackBotTokensOf = (config: OpenclawConfig): Record<string, string> => {
+const slackBotTokensOf = (
+  config: OpenclawConfig,
+  env: Readonly<Record<string, string | undefined>>,
+  missing: string[],
+): Record<string, string> => {
   const slack = config.channels?.slack;
   const tokens: Record<string, string> = {};
   for (const [id, account] of Object.entries(slack?.accounts ?? {})) {
-    const token = resolveCredential(account.botToken);
+    const token = resolveCredential(account.botToken, env, missing);
     if (token) tokens[id] = token;
   }
-  const flat = resolveCredential(slack?.botToken);
+  const flat = resolveCredential(slack?.botToken, env, missing);
   if (Object.keys(tokens).length === 0 && flat) tokens.default = flat;
   return tokens;
 };
@@ -190,13 +171,18 @@ const slackBotTokensOf = (config: OpenclawConfig): Record<string, string> => {
 export const slackBotTokens = (
   files: readonly string[] = openclawConfigPaths(),
 ): Record<string, string> => {
-  const tokens = findInOpenclawConfig((config) => {
-    const found = slackBotTokensOf(config);
+  const missing: string[] = [];
+  const tokens = findInOpenclawConfig((config, file) => {
+    const found = slackBotTokensOf(
+      config,
+      credentialEnv(config.env?.vars, file),
+      missing,
+    );
     return Object.keys(found).length ? found : undefined;
   }, files);
   if (!tokens)
     throw new Error(
-      `No Slack bot token found in OpenClaw config (searched ${files.join(', ')}); core reads plain tokens and env references (\${VAR}), not SecretRef objects`,
+      `No Slack bot token found in OpenClaw config (searched ${files.join(', ')}); core reads plain tokens and env references (\${VAR}), not SecretRef objects${missing.length ? `; unresolved: ${[...new Set(missing)].join(', ')}` : ''}`,
     );
   return tokens;
 };
@@ -228,7 +214,11 @@ export const gatewayToken = (
   if (fromEnv) return fromEnv;
   return (
     findInOpenclawConfig(
-      (config) => resolveCredential(config.gateway?.auth?.token),
+      (config, file) =>
+        resolveCredential(
+          config.gateway?.auth?.token,
+          credentialEnv(config.env?.vars, file),
+        ),
       files,
     ) ?? null
   );

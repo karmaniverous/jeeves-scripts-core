@@ -235,3 +235,31 @@ describe('env references in token fields (#61 second review)', () => {
     expect(() => slackBotTokens([primary])).toThrow(/not SecretRef objects/);
   });
 });
+
+describe('env sources for references (#61 third review)', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(process.env, 'OC_TEST_TOKEN');
+  });
+
+  it('resolves from the .env beside the config, then env.vars, with the process env first', () => {
+    fs.mkdirSync(path.dirname(primary), { recursive: true });
+    fs.writeFileSync(
+      path.join(path.dirname(primary), '.env'),
+      'OC_TEST_TOKEN=from-dotenv\nOC_TEST_SLACK=xoxb-dotenv\n',
+    );
+    write(primary, {
+      env: { vars: { OC_TEST_TOKEN: 'from-vars', OC_TEST_GW: 'gw-vars' } },
+      gateway: { auth: { token: '${OC_TEST_TOKEN}-${OC_TEST_GW}' } },
+      channels: { slack: { botToken: '${OC_TEST_SLACK}' } },
+    });
+    expect(gatewayToken([primary])).toBe('from-dotenv-gw-vars');
+    expect(slackBotTokens([primary])).toEqual({ default: 'xoxb-dotenv' });
+    process.env.OC_TEST_TOKEN = 'from-process';
+    expect(gatewayToken([primary])).toBe('from-process-gw-vars');
+  });
+
+  it('names the variables it could not resolve when no token is left', () => {
+    write(primary, { channels: { slack: { botToken: '${OC_TEST_NOPE}' } } });
+    expect(() => slackBotTokens([primary])).toThrow(/unresolved: OC_TEST_NOPE/);
+  });
+});
