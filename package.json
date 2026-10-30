@@ -22,6 +22,7 @@
     "@eslint/js": "^10.0.1",
     "@vitest/coverage-v8": "^5.0.5",
     "@vitest/eslint-plugin": "^1.6.28",
+    "basic-ftp": "^6.2.4",
     "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.7",
@@ -43,5 +44,8 @@
     "esbuild": true,
     "lefthook": true,
     "tesseract.js": false
+  },
+  "overrides": {
+    "basic-ftp": "$basic-ftp"
   }
 }
