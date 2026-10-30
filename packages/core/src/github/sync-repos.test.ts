@@ -154,4 +154,49 @@ describe('syncRepos when the default branch changed (#48)', () => {
       expect.stringContaining('warning: could not remove') as unknown,
     );
   });
+
+  it('leaves no fresh copy when the old mirror cannot be moved aside (second review)', () => {
+    world((args) => args.includes('checkout'));
+    const rename = fs.renameSync.bind(fs);
+    vi.spyOn(fs, 'renameSync').mockImplementation((from, to) => {
+      if (String(to).endsWith('.old')) throw new Error('EBUSY: open handle');
+      rename(from, to);
+    });
+    expect(() => {
+      syncRepos(w.deps);
+    }).toThrow('[repo-sync] 1 of 1 repos failed to sync');
+    expect(fs.existsSync(path.join(repoDir, 'stale.txt'))).toBe(true);
+    expect(fs.existsSync(repoDir + '.fresh')).toBe(false);
+    expect(stored()).toMatchObject({
+      lastError: expect.stringContaining('EBUSY') as unknown,
+    });
+  });
+
+  it('records the swap error, not a failing rollback step', () => {
+    world((args) => args.includes('checkout'));
+    const rename = fs.renameSync.bind(fs);
+    vi.spyOn(fs, 'renameSync').mockImplementation((from, to) => {
+      if (String(from).endsWith('.fresh')) throw new Error('EPERM: swap');
+      if (String(from).endsWith('.old')) throw new Error('EPERM: rollback');
+      rename(from, to);
+    });
+    expect(() => {
+      syncRepos(w.deps);
+    }).toThrow();
+    expect(stored()).toMatchObject({
+      lastError: expect.stringContaining('EPERM: swap') as unknown,
+    });
+  });
+
+  it('clears copies an earlier reclone left behind on a normal sync', () => {
+    world();
+    for (const suffix of ['.old', '.fresh']) {
+      fs.mkdirSync(repoDir + suffix);
+      fs.writeFileSync(path.join(repoDir + suffix, 'x.txt'), 'x');
+    }
+    syncRepos(w.deps);
+    expect(fs.existsSync(repoDir + '.old')).toBe(false);
+    expect(fs.existsSync(repoDir + '.fresh')).toBe(false);
+    expect(fs.existsSync(path.join(repoDir, 'stale.txt'))).toBe(true);
+  });
 });

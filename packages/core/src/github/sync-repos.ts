@@ -76,9 +76,40 @@ function pull(
   git('clean', '-fdx');
 }
 
+/** Remove `dir` if present; a failure only warns (the next sync retries). */
+function removeQuietly(dir: string): void {
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+  } catch (e) {
+    console.log(
+      `[repo-sync] warning: could not remove ${dir}: ${getErrorMessage(e)}`,
+    );
+  }
+}
+
 /**
- * Clone `branch` into a sibling temp directory and swap it in for
- * `repoDir`; the mirror's neighbours (e.g. `.meta/`) are untouched.
+ * Run each rollback step, so one failing doesn't skip the rest; the caller
+ * rethrows its own error, never a rollback's.
+ */
+function rollBack(...steps: (() => void)[]): void {
+  for (const step of steps) {
+    try {
+      step();
+    } catch (e) {
+      console.log(
+        `[repo-sync] warning: rollback step failed: ${getErrorMessage(e)}`,
+      );
+    }
+  }
+}
+
+/**
+ * Replace `repoDir` with a fresh clone of `branch`: clone beside it
+ * (`repo.fresh`), move the old mirror aside (`repo.old`), move the clone
+ * in, delete the old one; the mirror's neighbours (e.g. `.meta/`) are
+ * untouched. Any failure before the swap completes leaves the
+ * old mirror at `repoDir` and no copy behind, and rethrows the original
+ * error (#61 reviews). Leftover copies are also cleared on every sync.
  */
 function reclone(
   deps: SyncDeps,
@@ -93,27 +124,33 @@ function reclone(
   try {
     cloneInto(deps, url, branch, fresh);
   } catch (e) {
-    fs.rmSync(fresh, { recursive: true, force: true });
+    rollBack(() => {
+      fs.rmSync(fresh, { recursive: true, force: true });
+    });
     throw e;
   }
-  fs.renameSync(repoDir, old);
+  try {
+    fs.renameSync(repoDir, old);
+  } catch (e) {
+    rollBack(() => {
+      fs.rmSync(fresh, { recursive: true, force: true });
+    });
+    throw e;
+  }
   try {
     fs.renameSync(fresh, repoDir);
   } catch (e) {
-    // Put the old mirror back so repo/ never goes missing (#61 review).
-    fs.renameSync(old, repoDir);
-    fs.rmSync(fresh, { recursive: true, force: true });
+    rollBack(
+      () => {
+        fs.renameSync(old, repoDir);
+      },
+      () => {
+        fs.rmSync(fresh, { recursive: true, force: true });
+      },
+    );
     throw e;
   }
-  try {
-    fs.rmSync(old, { recursive: true, force: true });
-  } catch (e) {
-    // The new mirror is in place: a leftover old copy is not a failed sync;
-    // the next reclone clears it.
-    console.log(
-      `[repo-sync] warning: could not remove ${old}: ${getErrorMessage(e)}`,
-    );
-  }
+  removeQuietly(old);
 }
 
 /** Clone the repo, or bring an existing mirror to its default branch. */
@@ -126,6 +163,9 @@ function syncOne(
   const target = path.join(deps.orgBase(owner), 'github', owner, repo);
   const repoDir = path.join(target, 'repo');
   const url = `https://github.com/${ownerRepo}.git`;
+  // Copies a failed or interrupted reclone left behind (#61 review).
+  removeQuietly(`${repoDir}.fresh`);
+  removeQuietly(`${repoDir}.old`);
 
   if (!fs.existsSync(repoDir)) {
     console.log(`CLONE ${ownerRepo} -> ${repoDir} (${defaultBranch})`);

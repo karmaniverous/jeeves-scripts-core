@@ -36,7 +36,7 @@ flowchart LR
 
 - **build-registry** runs daily, enumerating repos via GitHub API and writing the registry file.
 - **sync-repos** and **sync-issues** read the registry and process repos in round-robin order, prioritizing least-recently-synced.
-- **sync-repos** keeps each mirror on the repo's current default branch (from the registry): when it changed, the single-branch clone's refspec is switched and the fetch names its destination ref, so `origin/<branch>` always exists. A mirror that still can't be updated is cloned afresh into `repo.fresh` beside it and swapped in, leaving `.meta/` alone. A repo that fails even so is recorded (`lastError`) and the run fails after the batch (#48). Mirrors are reference copies: nothing is committed in them.
+- **sync-repos** keeps each mirror on the repo's current default branch (from the registry): when it changed, the single-branch clone's refspec is switched and the fetch names its destination ref, so `origin/<branch>` always exists. A mirror that still can't be updated is cloned afresh into `repo.fresh` beside it and swapped in, leaving `.meta/` alone; if the swap fails the old mirror stays in place, and any `repo.fresh` or `repo.old` left behind is removed on the next sync. A repo that fails even so is recorded (`lastError`) and the run fails after the batch (#48). Mirrors are reference copies: nothing is committed in them.
 - **sync-issues** maintains change history using JSON patches (up to 50 history entries per issue).
 - **poll-collabs** / **drain-collabs** manage bot access across repos, switching between primary account and bot user as needed.
 - **watch** tracks notification state per user and detects important reasons (review_requested, mention, etc.).
