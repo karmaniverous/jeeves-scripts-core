@@ -235,6 +235,7 @@ export function watchNotifications(deps: GitHubJobDeps): void {
       perUser[user] = { fetched, importantNew };
     }
 
+    fs.mkdirSync(path.dirname(LOG_PATH), { recursive: true });
     fs.appendFileSync(
       LOG_PATH,
       `- ${deps.now()} \u2014 fetched: ${USERS.map((u) => `${u}=${String(perUser[u]?.fetched ?? 0)}`).join(', ')}; alerts: ${String(alerts.length)}\n`,

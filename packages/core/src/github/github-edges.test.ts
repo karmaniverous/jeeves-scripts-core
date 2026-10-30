@@ -78,6 +78,15 @@ describe('drainCollabs failures', () => {
 });
 
 describe('watchNotifications edges', () => {
+  it('creates watch/ when the content tree has none (#41)', () => {
+    w = githubWorld(() => []);
+    vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
+    const log = path.join(w.deps.githubDir, 'watch', 'log.md');
+    fs.rmSync(path.dirname(log), { recursive: true, force: true });
+    watchNotifications(w.deps);
+    expect(fs.readFileSync(log, 'utf8')).toContain('alerts: 0');
+  });
+
   it('raises the 96-hour review alert once, links issues, and falls back without a repo URL', () => {
     const now = Date.parse('2026-04-01T12:00:00.000Z');
     const notes = [
