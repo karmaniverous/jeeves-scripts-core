@@ -151,3 +151,45 @@ describe('backups', () => {
     expect(backupsToPrune(names.slice(0, 3), 'config.json')).toEqual([]);
   });
 });
+
+describe('review fixes (#62)', () => {
+  it('rejects keys that reach the prototype', () => {
+    for (const key of ['__proto__', 'constructor', 'prototype'])
+      expect(() => parseConfigPath(`a.${key}.b`)).toThrow(
+        /is not a config key/,
+      );
+  });
+
+  it('only sees own properties', () => {
+    expect(() =>
+      applyConfigEdit({ instance: {} }, ['instance', 'toString'], {
+        unset: true,
+      }),
+    ).toThrow(/not set; nothing to remove/);
+    const r = applyConfigEdit({ instance: {} }, ['instance', 'toString'], {
+      set: 1,
+    });
+    expect(r.before).toBeUndefined();
+  });
+
+  it('names a second backup in the same second, and prunes in time order', () => {
+    const at = new Date('2026-10-30T12:00:00Z');
+    expect(configBackupName('c.json', at, 2)).toBe(
+      'c.json.20261030T120000Z-2.bak',
+    );
+    expect(
+      backupsToPrune(
+        [
+          'config.json.20261030T120000Z-2.bak',
+          'config.json.20261030T120000Z.bak',
+          'config.json.20261029T000000Z.bak',
+        ],
+        'config.json',
+        1,
+      ),
+    ).toEqual([
+      'config.json.20261029T000000Z.bak',
+      'config.json.20261030T120000Z.bak',
+    ]);
+  });
+});

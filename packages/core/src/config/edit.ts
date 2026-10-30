@@ -7,6 +7,9 @@
  * (`cli/config-edit`) does the file work and validation.
  */
 
+/** Keys that would reach an object's prototype; never config keys. */
+const RESERVED_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+
 /** A parsed config path: the keys from the root down. */
 export type ConfigPath = readonly string[];
 
@@ -53,6 +56,8 @@ export const parseConfigPath = (text: string): ConfigPath => {
     }
   }
   if (keys.length === 0) fail('empty');
+  const reserved = keys.find((k) => RESERVED_KEYS.has(k));
+  if (reserved !== undefined) fail(`"${reserved}" is not a config key`);
   return keys;
 };
 
@@ -108,7 +113,7 @@ export const applyConfigEdit = (
   if (!isRecord(root)) throw new Error('The config is not a JSON object.');
   let node: Record<string, unknown> = root;
   for (const [i, key] of keys.slice(0, -1).entries()) {
-    const next = node[key];
+    const next = Object.hasOwn(node, key) ? node[key] : undefined;
     if (next === undefined && 'set' in edit) node[key] = {};
     else if (!isRecord(next))
       throw new Error(
@@ -117,12 +122,12 @@ export const applyConfigEdit = (
     node = node[key] as Record<string, unknown>;
   }
   const last = keys[keys.length - 1] ?? '';
-  const before = node[last];
+  const before = Object.hasOwn(node, last) ? node[last] : undefined;
   if ('set' in edit) {
     node[last] = structuredClone(edit.set);
     return { doc: root, before, after: edit.set };
   }
-  if (!(last in node))
+  if (!Object.hasOwn(node, last))
     throw new Error(`${formatConfigPath(keys)} is not set; nothing to remove.`);
   Reflect.deleteProperty(node, last);
   return { doc: root, before, after: undefined };
@@ -146,16 +151,23 @@ export const describeConfigEdit = (
 /** How many backups `config set` / `unset` keep. */
 export const CONFIG_BACKUPS_KEPT = 20;
 
-/** `config.json.<UTC yyyymmddTHHMMSSZ>.bak` for a moment. */
-export const configBackupName = (configFile: string, at: Date): string =>
+/**
+ * `config.json.<UTC yyyymmddTHHMMSSZ>.bak` for a moment; an `attempt` above 1
+ * adds `-<attempt>` for a second backup within the same second.
+ */
+export const configBackupName = (
+  configFile: string,
+  at: Date,
+  attempt = 1,
+): string =>
   `${configFile}.${at
     .toISOString()
     .replace(/[-:]/g, '')
-    .replace(/\.\d{3}Z$/, 'Z')}.bak`;
+    .replace(/\.\d{3}Z$/, 'Z')}${attempt > 1 ? `-${String(attempt)}` : ''}.bak`;
 
 /**
  * The backups of `configFileName` to delete so the newest `keep` remain,
- * given a directory listing. Backup names sort by time.
+ * given a directory listing; ordered by time, then by `-<n>` suffix.
  */
 export const backupsToPrune = (
   names: readonly string[],
@@ -163,8 +175,13 @@ export const backupsToPrune = (
   keep: number = CONFIG_BACKUPS_KEPT,
 ): string[] => {
   const pattern = new RegExp(
-    `^${configFileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.\\d{8}T\\d{6}Z\\.bak$`,
+    `^${configFileName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\.(\\d{8}T\\d{6}Z)(?:-(\\d+))?\\.bak$`,
   );
-  const backups = names.filter((n) => pattern.test(n)).sort();
+  const backups = names
+    .map((name) => ({ name, m: pattern.exec(name) }))
+    .filter((b): b is { name: string; m: RegExpExecArray } => b.m !== null)
+    .map(({ name, m }) => ({ name, stamp: m[1] ?? '', n: Number(m[2] ?? 1) }))
+    .sort((x, y) => x.stamp.localeCompare(y.stamp) || x.n - y.n)
+    .map((b) => b.name);
   return backups.slice(0, Math.max(0, backups.length - keep));
 };
