@@ -24,7 +24,7 @@ import { isEnoent } from './fs-errors.js';
  * accepts wherever a credential may be a plain string. Core doesn't resolve
  * SecretRefs: a field holding one reads as unset.
  */
-export const secretRefSchema = z.looseObject({
+const secretRefSchema = z.looseObject({
   /** Where OpenClaw resolves the secret from. */
   source: z.enum(['env', 'file', 'exec', 'store']),
   /** The secret's id within its source. */
