@@ -40,21 +40,13 @@ import {
   saveCursor,
 } from './lib/cursors.js';
 import { pollChannel } from './lib/read-channel.js';
-import { RATE_LIMIT_MS, sleep } from './lib/slack-api.js';
+import { HISTORY_FLOOR, RATE_LIMIT_MS, sleep } from './lib/slack-api.js';
 import {
   loadChannelCache,
   saveChannelCache,
   userNames,
 } from './lib/slack-cache.js';
 import { discoverAll, refreshUsers } from './lib/slack-sync.js';
-
-/**
- * The earliest `oldest` to send. Slack treats `oldest: '0'` as unset and
- * answers with the channel's newest messages, which would skip everything
- * older; `'1'` is a real ts, so the first page is the channel's first
- * messages (#50).
- */
-export const HISTORY_FLOOR = '1';
 
 /** A Slack ts `days` before `now` (epoch ms), never before {@link HISTORY_FLOOR}. */
 const tsDaysBefore = (now: number, days: number): string =>

@@ -71,6 +71,14 @@ export interface HistoryResponse {
   response_metadata?: { next_cursor?: string };
 }
 
+/**
+ * The earliest `oldest` to send. Slack treats `oldest: '0'` as unset and
+ * answers with the channel's newest messages, which would skip everything
+ * older; `'1'` is a real ts, so the first page is the channel's first
+ * messages (#50).
+ */
+export const HISTORY_FLOOR = '1';
+
 /** Messages per `conversations.history` page. */
 export const HISTORY_PAGE_SIZE = 200;
 
@@ -82,8 +90,7 @@ export const HISTORY_PAGE_SIZE = 200;
  * same call with `oldest` moved to this page's newest message: a caller can
  * stop between pages and resume from its saved read position. The exception
  * is `oldest: '0'`, which Slack treats as unset and answers with the
- * channel's newest messages: never pass it (`HISTORY_FLOOR` in `poll.ts`
- * is `'1'`, #50).
+ * channel's newest messages: never pass it ({@link HISTORY_FLOOR}, #50).
  */
 export async function fetchHistoryPage(
   channelId: string,

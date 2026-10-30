@@ -80,6 +80,12 @@ export const onDemandJobs: readonly RegistryEntry[] = [
     load: () => import('../people/people-propose.js'),
   },
   {
+    id: 'slack-backfill-history',
+    domain: 'slack',
+    module: 'slack/backfill-history',
+    load: () => import('../slack/backfill-history.js'),
+  },
+  {
     id: 'x-like',
     domain: 'x',
     module: 'x/like',
