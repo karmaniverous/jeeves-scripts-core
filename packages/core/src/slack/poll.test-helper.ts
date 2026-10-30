@@ -58,10 +58,6 @@ const defaultApi = (): Record<string, Handler> => ({
 });
 
 /**
- * Register the fixture's hooks; returns accessors valid inside tests. The
- * API handlers reset before each test.
- */
-/**
  * A `conversations.history` handler for C1 holding `n` top-level messages
  * (ts `200.000001` up), ordered as Slack orders them with no `latest`
  * (#50): for a real `oldest`, the `limit` messages just after it, newest
@@ -94,6 +90,10 @@ export const c1History =
     };
   };
 
+/**
+ * Register the fixture's hooks; returns accessors valid inside tests. The
+ * API handlers reset before each test.
+ */
 export const usePollFixture = () => {
   const baseDir = useTempConfig();
   const api: Record<string, Handler> = {};
