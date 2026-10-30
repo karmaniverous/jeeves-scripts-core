@@ -57,6 +57,8 @@ interface Progress {
 
 /** What {@link backfillHistory} reads and calls (Slack itself over `fetch`). */
 export interface SlackBackfillDeps {
+  /** The Slack archive root; skip when it does not exist. */
+  slackDir: string;
   /** Bot tokens by account. */
   tokens: () => Record<string, string>;
   /** Runner state (backfill progress). */
@@ -69,6 +71,7 @@ export interface SlackBackfillDeps {
 
 /** The live collaborators, from config. */
 export const slackBackfillDeps = (): SlackBackfillDeps => ({
+  slackDir: constants().SLACK_DOMAIN_DIR,
   tokens: getTokens,
   runner: () => getRunnerClient(),
   config: () => loadConfig().slack,
@@ -103,6 +106,10 @@ export async function backfillHistory(
   flags: Partial<ParsedArgs<typeof backfillFlags>>,
   deps: SlackBackfillDeps,
 ): Promise<void> {
+  if (!fs.existsSync(deps.slackDir)) {
+    console.log('[skip] Slack domain directory not configured');
+    return;
+  }
   const channelId = flags.channel;
   if (!channelId) throw new Error('--channel <id> is required');
   const info = loadChannelCache()[channelId];
@@ -149,14 +156,8 @@ export async function backfillHistory(
       now: deps.now,
     });
 
+    // `more` means at least one message was started, so progress is saved.
     if (more) {
-      // Keep the bound even if no message was written this run.
-      if (!readProgress(client, channelId))
-        client.setState(
-          BACKFILL_STATE_NAMESPACE,
-          channelId,
-          JSON.stringify({ before, position: start } satisfies Progress),
-        );
       console.log(
         `[slack-backfill] ${channelId}: ${String(written)} written, rerun to resume`,
       );
@@ -178,11 +179,5 @@ export default defineRunnable({
   description:
     "Re-read a Slack channel from its first message up to --before (default: the oldest archived message); resumable, never moves slack-poll's read position",
   flags: backfillFlags,
-  run: async ({ flags }) => {
-    if (!fs.existsSync(constants().SLACK_DOMAIN_DIR)) {
-      console.log('[skip] Slack domain directory not configured');
-      return;
-    }
-    await backfillHistory(flags, slackBackfillDeps());
-  },
+  run: ({ flags }) => backfillHistory(flags, slackBackfillDeps()),
 });

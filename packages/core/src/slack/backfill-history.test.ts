@@ -14,6 +14,7 @@ import {
   backfillHistory,
   oldestArchivedTs,
   type SlackBackfillDeps,
+  slackBackfillDeps,
 } from './backfill-history.js';
 import { pollSlack } from './poll.js';
 import { usePollFixture } from './poll.test-helper.js';
@@ -74,6 +75,7 @@ const backfillDeps = (
 ): SlackBackfillDeps => {
   const d = deps();
   return {
+    slackDir: d.slackDir,
     tokens: d.tokens,
     runner: d.runner,
     config: d.config,
@@ -155,5 +157,22 @@ describe('slack-backfill-history (#50)', () => {
     await expect(
       backfillHistory({ channel: 'C1' }, backfillDeps()),
     ).rejects.toThrow(/Nothing archived for C1/);
+  });
+});
+
+describe('slack-backfill-history wiring', () => {
+  it('skips when the Slack directory does not exist', async () => {
+    fs.rmSync(deps().slackDir, { recursive: true, force: true });
+    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    await backfillHistory({ channel: 'C1' }, backfillDeps());
+    expect(log).toHaveBeenCalledWith(
+      '[skip] Slack domain directory not configured',
+    );
+  });
+
+  it('reads the Slack directory and the slack block from config', () => {
+    const live = slackBackfillDeps();
+    expect(live.slackDir).toBe(deps().slackDir);
+    expect(live.config().backfillBudgetSeconds).toBe(60);
   });
 });
