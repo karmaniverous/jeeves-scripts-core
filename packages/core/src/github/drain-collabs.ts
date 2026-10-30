@@ -8,14 +8,18 @@
  * and the bot user (to accept invitations) as needed.
  */
 
+import { getErrorMessage } from '@karmaniverous/jeeves';
+
 import { argValue, type ParsedArgs } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   collabArgs,
   collabFlags,
+  GhAccountMismatchError,
   ghReady,
   type GitHubJobDeps,
   githubJobDeps,
+  verifyActingAccount,
 } from './lib/github-deps.js';
 
 interface CollabItem {
@@ -53,6 +57,7 @@ export function drainCollabs(
       try {
         if (item.kind === 'repo') {
           deps.gh(['auth', 'switch', '-u', owner]);
+          verifyActingAccount(deps, owner);
           const repo = item.full_name!;
           const perm = item.permission ?? 'push';
           const res = deps.gh(
@@ -74,6 +79,7 @@ export function drainCollabs(
 
         if ((item.kind as string) === 'invite') {
           deps.gh(['auth', 'switch', '-u', botUser]);
+          verifyActingAccount(deps, botUser);
           const inviteId = item.id!;
           const res = deps.gh(
             [
@@ -93,9 +99,10 @@ export function drainCollabs(
         client.done(id);
         processed++;
       } catch (e) {
-        const errorMsg = e instanceof Error ? e.message : String(e);
-        client.fail(id, errorMsg);
+        client.fail(id, getErrorMessage(e));
         processed++;
+        // Acting as the wrong account: stop before anything else is written.
+        if (e instanceof GhAccountMismatchError) throw e;
       }
     }
     console.log(`[drain-collabs] processed ${String(processed)} items`);

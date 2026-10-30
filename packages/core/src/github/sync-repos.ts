@@ -21,6 +21,7 @@ import {
   oldestBatch,
   type RepoRegistry,
   seedRoundRobin,
+  verifyActingAccount,
 } from './lib/github-deps.js';
 
 /** Repos synced per run. */
@@ -92,6 +93,7 @@ export function syncRepos(deps: GitHubJobDeps): void {
       `[repo-sync] start ${deps.now()} (batch=${String(BATCH_SIZE)})`,
     );
     deps.run(deps.bin, ['auth', 'switch', '-u', deps.account]);
+    verifyActingAccount(deps, deps.account);
 
     const registry = readJson<RepoRegistry>(deps.registryPath, { repos: {} });
     seedRoundRobin(

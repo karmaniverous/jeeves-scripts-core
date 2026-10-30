@@ -12,7 +12,12 @@
 
 import fs from 'node:fs';
 
-import { nowIso, run, sleepAsync } from '@karmaniverous/jeeves';
+import {
+  getErrorMessage,
+  nowIso,
+  run,
+  sleepAsync,
+} from '@karmaniverous/jeeves';
 import {
   getRunnerClient,
   type RunnerClient,
@@ -95,6 +100,37 @@ export function ghReady(deps: Pick<GitHubJobDeps, 'configDir'>): boolean {
   if (fs.existsSync(deps.configDir)) return true;
   console.log('[skip] GitHub CLI config not configured');
   return false;
+}
+
+/** The acting `gh` login is not the one a job just switched to (#59). */
+export class GhAccountMismatchError extends Error {
+  override name = 'GhAccountMismatchError';
+}
+
+/**
+ * Check that `gh` now acts as `expected` (`gh api user --jq .login`,
+ * compared case-insensitively, as GitHub logins are). Call it after every
+ * `gh auth switch`, before the next `gh` call (#59).
+ *
+ * @throws GhAccountMismatchError when the login differs or can't be read.
+ */
+export function verifyActingAccount(
+  deps: Pick<GitHubJobDeps, 'gh'>,
+  expected: string,
+): void {
+  let got: string;
+  try {
+    got = deps.gh(['api', 'user', '--jq', '.login']).out.trim();
+  } catch (e) {
+    throw new GhAccountMismatchError(
+      `acting gh login unknown, expected "${expected}": ${getErrorMessage(e)}`,
+      { cause: e },
+    );
+  }
+  if (got.toLowerCase() !== expected.toLowerCase())
+    throw new GhAccountMismatchError(
+      `acting gh login is "${got}", expected "${expected}"`,
+    );
 }
 
 /** The collaborator jobs' flags. */

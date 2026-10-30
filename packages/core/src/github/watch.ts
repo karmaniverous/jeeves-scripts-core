@@ -17,6 +17,7 @@ import {
   ghReady,
   type GitHubJobDeps,
   githubJobDeps,
+  verifyActingAccount,
 } from './lib/github-deps.js';
 
 const STATE_NS = 'github';
@@ -102,6 +103,7 @@ export function watchNotifications(deps: GitHubJobDeps): void {
   try {
     for (const user of USERS) {
       deps.gh(['auth', 'switch', '-u', user]);
+      verifyActingAccount(deps, user);
       const res = deps.gh(
         [
           'api',

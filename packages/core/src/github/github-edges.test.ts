@@ -47,7 +47,7 @@ describe('pollCollabs paging', () => {
     });
     pollCollabs({}, w.deps);
     const pages = w.ghCalls
-      .filter((c) => c[0] === 'api')
+      .filter((c) => c[0] === 'api' && c[1] !== 'user')
       .map((c) => /[?&]page=(\d+)/.exec(c[3] ?? '')?.[1]);
     expect(pages).toEqual(['1', '2', '1', '2']);
     expect(w.runner.queues.get('gh-collabs')).toHaveLength(200);
@@ -58,8 +58,14 @@ describe('drainCollabs failures', () => {
   it('fails an invite whose accept fails, with gh output or a fallback message', () => {
     let n = 0;
     w = githubWorld();
+    let acting = '';
     w.deps.gh = (args) => {
-      if (args[0] === 'auth') return { ok: true, status: 0, out: '', err: '' };
+      if (args[0] === 'auth') {
+        acting = args[3] ?? '';
+        return { ok: true, status: 0, out: '', err: '' };
+      }
+      if (args[1] === 'user')
+        return { ok: true, status: 0, out: acting, err: '' };
       n++;
       return n === 1
         ? { ok: false, status: 1, out: 'Not Found', err: '' }
@@ -132,9 +138,11 @@ describe('watchNotifications edges', () => {
         },
       },
     ];
-    w = githubWorld((args) =>
-      args[0] === 'api' && w?.ghCalls.at(-2)?.[3] === 'acme' ? notes : [],
-    );
+    let user = '';
+    w = githubWorld((args) => {
+      if (args[0] === 'auth') user = args[3] ?? '';
+      return args[0] === 'api' && user === 'acme' ? notes : [];
+    });
     let out = '';
     vi.spyOn(process.stdout, 'write').mockImplementation(
       (s: string | Uint8Array) => {

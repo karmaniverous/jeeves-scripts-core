@@ -136,13 +136,7 @@ describe('syncIssues', () => {
       w.deps.registryPath,
       JSON.stringify({ repos: { 'acme/one': {}, 'acme/bad': {} } }),
     );
-    w.deps.run = () => {
-      throw new Error('no such account');
-    };
     await syncIssues(w.deps);
-    expect(logs).toContain(
-      '[issues-sync] warning: account switch failed: no such account',
-    );
     const file = path.join(
       w.dir,
       'content',
@@ -182,9 +176,23 @@ describe('syncIssues', () => {
     expect(ISSUE_BATCH).toBe(10);
   });
 
+  it('fails, storing nothing, when the account switch fails (#59)', async () => {
+    writeRegistry({ 'acme/one': {} });
+    w.deps.run = () => {
+      throw new Error('no such account');
+    };
+    await expect(syncIssues(w.deps)).rejects.toThrow('no such account');
+    expect(w.ghCalls).toEqual([]);
+  });
+
   it('treats an empty result as no issues', async () => {
     writeRegistry({ 'acme/one': {} });
-    w.deps.gh = () => ({ ok: true, status: 0, out: '[]', err: '' });
+    w.deps.gh = (args) => ({
+      ok: true,
+      status: 0,
+      out: args[1] === 'user' ? 'acme' : '[]',
+      err: '',
+    });
     await syncIssues(w.deps);
     expect(item('github', 'issues-sync', 'acme/one')).toEqual({
       lastSyncedAt: GH_NOW,

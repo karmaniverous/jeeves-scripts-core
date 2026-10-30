@@ -4,7 +4,9 @@
  * GitHub runnable collaborators for tests: a temp directory holding the gh
  * config dir and the archive, a scripted `gh` (answers by matching the
  * joined arguments), a recording command runner, the in-memory runner and
- * a fixed clock. Test support only.
+ * a fixed clock. `gh auth switch -u <login>` (through `gh` or `run`) sets
+ * the acting login that `gh api user --jq .login` reports; `pinLogin` makes
+ * it report a fixed login (or fail) whatever the switches. Test support only.
  */
 
 import fs from 'node:fs';
@@ -28,6 +30,8 @@ export interface GitHubWorld {
   runner: ReturnType<typeof fakeRunnerClient>;
   ghCalls: string[][];
   runCalls: string[][];
+  /** Report this login (or fail with this error) from now on, whatever the switches. */
+  pinLogin: (login: string | Error) => void;
   cleanup: () => void;
 }
 
@@ -47,12 +51,23 @@ export function githubWorld(
   const runner = fakeRunnerClient();
   const ghCalls: string[][] = [];
   const runCalls: string[][] = [];
+  let acting = over.account ?? 'acme';
+  let pinned: string | Error | undefined;
+  const noteSwitch = (args: string[]) => {
+    const at = args.indexOf('-u');
+    if (args[0] === 'auth' && args[1] === 'switch' && at >= 0)
+      acting = args[at + 1] ?? acting;
+  };
   const gh = (
     args: string[],
     options: { allowFail?: boolean } = {},
   ): GhResult => {
     ghCalls.push(args);
-    const body = answer(args);
+    noteSwitch(args);
+    const body =
+      args.join(' ') === 'api user --jq .login'
+        ? (pinned ?? acting)
+        : answer(args);
     if (body instanceof Error) {
       if (options.allowFail)
         return { ok: false, status: 1, out: '', err: body.message };
@@ -77,6 +92,7 @@ export function githubWorld(
     gh,
     run: (cmd, args) => {
       runCalls.push([cmd, ...args]);
+      noteSwitch(args);
       return '';
     },
     runner: () => runner.client,
@@ -90,6 +106,9 @@ export function githubWorld(
     runner,
     ghCalls,
     runCalls,
+    pinLogin: (login) => {
+      pinned = login;
+    },
     cleanup: () => {
       fs.rmSync(dir, { recursive: true, force: true });
     },
