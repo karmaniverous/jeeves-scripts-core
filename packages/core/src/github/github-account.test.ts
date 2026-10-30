@@ -110,7 +110,7 @@ describe('GitHub jobs stop when gh acts as the wrong account (#59)', () => {
     },
   );
 
-  it('github-drain-collabs fails the item it was on and leaves the rest pending', () => {
+  it('github-drain-collabs fails the item it was on, queues it again and leaves the rest pending', () => {
     w = githubWorld(() => []);
     w.pinLogin('jane');
     for (const name of ['a', 'b', 'c'])
@@ -123,10 +123,17 @@ describe('GitHub jobs stop when gh acts as the wrong account (#59)', () => {
     }).toThrow(GhAccountMismatchError);
     const queue = w.runner.queues.get('gh-collabs') ?? [];
     const mismatch = 'acting gh login is "jane", expected "acme"';
-    expect(queue.map((i) => [i.status, i.error])).toEqual([
-      ['failed', mismatch],
-      ['pending', undefined],
-      ['pending', undefined],
+    expect(
+      queue.map((i) => [
+        i.status,
+        i.error,
+        (i.payload as { full_name: string }).full_name,
+      ]),
+    ).toEqual([
+      ['failed', mismatch, 'acme/a'],
+      ['pending', undefined, 'acme/b'],
+      ['pending', undefined, 'acme/c'],
+      ['pending', undefined, 'acme/a'],
     ]);
   });
 

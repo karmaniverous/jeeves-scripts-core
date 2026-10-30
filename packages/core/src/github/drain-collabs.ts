@@ -106,9 +106,13 @@ export function drainCollabs(
       } catch (e) {
         client.fail(id, getErrorMessage(e));
         processed++;
-        // Acting as the wrong account: stop before anything else is written;
-        // the items not yet dequeued stay pending.
-        if (e instanceof GhAccountMismatchError) throw e;
+        // Acting as the wrong account: stop before anything else is written.
+        // dequeue() spent this item's only attempt, so queue it again for the
+        // next run; the items not yet dequeued stay pending (#61 reviews).
+        if (e instanceof GhAccountMismatchError) {
+          client.enqueue('gh-collabs', payload);
+          throw e;
+        }
       }
     }
     console.log(`[drain-collabs] processed ${String(processed)} items`);
