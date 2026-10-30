@@ -87,7 +87,7 @@ describe('syncRepos', () => {
     );
   });
 
-  it('adds repos new to the registry and records a failed sync', () => {
+  it('adds repos new to the registry, records a failed sync and fails the run (#48)', () => {
     writeRegistry({ 'acme/one': {} });
     syncRepos(w.deps);
     writeRegistry({ 'acme/one': {}, 'acme/new': {} });
@@ -100,9 +100,14 @@ describe('syncRepos', () => {
         throw new Error('auth failed');
       return failing.deps.run(cmd, args);
     };
-    syncRepos(w.deps);
+    expect(() => {
+      syncRepos(w.deps);
+    }).toThrow('[repo-sync] 1 of 2 repos failed to sync');
     failing.cleanup();
     expect(logs).toContain('[repo-sync] adding new repo: acme/new');
+    expect(item('github', 'repos-sync', 'acme/one')).not.toHaveProperty(
+      'lastError',
+    );
     expect(item('github', 'repos-sync', 'acme/new')).toMatchObject({
       lastError: 'auth failed',
     });

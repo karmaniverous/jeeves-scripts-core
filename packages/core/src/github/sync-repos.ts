@@ -4,14 +4,18 @@
  * Syncs GitHub repo clones in round-robin batches through runner state
  * items (`github` / `repos-sync`): reads the repo registry, tracks every
  * unarchived repo, then shallow-clones or hard-resets the
- * {@link BATCH_SIZE} least recently synced. Skips when the gh config
- * directory does not exist.
+ * {@link BATCH_SIZE} least recently synced. A mirror follows the repo's
+ * current default branch; one that can't be brought up to date is cloned
+ * afresh beside it and swapped in. A repo that still fails is recorded,
+ * and the run fails after the batch (#48). Skips when the gh config
+ * directory does not exist. Mirrors are reference copies: nothing is ever
+ * committed in them.
  */
 
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { ensureDir, readJson } from '@karmaniverous/jeeves';
+import { ensureDir, getErrorMessage, readJson } from '@karmaniverous/jeeves';
 
 import { defineRunnable } from '../runnables/define-runnable.js';
 import {
@@ -29,11 +33,79 @@ export const BATCH_SIZE = 15;
 const STATE_NS = 'github';
 const STATE_KEY = 'repos-sync';
 
-/** Clone the repo, or reset an existing clone to the remote default branch. */
+type SyncDeps = Pick<GitHubJobDeps, 'orgBase' | 'run'>;
+
+/** Shallow single-branch clone of `branch` into `dir`. */
+const cloneInto = (
+  deps: SyncDeps,
+  url: string,
+  branch: string,
+  dir: string,
+): void => {
+  deps.run('git', ['clone', '--depth', '1', '--branch', branch, url, dir]);
+};
+
+/**
+ * Bring an existing mirror to `origin/<branch>`. When the checked-out
+ * branch differs (the repo's default branch changed), the single-branch
+ * clone's refspec is switched first; the fetch names its destination ref,
+ * so `origin/<branch>` exists whatever the stored refspec (#48).
+ */
+function pull(
+  deps: SyncDeps,
+  repoDir: string,
+  url: string,
+  branch: string,
+): void {
+  const git = (...args: string[]) => deps.run('git', ['-C', repoDir, ...args]);
+  git('remote', 'set-url', 'origin', url);
+  const current = git('rev-parse', '--abbrev-ref', 'HEAD').trim();
+  if (current !== branch) {
+    console.log(`BRANCH ${repoDir}: ${current || '?'} -> ${branch}`);
+    git('remote', 'set-branches', 'origin', branch);
+  }
+  git(
+    'fetch',
+    '--depth',
+    '1',
+    'origin',
+    `+refs/heads/${branch}:refs/remotes/origin/${branch}`,
+  );
+  git('checkout', '-B', branch, `origin/${branch}`);
+  git('reset', '--hard', `origin/${branch}`);
+  git('clean', '-fdx');
+}
+
+/**
+ * Clone `branch` into a sibling temp directory and swap it in for
+ * `repoDir`; the mirror's neighbours (e.g. `.meta/`) are untouched.
+ */
+function reclone(
+  deps: SyncDeps,
+  repoDir: string,
+  url: string,
+  branch: string,
+): void {
+  const fresh = `${repoDir}.fresh`;
+  const old = `${repoDir}.old`;
+  fs.rmSync(fresh, { recursive: true, force: true });
+  fs.rmSync(old, { recursive: true, force: true });
+  try {
+    cloneInto(deps, url, branch, fresh);
+  } catch (e) {
+    fs.rmSync(fresh, { recursive: true, force: true });
+    throw e;
+  }
+  fs.renameSync(repoDir, old);
+  fs.renameSync(fresh, repoDir);
+  fs.rmSync(old, { recursive: true, force: true });
+}
+
+/** Clone the repo, or bring an existing mirror to its default branch. */
 function syncOne(
   ownerRepo: string,
   defaultBranch: string,
-  deps: Pick<GitHubJobDeps, 'orgBase' | 'run'>,
+  deps: SyncDeps,
 ): void {
   const [owner = '', repo = ''] = ownerRepo.split('/');
   const target = path.join(deps.orgBase(owner), 'github', owner, repo);
@@ -43,45 +115,19 @@ function syncOne(
   if (!fs.existsSync(repoDir)) {
     console.log(`CLONE ${ownerRepo} -> ${repoDir} (${defaultBranch})`);
     ensureDir(target);
-    deps.run('git', [
-      'clone',
-      '--depth',
-      '1',
-      '--branch',
-      defaultBranch,
-      url,
-      repoDir,
-    ]);
+    cloneInto(deps, url, defaultBranch, repoDir);
     return;
   }
 
   console.log(`PULL  ${ownerRepo} -> ${repoDir} (${defaultBranch})`);
-  deps.run('git', ['-C', repoDir, 'remote', 'set-url', 'origin', url]);
-  deps.run('git', [
-    '-C',
-    repoDir,
-    'fetch',
-    '--depth',
-    '1',
-    'origin',
-    defaultBranch,
-  ]);
-  deps.run('git', [
-    '-C',
-    repoDir,
-    'checkout',
-    '-B',
-    defaultBranch,
-    `origin/${defaultBranch}`,
-  ]);
-  deps.run('git', [
-    '-C',
-    repoDir,
-    'reset',
-    '--hard',
-    `origin/${defaultBranch}`,
-  ]);
-  deps.run('git', ['-C', repoDir, 'clean', '-fdx']);
+  try {
+    pull(deps, repoDir, url, defaultBranch);
+  } catch (e) {
+    console.log(
+      `RECLONE ${ownerRepo} (${defaultBranch}) after: ${getErrorMessage(e)}`,
+    );
+    reclone(deps, repoDir, url, defaultBranch);
+  }
 }
 
 /** Sync the next batch of repos. */
@@ -118,22 +164,20 @@ export function syncRepos(deps: GitHubJobDeps): void {
 
     for (const item of items) {
       const stored = item.value.defaultBranch;
-      const defaultBranch = typeof stored === 'string' ? stored : 'main';
+      const defaultBranch =
+        registry.repos[item.key]?.defaultBranch ??
+        (typeof stored === 'string' ? stored : 'main');
       try {
         syncOne(item.key, defaultBranch, deps);
         client.setItem(
           STATE_NS,
           STATE_KEY,
           item.key,
-          JSON.stringify({
-            lastSyncedAt: deps.now(),
-            defaultBranch:
-              registry.repos[item.key]?.defaultBranch ?? defaultBranch,
-          }),
+          JSON.stringify({ lastSyncedAt: deps.now(), defaultBranch }),
         );
         processed++;
       } catch (e) {
-        const msg = e instanceof Error ? e.message : String(e);
+        const msg = getErrorMessage(e);
         console.log(`[repo-sync] ERROR ${item.key}: ${msg}`);
         errors++;
         client.setItem(
@@ -152,6 +196,10 @@ export function syncRepos(deps: GitHubJobDeps): void {
     console.log(
       `[repo-sync] end ${deps.now()} - batch ${String(processed)}/${String(items.length)}, ${String(errors)} errors`,
     );
+    if (errors > 0)
+      throw new Error(
+        `[repo-sync] ${String(errors)} of ${String(items.length)} repos failed to sync`,
+      );
   } finally {
     client.close();
   }
