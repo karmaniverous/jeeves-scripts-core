@@ -20,23 +20,44 @@ import { z } from 'zod';
 import { isEnoent } from './fs-errors.js';
 
 /**
- * An OpenClaw SecretRef (`{ source, provider, id }`), which OpenClaw
- * accepts wherever a credential may be a plain string. Core doesn't resolve
- * SecretRefs: a field holding one reads as unset.
+ * A credential as OpenClaw accepts it: a string, possibly holding env
+ * references, or a SecretRef object (`{ source, provider, id }`). Any
+ * object counts as a SecretRef, so a new OpenClaw source never makes the
+ * config invalid (#61 reviews).
  */
-const secretRefSchema = z.looseObject({
-  /** Where OpenClaw resolves the secret from. */
-  source: z.enum(['env', 'file', 'exec', 'store']),
-  /** The secret's id within its source. */
-  id: z.string().min(1),
-});
+const secretInputSchema = z.union([z.string().min(1), z.looseObject({})]);
 
-/** A credential: a plain string or a {@link secretRefSchema | SecretRef} (#61 review). */
-const secretInputSchema = z.union([z.string().min(1), secretRefSchema]);
+/** OpenClaw's env reference names (`[A-Z_][A-Z0-9_]*`). */
+const ENV_REF = /\$\$\{[A-Z_][A-Z0-9_]*\}|\$\{([A-Z_][A-Z0-9_]*)\}/g;
+const BARE_ENV_REF = /^\$([A-Z_][A-Z0-9_]*)$/;
 
-/** The plain-string value of a credential; `undefined` for a SecretRef or unset. */
-const plain = (value: z.infer<typeof secretInputSchema> | undefined) =>
-  typeof value === 'string' ? value : undefined;
+/**
+ * The plain value of a credential, resolved as OpenClaw does: `${VAR}`
+ * anywhere in the string, or a whole-string `$VAR`, from the environment;
+ * `$${VAR}` is a literal `${VAR}`. `undefined` when unset, a SecretRef
+ * (core doesn't resolve those) or a reference to a missing or empty
+ * variable (OpenClaw leaves those unresolved).
+ */
+const resolveCredential = (
+  value: unknown,
+  env: NodeJS.ProcessEnv = process.env,
+): string | undefined => {
+  if (typeof value !== 'string' || value === '') return undefined;
+  const nonEmpty = (name: string): string | undefined => {
+    const v = env[name];
+    return v === undefined || v === '' ? undefined : v;
+  };
+  const bare = BARE_ENV_REF.exec(value);
+  if (bare) return nonEmpty(bare[1] ?? '');
+  const missing: string[] = [];
+  const out = value.replace(ENV_REF, (match: string, name?: string) => {
+    if (name === undefined) return match.slice(1);
+    const v = nonEmpty(name);
+    if (v === undefined) missing.push(name);
+    return v ?? '';
+  });
+  return missing.length > 0 ? undefined : out;
+};
 
 /** A Slack account block: `channels.slack` or `channels.slack.accounts.<id>`. */
 const slackAccountSchema = z.looseObject({
@@ -152,10 +173,10 @@ const slackBotTokensOf = (config: OpenclawConfig): Record<string, string> => {
   const slack = config.channels?.slack;
   const tokens: Record<string, string> = {};
   for (const [id, account] of Object.entries(slack?.accounts ?? {})) {
-    const token = plain(account.botToken);
+    const token = resolveCredential(account.botToken);
     if (token) tokens[id] = token;
   }
-  const flat = plain(slack?.botToken);
+  const flat = resolveCredential(slack?.botToken);
   if (Object.keys(tokens).length === 0 && flat) tokens.default = flat;
   return tokens;
 };
@@ -175,7 +196,7 @@ export const slackBotTokens = (
   }, files);
   if (!tokens)
     throw new Error(
-      `No Slack bot token found in OpenClaw config (searched ${files.join(', ')})`,
+      `No Slack bot token found in OpenClaw config (searched ${files.join(', ')}); core reads plain tokens and env references (\${VAR}), not SecretRef objects`,
     );
   return tokens;
 };
@@ -207,7 +228,7 @@ export const gatewayToken = (
   if (fromEnv) return fromEnv;
   return (
     findInOpenclawConfig(
-      (config) => plain(config.gateway?.auth?.token),
+      (config) => resolveCredential(config.gateway?.auth?.token),
       files,
     ) ?? null
   );

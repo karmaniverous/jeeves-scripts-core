@@ -195,8 +195,43 @@ describe('SecretRefs in token fields (#61 review)', () => {
     expect(slackBotTokens([primary])).toEqual({ b: 'xoxb-b' });
   });
 
-  it('still rejects a token that is neither a string nor a SecretRef', () => {
-    write(primary, { gateway: { auth: { token: { id: 'x' } } } });
+  it('still rejects a token that is neither a string nor an object', () => {
+    write(primary, { gateway: { auth: { token: 42 } } });
     expect(() => gatewayPort([primary])).toThrow(/Invalid OpenClaw config/);
+  });
+});
+
+describe('env references in token fields (#61 second review)', () => {
+  const vars = ['OC_TEST_TOKEN', 'OC_TEST_MISSING'];
+  afterEach(() => {
+    for (const v of vars) Reflect.deleteProperty(process.env, v);
+  });
+
+  it('resolves ${VAR} and a whole-string $VAR from the environment', () => {
+    process.env.OC_TEST_TOKEN = 'xoxb-env';
+    write(primary, {
+      gateway: { auth: { token: 'Bearer-${OC_TEST_TOKEN}' } },
+      channels: { slack: { botToken: '$OC_TEST_TOKEN' } },
+    });
+    expect(gatewayToken([primary])).toBe('Bearer-xoxb-env');
+    expect(slackBotTokens([primary])).toEqual({ default: 'xoxb-env' });
+  });
+
+  it('treats a reference to a missing variable as unset, and $${VAR} as a literal', () => {
+    write(primary, {
+      gateway: { auth: { token: '${OC_TEST_MISSING}' } },
+      channels: { slack: { botToken: 'lit-$${OC_TEST_TOKEN}' } },
+    });
+    expect(gatewayToken([primary])).toBeNull();
+    expect(slackBotTokens([primary])).toEqual({
+      default: 'lit-${OC_TEST_TOKEN}',
+    });
+  });
+
+  it('reads a SecretRef with any source as unset, and says so when no token is left', () => {
+    write(primary, {
+      channels: { slack: { botToken: { source: 'vault', id: 'x' } } },
+    });
+    expect(() => slackBotTokens([primary])).toThrow(/not SecretRef objects/);
   });
 });
