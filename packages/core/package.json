@@ -69,6 +69,7 @@
     "date-fns": "^4.4.0",
     "fast-json-patch": "^3.1.1",
     "imapflow": "^2.4.2",
+    "json5": "^2.2.3",
     "jsonpath-plus": "^11.2.1",
     "mailparser": "^3.9.39",
     "mammoth": "^1.13.0",

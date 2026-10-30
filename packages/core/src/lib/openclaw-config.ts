@@ -4,14 +4,17 @@
  * Read the local OpenClaw config: the gateway port and bearer token and
  * the Slack bot tokens. Searches `~/.openclaw/openclaw.json`, then
  * the legacy `~/.clawdbot/clawdbot.json` (home: `USERPROFILE`, else the
- * OS home dir). Only the fields read here are validated (Zod 4); the rest
- * of the file passes through. Reads files; never logs a token.
+ * OS home dir). Files are JSON5, as OpenClaw reads them. Only the fields
+ * read here are validated (Zod 4); the rest of the file passes through.
+ * Reads files; never logs a token.
  */
 
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { getErrorMessage } from '@karmaniverous/jeeves';
+import JSON5 from 'json5';
 import { z } from 'zod';
 
 /** A Slack account block: `channels.slack` or `channels.slack.accounts.<id>`. */
@@ -33,7 +36,7 @@ export const openclawConfigSchema = z.looseObject({
         })
         .optional(),
       /** Port the gateway listens on. */
-      port: z.number().int().positive().optional(),
+      port: z.number().int().min(1).max(65535).optional(),
     })
     .optional(),
   /** Channel settings. */
@@ -70,24 +73,58 @@ export const openclawConfigPaths = (home?: string): string[] => {
   ];
 };
 
+/** True for a Node error whose code is `ENOENT` (the file does not exist). */
+const isMissing = (e: unknown): boolean =>
+  e instanceof Error && (e as NodeJS.ErrnoException).code === 'ENOENT';
+
+/**
+ * Read and validate one config file; `undefined` when it does not exist.
+ *
+ * @throws When the file exists but can't be read, isn't JSON5 or fails
+ *   {@link openclawConfigSchema}, naming the file and the cause (#42).
+ */
+const readOpenclawConfig = (file: string): OpenclawConfig | undefined => {
+  let text: string;
+  try {
+    text = fs.readFileSync(file, 'utf8');
+  } catch (e) {
+    if (isMissing(e)) return undefined;
+    throw new Error(
+      `Cannot read OpenClaw config ${file}: ${getErrorMessage(e)}`,
+      { cause: e },
+    );
+  }
+  let raw: unknown;
+  try {
+    raw = JSON5.parse(text);
+  } catch (e) {
+    throw new Error(
+      `Invalid JSON5 in OpenClaw config ${file}: ${getErrorMessage(e)}`,
+      { cause: e },
+    );
+  }
+  const parsed = openclawConfigSchema.safeParse(raw);
+  if (!parsed.success)
+    throw new Error(
+      `Invalid OpenClaw config ${file}: ${z.prettifyError(parsed.error)}`,
+    );
+  return parsed.data;
+};
+
 /**
  * The first defined value `pick` returns across the config files, in
- * search order. Missing, unreadable or invalid files are skipped.
+ * search order. A missing file is skipped.
+ *
+ * @throws When a file exists but can't be read, isn't JSON5 or is invalid.
  */
 export const findInOpenclawConfig = <T>(
   pick: (config: OpenclawConfig) => T | undefined,
   files: readonly string[] = openclawConfigPaths(),
 ): T | undefined => {
   for (const file of files) {
-    let raw: unknown;
-    try {
-      raw = JSON.parse(fs.readFileSync(file, 'utf8'));
-    } catch {
-      continue;
-    }
-    const parsed = openclawConfigSchema.safeParse(raw);
-    if (!parsed.success) continue;
-    const value = pick(parsed.data);
+    const config = readOpenclawConfig(file);
+    if (!config) continue;
+    const value = pick(config);
     if (value !== undefined) return value;
   }
   return undefined;

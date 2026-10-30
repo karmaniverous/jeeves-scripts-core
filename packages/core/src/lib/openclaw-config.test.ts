@@ -49,8 +49,7 @@ describe('openclawConfigPaths', () => {
 });
 
 describe('findInOpenclawConfig', () => {
-  it('skips missing, unparseable and invalid files and returns the first defined pick', () => {
-    write(primary, '{ not json');
+  it('skips a missing file and returns the first defined pick', () => {
     write(legacy, { gateway: { auth: { token: 'legacy' } } });
     expect(
       findInOpenclawConfig(
@@ -60,11 +59,49 @@ describe('findInOpenclawConfig', () => {
     ).toBe('legacy');
   });
 
-  it('skips a file whose known fields have the wrong type', () => {
-    write(primary, { gateway: { auth: { token: 42 } } });
-    expect(
-      findInOpenclawConfig((c) => c.gateway?.auth?.token, [primary]),
-    ).toBeUndefined();
+  it('reads JSON5: comments, unquoted keys and trailing commas (#42)', () => {
+    write(
+      primary,
+      '// OpenClaw config\n{ gateway: { port: 19001, auth: { token: "t", }, }, }',
+    );
+    expect(gatewayPort([primary])).toBe(19001);
+    expect(gatewayToken([primary])).toBe('t');
+  });
+
+  it.each([
+    [
+      'not JSON5',
+      '{ not json',
+      /Invalid JSON5 in OpenClaw config .*openclaw\.json/,
+    ],
+    [
+      'a known field of the wrong type',
+      { gateway: { auth: { token: 42 } } },
+      /Invalid OpenClaw config .*openclaw\.json/,
+    ],
+  ])('throws, naming the file, on %s', (_name, value, message) => {
+    write(primary, value);
+    write(legacy, { gateway: { auth: { token: 'legacy' } } });
+    expect(() =>
+      findInOpenclawConfig((c) => c.gateway?.auth?.token, [primary, legacy]),
+    ).toThrow(message);
+  });
+
+  it('throws, naming the file, when it exists but cannot be read', () => {
+    fs.mkdirSync(primary, { recursive: true });
+    expect(() => gatewayPort([primary])).toThrow(
+      /Cannot read OpenClaw config .*openclaw\.json/,
+    );
+  });
+
+  it.each([1, 65535])('accepts gateway.port %d', (port) => {
+    write(primary, { gateway: { port } });
+    expect(gatewayPort([primary])).toBe(port);
+  });
+
+  it.each([0, 65536, 1.5, '19001'])('rejects gateway.port %j', (port) => {
+    write(primary, { gateway: { port } });
+    expect(() => gatewayPort([primary])).toThrow(/Invalid OpenClaw config/);
   });
 });
 
