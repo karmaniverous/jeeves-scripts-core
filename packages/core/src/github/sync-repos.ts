@@ -97,8 +97,23 @@ function reclone(
     throw e;
   }
   fs.renameSync(repoDir, old);
-  fs.renameSync(fresh, repoDir);
-  fs.rmSync(old, { recursive: true, force: true });
+  try {
+    fs.renameSync(fresh, repoDir);
+  } catch (e) {
+    // Put the old mirror back so repo/ never goes missing (#61 review).
+    fs.renameSync(old, repoDir);
+    fs.rmSync(fresh, { recursive: true, force: true });
+    throw e;
+  }
+  try {
+    fs.rmSync(old, { recursive: true, force: true });
+  } catch (e) {
+    // The new mirror is in place: a leftover old copy is not a failed sync;
+    // the next reclone clears it.
+    console.log(
+      `[repo-sync] warning: could not remove ${old}: ${getErrorMessage(e)}`,
+    );
+  }
 }
 
 /** Clone the repo, or bring an existing mirror to its default branch. */

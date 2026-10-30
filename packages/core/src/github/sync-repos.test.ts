@@ -120,4 +120,38 @@ describe('syncRepos when the default branch changed (#48)', () => {
       lastError: expect.stringContaining('clone') as unknown,
     });
   });
+
+  it('puts the old mirror back when the fresh one cannot be moved into place (#61 review)', () => {
+    world((args) => args.includes('checkout'));
+    const rename = fs.renameSync.bind(fs);
+    vi.spyOn(fs, 'renameSync').mockImplementation((from, to) => {
+      if (String(from).endsWith('.fresh')) throw new Error('EPERM: locked');
+      rename(from, to);
+    });
+    expect(() => {
+      syncRepos(w.deps);
+    }).toThrow('[repo-sync] 1 of 1 repos failed to sync');
+    expect(fs.existsSync(path.join(repoDir, 'stale.txt'))).toBe(true);
+    expect(fs.existsSync(`${repoDir}.old`)).toBe(false);
+    expect(fs.existsSync(`${repoDir}.fresh`)).toBe(false);
+    expect(stored()).toMatchObject({
+      lastError: expect.stringContaining('EPERM') as unknown,
+    });
+  });
+
+  it('counts the sync done when only removing the old copy fails', () => {
+    world((args) => args.includes('checkout'));
+    const rm = fs.rmSync.bind(fs);
+    vi.spyOn(fs, 'rmSync').mockImplementation((target, options) => {
+      if (String(target).endsWith('.old') && fs.existsSync(target))
+        throw new Error('EBUSY: open');
+      rm(target, options);
+    });
+    syncRepos(w.deps);
+    expect(fs.existsSync(path.join(repoDir, 'fresh.txt'))).toBe(true);
+    expect(stored()).not.toHaveProperty('lastError');
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringContaining('warning: could not remove') as unknown,
+    );
+  });
 });
