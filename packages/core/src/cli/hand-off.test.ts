@@ -219,10 +219,19 @@ describe('handOff', () => {
   it('runs init without a repo through the real CLI', async () => {
     const log = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const target = path.join(tmp, 'elsewhere');
-    const code = await handOff(['init', '--core', 'not-a-version'], {
-      env: {},
-      cwd: target,
-    });
+    const code = await handOff(
+      [
+        'init',
+        '--core',
+        'not-a-version',
+        '--config-dir',
+        path.join(tmp, 'cfg'),
+      ],
+      {
+        env: {},
+        cwd: target,
+      },
+    );
     expect(code).toBe(1);
     expect(log).toHaveBeenCalledWith(expect.stringMatching(/^init: FAILED/));
     process.exitCode = undefined;

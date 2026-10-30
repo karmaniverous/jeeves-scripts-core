@@ -1,10 +1,13 @@
 /**
  * @module cli/init
  *
- * `jeeves-scripts init [--name <pkg>] [--core <version>]` (R28, Decisions
- * 14, 15, 17, 20; design §7): writes an instance repo into the root from
- * the template bundled in core (`template/`). It never overwrites a file:
- * every file that exists is skipped. The renamed dotfiles (`gitignore`,
+ * `jeeves-scripts init --config-dir <dir> [--name <pkg>] [--core <version>]`
+ * (R28, Decisions 14, 15, 17, 20; design §7; #57): writes an instance
+ * repo into the root from the template bundled in core (`template/`), plus
+ * its config outside the repo: `jeeves-scripts.json` in the repo is a
+ * pointer to the config directory, and `<dir>/config.json` is written from
+ * the template's `config.sample.json`. It never overwrites a file: every
+ * file that exists, the pointer and `config.json` included, is skipped. The renamed dotfiles (`gitignore`,
  * `npmrc`, `nvmrc`) are restored, and `package.json` gets the package name
  * (default: the target folder's name, Decision 53) and core pinned at an
  * exact version (default: the running core's).
@@ -17,6 +20,7 @@ import path from 'node:path';
 
 import { z } from 'zod';
 
+import { CONFIG_FILE_NAME, type Pointer } from '../config/pointer.js';
 import { EXACT_SEMVER } from '../runnables/plugin.js';
 import { CORE_PACKAGE, corePackageDir, coreVersion } from './package-info.js';
 
@@ -26,6 +30,15 @@ export const RENAMED_DOTFILES: Readonly<Record<string, string>> = {
   npmrc: '.npmrc',
   nvmrc: '.nvmrc',
 };
+
+/** The template's sample config: written to `<config dir>/config.json`, not the repo. */
+export const CONFIG_SAMPLE = 'config.sample.json';
+
+/** The instance repo's config pointer. */
+const POINTER_FILE = 'jeeves-scripts.json';
+
+/** Where an instance's `$schema` references live, under its `node_modules`. */
+const SCHEMA_DIR = 'node_modules/@karmaniverous/jeeves-scripts-core/schema';
 
 /** An npm package name. */
 const PACKAGE_NAME = /^(?:@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*$/;
@@ -47,6 +60,12 @@ const packageJsonSchema = z.looseObject({
 
 /** Options for {@link initRepo}. */
 export interface InitOptions {
+  /**
+   * The config directory (`--config-dir`, required): `config.json` is
+   * written there and the repo's `jeeves-scripts.json` points at it.
+   * Relative paths resolve against the working directory.
+   */
+  configDir: string;
   /** Package name. Default: the name of the folder `init` writes into. */
   name?: string;
   /** Exact core version to pin. Default: the running core's. */
@@ -55,13 +74,36 @@ export interface InitOptions {
   templateDir?: string;
 }
 
-/** What {@link initRepo} did, as root-relative POSIX paths. */
+/**
+ * What {@link initRepo} did: root-relative POSIX paths, and the config file
+ * by its absolute path.
+ */
 export interface InitResult {
   /** Files written. */
   created: string[];
   /** Files that existed and were left alone. */
   skipped: string[];
 }
+
+/** The POSIX path from `from` to `to`, starting `./` or `../`. */
+const relativeRef = (from: string, to: string): string => {
+  const rel = path.relative(from, to).split(path.sep).join('/');
+  return rel.startsWith('.') ? rel : `./${rel}`;
+};
+
+/** The sample config, its `$schema` re-pointed from the config directory. */
+const sampleConfig = (
+  text: string,
+  root: string,
+  configDir: string,
+): string => {
+  const config = z.looseObject({}).parse(JSON.parse(text));
+  config.$schema = relativeRef(
+    configDir,
+    path.join(root, SCHEMA_DIR, 'jeeves-scripts.schema.json'),
+  );
+  return `${JSON.stringify(config, null, 2)}\n`;
+};
 
 const templateFiles = (dir: string): string[] =>
   fs
@@ -85,14 +127,16 @@ const packageJson = (text: string, name: string, version: string): string => {
 };
 
 /**
- * Write the instance repo into `root`.
+ * Write the instance repo into `root` and its config into
+ * `options.configDir`.
  *
- * @throws When `--name` or `--core` is invalid, or the template is missing.
+ * @throws When `--config-dir`, `--name` or `--core` is invalid, or the
+ *   template is missing.
  */
-export const initRepo = (
-  root: string,
-  options: InitOptions = {},
-): InitResult => {
+export const initRepo = (root: string, options: InitOptions): InitResult => {
+  if (!options.configDir)
+    throw new Error('the config directory (--config-dir <dir>) is required');
+  const configDir = path.resolve(options.configDir);
   const name = checked(
     options.name ?? path.basename(path.resolve(root)),
     PACKAGE_NAME,
@@ -109,7 +153,11 @@ export const initRepo = (
     throw new Error(`No bundled template at ${templateDir}.`);
 
   const result: InitResult = { created: [], skipped: [] };
-  for (const rel of templateFiles(templateDir)) {
+  const files = templateFiles(templateDir);
+  if (!files.includes(CONFIG_SAMPLE))
+    throw new Error(`The template at ${templateDir} has no ${CONFIG_SAMPLE}.`);
+  for (const rel of files) {
+    if (rel === CONFIG_SAMPLE || rel === POINTER_FILE) continue;
     const target = targetName(rel);
     const file = path.join(root, target);
     if (fs.existsSync(file)) {
@@ -125,6 +173,32 @@ export const initRepo = (
       );
     else fs.copyFileSync(source, file);
     result.created.push(target);
+  }
+
+  const configFile = path.join(configDir, CONFIG_FILE_NAME);
+  if (fs.existsSync(configFile)) result.skipped.push(configFile);
+  else {
+    fs.mkdirSync(configDir, { recursive: true });
+    fs.writeFileSync(
+      configFile,
+      sampleConfig(
+        fs.readFileSync(path.join(templateDir, CONFIG_SAMPLE), 'utf8'),
+        root,
+        configDir,
+      ),
+    );
+    result.created.push(configFile);
+  }
+
+  const pointerFile = path.join(root, POINTER_FILE);
+  if (fs.existsSync(pointerFile)) result.skipped.push(POINTER_FILE);
+  else {
+    const pointer: Pointer = {
+      $schema: `./${SCHEMA_DIR}/pointer.schema.json`,
+      config: configDir,
+    };
+    fs.writeFileSync(pointerFile, `${JSON.stringify(pointer, null, 2)}\n`);
+    result.created.push(POINTER_FILE);
   }
   return result;
 };

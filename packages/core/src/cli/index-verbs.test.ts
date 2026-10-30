@@ -82,18 +82,18 @@ describe('CLI verb failures and exit codes', () => {
     mocks.initRepo.mockImplementationOnce(() => {
       throw new Error('not empty');
     });
-    await expect(cli('init')).resolves.toBe(1);
+    await expect(cli('init', '--config-dir', 'C:/cfg')).resolves.toBe(1);
     expect(errors).toContain('init: FAILED: not empty');
 
     process.exitCode = undefined;
     mocks.initRepo.mockReturnValue({});
     mocks.openclawPresent.mockResolvedValueOnce(false);
-    await expect(cli('init')).resolves.toBe(0);
+    await expect(cli('init', '--config-dir', 'C:/cfg')).resolves.toBe(0);
     expect(logs.at(-1)).toMatch(/^OpenClaw is not on this host/);
 
     mocks.openclawPresent.mockResolvedValueOnce(true);
     mocks.runSkills.mockResolvedValueOnce(2);
-    await expect(cli('init')).resolves.toBe(1);
+    await expect(cli('init', '--config-dir', 'C:/cfg')).resolves.toBe(1);
     expect(mocks.runSkills).toHaveBeenCalledWith('install', {
       root: expect.any(String) as unknown,
     });

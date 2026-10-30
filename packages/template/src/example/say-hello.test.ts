@@ -15,7 +15,7 @@ const saved = process.env[CONFIG_PATH_ENV];
 
 beforeEach(() => {
   process.env[CONFIG_PATH_ENV] = fileURLToPath(
-    new URL('../../jeeves-scripts.json', import.meta.url),
+    new URL('../../config.sample.json', import.meta.url),
   );
   resetConfig();
 });

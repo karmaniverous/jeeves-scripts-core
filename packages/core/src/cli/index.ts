@@ -187,7 +187,11 @@ const buildDoctorCommand = (root: string) =>
 const buildInitCommand = (root: string) =>
   new Command('init')
     .description(
-      'Write an instance repo here from the template bundled in core. Never overwrites a file.',
+      "Write an instance repo here from the template bundled in core, and its config.json in --config-dir (the repo's jeeves-scripts.json points at it). Never overwrites a file.",
+    )
+    .requiredOption(
+      '--config-dir <dir>',
+      'config directory, outside the repo (e.g. J:/config/jeeves-scripts)',
     )
     .option('--name <pkg>', 'package name (default: the folder name)')
     .option(
