@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 
 import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
@@ -187,5 +187,119 @@ describe('configEdit (#57)', () => {
     });
     expect(result.ok).toBe(true);
     expect(read()).toMatchObject({ local: { channel: 'C9' } });
+  });
+});
+
+describe('configEdit review fixes (#62)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('keeps both backups of two edits in the same second', async () => {
+    const first = fs.readFileSync(configFile, 'utf8');
+    await edit({ path: 'local.channel', edit: { set: 'C1' }, live: true });
+    const second = fs.readFileSync(configFile, 'utf8');
+    await edit({ path: 'local.channel', edit: { set: 'C2' }, live: true });
+    const b1 = path.join(cfgDir, 'config.json.20261030T120000Z.bak');
+    const b2 = path.join(cfgDir, 'config.json.20261030T120000Z-2.bak');
+    expect(fs.readFileSync(b1, 'utf8')).toBe(first);
+    expect(fs.readFileSync(b2, 'utf8')).toBe(second);
+  });
+
+  it('leaves JEEVES_SCRIPTS_CONFIG as it found it', async () => {
+    await edit({ path: 'local.channel', edit: { set: 'C1' }, live: true });
+    expect(process.env[CONFIG_PATH_ENV]).toBeUndefined();
+    const again = await edit({
+      path: 'local.channel',
+      edit: { set: 'C2' },
+      live: true,
+    });
+    expect(again.ok).toBe(true);
+    expect(read()).toMatchObject({ local: { channel: 'C2' } });
+  });
+
+  it('retries a rename Windows briefly refuses', async () => {
+    const rename = fs.renameSync.bind(fs);
+    let calls = 0;
+    vi.spyOn(fs, 'renameSync').mockImplementation((from, to) => {
+      calls++;
+      if (calls < 3) throw Object.assign(new Error('busy'), { code: 'EBUSY' });
+      rename(from, to);
+    });
+    const result = await configEdit(
+      root,
+      { path: 'local.channel', edit: { set: 'C9' }, live: true },
+      { ...deps, sleep: () => Promise.resolve() },
+    );
+    expect(result.ok).toBe(true);
+    expect(calls).toBe(3);
+    expect(read()).toMatchObject({ local: { channel: 'C9' } });
+  });
+
+  it('reports a rename that keeps failing, without throwing', async () => {
+    const before = fs.readFileSync(configFile, 'utf8');
+    vi.spyOn(fs, 'renameSync').mockImplementation(() => {
+      throw Object.assign(new Error('perm'), { code: 'EPERM' });
+    });
+    const result = await configEdit(
+      root,
+      { path: 'local.channel', edit: { set: 'C9' }, live: true },
+      { ...deps, sleep: () => Promise.resolve() },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]).toMatch(
+      /Could not replace .*\(EPERM\); nothing changed/,
+    );
+    expect(fs.readFileSync(configFile, 'utf8')).toBe(before);
+    expect(temps()).toEqual([]);
+  });
+
+  it('names the config file, not its temp copy, in validation errors', async () => {
+    const result = await edit({ path: 'instance.baseDir', edit: { set: 3 } });
+    expect(result.ok).toBe(false);
+    expect(result.errors.join('\n')).not.toMatch(/\.tmp/);
+  });
+
+  it('removes a temp file a crashed edit left behind', async () => {
+    const stale = path.join(cfgDir, 'config.json.4242.tmp');
+    fs.writeFileSync(stale, '{}');
+    const old = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    fs.utimesSync(stale, old, old);
+    await edit({ path: 'local.channel', edit: { set: 'C9' } });
+    expect(fs.existsSync(stale)).toBe(false);
+  });
+
+  it('refuses when the file changed while the edit ran', async () => {
+    const result = await configEdit(
+      root,
+      { path: 'local.channel', edit: { set: 'C9' }, live: true },
+      {
+        ...deps,
+        loadPlugin: async (r) => {
+          fs.writeFileSync(
+            configFile,
+            JSON.stringify({
+              instance: { name: 't', baseDir: root },
+              local: { channel: 'X' },
+            }),
+          );
+          return pluginWithSchema(r);
+        },
+      },
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errors[0]).toMatch(/changed while this edit ran/);
+    expect(read()).toMatchObject({ local: { channel: 'X' } });
+  });
+
+  it('writes nothing, not even a backup, for an edit that changes nothing', async () => {
+    const result = await edit({
+      path: 'local.channel',
+      edit: { set: 'C0' },
+      live: true,
+    });
+    expect(result).toMatchObject({ ok: true });
+    expect(result.lines.at(-1)).toBe('unchanged: nothing written');
+    expect(fs.readdirSync(cfgDir)).toEqual(['config.json']);
   });
 });

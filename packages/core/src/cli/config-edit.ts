@@ -29,7 +29,11 @@ import {
   describeConfigEdit,
   parseConfigPath,
 } from '../config/edit.js';
-import { resetConfig, resolveConfig } from '../config/loader.js';
+import {
+  CONFIG_PATH_ENV,
+  resetConfig,
+  resolveConfig,
+} from '../config/loader.js';
 import {
   instanceConfigCheck,
   type InstanceConfigCheckDeps,
@@ -62,6 +66,8 @@ export interface ConfigEditResult {
 export interface ConfigEditDeps extends Partial<InstanceConfigCheckDeps> {
   /** The clock for the backup name. Default: now. */
   now?: () => Date;
+  /** Wait between rename retries. Default: a timer. */
+  sleep?: (ms: number) => Promise<void>;
 }
 
 const failed = (errors: string[], lines: string[] = []): ConfigEditResult => ({
@@ -82,6 +88,7 @@ export const configEdit = async (
   deps: ConfigEditDeps = {},
 ): Promise<ConfigEditResult> => {
   let target: string;
+  let original: string;
   let doc: unknown;
   let applied: ReturnType<typeof applyConfigEdit>;
   let keys: readonly string[];
@@ -93,15 +100,26 @@ export const configEdit = async (
         `${resolved.path} is the config in the instance repo; move it first (guides/config.md#moving-the-config).`,
       ]);
     target = resolved.path;
-    doc = JSON.parse(fs.readFileSync(target, 'utf8')) as unknown;
+    original = fs.readFileSync(target, 'utf8');
+    doc = JSON.parse(original) as unknown;
     applied = applyConfigEdit(doc, keys, request.edit);
   } catch (e) {
     return failed([e instanceof Error ? e.message : String(e)]);
   }
   const lines = [`${target}:`, ...describeConfigEdit(keys, applied)];
 
+  if (JSON.stringify(applied.before) === JSON.stringify(applied.after))
+    return {
+      ok: true,
+      lines: [...lines, 'unchanged: nothing written'],
+      errors: [],
+    };
+
+  removeStaleTemps(target);
   const temp = `${target}.${String(process.pid)}.tmp`;
+  const named = (text: string) => text.split(temp).join(target);
   fs.writeFileSync(temp, `${JSON.stringify(applied.doc, null, 2)}\n`);
+  const savedEnv = process.env[CONFIG_PATH_ENV];
   let renamed = false;
   try {
     resetConfig();
@@ -110,7 +128,7 @@ export const configEdit = async (
       loadPlugin: deps.loadPlugin ?? loadPlugin,
     });
     if (!check.ok)
-      return failed(check.errors, [
+      return failed(check.errors.map(named), [
         ...lines,
         'not written: the result is invalid',
       ]);
@@ -123,9 +141,23 @@ export const configEdit = async (
         ],
         errors: [],
       };
-    const backup = configBackupName(target, (deps.now ?? (() => new Date()))());
-    fs.copyFileSync(target, backup);
-    fs.renameSync(temp, target);
+    // Someone else changed the file since it was read: their edit would be lost.
+    if (fs.readFileSync(target, 'utf8') !== original)
+      return failed(
+        [
+          `${target} changed while this edit ran; nothing written. Run the command again.`,
+        ],
+        lines,
+      );
+    const backup = writeBackup(target, (deps.now ?? (() => new Date()))());
+    const error = await renameWithRetry(temp, target, deps.sleep);
+    if (error)
+      return failed(
+        [
+          `Could not replace ${target} (${error}); nothing changed (backup ${backup} kept). Close whatever has it open and run the command again.`,
+        ],
+        lines,
+      );
     renamed = true;
     const dir = path.dirname(target);
     for (const name of backupsToPrune(
@@ -140,6 +172,68 @@ export const configEdit = async (
     };
   } finally {
     if (!renamed) fs.rmSync(temp, { force: true });
+    if (savedEnv === undefined)
+      Reflect.deleteProperty(process.env, CONFIG_PATH_ENV);
+    else process.env[CONFIG_PATH_ENV] = savedEnv;
     resetConfig();
+  }
+};
+
+/** Temp files older than this, left by a crashed edit, are removed. */
+const STALE_TEMP_MS = 60 * 60 * 1000;
+
+/** Remove `<config>.<pid>.tmp` files a crashed edit left behind. */
+const removeStaleTemps = (target: string): void => {
+  const dir = path.dirname(target);
+  const prefix = `${path.basename(target)}.`;
+  for (const name of fs.readdirSync(dir)) {
+    if (
+      !name.startsWith(prefix) ||
+      !/^\d+\.tmp$/.test(name.slice(prefix.length))
+    )
+      continue;
+    const file = path.join(dir, name);
+    if (Date.now() - fs.statSync(file).mtimeMs > STALE_TEMP_MS)
+      fs.rmSync(file, { force: true });
+  }
+};
+
+/** Copy `target` to a new dated backup, never overwriting one. */
+const writeBackup = (target: string, at: Date): string => {
+  for (let attempt = 1; ; attempt++) {
+    const backup = configBackupName(target, at, attempt);
+    try {
+      fs.copyFileSync(target, backup, fs.constants.COPYFILE_EXCL);
+      return backup;
+    } catch (e) {
+      if (!(e instanceof Error && 'code' in e && e.code === 'EEXIST')) throw e;
+    }
+  }
+};
+
+/** Codes Windows returns while another process briefly holds the file. */
+const TRANSIENT = new Set(['EPERM', 'EBUSY', 'EACCES']);
+const RENAME_ATTEMPTS = 10;
+
+/**
+ * Rename `from` over `to`, retrying transient Windows sharing errors.
+ * Resolves to `undefined` on success, else the last error's code.
+ */
+const renameWithRetry = async (
+  from: string,
+  to: string,
+  sleep: (ms: number) => Promise<void> = (ms) =>
+    new Promise((resolve) => setTimeout(resolve, ms)),
+): Promise<string | undefined> => {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      fs.renameSync(from, to);
+      return undefined;
+    } catch (e) {
+      const code =
+        e instanceof Error && 'code' in e ? String(e.code) : String(e);
+      if (!TRANSIENT.has(code) || attempt >= RENAME_ATTEMPTS) return code;
+      await sleep(100);
+    }
   }
 };
