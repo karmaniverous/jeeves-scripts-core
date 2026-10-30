@@ -28,7 +28,7 @@ A runnable id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/
 | `x` | `x-poll-posts`, `x-poll-mentions`, `x-poll-feed`, `x-poll-likes`, `x-poll-bookmarks`, `x-drain-queues` | `x-post`, `x-refresh-token`, `x-like`, `x-repost` (kept, Decision 50) |
 | `people` |  | `people-propose` |
 
-The scheduled ids are the template's manifest ids. `src/runnables/registry-scheduled.ts` and `src/runnables/registry-on-demand.ts` hold the lists (`src/runnables/registry.ts` joins them); each domain's guide says what its jobs do.
+The scheduled ids are the template's manifest ids. `src/runnables/registry-scheduled.ts` and `src/runnables/registry-on-demand.ts` hold the lists (`src/runnables/registry.ts` joins them); each domain's guide says what its runnables do.
 
 ## Declaring a runnable
 
@@ -51,13 +51,13 @@ export default defineRunnable({
 });
 ```
 
-The declaration is validated with Zod (Decision 31) and returned frozen: the id and domain are lowercase words separated by dashes, and the id starts with its domain and a dash (`acme-report` in `acme`, `google-drive-sync-files` in `google-drive`), so `acme` alone or `report-acme` throws. A runnable without a manifest needs a `description`: core's registry tests check every core one. Importing a job module never runs the job. Running it (`run <id>`):
+The declaration is validated with Zod (Decision 31) and returned frozen: the id and domain are lowercase words separated by dashes, and the id starts with its domain and a dash (`acme-report` in `acme`, `google-drive-sync-files` in `google-drive`), so `acme` alone or `report-acme` throws. A runnable without a manifest needs a `description`: core's registry tests check every core one. Importing a runnable module never runs it. Running it (`run <id>`):
 
 1. sets `process.argv` to `[node, <id>, ...args]` (runnable code may read `process.argv.slice(2)` as before) and passes the args as `ctx.args`;
 2. checks `prerequisite`: anything but `true` logs `[skip] <reason>` and the run exits 0;
 3. runs `run` inside `runScript(name ?? id, ..., crashDir)` from `@karmaniverous/jeeves`: an uncaught error is logged, appended to `_crash.log`, and exits 1.
 
-Core's runnables keep the crash labels and crash directories they had before the registry (`email/poll`, `x/poll-posts`, ...; the two that named the removed `core` domain are `admin/qdrant-health-check` and `admin/sweep-orphaned-tmp`), and their inline `[skip]` guards; `prerequisite` is for new jobs (the X handle check is one). No job module reads config when imported: each `run` builds its collaborators from config when it runs, and hands its work back (returns or awaits it). `src/runnables/registry-runs.test.ts` imports and runs every core job with no loadable config to pin both (Decision 58).
+Core's runnables keep the crash labels and crash directories they had before the registry (`email/poll`, `x/poll-posts`, ...; the two that named the removed `core` domain are `admin/qdrant-health-check` and `admin/sweep-orphaned-tmp`), and their inline `[skip]` guards; `prerequisite` is for new runnables (the X handle check is one). No runnable module reads config when imported: each `run` builds its collaborators from config when it runs, and hands its work back (returns or awaits it). `src/runnables/registry-runs.test.ts` imports and runs every core runnable with no loadable config to pin both (Decision 58).
 
 ### Failures, skips and exit codes
 

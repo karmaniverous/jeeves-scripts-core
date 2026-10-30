@@ -56,8 +56,12 @@ describe('defineRunnable', () => {
   });
 
   it.each([
-    ['an id with capitals', { id: 'Acme', domain: 'acme' }, /job id/],
-    ['an id with a trailing dash', { id: 'acme-', domain: 'acme' }, /job id/],
+    ['an id with capitals', { id: 'Acme', domain: 'acme' }, /runnable id/],
+    [
+      'an id with a trailing dash',
+      { id: 'acme-', domain: 'acme' },
+      /runnable id/,
+    ],
     ['an empty domain', { id: 'acme', domain: '' }, /domain/],
     [
       'an id that does not start with its domain',

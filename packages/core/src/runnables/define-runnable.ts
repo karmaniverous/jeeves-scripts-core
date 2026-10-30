@@ -71,7 +71,7 @@ export const slugSchema = (what: string) =>
     );
 
 /**
- * A job declaration (Zod-validated by {@link defineRunnable}).
+ * A runnable declaration (Zod-validated by {@link defineRunnable}).
  */
 export const jobDeclarationSchema = z
   .object({
@@ -80,7 +80,7 @@ export const jobDeclarationSchema = z
      * `domain-verb[-modifier][-object][-specifier]`, lowercase words
      * separated by dashes, starting with the domain and a dash (R44, R45).
      */
-    id: slugSchema('job id'),
+    id: slugSchema('runnable id'),
     /** Domain the runnable belongs to: its top-level source folder (`email`, `google-drive`, ...). */
     domain: slugSchema('domain'),
     /** One line for `list`; required when the runnable has no manifest. */
@@ -109,11 +109,11 @@ export const jobDeclarationSchema = z
     run: fn<JobRun>('run'),
   })
   .refine((d) => d.id.startsWith(`${d.domain}-`), {
-    message: 'job id must start with its domain and a dash',
+    message: 'runnable id must start with its domain and a dash',
     path: ['id'],
   });
 
-/** A job declaration; `S` is its flag spec, which types `ctx.flags`. */
+/** A runnable declaration; `S` is its flag spec, which types `ctx.flags`. */
 export type JobDeclaration<S extends ArgSpec = NoFlags> = Omit<
   z.infer<typeof jobDeclarationSchema>,
   'flags' | 'prerequisite' | 'run'
@@ -155,7 +155,7 @@ export type JobModule = Readonly<
 };
 
 /**
- * Declare a job. Validates the declaration and returns it frozen; nothing
+ * Declare a runnable. Validates the declaration and returns it frozen; nothing
  * runs until `jeeves-scripts run <id>` runs it.
  *
  * @example
@@ -176,7 +176,7 @@ export const defineRunnable = <S extends ArgSpec = NoFlags>(
   const result = jobDeclarationSchema.safeParse(declaration);
   if (!result.success)
     throw new Error(
-      `Invalid job declaration: ${z.prettifyError(result.error)}`,
+      `Invalid runnable declaration: ${z.prettifyError(result.error)}`,
     );
   // `run` and `prerequisite` receive `flags` parsed with this same spec
   // (the casts: a caller's `flags` were parsed with it, or are parsed here).
