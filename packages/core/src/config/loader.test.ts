@@ -140,6 +140,15 @@ describe('resolveConfig (#57)', () => {
       setConfigRoot(undefined);
     }
   });
+  it('treats the repo file named by --config or the env as legacy too (#62 review)', () => {
+    const repoFile = put('repo/jeeves-scripts.json', full);
+    const root = path.join(tmp, 'repo');
+    expect(resolveConfig({ root, configPath: repoFile }).source).toBe('legacy');
+    process.env[CONFIG_PATH_ENV] = repoFile;
+    expect(resolveConfig({ root }).source).toBe('legacy');
+    expect(console.warn).toHaveBeenCalledTimes(1);
+  });
+
   it('does not warn for a full config named directly', () => {
     resolveConfig({ configPath: put('c.json', full) });
     expect(console.warn).not.toHaveBeenCalled();

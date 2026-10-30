@@ -151,7 +151,13 @@ const locateConfig = (
       `${file} is neither a config pointer ({ "config": "<absolute dir>" }) nor a full config (no "instance")${why}`,
     );
   }
-  if (direct) return { path: file, source: direct, value };
+  // A full config at the repo's own jeeves-scripts.json is legacy however it
+  // was named (--config, JEEVES_SCRIPTS_CONFIG): warned about, and refused
+  // by config set / unset (#62 review).
+  const repoFile =
+    root === undefined ? undefined : path.resolve(root, 'jeeves-scripts.json');
+  if (direct && path.resolve(file) !== repoFile)
+    return { path: file, source: direct, value };
   if (!_warnedLegacy) {
     _warnedLegacy = true;
     console.warn(LEGACY_CONFIG_WARNING);

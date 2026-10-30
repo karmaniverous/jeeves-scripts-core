@@ -7,6 +7,7 @@ import { z } from 'zod';
 
 import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
 import { definePlugin, resetLocalConfig } from '../runnables/plugin.js';
+import { instanceConfigCheck } from './config-check.js';
 import { configEdit, type ConfigEditRequest } from './config-edit.js';
 import { loadPlugin, PLUGIN_FILE } from './load-plugin.js';
 
@@ -187,6 +188,26 @@ describe('configEdit (#57)', () => {
     });
     expect(result.ok).toBe(true);
     expect(read()).toMatchObject({ local: { channel: 'C9' } });
+  });
+});
+
+describe('instanceConfigCheck source (#62 review)', () => {
+  it('keeps where the config came from when the plugin check fails', async () => {
+    fs.writeFileSync(
+      configFile,
+      JSON.stringify({
+        instance: { name: 't', baseDir: root },
+        local: { channel: 5 },
+      }),
+    );
+    const result = await instanceConfigCheck(root, undefined, {
+      loadPlugin: pluginWithSchema,
+    });
+    expect(result.ok).toBe(false);
+    expect(result.source).toEqual({
+      source: 'pointer',
+      pointer: path.join(root, 'jeeves-scripts.json'),
+    });
   });
 });
 
