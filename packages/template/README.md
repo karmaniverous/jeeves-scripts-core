@@ -8,7 +8,6 @@ This repo is one Jeeves instance's scripts: its configuration, its declared over
 | --- | --- |
 | `bin/jeeves-scripts.js` | The launcher. Runner jobs and webhooks run `node <this repo>/bin/jeeves-scripts.js run <id>`. |
 | `jeeves-scripts.json` | A pointer to this instance's config directory; the config itself (`config.json`: every setting, no secrets, validated against core's schema) lives there, outside the repo. Change it with `config set` / `config unset`. |
-| `config.sample.json` | The sample config `init` copies to `<config dir>/config.json` (template only; never copied into an instance repo). |
 | `jeeves-scripts.plugin.ts` | The plugin: this instance's runnables, its declared overrides of core runnables, and the schema of its `local` config block. |
 | `jobs/*.json` | Manifests (schedules) for this instance's runnables, in core's format. |
 | `src/` | This instance's code, on core's public API only, with tests. `src/example/say-hello.ts` is a sample: replace it. |

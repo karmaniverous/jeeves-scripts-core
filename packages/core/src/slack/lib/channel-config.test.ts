@@ -168,6 +168,23 @@ describe('map-helpers', () => {
     expect(resolveSlackChannelMeta(42)).toEqual({});
   });
 
+  it('picks up a config edited in place, without a restart (#62 review)', () => {
+    expect(resolveSlackChannelMeta('C2')).toEqual({ project: 'other' });
+    const configPath = path.join(dir, 'jeeves-scripts.json');
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        instance: { name: 't', baseDir: dir },
+        slack: { channels: { C2: { project: 'changed', homeDir: 'D:/y' } } },
+      }),
+    );
+    const later = new Date(Date.now() + 5000);
+    fs.utimesSync(configPath, later, later);
+    expect(resolveSlackChannelMeta('C2')).toEqual({
+      project: 'changed',
+      homeDir: 'D:/y',
+    });
+  });
   it('finds the instance config above a directory', () => {
     const nested = path.join(dir, 'node_modules', 'pkg', 'dist');
     fs.mkdirSync(nested, { recursive: true });

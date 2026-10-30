@@ -34,13 +34,14 @@ Whichever file that is: a pointer resolves to `<config>/config.json`; a full con
 Edit the config with `config set` and `config unset`, never by hand and never by a PR:
 
 ```bash
-node bin/jeeves-scripts.js config set slack.channels.C0123.homeDir '"J:/domains/projects/acme"'
-node bin/jeeves-scripts.js config set slack.channels.C0123.homeDir '"J:/domains/projects/acme"' --live
+node bin/jeeves-scripts.js config set slack.channels.C0123.homeDir J:/domains/projects/acme
+node bin/jeeves-scripts.js config set slack.channels.C0123.homeDir J:/domains/projects/acme --live
 node bin/jeeves-scripts.js config unset slack.channels.C0123 --live
 ```
 
 - **Path:** dotted keys from the root (`slack.channels.C0123.homeDir`); a key that contains dots is a bracketed JSON string (`pipeline.refs["slack.myChannel"]`). `set` creates missing parent objects; `unset` requires the key to exist.
-- **Value:** parsed as JSON when it parses (`3`, `true`, `{"a":1}`, `"text"`), else taken as a string.
+- **Value:** parsed as JSON when it parses (`3`, `true`, `{"a":1}`), else taken as a string, so a path or name needs no quotes. A string that would parse as JSON (`"3"`, `"true"`) must reach the command with its double quotes: `'"3"'` in bash and PowerShell 7, `'\"3\"'` in Windows PowerShell 5.1, which strips inner double quotes from native-command arguments. The dry run shows the value as JSON, so check it before `--live`.
+- **Who sees the change:** each run reads the config afresh. The watcher's Slack map helpers reload it when the file changes.
 - **Validation:** the whole edited document is checked exactly as `config check` checks it (core schema with its secret guard, silo references, the plugin's `configSchema` on `local`). Invalid: the problems are printed, the exit code is 1 and the file is untouched.
 - **Dry run by default:** prints the change as `-` / `+` lines and writes nothing. `--live` writes it.
 - **Backups:** before writing, `--live` copies the file to `config.json.<UTC yyyymmddTHHMMSSZ>.bak` beside it and keeps the newest 20.
