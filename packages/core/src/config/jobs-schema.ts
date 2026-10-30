@@ -5,7 +5,7 @@
  * deltas per job id (Decisions 5, 40). There is no `extensions` block
  * (Decision 50): a seam and its config arrive only on evidence (Decision
  * 8). The schedule is the runner's (`config/schedule-schema`), shared
- * with core's job manifests (`jobs/manifest`). Like `silo` and `taskFile`,
+ * with core's job manifests (`runnables/manifest`). Like `silo` and `taskFile`,
  * `extraDirs` is read by the runnable itself (`admin-sweep-orphaned-tmp`,
  * Decision 55) and has no runner effect.
  */

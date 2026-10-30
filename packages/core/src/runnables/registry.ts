@@ -32,7 +32,7 @@ export interface RegistryEntry {
 
 /**
  * Core's domains: its top-level domain source folders (R45). An instance
- * domain never reuses one. `cli`, `config`, `jobs`, `lib` and `presets`
+ * domain never reuses one. `cli`, `config`, `lib`, `presets` and `runnables`
  * are framework folders, not domains.
  */
 export const coreDomains: readonly string[] = [

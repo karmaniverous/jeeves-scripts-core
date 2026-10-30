@@ -4,7 +4,7 @@
  * Runner entry point: mirror Google Drive content shared to the
  * configured Workspace account(s) into the content tree as text.
  * Behaviour, configuration and operations are documented in
- * `src/google-drive/README.md`; the design is
+ * `guides/google-drive.md`; the design is
  * `guides/google-drive-spec.md` (`§` references in lib/ point there).
  *
  * Flags:

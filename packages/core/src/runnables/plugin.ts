@@ -9,7 +9,7 @@
  *
  * Declarations are validated with Zod and returned frozen; nothing runs
  * when they are made. The CLI loads `{root}/jeeves-scripts.plugin.ts`,
- * checks it against core's registry (`jobs/runnables`) and, when the plugin
+ * checks it against core's registry (`runnables/runnables`) and, when the plugin
  * has a `configSchema`, parses `local` with it before any runnable runs.
  *
  * Brands use `Symbol.for` and the parsed `local` block lives on
