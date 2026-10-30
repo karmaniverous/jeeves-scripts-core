@@ -36,6 +36,7 @@ flowchart LR
 
 - **build-registry** runs daily, enumerating repos via GitHub API and writing the registry file.
 - **sync-repos** and **sync-issues** read the registry and process repos in round-robin order, prioritizing least-recently-synced.
+- **sync-repos** keeps each mirror on the repo's current default branch (from the registry): when it changed, the single-branch clone's refspec is switched and the fetch names its destination ref, so `origin/<branch>` always exists. A mirror that still can't be updated is cloned afresh into `repo.fresh` beside it and swapped in, leaving `.meta/` alone; if the swap fails the old mirror stays in place, and any `repo.fresh` or `repo.old` left behind is removed on the next sync. A repo that fails even so is recorded (`lastError`) and the run fails after the batch (#48). Mirrors are reference copies: nothing is committed in them.
 - **sync-issues** maintains change history using JSON patches (up to 50 history entries per issue).
 - **poll-collabs** / **drain-collabs** manage bot access across repos, switching between primary account and bot user as needed.
 - **watch** tracks notification state per user and detects important reasons (review_requested, mention, etc.).
@@ -53,7 +54,7 @@ flowchart LR
 
 ## Prerequisites
 
-- `GH_ACCOUNT` (primary account) and `GH_BOT_USER` (bot) from `integrations.gh.account` / `integrations.gh.botUser` in `jeeves-scripts.json`; both default to empty. The scripts switch between them with `gh auth switch -u <user>`, so `gh` must hold a login for each.
+- `GH_ACCOUNT` (primary account) and `GH_BOT_USER` (bot) from `integrations.gh.account` / `integrations.gh.botUser` in `jeeves-scripts.json`; both default to empty. The scripts switch between them with `gh auth switch -u <user>`, so `gh` must hold a login for each. After every switch a job checks that `gh api user` reports the login it switched to (case-insensitive, `verifyActingAccount`); a failed switch or any other login fails the run before the next `gh` call, so nothing is read or written as the wrong account (#59). drain-collabs fails the queue item it was on.
 - `GH_CONFIG_DIR` (`integrations.gh.configDir`, default `{configDir}/gh-cli`, where `paths.configDir` defaults to `{baseDir}/config`; the `GH_CONFIG_DIR` environment variable wins): every GitHub script sets the `GH_CONFIG_DIR` environment variable to it (`setupGhConfig()`) before calling `gh`, so the logins must live there. The jobs skip (`[skip]`, exit 0) when the directory does not exist; `build-registry` also skips when `GH_ACCOUNT` is empty.
 - `GH_BIN` (`gh`, resolved through `PATH`).
 - The sync jobs only process repos in the registry, so `github-build-registry` must have run.

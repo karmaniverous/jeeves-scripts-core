@@ -1,7 +1,7 @@
 ---
 name: jeeves-calendar
 description: Google Calendar event polling and meeting coordination. Use when working with the calendar pipeline, setting up gog for Google Calendar, or scheduling meetings.
-metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
+metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 
 # Calendar

@@ -16,6 +16,7 @@ import { COMPONENT_CONFIG_PREFIX, CONFIG_FILE } from '@karmaniverous/jeeves';
 import { z } from 'zod';
 
 import { paths } from '../config/paths.js';
+import { isEnoent } from './fs-errors.js';
 
 /**
  * Path of a component's config file.
@@ -47,7 +48,7 @@ export const readComponentConfig = <S extends z.ZodType>(
   try {
     text = fs.readFileSync(file, 'utf8');
   } catch (err: unknown) {
-    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    if (isEnoent(err)) return undefined;
     throw err;
   }
   const parsed = schema.safeParse(JSON.parse(text));

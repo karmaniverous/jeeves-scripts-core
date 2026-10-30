@@ -49,8 +49,7 @@ describe('openclawConfigPaths', () => {
 });
 
 describe('findInOpenclawConfig', () => {
-  it('skips missing, unparseable and invalid files and returns the first defined pick', () => {
-    write(primary, '{ not json');
+  it('skips a missing file and returns the first defined pick', () => {
     write(legacy, { gateway: { auth: { token: 'legacy' } } });
     expect(
       findInOpenclawConfig(
@@ -60,11 +59,49 @@ describe('findInOpenclawConfig', () => {
     ).toBe('legacy');
   });
 
-  it('skips a file whose known fields have the wrong type', () => {
-    write(primary, { gateway: { auth: { token: 42 } } });
-    expect(
-      findInOpenclawConfig((c) => c.gateway?.auth?.token, [primary]),
-    ).toBeUndefined();
+  it('reads JSON5: comments, unquoted keys and trailing commas (#42)', () => {
+    write(
+      primary,
+      '// OpenClaw config\n{ gateway: { port: 19001, auth: { token: "t", }, }, }',
+    );
+    expect(gatewayPort([primary])).toBe(19001);
+    expect(gatewayToken([primary])).toBe('t');
+  });
+
+  it.each([
+    [
+      'not JSON5',
+      '{ not json',
+      /Invalid JSON5 in OpenClaw config .*openclaw\.json/,
+    ],
+    [
+      'a known field of the wrong type',
+      { gateway: { auth: { token: 42 } } },
+      /Invalid OpenClaw config .*openclaw\.json/,
+    ],
+  ])('throws, naming the file, on %s', (_name, value, message) => {
+    write(primary, value);
+    write(legacy, { gateway: { auth: { token: 'legacy' } } });
+    expect(() =>
+      findInOpenclawConfig((c) => c.gateway?.auth?.token, [primary, legacy]),
+    ).toThrow(message);
+  });
+
+  it('throws, naming the file, when it exists but cannot be read', () => {
+    fs.mkdirSync(primary, { recursive: true });
+    expect(() => gatewayPort([primary])).toThrow(
+      /Cannot read OpenClaw config .*openclaw\.json/,
+    );
+  });
+
+  it.each([1, 65535])('accepts gateway.port %d', (port) => {
+    write(primary, { gateway: { port } });
+    expect(gatewayPort([primary])).toBe(port);
+  });
+
+  it.each([0, 65536, 1.5, '19001'])('rejects gateway.port %j', (port) => {
+    write(primary, { gateway: { port } });
+    expect(() => gatewayPort([primary])).toThrow(/Invalid OpenClaw config/);
   });
 });
 
@@ -132,5 +169,97 @@ describe('gatewayPort', () => {
   it("falls back to OpenClaw's default when no file sets it", () => {
     write(primary, { gateway: { auth: { token: 't' } } });
     expect(gatewayPort([primary, legacy])).toBe(18789);
+  });
+});
+
+describe('SecretRefs in token fields (#61 review)', () => {
+  const ref = { source: 'env', provider: 'default', id: 'SLACK_BOT_TOKEN' };
+
+  it('reads the rest of a config whose tokens are SecretRefs', () => {
+    write(primary, {
+      gateway: { port: 19001, auth: { token: ref } },
+      channels: { slack: { botToken: ref } },
+    });
+    expect(gatewayPort([primary])).toBe(19001);
+    expect(gatewayToken([primary])).toBeNull();
+  });
+
+  it('skips a SecretRef bot token and keeps the plain ones', () => {
+    write(primary, {
+      channels: {
+        slack: {
+          accounts: { a: { botToken: ref }, b: { botToken: 'xoxb-b' } },
+        },
+      },
+    });
+    expect(slackBotTokens([primary])).toEqual({ b: 'xoxb-b' });
+  });
+
+  it('still rejects a token that is neither a string nor an object', () => {
+    write(primary, { gateway: { auth: { token: 42 } } });
+    expect(() => gatewayPort([primary])).toThrow(/Invalid OpenClaw config/);
+  });
+});
+
+describe('env references in token fields (#61 second review)', () => {
+  const vars = ['OC_TEST_TOKEN', 'OC_TEST_MISSING'];
+  afterEach(() => {
+    for (const v of vars) Reflect.deleteProperty(process.env, v);
+  });
+
+  it('resolves ${VAR} and a whole-string $VAR from the environment', () => {
+    process.env.OC_TEST_TOKEN = 'xoxb-env';
+    write(primary, {
+      gateway: { auth: { token: 'Bearer-${OC_TEST_TOKEN}' } },
+      channels: { slack: { botToken: '$OC_TEST_TOKEN' } },
+    });
+    expect(gatewayToken([primary])).toBe('Bearer-xoxb-env');
+    expect(slackBotTokens([primary])).toEqual({ default: 'xoxb-env' });
+  });
+
+  it('treats a reference to a missing variable as unset, and $${VAR} as a literal', () => {
+    write(primary, {
+      gateway: { auth: { token: '${OC_TEST_MISSING}' } },
+      channels: { slack: { botToken: 'lit-$${OC_TEST_TOKEN}' } },
+    });
+    expect(gatewayToken([primary])).toBeNull();
+    expect(slackBotTokens([primary])).toEqual({
+      default: 'lit-${OC_TEST_TOKEN}',
+    });
+  });
+
+  it('reads a SecretRef with any source as unset, and says so when no token is left', () => {
+    write(primary, {
+      channels: { slack: { botToken: { source: 'vault', id: 'x' } } },
+    });
+    expect(() => slackBotTokens([primary])).toThrow(/not SecretRef objects/);
+  });
+});
+
+describe('env sources for references (#61 third review)', () => {
+  afterEach(() => {
+    Reflect.deleteProperty(process.env, 'OC_TEST_TOKEN');
+  });
+
+  it('resolves from the .env beside the config, then env.vars, with the process env first', () => {
+    fs.mkdirSync(path.dirname(primary), { recursive: true });
+    fs.writeFileSync(
+      path.join(path.dirname(primary), '.env'),
+      'OC_TEST_TOKEN=from-dotenv\nOC_TEST_SLACK=xoxb-dotenv\n',
+    );
+    write(primary, {
+      env: { vars: { OC_TEST_TOKEN: 'from-vars', OC_TEST_GW: 'gw-vars' } },
+      gateway: { auth: { token: '${OC_TEST_TOKEN}-${OC_TEST_GW}' } },
+      channels: { slack: { botToken: '${OC_TEST_SLACK}' } },
+    });
+    expect(gatewayToken([primary])).toBe('from-dotenv-gw-vars');
+    expect(slackBotTokens([primary])).toEqual({ default: 'xoxb-dotenv' });
+    process.env.OC_TEST_TOKEN = 'from-process';
+    expect(gatewayToken([primary])).toBe('from-process-gw-vars');
+  });
+
+  it('names the variables it could not resolve when no token is left', () => {
+    write(primary, { channels: { slack: { botToken: '${OC_TEST_NOPE}' } } });
+    expect(() => slackBotTokens([primary])).toThrow(/unresolved: OC_TEST_NOPE/);
   });
 });

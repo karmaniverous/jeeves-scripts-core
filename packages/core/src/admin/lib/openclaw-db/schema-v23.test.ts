@@ -137,7 +137,7 @@ describe('schema v23 reader', () => {
 
     expect(() => openAgentDb(fx.dbPath)).toThrow(OpenClawSchemaMismatchError);
     expect(() => openAgentDb(fx.dbPath)).toThrow(
-      /expected user_version 23, found 22/,
+      /expected user_version 23 or 24, found 22/,
     );
   });
 

@@ -11,11 +11,13 @@ import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 
 import { schemaV23 } from './schema-v23.js';
+import { schemaV24 } from './schema-v24.js';
 import type { OpenClawDbSchema, SchemaContext } from './types.js';
 
 /** Schema modules by `user_version`. Add schema-vNN here on upgrade. */
 const SCHEMAS: Record<number, OpenClawDbSchema> = {
   [schemaV23.version]: schemaV23,
+  [schemaV24.version]: schemaV24,
 };
 
 /** Thrown when the agent DB's schema version has no reader. */

@@ -1,7 +1,7 @@
 ---
 name: jeeves-dates
 description: Date formatting utilities and day-of-week computation. Use when formatting dates, computing days of the week, or displaying relative dates.
-metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
+metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 
 # Dates

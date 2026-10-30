@@ -11,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import JSON5 from 'json5';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
@@ -67,8 +68,10 @@ const metadataSchema = z.object({
 const frontmatterSchema = z.object({
   name: z.string().regex(/^[a-z0-9-]+$/),
   description: z.string().min(20).max(MAX_DESCRIPTION),
+  // OpenClaw parses the frontmatter as YAML and re-parses metadata as JSON5,
+  // so Prettier's single-quoted YAML flow mapping is as valid as JSON.
   metadata: z.string().transform((s, ctx) => {
-    const parsed = metadataSchema.safeParse(JSON.parse(s));
+    const parsed = metadataSchema.safeParse(JSON5.parse(s));
     if (parsed.success) return parsed.data;
     ctx.addIssue({ code: 'custom', message: z.prettifyError(parsed.error) });
     return z.NEVER;

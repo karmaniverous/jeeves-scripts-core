@@ -23,6 +23,7 @@ import {
   oldestBatch,
   type RepoRegistry,
   seedRoundRobin,
+  verifyActingAccount,
 } from './lib/github-deps.js';
 
 const compare = jsonpatch.compare.bind(jsonpatch);
@@ -138,13 +139,8 @@ export async function syncIssues(deps: GitHubJobDeps): Promise<void> {
     console.log(
       `[issues-sync] start ${deps.now()} (batch=${String(BATCH_SIZE)})`,
     );
-    try {
-      deps.run(deps.bin, ['auth', 'switch', '-u', deps.account]);
-    } catch (e) {
-      console.log(
-        `[issues-sync] warning: account switch failed: ${e instanceof Error ? e.message : String(e)}`,
-      );
-    }
+    deps.run(deps.bin, ['auth', 'switch', '-u', deps.account]);
+    verifyActingAccount(deps, deps.account);
 
     const registry = readJson<RepoRegistry>(deps.registryPath, { repos: {} });
     seedRoundRobin(

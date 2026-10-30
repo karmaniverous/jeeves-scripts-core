@@ -1,10 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "types": [
-      "node",
-      "vitest/globals"
-    ]
+    "types": ["node", "vitest/globals"]
   },
   "include": [
     ".release-it.ts",
@@ -14,9 +11,5 @@
     "rollup.config.ts",
     "vitest.config.ts"
   ],
-  "exclude": [
-    "dist",
-    "node_modules",
-    "template"
-  ]
+  "exclude": ["dist", "node_modules", "template"]
 }

@@ -12,12 +12,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { isEnoent } from '../../lib/fs-errors.js';
+
 /** Maximum age in milliseconds before a .tmp file is considered orphaned (1 hour). */
 export const MAX_AGE_MS = 60 * 60 * 1000;
-
-/** True for a vanished file (TOCTOU between `readdirSync` and `lstatSync`). */
-const isEnoent = (err: unknown): boolean =>
-  err instanceof Error && 'code' in err && err.code === 'ENOENT';
 
 /**
  * Recursively find and delete `.tmp` files under `dir` older than

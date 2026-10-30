@@ -19,6 +19,7 @@ import {
   ghReady,
   type GitHubJobDeps,
   githubJobDeps,
+  verifyActingAccount,
 } from './lib/github-deps.js';
 
 interface GhRepo {
@@ -114,6 +115,7 @@ export function buildRegistry(deps: GitHubJobDeps): void {
   }
 
   deps.run(deps.bin, ['auth', 'switch', '-u', account]);
+  verifyActingAccount(deps, account);
   const repos = getWriteRepos(deps)
     .filter((r) => !r.archived && !r.disabled && !r.fork)
     .sort(

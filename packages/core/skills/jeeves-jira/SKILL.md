@@ -1,7 +1,7 @@
 ---
 name: jeeves-jira
 description: Jira integration - webhook drain, backfill, field refresh, backlog sort, ticket creation conventions, Blocks link direction, and editing or restructuring tickets. Use when working with the Jira pipeline or archive, creating or linking Jira tickets, or editing ticket descriptions.
-metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
+metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 
 # Jira

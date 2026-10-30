@@ -17,6 +17,7 @@ import {
   ghReady,
   type GitHubJobDeps,
   githubJobDeps,
+  verifyActingAccount,
 } from './lib/github-deps.js';
 
 const STATE_NS = 'github';
@@ -102,6 +103,7 @@ export function watchNotifications(deps: GitHubJobDeps): void {
   try {
     for (const user of USERS) {
       deps.gh(['auth', 'switch', '-u', user]);
+      verifyActingAccount(deps, user);
       const res = deps.gh(
         [
           'api',
@@ -235,6 +237,7 @@ export function watchNotifications(deps: GitHubJobDeps): void {
       perUser[user] = { fetched, importantNew };
     }
 
+    fs.mkdirSync(path.dirname(LOG_PATH), { recursive: true });
     fs.appendFileSync(
       LOG_PATH,
       `- ${deps.now()} \u2014 fetched: ${USERS.map((u) => `${u}=${String(perUser[u]?.fetched ?? 0)}`).join(', ')}; alerts: ${String(alerts.length)}\n`,

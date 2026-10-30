@@ -8,14 +8,18 @@
  * and the bot user (to accept invitations) as needed.
  */
 
+import { getErrorMessage } from '@karmaniverous/jeeves';
+
 import { argValue, type ParsedArgs } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   collabArgs,
   collabFlags,
+  GhAccountMismatchError,
   ghReady,
   type GitHubJobDeps,
   githubJobDeps,
+  verifyActingAccount,
 } from './lib/github-deps.js';
 
 interface CollabItem {
@@ -45,14 +49,20 @@ export function drainCollabs(
   const client = deps.runner();
 
   try {
-    const items = client.dequeue('gh-collabs', maxItems);
     let processed = 0;
 
-    for (const { id, payload } of items) {
+    // One item at a time: dequeue() spends an attempt, so a batch claimed up
+    // front would lose whatever an account mismatch stops before reaching
+    // (#61 review).
+    while (processed < maxItems) {
+      const [next] = client.dequeue('gh-collabs', 1);
+      if (!next) break;
+      const { id, payload } = next;
       const item = payload as CollabItem;
       try {
         if (item.kind === 'repo') {
           deps.gh(['auth', 'switch', '-u', owner]);
+          verifyActingAccount(deps, owner);
           const repo = item.full_name!;
           const perm = item.permission ?? 'push';
           const res = deps.gh(
@@ -74,6 +84,7 @@ export function drainCollabs(
 
         if ((item.kind as string) === 'invite') {
           deps.gh(['auth', 'switch', '-u', botUser]);
+          verifyActingAccount(deps, botUser);
           const inviteId = item.id!;
           const res = deps.gh(
             [
@@ -93,9 +104,15 @@ export function drainCollabs(
         client.done(id);
         processed++;
       } catch (e) {
-        const errorMsg = e instanceof Error ? e.message : String(e);
-        client.fail(id, errorMsg);
+        client.fail(id, getErrorMessage(e));
         processed++;
+        // Acting as the wrong account: stop before anything else is written.
+        // dequeue() spent this item's only attempt, so queue it again for the
+        // next run; the items not yet dequeued stay pending (#61 reviews).
+        if (e instanceof GhAccountMismatchError) {
+          client.enqueue('gh-collabs', payload);
+          throw e;
+        }
       }
     }
     console.log(`[drain-collabs] processed ${String(processed)} items`);

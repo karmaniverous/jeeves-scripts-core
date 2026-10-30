@@ -58,6 +58,39 @@ const defaultApi = (): Record<string, Handler> => ({
 });
 
 /**
+ * A `conversations.history` handler for C1 holding `n` top-level messages
+ * (ts `200.000001` up), ordered as Slack orders them with no `latest`
+ * (#50): for a real `oldest`, the `limit` messages just after it, newest
+ * first, `has_more` when newer ones remain; for `oldest` unset or 0, the
+ * channel's newest `limit` messages, `has_more` when older ones remain.
+ * Other channels are empty; `onFetch` runs on each C1 page.
+ */
+export const c1History =
+  (
+    n: number,
+    extra: Record<string, unknown> = {},
+    onFetch?: () => void,
+  ): Handler =>
+  (q) => {
+    if (q.get('channel') !== 'C1') return { ok: true, messages: [] };
+    onFetch?.();
+    const oldest = Number(q.get('oldest') ?? 0);
+    const after = Array.from({ length: n }, (_, i) => ({
+      ts: `${String(200 + i)}.000001`,
+      user: 'U1',
+      text: `m${String(i)}`,
+      ...extra,
+    })).filter((m) => Number(m.ts) > oldest);
+    const limit = Number(q.get('limit'));
+    const page = oldest > 0 ? after.slice(0, limit) : after.slice(-limit);
+    return {
+      ok: true,
+      messages: page.reverse(),
+      has_more: after.length > limit,
+    };
+  };
+
+/**
  * Register the fixture's hooks; returns accessors valid inside tests. The
  * API handlers reset before each test.
  */

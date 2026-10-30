@@ -17,6 +17,7 @@ import {
   ghReady,
   type GitHubJobDeps,
   githubJobDeps,
+  verifyActingAccount,
 } from './lib/github-deps.js';
 
 /** Run the job. */
@@ -37,6 +38,7 @@ export function pollCollabs(
 
   try {
     deps.gh(['auth', 'switch', '-u', owner]);
+    verifyActingAccount(deps, owner);
     let page = 1;
     const repos: {
       full_name: string;
@@ -85,6 +87,7 @@ export function pollCollabs(
 
     // Poll invitations as bot
     deps.gh(['auth', 'switch', '-u', botUser]);
+    verifyActingAccount(deps, botUser);
     page = 1;
     for (;;) {
       const result = deps.gh([

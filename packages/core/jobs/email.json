@@ -46,9 +46,7 @@
       "interval": 1,
       "timezone": "UTC"
     },
-    "args": [
-      "--live"
-    ],
+    "args": ["--live"],
     "overlap_policy": "skip",
     "timeout_seconds": 1800,
     "enabled": true,

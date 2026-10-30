@@ -11,6 +11,7 @@ Polls Slack channels for new messages across configured workspaces, auto-discove
 | Script | Description |
 | --- | --- |
 | `poll.ts` | Auto-discovers channels, fetches history and thread replies via Slack API, writes individual JSON files per message to silo-routed directories. Supports multi-account/multi-workspace scenarios. |
+| `backfill-history.ts` | `slack-backfill-history`, on demand: re-reads one channel from its first message up to a bound without moving `slack-poll`'s read position. See [Re-reading History](#re-reading-history). |
 
 ## Data Flow
 
@@ -24,7 +25,7 @@ flowchart LR
 
 - Loads Slack bot tokens (see [Bot Tokens](#bot-tokens)).
 - Discovers all channel types the bot is a member of (public, private, IM, MPIM), excluding archived, for every token's account (IMs always count). Each run refreshes known channels' name and flags from Slack and adds new ones with `_autoDiscovered` (timestamp) and `_account` (the token's account name), in the [Slack cache](#slack-cache-state).
-- Reads conversation history since the last read position per channel, oldest first, one page (200 messages) at a time: given `oldest` and no `latest`, Slack returns the messages just after `oldest`, so each page is fetched from the position just saved and nothing is fetched ahead of what is written. Read positions are instance state in the jeeves-runner state store (see [Read Positions](#read-positions-state)).
+- Reads conversation history since the last read position per channel, oldest first, one page (200 messages) at a time: given `oldest` and no `latest`, Slack returns the messages just after `oldest`, so each page is fetched from the position just saved and nothing is fetched ahead of what is written. The exception is `oldest: '0'`, which Slack treats as unset and answers with the channel's newest messages; the poller never sends it (its floor, `HISTORY_FLOOR`, is `'1'`). Read positions are instance state in the jeeves-runner state store (see [Read Positions](#read-positions-state)).
 - **Backlogs.** A channel gets at most `slack.backfillBudgetSeconds` (default 60) per run, page fetches included. After the budget no further message or page is started (at least one message always is, so a backlog always progresses); the poll logs `backfilling <channelId> (<name>): N written, resuming next run` and moves on to the next channel. A large backlog (a newly joined old channel, a lost position, a first poll) is ingested over several runs, and channels after it are polled every run. Keep the budget well under the job's timeout (300 s).
 - A channel Slack no longer shows to the bot (`channel_not_found`: left, deleted, a DM no longer visible) logs `SKIP <channelId>: ...` (a warning), not `ERROR`.
 - For a channel with new messages, re-reads its members (`conversations.members`) when they are more than a day old; they are written as each message's `participants`.
@@ -41,13 +42,27 @@ flowchart LR
 
 The newest `ts` seen per channel is instance **state**, not config (karmaniverous/jeeves-tools#184). Like the other pollers' cursors (calendar `lastSync-<email>`, github `watch-<user>`), it lives in the jeeves-runner state store (the runner DB, opened with `getRunnerClient()` from `JR_DB_PATH`, which the runner sets for its jobs): namespace `slack`, one scalar key per channel, `lastTs-<channelId>`. A channel's position is saved after each top-level message and its thread replies are written, so a run killed mid-channel (e.g. at the job timeout) resumes there; at most the message in progress is written again (files are deduped by `ts`). The position is always a top-level message's `ts`, never a reply's: a reply can be newer than top-level messages not yet read. Inspect with `GET <runnerUrl()>/state/slack` (the runner's port is in its own config; see [lib.md](./lib.md#runner-configts)).
 
-- No stored position for a channel: it is read from `slack.newChannelLookbackDays` days back (`0`: from now), or from the beginning when that is unset. With a lookback, that start is saved as the channel's position at once, so a quiet channel keeps it rather than sliding forward each run past what was posted in between. Message files are deduped by `ts`, so this is safe; it only costs API calls.
+- No stored position for a channel: it is read from `slack.newChannelLookbackDays` days back (`0`: from now), or from its first message when that is unset (`oldest: '1'`). With a lookback, that start is saved as the channel's position at once, so a quiet channel keeps it rather than sliding forward each run past what was posted in between. Message files are deduped by `ts`, so this is safe; it only costs API calls.
 - A store failure while saving a position fails the run too; it is never swallowed by the per-channel error handling.
 - Store unreachable (no `JR_DB_PATH`, missing or uninitialised DB): the poll run fails (`FATAL`, exit 1), even with no channels configured (only the `SLACK_DOMAIN_DIR` skip comes first). It never silently falls back to reading every channel from the beginning.
 - A stored position that is not a Slack ts (`<seconds>.<micros>`, e.g. `1700000000.000100`) also fails the run rather than being skipped or used.
 - Positions are loaded after channel discovery, so a channel rediscovered after the Slack cache was rebuilt resumes from its stored position.
 - The old one-time migration of `lastTs` values out of `channels.json` is gone: the live instance had none left when that file was retired.
 - There is no `.local.template`; nothing needs creating on a new instance.
+
+## Re-reading History
+
+Core 0.2.1 and 0.2.2 sent `oldest: '0'` for a channel with no read position and no `slack.newChannelLookbackDays`. Slack treats `'0'` as unset and returns the newest page, so such a channel kept only its newest 200 messages and the poller moved past the rest for good (#50). Every instance that ran 0.2.1 or 0.2.2 should check its channels after upgrading.
+
+**Check a channel.** Compare the oldest message archived for it (the smallest `{ts}.json` in its channel directory) with its first message in Slack: `conversations.history` with `oldest=1` and `limit=1` returns the message just after ts 1, so the reply's `messages[0].ts` is the channel's first. An archive whose oldest message is newer than the channel's first is missing history.
+
+**Re-read it.**
+
+```bash
+npx jeeves-scripts run slack-backfill-history --channel C0123456789
+```
+
+It reads from the channel's first message up to `--before` (default: the oldest message archived for the channel) with the poller's reader and writer, so files dedupe by `ts` and re-reading is safe. It never touches `slack-poll`'s read position. Each run gets `slack.backfillBudgetSeconds`; progress is kept in runner state (`slack-backfill` / `<channelId>`), so rerun it until it reports `done`. Passing `--before` restarts with that bound. The channel must already be in the Slack cache (`slack-poll` has seen it).
 
 ## Slack Cache (State)
 
@@ -213,4 +228,5 @@ try {
 | `lib/account-teams.ts` | Each bot account's workspace (`auth.test`, cached in `{stateDir}/slack/accounts.json`); the primary workspace is the `default` account's |
 | `lib/slack-sync.ts` | Refresh the cache from Slack: discovery, users, members |
 | `lib/map-helpers.ts` | jeeves-watcher map helpers (namespace `slack`): `resolveSlackUserEmails(ids)` from the user cache, `resolveSlackChannelMeta(id)` = the channel's `slack.channels` entry. Point the watcher's `mapHelpers.slack.path` at the built file, `node_modules/@karmaniverous/jeeves-scripts-core/dist/slack/lib/map-helpers.js` in the instance; it finds the instance config from `JEEVES_SCRIPTS_CONFIG`, else the nearest `jeeves-scripts.json` above it |
+| `lib/read-channel.ts` | `pollChannel()`: read one channel oldest first, page by page, writing each message and saving the position after each; optional `before` bound. Shared by `slack-poll` and `slack-backfill-history` |
 | `lib/cursors.ts` | Read-position state in the runner store (`slack` / `lastTs-<channelId>`): Slack ts schema, load, save |

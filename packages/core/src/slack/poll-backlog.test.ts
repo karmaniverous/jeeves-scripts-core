@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 
 import { pollSlack } from './poll.js';
-import { usePollFixture } from './poll.test-helper.js';
+import { c1History, usePollFixture } from './poll.test-helper.js';
 
 vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
@@ -18,33 +18,13 @@ vi.mock('@karmaniverous/jeeves', async (importOriginal) => ({
 
 const { api, deps, fake, histories, runner } = usePollFixture();
 
-/**
- * C1 history: `n` top-level messages (ts `200.000001` up). Like Slack given
- * `oldest` and no `latest`: the `limit` messages just after `oldest`,
- * newest first, and `has_more` when newer ones remain.
- */
+/** Serve C1 `n` messages, Slack-ordered (see `c1History`). */
 const backlog = (
   n: number,
   extra: Record<string, unknown> = {},
   onFetch?: () => void,
 ) => {
-  api['conversations.history'] = (q) => {
-    if (q.get('channel') !== 'C1') return { ok: true, messages: [] };
-    onFetch?.();
-    const oldest = Number(q.get('oldest'));
-    const after = Array.from({ length: n }, (_, i) => ({
-      ts: `${String(200 + i)}.000001`,
-      user: 'U1',
-      text: `m${String(i)}`,
-      ...extra,
-    })).filter((m) => Number(m.ts) > oldest);
-    const limit = Number(q.get('limit'));
-    return {
-      ok: true,
-      messages: after.slice(0, limit).reverse(),
-      has_more: after.length > limit,
-    };
-  };
+  api['conversations.history'] = c1History(n, extra, onFetch);
 };
 
 /** Record every C1 read position written to runner state. */
@@ -136,7 +116,7 @@ describe('pollSlack backlogs', () => {
     backlog(450, {}, () => (clock += 30_000));
     const run = deps({ now: () => clock });
     await pollSlack(run);
-    expect(oldestFor('C1')).toEqual(['0', '399.000001']);
+    expect(oldestFor('C1')).toEqual(['1', '399.000001']);
     expect(runner().state.get('slack|lastTs-C1')).toBe('399.000001');
     // (The suite shares one archive, so earlier tests' files count as old.)
     expect(console.log).toHaveBeenCalledWith(
@@ -208,14 +188,27 @@ describe('pollSlack backlogs', () => {
     fake().calls.length = 0;
     runner().state.clear();
     await pollSlack(deps({ now: () => now, config: lookback(1e9) }));
-    expect(oldestFor('C1')).toEqual(['0.000000']);
+    expect(oldestFor('C1')).toEqual(['1.000000']);
   });
 
-  it('reads a channel with no read position and no lookback from the beginning', async () => {
+  it('reads a channel with no read position and no lookback from its first message, in order, across pages (#50)', async () => {
+    fs.mkdirSync(deps().slackDir, { recursive: true });
+    backlog(450);
+    const { saves, restore } = recordSaves();
+    await pollSlack(deps());
+    restore();
+    expect(oldestFor('C1')).toEqual(['1', '399.000001', '599.000001']);
+    expect(saves).toHaveLength(450);
+    expect(saves[0]).toBe('200.000001');
+    expect(saves).toEqual([...saves].sort());
+    expect(runner().state.get('slack|lastTs-C1')).toBe('649.000001');
+  });
+
+  it('never sends oldest 0 for a quiet channel with no read position (#50)', async () => {
     fs.mkdirSync(deps().slackDir, { recursive: true });
     api['conversations.history'] = () => ({ ok: true, messages: [] });
     await pollSlack(deps());
-    expect(oldestFor('C1')).toEqual(['0']);
+    expect(oldestFor('C1')).toEqual(['1']);
     expect(runner().state.get('slack|lastTs-C1')).toBeUndefined();
   });
 

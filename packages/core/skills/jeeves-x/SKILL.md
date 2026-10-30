@@ -1,7 +1,7 @@
 ---
 name: jeeves-x
 description: X/Twitter integration - polling posts/mentions/feed, posting, liking, reposting. Use when working with the X pipeline or social media automation.
-metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
+metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 
 # X (Twitter)

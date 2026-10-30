@@ -20,16 +20,20 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^26.6.5",
-    "@vitest/coverage-v8": "^5.0.4",
-    "eslint": "^10.12.0",
+    "@types/node": "^26.6.6",
+    "@vitest/coverage-v8": "^5.0.5",
+    "basic-ftp": "^6.2.4",
+    "eslint": "^10.13.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-prettier": "^5.5.7",
     "eslint-plugin-simple-import-sort": "^14.0.0",
     "jiti": "^2.7.0",
     "prettier": "^3.9.10",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.71.2",
-    "vitest": "^5.0.4"
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
+  },
+  "overrides": {
+    "basic-ftp": "$basic-ftp"
   }
 }

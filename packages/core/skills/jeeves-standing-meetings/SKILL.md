@@ -1,7 +1,7 @@
 ---
 name: jeeves-standing-meetings
 description: Automate standing meeting operations - post-meeting notes and next-day agenda generation. Use when asked to set up meeting automation for a recurring standup, sync, or review.
-metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
+metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 
 # Standing Meetings

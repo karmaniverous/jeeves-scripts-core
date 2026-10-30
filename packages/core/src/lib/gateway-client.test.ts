@@ -20,7 +20,7 @@ describe('gateway-client', () => {
       vi.doMock('node:fs', () => ({
         default: {
           readFileSync: () => {
-            throw new Error('ENOENT');
+            throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
           },
         },
       }));

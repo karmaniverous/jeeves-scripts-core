@@ -87,7 +87,7 @@ describe('syncRepos', () => {
     );
   });
 
-  it('adds repos new to the registry and records a failed sync', () => {
+  it('adds repos new to the registry, records a failed sync and fails the run (#48)', () => {
     writeRegistry({ 'acme/one': {} });
     syncRepos(w.deps);
     writeRegistry({ 'acme/one': {}, 'acme/new': {} });
@@ -100,9 +100,14 @@ describe('syncRepos', () => {
         throw new Error('auth failed');
       return failing.deps.run(cmd, args);
     };
-    syncRepos(w.deps);
+    expect(() => {
+      syncRepos(w.deps);
+    }).toThrow('[repo-sync] 1 of 2 repos failed to sync');
     failing.cleanup();
     expect(logs).toContain('[repo-sync] adding new repo: acme/new');
+    expect(item('github', 'repos-sync', 'acme/one')).not.toHaveProperty(
+      'lastError',
+    );
     expect(item('github', 'repos-sync', 'acme/new')).toMatchObject({
       lastError: 'auth failed',
     });
@@ -136,13 +141,7 @@ describe('syncIssues', () => {
       w.deps.registryPath,
       JSON.stringify({ repos: { 'acme/one': {}, 'acme/bad': {} } }),
     );
-    w.deps.run = () => {
-      throw new Error('no such account');
-    };
     await syncIssues(w.deps);
-    expect(logs).toContain(
-      '[issues-sync] warning: account switch failed: no such account',
-    );
     const file = path.join(
       w.dir,
       'content',
@@ -182,9 +181,23 @@ describe('syncIssues', () => {
     expect(ISSUE_BATCH).toBe(10);
   });
 
+  it('fails, storing nothing, when the account switch fails (#59)', async () => {
+    writeRegistry({ 'acme/one': {} });
+    w.deps.run = () => {
+      throw new Error('no such account');
+    };
+    await expect(syncIssues(w.deps)).rejects.toThrow('no such account');
+    expect(w.ghCalls).toEqual([]);
+  });
+
   it('treats an empty result as no issues', async () => {
     writeRegistry({ 'acme/one': {} });
-    w.deps.gh = () => ({ ok: true, status: 0, out: '[]', err: '' });
+    w.deps.gh = (args) => ({
+      ok: true,
+      status: 0,
+      out: args[1] === 'user' ? 'acme' : '[]',
+      err: '',
+    });
     await syncIssues(w.deps);
     expect(item('github', 'issues-sync', 'acme/one')).toEqual({
       lastSyncedAt: GH_NOW,

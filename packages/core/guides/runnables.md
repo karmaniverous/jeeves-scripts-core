@@ -24,7 +24,7 @@ A runnable id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/
 | `linear` | `linear-sync-issues`, `linear-sync-comments` | `linear-backfill`, `linear-drain` |
 | `meetings` | `meetings-fetch-notes`, `meetings-extract`, `meetings-ingest-notion` |  |
 | `meta` | `meta-sweep-duplicates`, `meta-disable-old` |  |
-| `slack` | `slack-poll` |  |
+| `slack` | `slack-poll` | `slack-backfill-history` ([slack](./slack.md#re-reading-history)) |
 | `x` | `x-poll-posts`, `x-poll-mentions`, `x-poll-feed`, `x-poll-likes`, `x-poll-bookmarks`, `x-drain-queues` | `x-post`, `x-refresh-token`, `x-like`, `x-repost` (kept, Decision 50) |
 | `people` |  | `people-propose` |
 

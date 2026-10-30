@@ -1,7 +1,7 @@
 ---
 name: jeeves-linear
 description: Linear integration - webhook drain, polling sync, backfill, and entity conventions. Use when working with the Linear pipeline or archive, or answering questions from archived Linear issues.
-metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
+metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 
 # Linear
