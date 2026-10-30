@@ -14,6 +14,19 @@ import { z } from 'zod';
 /** The full config's file name inside the config directory. */
 export const CONFIG_FILE_NAME = 'config.json';
 
+/**
+ * Whether `dir` is a fully absolute directory on `platform`: a drive
+ * (`J:/...`, `J:\\...`) or UNC path on Windows, where a drive-less `/x`
+ * depends on the current drive; a `/` path elsewhere (#62 review).
+ */
+export const isAbsoluteDir = (
+  dir: string,
+  platform: NodeJS.Platform = process.platform,
+): boolean =>
+  platform === 'win32'
+    ? /^[A-Za-z]:[\\/]/.test(dir) || /^[\\/]{2}[^\\/]/.test(dir)
+    : dir.startsWith('/');
+
 /** A `jeeves-scripts.json` that points at the config directory. */
 export const pointerSchema = z.strictObject({
   /** Editor schema reference (`.../schema/pointer.schema.json`). */
@@ -22,7 +35,7 @@ export const pointerSchema = z.strictObject({
   config: z
     .string()
     .min(1)
-    .refine((dir) => path.isAbsolute(dir) || path.win32.isAbsolute(dir), {
+    .refine((dir) => isAbsoluteDir(dir), {
       message: 'must be an absolute directory',
     }),
 });
