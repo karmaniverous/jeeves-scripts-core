@@ -226,6 +226,7 @@ For an assistant changing tickets through the REST API (#47). Work from the live
    - table rows: `tableRow` > `tableCell` > `paragraph`.
 
    Add a line in italics saying who asked for the change and when.
+
 4. Map the result again and diff it against the backup. Restore any node changed by mistake from the backup.
 5. PUT `{fields:{description:...}}` (expect 204). Re-GET and confirm the old values are gone and the new ones are present.
 6. Bring any spec or handoff docs that repeat the rule into line, backing each up first. Ask about other stale copies, such as closed sibling tickets or test cases someone else owns; don't edit them.

@@ -1,7 +1,7 @@
 ---
 name: jeeves-token-metrics
 description: Token usage and cost metrics. Use when asked about token consumption, API costs, spending, session costs, or model usage.
-metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
+metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 
 # Token Metrics

@@ -1,7 +1,7 @@
 ---
 name: jeeves-github
 description: GitHub integration - repo sync, issue sync, notifications, and collaborator management. Use when working with the GitHub pipeline, debugging GitHub sync, or using the gh CLI as the instance's bot.
-metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
+metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 
 # GitHub
