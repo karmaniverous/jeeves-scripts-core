@@ -32,13 +32,15 @@ const around = (template: string, placeholder: string): [string, string] => {
 
 /**
  * The global regex for Markdown links `](<pattern>[/][#anchor])`; group 1
- * is the name, group 2 the anchor (`''` when none).
+ * is the name, group 2 the anchor (`''` when none). Case-insensitive, as
+ * the prototype's was (`](/Skill/x)` matches `/skill/{name}`); the name
+ * itself is then looked up exactly.
  */
 export const linkPattern = (pattern: string): RegExp => {
   const [before, after] = around(pattern, LIBRARY_LINK_NAME);
   return new RegExp(
     `\\]\\(${literal(before)}(${NAME})${literal(after)}\\/?((?:#[^)\\s]*)?)\\)`,
-    'g',
+    'gi',
   );
 };
 

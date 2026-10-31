@@ -39,6 +39,9 @@ describe('libraryMirrorSchema', () => {
     ['dest', { dest: '../outside' }, /\.\. segment/],
     ['dest', { dest: './' }, /directory under the content dir/],
     ['dest', { dest: 'library/.meta/x' }, /under \.meta/],
+    // Case-insensitive filesystems put `.Meta` at `.meta`.
+    ['dest', { dest: 'library/.Meta/x' }, /under \.meta/],
+    ['dest', { dest: '.META' }, /under \.meta/],
     ['minRatio', { minRatio: 0 }, /too small|>0/i],
     ['minRatio', { minRatio: 1.5 }, /too big|<=1/i],
     [

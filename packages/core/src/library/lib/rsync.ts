@@ -31,8 +31,17 @@ export interface RsyncArgsOptions {
   source: string;
   /** Directory mirrored into. */
   dest: string;
-  /** rsync filter patterns to exclude (and so, with `--delete`, to protect in `dest`). */
+  /**
+   * rsync filter patterns to exclude: without `deleteExcluded`, `--delete`
+   * leaves matching files in `dest` alone (protects them).
+   */
   exclude: readonly string[];
+  /**
+   * Also delete `dest` files matching `exclude` (`--delete-excluded`), so a
+   * pattern added later removes what an earlier run copied. Never for a
+   * destination whose excludes protect it.
+   */
+  deleteExcluded?: boolean | undefined;
   /** Directory for rsync's temporary files, renamed into place. */
   tempDir?: string | undefined;
   /** Report only (`--dry-run`). */
@@ -41,8 +50,14 @@ export interface RsyncArgsOptions {
 
 /**
  * The rsync argument vector for a checksum mirror of `source` into
- * `dest`: recursive, symlinks as symlinks, mtimes kept, content compared
- * by checksum, extra files deleted, every change itemized.
+ * `dest`: recursive, mtimes kept, content compared by checksum, extra
+ * files deleted, every change itemized. Symlinks are copied as symlinks
+ * only when they stay inside the tree (`--safe-links`): the source is an
+ * untrusted public repo, and an absolute link or one that climbs out of
+ * the tree (`x -> /etc/passwd`, `-> ../../secrets`) would let the
+ * watcher or jeeves-server read host files from the content tree. A link
+ * within the tree only names content that is mirrored anyway, so it is
+ * kept rather than dropped (`--no-links`).
  */
 export const rsyncArgs = (
   opts: RsyncArgsOptions,
@@ -51,11 +66,13 @@ export const rsyncArgs = (
   const args = [
     '--recursive',
     '--links',
+    '--safe-links',
     '--times',
     '--checksum',
     '--delete',
     '--itemize-changes',
   ];
+  if (opts.deleteExcluded) args.push('--delete-excluded');
   if (opts.dryRun) args.push('--dry-run');
   if (opts.tempDir)
     args.push(`--temp-dir=${rsyncPath(opts.tempDir, platform)}`);

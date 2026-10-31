@@ -33,11 +33,12 @@ describe('mirrorTree', () => {
 
   beforeEach(() => {
     root = fs.mkdtempSync(path.join(os.tmpdir(), 'library-mirror-'));
-    writeTree(path.join(root, 'source'), UPSTREAM);
+    writeTree(path.join(root, 'clone', 'sub'), UPSTREAM);
     lines.length = 0;
     opts = {
       paths: {
-        source: path.join(root, 'source'),
+        clone: path.join(root, 'clone'),
+        source: path.join(root, 'clone', 'sub'),
         stage: path.join(root, 'state', 'stage'),
         tmp: path.join(root, 'state', 'tmp'),
         incoming: path.join(root, 'state', 'incoming'),
@@ -63,6 +64,67 @@ describe('mirrorTree', () => {
     expect(listFiles(opts.paths.stage).sort()).toEqual(MIRRORED);
     expect(r).toMatchObject({ created: true, files: 5, links: 1, written: 5 });
     expect(lines).toContain(`WOULD CREATE ${opts.paths.dest} (single rename)`);
+  });
+
+  it('first-run dry run ignores a stale incoming a failed live run left', () => {
+    writeTree(opts.paths.incoming, {
+      'author-a/author.md': UPSTREAM['author-a/author.md'],
+      'stale.md': 'left over',
+    });
+    const r = mirrorTree({ ...opts, live: false });
+    expect(r).toMatchObject({ created: true, files: 5, written: 5 });
+    expect(fs.existsSync(opts.paths.dest)).toBe(false);
+  });
+
+  it('first live run clears a stale incoming before assembling', () => {
+    writeTree(opts.paths.incoming, { 'stale.md': 'left over' });
+    mirrorTree(opts);
+    expect(listFiles(opts.paths.dest).sort()).toEqual(MIRRORED);
+  });
+
+  it('an exclude added after a run removes its files from stage and dest, keeping .meta/', () => {
+    mirrorTree(opts);
+    writeTree(opts.paths.dest, { '.meta/meta.json': '{}' });
+    const r = mirrorTree({ ...opts, exclude: ['/.system/', '/author-b/'] });
+    expect(r.deleted).toBeGreaterThan(0);
+    for (const tree of [opts.paths.stage, opts.paths.dest])
+      expect(listFiles(tree).some((f) => f.startsWith('author-b/'))).toBe(
+        false,
+      );
+    expect(fs.existsSync(path.join(opts.paths.dest, '.meta/meta.json'))).toBe(
+      true,
+    );
+  });
+
+  // Directory links as junctions, so an unprivileged Windows account can
+  // create them (test/portable-tests). Windows makes every junction
+  // absolute, so there the in-tree link is dropped too; elsewhere these are
+  // plain symlinks and the relative ones stay relative.
+  it('copies only symlinks that stay inside the tree', () => {
+    const outside = path.join(root, 'outside');
+    writeTree(outside, { 'secret.md': 'host secret' });
+    const at = (rel: string) => path.join(opts.paths.source, rel);
+    fs.symlinkSync(outside, at('abs'), 'junction');
+    fs.symlinkSync('../../outside', at('up'), 'junction');
+    fs.symlinkSync('author-a', at('in'), 'junction');
+    mirrorTree(opts);
+    for (const tree of [opts.paths.stage, opts.paths.dest]) {
+      const names = fs.readdirSync(tree);
+      expect(names).not.toContain('abs');
+      expect(names).not.toContain('up');
+      expect(names.includes('in')).toBe(process.platform !== 'win32');
+      expect(listFiles(tree).some((f) => f.includes('secret'))).toBe(false);
+    }
+  });
+
+  it('refuses a source that resolves outside the clone', () => {
+    const outside = path.join(root, 'outside');
+    writeTree(outside, { 'host.md': 'host file' });
+    fs.rmSync(opts.paths.source, { recursive: true });
+    fs.symlinkSync(outside, opts.paths.source, 'junction');
+    expect(() => mirrorTree(opts)).toThrow(/resolves outside the clone/);
+    expect(fs.existsSync(opts.paths.stage)).toBe(false);
+    expect(fs.existsSync(opts.paths.dest)).toBe(false);
   });
 
   it('dry run leaves an existing destination untouched', () => {

@@ -58,6 +58,14 @@ describe('rewriteLinks', () => {
     });
   });
 
+  it('matches the pattern case-insensitively, as the prototype did, then looks the name up exactly', () => {
+    expect(rewrite('[x](/Skill/scorecard) [y](/SKILL/scorecard/)')).toEqual({
+      text: '[x](../scorecard/SKILL.md) [y](../scorecard/SKILL.md)',
+      rewritten: 2,
+    });
+    expect(rewrite('[x](/skill/Scorecard)').rewritten).toBe(0);
+  });
+
   it('keeps anchors and tolerates a trailing slash', () => {
     expect(rewrite('[x](/skill/scorecard/#metrics)').text).toBe(
       '[x](../scorecard/SKILL.md#metrics)',

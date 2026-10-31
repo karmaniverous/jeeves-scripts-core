@@ -40,6 +40,7 @@ describe('rsyncArgs', () => {
     ).toEqual([
       '--recursive',
       '--links',
+      '--safe-links',
       '--times',
       '--checksum',
       '--delete',
@@ -59,8 +60,23 @@ describe('rsyncArgs', () => {
       'linux',
     );
     expect(args).not.toContain('--dry-run');
+    expect(args).not.toContain('--delete-excluded');
     expect(args.some((a) => a.startsWith('--temp-dir'))).toBe(false);
     expect(args.slice(-2)).toEqual(['/a/', '/b']);
+  });
+
+  it('deletes excluded files in dest only when asked', () => {
+    const args = rsyncArgs(
+      {
+        source: '/a',
+        dest: '/b',
+        exclude: ['x/'],
+        deleteExcluded: true,
+        dryRun: false,
+      },
+      'linux',
+    );
+    expect(args).toContain('--delete-excluded');
   });
 
   it('converts every path argument on Windows, excludes untouched', () => {

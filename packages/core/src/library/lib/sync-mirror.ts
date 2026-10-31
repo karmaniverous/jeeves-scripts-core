@@ -71,7 +71,7 @@ export const githubCloneUrl = (repo: string): string =>
 export const mirrorDirs = (
   mirror: Pick<LibraryMirror, 'id' | 'subdir' | 'dest'>,
   settings: Pick<LibrarySettings, 'stateDir' | 'contentDir'>,
-): MirrorPaths & { clone: string } => {
+): MirrorPaths => {
   const root = path.join(settings.stateDir, 'library', mirror.id);
   const clone = path.join(root, 'clone');
   return {

@@ -16,6 +16,7 @@ import path from 'node:path';
 import { ensureDir, run } from '@karmaniverous/jeeves';
 
 import type { LibrarySiteLinks } from '../../config/library-schema.js';
+import { isWithin } from '../../lib/path-within.js';
 import type { RunCommand } from './clone.js';
 import {
   indexLinkTargets,
@@ -32,6 +33,8 @@ const SOURCE_ALWAYS_EXCLUDED = '.git/';
 
 /** The directories one mirror run uses. */
 export interface MirrorPaths {
+  /** The clone: `source`, symlinks resolved, must lie inside it. */
+  clone: string;
   /** Tree to mirror (the clone, or its subdirectory). */
   source: string;
   /** Staging copy in the state dir: the source plus link rewrites. */
@@ -135,6 +138,19 @@ const rewriteStage = (
   return total;
 };
 
+/**
+ * Refuse a source that resolves outside the clone: an untrusted repo can
+ * make `subdir` (or a directory above it) a symlink to a host directory,
+ * which rsync, given `source/`, would descend into.
+ */
+const assertInsideClone = (paths: MirrorPaths): void => {
+  const real = fs.realpathSync.native;
+  if (!isWithin(real(paths.clone), real(paths.source)))
+    throw new Error(
+      `source ${paths.source} resolves outside the clone ${paths.clone}; refusing to mirror it`,
+    );
+};
+
 /** Device of the nearest existing ancestor of `p`. */
 const statDevice = (p: string): number => {
   let cur = p;
@@ -146,8 +162,8 @@ const statDevice = (p: string): number => {
  * Stage `paths.source`, rewrite links, check the guards, and mirror the
  * stage into `paths.dest`.
  *
- * @throws Before the destination is touched, when the source is missing,
- *   the stage and destination are on different filesystems (renames would
+ * @throws Before the destination is touched, when the source is missing
+ *   or resolves outside the clone, the stage and destination are on different filesystems (renames would
  *   not be atomic), the staged tree is empty, or it holds fewer than
  *   `minRatio` of the files now mirrored; and on any rsync error.
  */
@@ -161,6 +177,7 @@ export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
 
   if (!fs.existsSync(paths.source))
     throw new Error(`source not found: ${paths.source}`);
+  assertInsideClone(paths);
   if (deviceOf(paths.stage) !== deviceOf(paths.dest))
     throw new Error(
       `${paths.stage} and ${paths.dest} are on different filesystems; renames would not be atomic`,
@@ -171,6 +188,8 @@ export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
     source: paths.source,
     dest: paths.stage,
     exclude: [...opts.exclude, SOURCE_ALWAYS_EXCLUDED],
+    // An exclude added since the last run drops what that run staged.
+    deleteExcluded: true,
     dryRun: false,
   });
   const staged = listFiles(paths.stage);
@@ -187,10 +206,13 @@ export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
 
   let output: string;
   if (created) {
+    // A failed live run can leave `incoming` behind: live clears it; a dry
+    // run compares against the absent `dest` instead, so it reports the
+    // whole tree as new without writing anything.
     if (live) fs.rmSync(paths.incoming, { recursive: true, force: true });
     output = rsync({
       source: paths.stage,
-      dest: paths.incoming,
+      dest: live ? paths.incoming : paths.dest,
       exclude: [],
       dryRun: !live,
     });

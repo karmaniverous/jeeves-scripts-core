@@ -11,26 +11,12 @@
 
 import { z } from 'zod';
 
+import { pathSegments as segments, relativePath } from './relative-path.js';
+
 /** The `{name}` placeholder of `siteLinks.pattern`. */
 export const LIBRARY_LINK_NAME = '{name}';
 /** The `{dir}` placeholder of `siteLinks.target`. */
 export const LIBRARY_LINK_DIR = '{dir}';
-
-/** The `/`-separated segments of a relative path (backslashes count as `/`). */
-const segments = (p: string): string[] =>
-  p.split(/[\\/]+/).filter((s) => s !== '' && s !== '.');
-
-/** True when `p` is relative: no leading `/` or `\`, no drive letter. */
-const isRelative = (p: string): boolean => !/^([\\/]|[A-Za-z]:)/.test(p);
-
-/** A relative path with no `..` segment. */
-const relativePath = (what: string) =>
-  z
-    .string()
-    .refine(isRelative, { message: `${what} must be a relative path` })
-    .refine((p) => !segments(p).includes('..'), {
-      message: `${what} must not contain a .. segment`,
-    });
 
 /** How many times `token` occurs in `s`. */
 const count = (s: string, token: string): number => s.split(token).length - 1;
@@ -81,12 +67,16 @@ export const libraryMirrorSchema = z.object({
     .default('main'),
   /** Subdirectory of the repo to mirror (default `''`, the whole repo). */
   subdir: relativePath('subdir').default(''),
-  /** Destination, relative to `paths.contentDir`; never the content dir itself or under `.meta`. */
+  /**
+   * Destination, relative to `paths.contentDir`; never the content dir
+   * itself or under `.meta` (in any case: case-insensitive filesystems
+   * would put `.Meta` there).
+   */
   dest: relativePath('dest')
     .refine((d) => segments(d).length > 0, {
       message: 'dest must name a directory under the content dir',
     })
-    .refine((d) => !segments(d).includes('.meta'), {
+    .refine((d) => !segments(d).some((s) => s.toLowerCase() === '.meta'), {
       message: 'dest must not be under .meta',
     }),
   /** rsync filter patterns, source-relative, left out of the mirror (`.git/` always is). */
