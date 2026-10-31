@@ -22,6 +22,6 @@ A daily briefing is a task-file dispatcher job: the job script gives an LLM work
 1. Per report, a content directory (right silo) with `standing-orders.md` started from [the seed]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/task-templates/daily-briefings/standing-orders.seed.md); seed its `.meta/` with `meta_seed` and set `_steer` to [the steer]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/task-templates/daily-briefings/meta-steer.md)'s text.
 2. A dispatcher runnable per report in the instance (`taskFileDispatcher` with `template: BRIEFING_TEMPLATES.<report>`, `templateVars: () => briefingVars({...})`, `dateTimeZone`, and `slack` reads and posts), registered by the instance plugin, with a manifest (or none, for on-demand only); commit and push (see `jeeves-scripts`).
 3. Customise only by copying the template to the task-file path; the run log says which source it used.
-4. Test with `--print-task` and the no-post mode, then enable it. On demand: `run <id>` when the principal asks.
+4. Test with `--print-task` and `--dry-run`, then enable it. On demand: `run <id>` when the principal asks.
 
 Briefings read email and calendars from the pipeline archives (watcher search), not Google directly; see `jeeves-email` and `jeeves-calendar`.

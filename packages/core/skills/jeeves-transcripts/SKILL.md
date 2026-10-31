@@ -18,7 +18,7 @@ metadata:
 ## Steps
 
 1. **Judge filing intent.** "File/save/archive this" or a video worth keeping: `--keep`. Questions about a video ("what does she say about X?"): a scratch copy. Unclear: ask once.
-2. **Run it** from `$JEEVES_SCRIPTS_DIR`: `node bin/jeeves-scripts.js run transcripts-fetch-video <url-or-id> --live [--keep] [--dir DIR | --out FILE]`. It prints one JSON line: `path`, `title`, `author`, `length`, `words`, `cached`.
+2. **Run it**: `node "$JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js" run transcripts-fetch-video <url-or-id> --live [--keep] [--dir DIR | --out FILE]`. It prints one JSON line: `path`, `title`, `author`, `length`, `words`, `cached`.
 3. **Answer from the file, reading little.** Grep it, or read ranges around the hits; never read a whole long transcript into context. Above about 5,000 words, hand the question and the path to a sub-agent.
 4. **If kept, check it is indexed:** `watcher_scan` with a `file_path` filter on `path` and `countOnly: true`; a count of 0 shortly after is normal, so check again before reporting it missing.
 5. **Report** the answer, and for a kept file its jeeves-server link.
