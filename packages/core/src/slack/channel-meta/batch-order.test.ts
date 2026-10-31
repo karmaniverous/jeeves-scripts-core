@@ -57,6 +57,17 @@ describe('splitBatch', () => {
     expect(ids(deferred)).toEqual(['CC', 'CA']);
   });
 
+  it("takes a channel's oldest wanted field wherever it is in the list", () => {
+    // CA: its topic (2026-10-01) is older than its description
+    // (2026-10-03), so it goes before CB (2026-10-02).
+    const { batch } = splitBatch(
+      [wanted('b', ['description']), wanted('a', ['description', 'topic'])],
+      STATE,
+      2,
+    );
+    expect(ids(batch)).toEqual(['CA', 'CB']);
+  });
+
   it('judges a channel only by the fields it needs', () => {
     const { batch } = splitBatch(
       [wanted('a', ['description']), wanted('c', ['description'])],
