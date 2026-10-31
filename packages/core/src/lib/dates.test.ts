@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   dayOfWeek,
   formatDate,
+  isTimeZone,
   relativeDays,
   requireTimeZone,
   withDateContext,
@@ -76,6 +77,16 @@ describe('requireTimeZone', () => {
     expect(() => requireTimeZone('Nope/Zone', 'the ref')).toThrow(
       'Invalid time zone "Nope/Zone" in the ref',
     );
+  });
+});
+
+describe('isTimeZone', () => {
+  it.each(['UTC', 'America/Chicago', 'Asia/Tokyo'])('accepts %s', (zone) => {
+    expect(isTimeZone(zone)).toBe(true);
+  });
+
+  it.each(['', 'Mars/Base', 'not a zone'])('rejects "%s"', (zone) => {
+    expect(isTimeZone(zone)).toBe(false);
   });
 });
 

@@ -70,14 +70,24 @@ export function requireTimeZone(value: string, source: string): string {
     throw new Error(
       `No time zone configured: set ${source} to an IANA time zone (e.g. "America/Chicago" or "UTC")`,
     );
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: value });
-  } catch {
+  if (!isTimeZone(value))
     throw new Error(
       `Invalid time zone "${value}" in ${source}: use an IANA time zone (e.g. "America/Chicago" or "UTC")`,
     );
-  }
   return value;
+}
+
+/**
+ * Whether `zone` is a time zone `Intl` knows (an IANA name such as
+ * `America/Chicago`, or `UTC`). Config schemas refine zone fields with it.
+ */
+export function isTimeZone(zone: string): boolean {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: zone });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**
