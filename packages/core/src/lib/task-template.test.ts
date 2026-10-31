@@ -39,6 +39,46 @@ describe('coreTaskTemplatePath', () => {
       path.join(pkgRoot, 'task-templates', 'punch-list', 'harvest.task.md'),
     );
   });
+
+  it.each([
+    '../package.json',
+    '../../package.json',
+    'punch-list/../../package.json',
+    'punch-list\\..\\..\\package.json',
+    '/etc/hosts',
+    'C:\\Windows\\win.ini',
+    'C:/Windows/win.ini',
+    'C:win.ini',
+    '\\\\host\\share\\x.md',
+    '\\x.md',
+    '',
+    '.',
+  ])('refuses %j, which is not a path inside task-templates/', (name) => {
+    expect(() => coreTaskTemplatePath(name)).toThrow(
+      `core task template name ${JSON.stringify(name)} must be a relative path inside task-templates/`,
+    );
+  });
+
+  it('takes # and % literally (no URL decoding)', () => {
+    expect(coreTaskTemplatePath('a%2e%2e/b#c.md')).toBe(
+      path.join(pkgRoot, 'task-templates', 'a%2e%2e', 'b#c.md'),
+    );
+  });
+
+  it('refuses a name that leaves the root through a link', () => {
+    const root = path.join(dir, 'root');
+    const outside = path.join(dir, 'outside');
+    fs.mkdirSync(root);
+    fs.mkdirSync(outside);
+    fs.writeFileSync(path.join(outside, 'f.md'), 'secret');
+    fs.writeFileSync(path.join(root, 'ok.md'), 'ok');
+    // A junction needs no privilege on Windows; elsewhere it is a symlink.
+    fs.symlinkSync(outside, path.join(root, 'out'), 'junction');
+    expect(coreTaskTemplatePath('ok.md', root)).toBe(path.join(root, 'ok.md'));
+    expect(() => coreTaskTemplatePath('out/f.md', root)).toThrow(
+      'must be a relative path inside task-templates/',
+    );
+  });
 });
 
 describe('resolveTaskTemplate', () => {
@@ -78,6 +118,17 @@ describe('resolveTaskTemplate', () => {
 
   it('returns undefined with no instance file and no template', () => {
     expect(resolveTaskTemplate(path.join(dir, 'TASK.md'))).toBeUndefined();
+  });
+
+  it('refuses a template name outside task-templates/, even when the instance file wins', () => {
+    const own = path.join(dir, 'TASK.md');
+    expect(() => resolveTaskTemplate(own, '../../package.json')).toThrow(
+      'must be a relative path inside task-templates/',
+    );
+    fs.writeFileSync(own, 'mine');
+    expect(() => resolveTaskTemplate(own, '../../package.json')).toThrow(
+      'must be a relative path inside task-templates/',
+    );
   });
 
   it('throws naming a core template that does not exist', () => {
@@ -182,6 +233,17 @@ describe('fillTaskTemplate', () => {
   it('throws naming an include that does not exist', () => {
     expect(() => fillTaskTemplate('{{> nope/missing.md}}')).toThrow(
       'task includes core template nope/missing.md, which is missing',
+    );
+  });
+
+  it.each([
+    '../../package.json',
+    '../../../../etc/hosts',
+    '/etc/hosts',
+    'C:\\Windows\\win.ini',
+  ])('refuses the include %j, outside task-templates/', (name) => {
+    expect(() => fillTaskTemplate(`{{> ${name}}}`)).toThrow(
+      `core task template name ${JSON.stringify(name)} must be a relative path inside task-templates/`,
     );
   });
 });

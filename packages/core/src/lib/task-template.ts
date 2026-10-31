@@ -11,6 +11,7 @@
  */
 
 import fs from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** Where a worker's task text came from. */
@@ -27,12 +28,51 @@ export interface ResolvedTaskTemplate {
   template?: string;
 }
 
+/** `task-templates/` at the package root, two levels above this module (`src/lib/` or `dist/lib/`). */
+const CORE_TEMPLATE_ROOT = fileURLToPath(
+  new URL('../../task-templates/', import.meta.url),
+);
+
+/** Whether `file` is strictly inside `root` (both resolved the same way). */
+const isInside = (root: string, file: string): boolean => {
+  const rel = path.relative(root, file);
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+};
+
 /**
  * The absolute path of a core template: `task-templates/<name>` at the
- * package root, two levels above this module (`src/lib/` or `dist/lib/`).
+ * package root. The name is confined to that root: an absolute, UNC or
+ * drive-qualified name, any `..` segment, or a name that resolves (through
+ * symlinks too) outside the root is refused, so a template or include
+ * name can never put another file into a worker's task.
+ *
+ * @param root - The template root; default core's `task-templates/` (tests only).
+ * @throws When the name is not a path inside the root.
  */
-export const coreTaskTemplatePath = (name: string): string =>
-  fileURLToPath(new URL(`../../task-templates/${name}`, import.meta.url));
+export const coreTaskTemplatePath = (
+  name: string,
+  root: string = CORE_TEMPLATE_ROOT,
+): string => {
+  const refuse = (): Error =>
+    new Error(
+      `core task template name ${JSON.stringify(name)} must be a relative path inside task-templates/`,
+    );
+  if (
+    path.win32.isAbsolute(name) ||
+    path.posix.isAbsolute(name) ||
+    /^[A-Za-z]:/.test(name) ||
+    name.split(/[\\/]/).includes('..')
+  )
+    throw refuse();
+  const file = path.resolve(root, name);
+  if (!isInside(path.resolve(root), file)) throw refuse();
+  if (
+    fs.existsSync(file) &&
+    !isInside(fs.realpathSync(root), fs.realpathSync(file))
+  )
+    throw refuse();
+  return file;
+};
 
 /**
  * Resolve a worker's task: `instanceFile` when it exists, else core's
@@ -57,24 +97,30 @@ export function resolveTaskTemplate(
   instanceFile: string,
   template?: string,
 ): ResolvedTaskTemplate | undefined {
+  // Refuse a bad core template name even when the instance file wins.
+  const core =
+    template === undefined
+      ? undefined
+      : { template, file: coreTaskTemplatePath(template) };
   if (fs.existsSync(instanceFile))
     return {
       text: fs.readFileSync(instanceFile, 'utf8'),
       source: 'instance',
       path: instanceFile,
       instanceFile,
-      ...(template === undefined ? {} : { template }),
+      ...(core ? { template: core.template } : {}),
     };
-  if (template === undefined) return undefined;
-  const file = coreTaskTemplatePath(template);
-  if (!fs.existsSync(file))
-    throw new Error(`core task template ${template} is missing (${file})`);
+  if (!core) return undefined;
+  if (!fs.existsSync(core.file))
+    throw new Error(
+      `core task template ${core.template} is missing (${core.file})`,
+    );
   return {
-    text: fs.readFileSync(file, 'utf8'),
+    text: fs.readFileSync(core.file, 'utf8'),
     source: 'core',
-    path: file,
+    path: core.file,
     instanceFile,
-    template,
+    template: core.template,
   };
 }
 
