@@ -31,7 +31,7 @@ const REQUIRED = { timezone: 'UTC', serverKey: 'scripts' };
 /** Run the job and say how it ended. */
 const settle = async (): Promise<string> => {
   try {
-    await job.run({ args: [], flags: { live: false, printTask: false } });
+    await job.run({ args: [] });
     return 'resolved';
   } catch (e) {
     return e instanceof Error ? e.message : String(e);
