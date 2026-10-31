@@ -204,6 +204,12 @@ export const scheduledJobs: readonly RegistryEntry[] = [
     load: () => import('../slack/poll.js'),
   },
   {
+    id: 'slack-refresh-channel-meta',
+    domain: 'slack',
+    module: 'slack/refresh-channel-meta',
+    load: () => import('../slack/refresh-channel-meta.js'),
+  },
+  {
     id: 'x-drain-queues',
     domain: 'x',
     module: 'x/drain-queues',

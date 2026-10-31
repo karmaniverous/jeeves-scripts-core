@@ -50,7 +50,7 @@ describe('core runnable registry', () => {
 
   it('registers every scheduled job in core manifests under the same domain', () => {
     const manifests = readCoreManifests();
-    expect(manifests).toHaveLength(38);
+    expect(manifests).toHaveLength(39);
     expect(
       manifests
         .filter((m) => coreJobs.find((e) => e.id === m.id)?.domain !== m.domain)

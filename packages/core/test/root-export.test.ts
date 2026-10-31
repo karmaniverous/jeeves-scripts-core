@@ -183,6 +183,7 @@ const EXPECTED = [
   'slackBotTokens',
   'slackChannelConfigSchema',
   'slackChannelIdSchema',
+  'slackChannelMetaSchema',
   'slackConfigSchema',
   'slackLink',
   'slackPostTargetSchema',
