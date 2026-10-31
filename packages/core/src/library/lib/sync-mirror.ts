@@ -38,10 +38,6 @@ export interface LibraryDeps {
   cloneUrl: (repo: string) => string;
   /** Progress logger. */
   log: (line: string) => void;
-  /** Platform rsync paths are written for (default `process.platform`). */
-  platform?: NodeJS.Platform;
-  /** Filesystem device of a path (default: of its nearest existing ancestor). */
-  deviceOf?: (p: string) => number;
 }
 
 /** One mirror's outcome, as `JR_RESULT` reports it. */
@@ -112,8 +108,6 @@ export const syncMirror = (
     minRatio: mirror.minRatio,
     siteLinks: mirror.siteLinks,
     run: deps.run,
-    platform: deps.platform,
-    deviceOf: deps.deviceOf,
     log: (line) => {
       deps.log(`${mirror.id}: ${line}`);
     },

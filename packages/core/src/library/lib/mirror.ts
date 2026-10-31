@@ -68,10 +68,8 @@ export interface MirrorOptions {
   siteLinks?: LibrarySiteLinks | undefined;
   /** Command runner (default `run` from `@karmaniverous/jeeves`). */
   run?: RunCommand;
-  /** Platform rsync paths are written for (default `process.platform`). */
-  platform?: NodeJS.Platform | undefined;
   /** Filesystem device of a path (default: of its nearest existing ancestor). */
-  deviceOf?: ((p: string) => number) | undefined;
+  deviceOf?: (p: string) => number;
   /** Progress logger (default `console.log`). */
   log?: (line: string) => void;
 }
@@ -195,8 +193,7 @@ export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
   const { paths, live } = opts;
   const log = opts.log ?? console.log;
   const exec = opts.run ?? run;
-  const rsync: RsyncRunner = (args) =>
-    exec('rsync', rsyncArgs(args, opts.platform));
+  const rsync: RsyncRunner = (args) => exec('rsync', rsyncArgs(args));
 
   checkSource(paths, opts.deviceOf ?? statDevice);
   const { staged, links } = stageTree(
