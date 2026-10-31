@@ -20,9 +20,13 @@ import type {
   GithubRuleset,
   GithubSyncOwner,
 } from '../../config/github-sync-files-schema.js';
+import type { GhResult } from '../../lib/gh.js';
 import type { GitHubJobDeps } from './github-deps.js';
 
 type GhDeps = Pick<GitHubJobDeps, 'gh'>;
+
+/** What a failed `gh` call said: its stderr, else its stdout. */
+const ghOutput = (r: GhResult): string => r.err || r.out;
 
 const repoSchema = z.looseObject({
   full_name: z.string(),
@@ -137,7 +141,7 @@ export function ensureRuleset(
     console.log(`  [ruleset] created for ${repo}`);
     return 'created';
   }
-  console.log(`  [ruleset] failed for ${repo}: ${created.err || created.out}`);
+  console.log(`  [ruleset] failed for ${repo}: ${ghOutput(created)}`);
   return 'failed';
 }
 
@@ -209,9 +213,9 @@ export function syncFile(
     const found = contentSchema.parse(JSON.parse(current.out));
     if (found.sha === gitBlobSha(file.content)) return 'skipped';
     existingSha = found.sha;
-  } else if (!notFound(current.err || current.out))
+  } else if (!notFound(ghOutput(current)))
     throw new Error(
-      `cannot read ${where}: ${current.err || current.out || 'gh api failed'}`,
+      `cannot read ${where}: ${ghOutput(current) || 'gh api failed'}`,
     );
   const outcome = existingSha ? 'updated' : 'created';
 
@@ -240,7 +244,7 @@ export function syncFile(
     ),
   );
   if (put.ok) return outcome;
-  const detail = put.err || put.out;
+  const detail = ghOutput(put);
   if (requiresPullRequest(detail)) {
     console.log(
       `  [file] skip ${where}: ${branch} requires a pull request (HTTP 409)`,

@@ -94,8 +94,9 @@ export const runMirrors = (
   has: (cmd: string) => boolean = onPath,
 ): void => {
   const { mirrors } = loadConfig().library;
-  if (mirrors.length === 0) {
-    console.log(`[skip] ${NO_MIRRORS}`);
+  const ready = libraryPrerequisite(mirrors);
+  if (ready !== true) {
+    console.log(`[skip] ${ready}`);
     return;
   }
   const tools = libraryTools(has);

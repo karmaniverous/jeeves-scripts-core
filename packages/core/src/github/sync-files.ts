@@ -102,8 +102,9 @@ function syncRepo(
         console.log(`  [file] ${outcome} ${file.target} in ${name}`);
     }
   } catch (e) {
-    console.log(`  [repo] failed for ${name}: ${getErrorMessage(e)}`);
-    tally.failures.push(`${name}: ${getErrorMessage(e)}`);
+    const message = getErrorMessage(e);
+    console.log(`  [repo] failed for ${name}: ${message}`);
+    tally.failures.push(`${name}: ${message}`);
   }
 }
 
@@ -127,8 +128,9 @@ function syncOwner(
       );
     repos = listOwnerRepos(deps, owner);
   } catch (e) {
-    console.log(`${LOG} ${owner.owner}: listing failed: ${getErrorMessage(e)}`);
-    tally.failures.push(`${owner.owner} repo listing: ${getErrorMessage(e)}`);
+    const message = getErrorMessage(e);
+    console.log(`${LOG} ${owner.owner}: listing failed: ${message}`);
+    tally.failures.push(`${owner.owner} repo listing: ${message}`);
     return;
   }
   console.log(`${LOG} ${owner.owner}: ${String(repos.length)} repos`);
