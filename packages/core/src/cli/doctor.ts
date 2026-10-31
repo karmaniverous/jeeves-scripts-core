@@ -9,7 +9,9 @@
  * problems as lines and never throws, so the command always exits 0.
  *
  * A prerequisite's state (Decision 57): `met` or `not met: <reason>` from
- * the runnable's `defineRunnable` prerequisite check when it declares one, else
+ * the runnable's `defineRunnable` prerequisite check when it declares one
+ * (and, once that is met, its `doctorCheck`: a condition that fails the run
+ * rather than skipping it), else
  * `met` when the manifest has no prerequisite, else `manual: <text>` (set
  * up by a person; no check can tell).
  *
@@ -75,11 +77,11 @@ const prerequisiteState = async (
   } catch (e) {
     return `unknown (module failed to load: ${message(e)})`;
   }
-  if (job?.prerequisite) {
+  if (job && (job.prerequisite ?? job.doctorCheck)) {
     try {
-      const ready = await job.prerequisite(
-        jobContext(job, manifest.args ?? []),
-      );
+      const ctx = jobContext(job, manifest.args ?? []);
+      let ready = job.prerequisite ? await job.prerequisite(ctx) : true;
+      if (ready === true && job.doctorCheck) ready = await job.doctorCheck(ctx);
       return ready === true ? 'met' : `not met: ${ready}`;
     } catch (e) {
       return `unknown (check threw: ${message(e)})`;

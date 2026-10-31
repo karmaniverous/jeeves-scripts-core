@@ -156,6 +156,56 @@ describe('doctorReport', () => {
     expect(seen).toContainEqual(['--site', 'x']);
   });
 
+  it('reports a doctorCheck once the prerequisite is met (a run that would fail)', async () => {
+    writeConfig({ instance: { name: 't', baseDir: root } });
+    fs.mkdirSync(path.join(root, 'jobs'));
+    const manifest = { ...fields, prerequisite: null };
+    fs.writeFileSync(
+      path.join(root, 'jobs', 'local.json'),
+      JSON.stringify({
+        'acme-tools': manifest,
+        'acme-skipped': manifest,
+        'acme-only-check': manifest,
+      }),
+    );
+    const doctorCheck = vi.fn(() => 'rsync not found on PATH');
+    const plugin = definePlugin({
+      jobs: [
+        defineRunnable({
+          id: 'acme-tools',
+          domain: 'acme',
+          prerequisite: () => true,
+          doctorCheck,
+          run: () => undefined,
+        }),
+        defineRunnable({
+          id: 'acme-skipped',
+          domain: 'acme',
+          prerequisite: () => 'nothing configured',
+          doctorCheck,
+          run: () => undefined,
+        }),
+        defineRunnable({
+          id: 'acme-only-check',
+          domain: 'acme',
+          doctorCheck: () => true,
+          run: () => undefined,
+        }),
+      ],
+    });
+
+    const lines = await doctorReport(root, options(plugin));
+
+    expect(lines).toContain(
+      '  acme-tools: enabled; prerequisite: not met: rsync not found on PATH',
+    );
+    expect(lines).toContain(
+      '  acme-skipped: enabled; prerequisite: not met: nothing configured',
+    );
+    expect(lines).toContain('  acme-only-check: enabled; prerequisite: met');
+    expect(doctorCheck).toHaveBeenCalledTimes(1);
+  });
+
   it('shows an override written for the installed version without drift', async () => {
     writeConfig({ instance: { name: 't', baseDir: root } });
     const plugin = definePlugin({

@@ -105,6 +105,12 @@ export const jobDeclarationSchema = z
     positionals: z.string().min(1).optional(),
     /** Checked before `run`; anything but `true` skips the run. */
     prerequisite: fn<JobPrerequisite>('prerequisite').optional(),
+    /**
+     * Checked by `doctor` only, once `prerequisite` is met: `true`, or why
+     * a run would fail now (reported as not met). For a condition that
+     * must fail the run rather than skip it: `run` throws on it itself.
+     */
+    doctorCheck: fn<JobPrerequisite>('doctorCheck').optional(),
     /** The job body. */
     run: fn<JobRun>('run'),
   })
@@ -116,12 +122,14 @@ export const jobDeclarationSchema = z
 /** A runnable declaration; `S` is its flag spec, which types `ctx.flags`. */
 export type JobDeclaration<S extends ArgSpec = NoFlags> = Omit<
   z.infer<typeof jobDeclarationSchema>,
-  'flags' | 'prerequisite' | 'run'
+  'flags' | 'prerequisite' | 'doctorCheck' | 'run'
 > & {
   /** See {@link jobDeclarationSchema}. */
   flags?: S;
   /** Checked before `run`; anything but `true` skips the run. */
   prerequisite?: JobPrerequisite<S>;
+  /** Checked by `doctor` only, once `prerequisite` is met (see {@link jobDeclarationSchema}). */
+  doctorCheck?: JobPrerequisite<S>;
   /** The job body. */
   run: JobRun<S>;
 };
@@ -142,10 +150,17 @@ export interface JobCallContext {
 
 /** A declared job, as `defineRunnable` returns it. */
 export type JobModule = Readonly<
-  Omit<z.infer<typeof jobDeclarationSchema>, 'prerequisite' | 'run'>
+  Omit<
+    z.infer<typeof jobDeclarationSchema>,
+    'prerequisite' | 'doctorCheck' | 'run'
+  >
 > & {
   /** Checked before `run`; anything but `true` skips the run. */
   readonly prerequisite?: (
+    ctx: JobCallContext,
+  ) => true | string | Promise<true | string>;
+  /** Checked by `doctor` only, once `prerequisite` is met. */
+  readonly doctorCheck?: (
     ctx: JobCallContext,
   ) => true | string | Promise<true | string>;
   /** The job body. */
@@ -180,8 +195,10 @@ export const defineRunnable = <S extends ArgSpec = NoFlags>(
     );
   // `run` and `prerequisite` receive `flags` parsed with this same spec
   // (the casts: a caller's `flags` were parsed with it, or are parsed here).
-  const { prerequisite, run } = declaration as unknown as {
-    prerequisite?: (ctx: JobContext) => true | string | Promise<true | string>;
+  type Check = (ctx: JobContext) => true | string | Promise<true | string>;
+  const { prerequisite, doctorCheck, run } = declaration as unknown as {
+    prerequisite?: Check;
+    doctorCheck?: Check;
     run: (ctx: JobContext) => void | Promise<void>;
   };
   const withFlags = (ctx: JobCallContext): JobContext => ({
@@ -191,10 +208,13 @@ export const defineRunnable = <S extends ArgSpec = NoFlags>(
   return Object.freeze({
     ...(declaration as unknown as Omit<
       z.infer<typeof jobDeclarationSchema>,
-      'prerequisite' | 'run'
+      'prerequisite' | 'doctorCheck' | 'run'
     >),
     ...(prerequisite
       ? { prerequisite: (ctx: JobCallContext) => prerequisite(withFlags(ctx)) }
+      : {}),
+    ...(doctorCheck
+      ? { doctorCheck: (ctx: JobCallContext) => doctorCheck(withFlags(ctx)) }
       : {}),
     run: (ctx: JobCallContext) => run(withFlags(ctx)),
     [JOB]: true as const,

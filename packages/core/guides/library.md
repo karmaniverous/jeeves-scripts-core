@@ -92,7 +92,7 @@ Index the mirrors with a watcher inference rule, for example:
 ## Prerequisites
 
 - No credentials: each repo is public and cloned anonymously over HTTPS; `integrations.gh` is not used.
-- `git` and `rsync` on `PATH`. The runnable's prerequisite checks both (`git --version`, `rsync --version`): when either is missing the run is skipped (`[skip] rsync not found on PATH ...`, exit 0) and `doctor` reports the prerequisite as not met. The manifest's `prerequisite` stays `null`, so deploy registers the job (disabled).
+- `git` and `rsync` on `PATH`. With mirrors configured, a run checks both (`git --version`, `rsync --version`) before any mirror runs: when either is missing the run fails (`rsync not found on PATH: library-sync-mirrors needs git and rsync to run library.mirrors (install rsync: Linux: apt install rsync; Windows: choco install rsync)`, exit 1), so the runner's failure alert fires on a host that lost a tool or was built without it. `doctor` reports the same message as the prerequisite not met (the runnable's `doctorCheck`, [runnables](./runnables.md#declaring-a-runnable)). With no mirrors configured the run still skips with exit 0, whatever is on `PATH`. The manifest's `prerequisite` stays `null`, so deploy registers the job (disabled).
   - Linux: install `rsync` from the distribution (`apt install rsync`).
   - Windows: `choco install rsync` (cwRsync, a Cygwin build). It reads a path like `C:\x` as a remote host, so the runnable passes every path to it as `/cygdrive/c/x`. Cygwin also gives the files it creates POSIX-style ACLs instead of the destination's inherited ones (readable by the owner, `SYSTEM` and Administrators). To have mirrored files inherit the content tree's ACLs, create `etc\fstab` in the package's `tools` directory (`C:\ProgramData\chocolatey\lib\rsync\tools\etc\fstab`) holding `none /cygdrive cygdrive binary,noacl,posix=0,user 0 0`; keep the `/cygdrive` prefix. A package upgrade may remove the file.
 - `paths.stateDir` and `paths.contentDir` on the same filesystem.
@@ -105,7 +105,7 @@ Index the mirrors with a watcher inference rule, for example:
 
 | File | Purpose |
 | --- | --- |
-| `sync-mirrors.ts` | The runnable: prerequisite, `--live`, config and paths |
+| `sync-mirrors.ts` | The runnable: prerequisite, tool check, `--live`, config and paths |
 | `lib/sync-mirror.ts` | One mirror end to end, and the loop over every mirror |
 | `lib/clone.ts` | The working clone (clone, update, re-clone) |
 | `lib/mirror.ts` | `mirrorTree`: stage, rewrite, guards, publish |

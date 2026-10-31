@@ -7,8 +7,10 @@
  * rewrite, writing only changed files and never touching `.meta/`. Needs
  * no credentials (anonymous HTTPS clone). Dry run unless `--live`: the
  * clone and stage (state dir) are updated, the content tree only
- * reported. Its prerequisite skips the run when no mirror is configured,
- * or when `git` or `rsync` is not on `PATH` (so `doctor` reports it).
+ * reported. Its prerequisite skips the run (exit 0) when no mirror is
+ * configured; with mirrors configured, a missing `git` or `rsync` fails
+ * the run, so the runner's failure alert fires, and `doctor` reports it
+ * as not met.
  */
 
 import { run } from '@karmaniverous/jeeves';
@@ -28,8 +30,11 @@ import {
 /** The prerequisite's reason when `library.mirrors` is empty or absent. */
 export const NO_MIRRORS = 'no library.mirrors configured';
 
-/** The commands a mirror run needs on `PATH`. */
-const TOOLS = ['git', 'rsync'] as const;
+/** The commands a mirror run needs on `PATH`, and how to install each. */
+const TOOLS = {
+  git: 'Linux: apt install git; Windows: choco install git',
+  rsync: 'Linux: apt install rsync; Windows: choco install rsync',
+} as const;
 
 /** Whether `cmd --version` runs (the command is on `PATH`). */
 export const onPath = (cmd: string): boolean => {
@@ -41,19 +46,25 @@ export const onPath = (cmd: string): boolean => {
   }
 };
 
-/**
- * `true` when `mirrors` is non-empty and `git` and `rsync` are on `PATH`;
- * else the reason the run is skipped.
- */
+/** `true` when `mirrors` is non-empty; else the reason the run is skipped. */
 export const libraryPrerequisite = (
   mirrors: readonly LibraryMirror[],
+): true | string => (mirrors.length === 0 ? NO_MIRRORS : true);
+
+/**
+ * `true` when `git` and `rsync` are on `PATH`; else the error that fails
+ * a run with mirrors configured, naming each missing tool and how to
+ * install it (`doctor` reports it as not met).
+ */
+export const libraryTools = (
   has: (cmd: string) => boolean = onPath,
 ): true | string => {
-  if (mirrors.length === 0) return NO_MIRRORS;
-  const missing = TOOLS.filter((cmd) => !has(cmd));
-  return missing.length === 0
-    ? true
-    : `${missing.join(' and ')} not found on PATH (library-sync-mirrors needs git and rsync)`;
+  const missing = (Object.keys(TOOLS) as (keyof typeof TOOLS)[]).filter(
+    (cmd) => !has(cmd),
+  );
+  if (missing.length === 0) return true;
+  const install = missing.map((cmd) => `${cmd}: ${TOOLS[cmd]}`).join('; ');
+  return `${missing.join(' and ')} not found on PATH: ${LIBRARY_SYNC_ID} needs git and rsync to run library.mirrors (install ${install})`;
 };
 
 /** The default collaborators: real `git` and `rsync`, GitHub HTTPS URLs. */
@@ -73,16 +84,22 @@ export const syncMirrorsFlags = {
 /**
  * Run every configured mirror with the instance's paths; with none
  * configured, log the skip line and return.
+ *
+ * @throws With mirrors configured, when `git` or `rsync` is not on
+ *   `PATH` (see {@link libraryTools}), before any mirror runs.
  */
 export const runMirrors = (
   flags: Partial<ParsedArgs<typeof syncMirrorsFlags>>,
   deps: LibraryDeps = libraryDeps(),
+  has: (cmd: string) => boolean = onPath,
 ): void => {
   const { mirrors } = loadConfig().library;
   if (mirrors.length === 0) {
     console.log(`[skip] ${NO_MIRRORS}`);
     return;
   }
+  const tools = libraryTools(has);
+  if (tools !== true) throw new Error(tools);
   const { stateDir, contentDir } = paths();
   syncMirrors(
     mirrors,
@@ -96,6 +113,7 @@ export default defineRunnable({
   domain: 'library',
   flags: syncMirrorsFlags,
   prerequisite: () => libraryPrerequisite(loadConfig().library.mirrors),
+  doctorCheck: () => libraryTools(),
   run: ({ flags }) => {
     runMirrors(flags);
   },

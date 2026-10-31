@@ -1,9 +1,9 @@
 /**
  * `library-sync-mirrors` as a registered runnable: its manifest ships off
  * (daily 04:10 UTC, overlap skip, 600 s); it skips with no mirror
- * configured, and its prerequisite reports a missing `git` or `rsync`;
- * configured, it reads `library.mirrors` and the instance's state and
- * content dirs, dry unless `--live`.
+ * configured; configured, a missing `git` or `rsync` fails the run (and
+ * `doctor` reports it as not met), else it reads `library.mirrors` and the
+ * instance's state and content dirs, dry unless `--live`.
  */
 
 import fs from 'node:fs';
@@ -30,6 +30,7 @@ import { listFiles } from './lib/mirror.js';
 import {
   libraryDeps,
   libraryPrerequisite,
+  libraryTools,
   NO_MIRRORS,
   onPath,
   runMirrors,
@@ -56,6 +57,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllEnvs();
   fs.rmSync(path.join(baseDir(), 'state'), { recursive: true, force: true });
   fs.rmSync(path.join(baseDir(), 'content'), { recursive: true, force: true });
 });
@@ -89,6 +91,31 @@ describe('library-sync-mirrors runnable', () => {
     expect(Object.keys(job.flags ?? {})).toEqual(['live']);
     // git and rsync are on PATH wherever these tests run (CI installs rsync).
     expect(await job.prerequisite?.({ args: [] })).toBe(true);
+    expect(await job.doctorCheck?.({ args: [] })).toBe(true);
+  });
+
+  it('fails a configured run, not skips it, when the tools are not on PATH', async () => {
+    const entry = coreJobs.find((e) => e.id === 'library-sync-mirrors');
+    if (!entry) throw new Error('library-sync-mirrors is not registered');
+    const job = await loadJob(entry);
+    vi.stubEnv('PATH', '');
+    // The launcher runs the body (exit 1 on its throw); doctor reports it.
+    expect(await job.prerequisite?.({ args: [] })).toBe(true);
+    expect(await job.doctorCheck?.({ args: [] })).toMatch(
+      /^git and rsync not found on PATH/,
+    );
+    expect(() => job.run({ args: [] })).toThrow(
+      /^git and rsync not found on PATH/,
+    );
+  });
+
+  it('fails before any mirror runs when rsync alone is missing', () => {
+    const has = (cmd: string) => cmd !== 'rsync';
+    expect(() => {
+      runMirrors({ live: true }, deps(), has);
+    }).toThrow(/^rsync not found on PATH: .*rsync: Linux: apt install rsync/);
+    expect(fs.existsSync(path.join(baseDir(), 'state'))).toBe(false);
+    expect(fs.existsSync(path.join(baseDir(), 'content'))).toBe(false);
   });
 
   it('dry run by default: reads the config, mirrors into the stage only', () => {
@@ -116,22 +143,27 @@ describe('library-sync-mirrors runnable', () => {
 describe('libraryPrerequisite', () => {
   const mirrors = [libraryMirrorSchema.parse(mirror)];
 
-  it('skips when no mirror is configured, before checking any tool', () => {
-    const has = vi.fn(() => true);
-    expect(libraryPrerequisite([], has)).toBe(NO_MIRRORS);
-    expect(has).not.toHaveBeenCalled();
+  it('skips when no mirror is configured', () => {
+    expect(libraryPrerequisite([])).toBe(NO_MIRRORS);
   });
 
+  it('is met whenever a mirror is configured, tools or not', () => {
+    vi.stubEnv('PATH', '');
+    expect(libraryPrerequisite(mirrors)).toBe(true);
+  });
+});
+
+describe('libraryTools', () => {
   it('is met when git and rsync are both on PATH', () => {
-    expect(libraryPrerequisite(mirrors, () => true)).toBe(true);
+    expect(libraryTools(() => true)).toBe(true);
   });
 
-  it('names whichever of git and rsync is missing', () => {
-    expect(libraryPrerequisite(mirrors, (c) => c !== 'rsync')).toBe(
-      'rsync not found on PATH (library-sync-mirrors needs git and rsync)',
+  it('names whichever of git and rsync is missing and how to install it', () => {
+    expect(libraryTools((c) => c !== 'rsync')).toBe(
+      'rsync not found on PATH: library-sync-mirrors needs git and rsync to run library.mirrors (install rsync: Linux: apt install rsync; Windows: choco install rsync)',
     );
-    expect(libraryPrerequisite(mirrors, () => false)).toMatch(
-      /^git and rsync not found on PATH/,
+    expect(libraryTools(() => false)).toMatch(
+      /^git and rsync not found on PATH: .*\(install git: .*; rsync: /,
     );
   });
 });
