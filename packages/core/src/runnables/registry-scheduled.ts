@@ -102,6 +102,12 @@ export const scheduledJobs: readonly RegistryEntry[] = [
     load: () => import('../github/sync-issues.js'),
   },
   {
+    id: 'github-sync-files',
+    domain: 'github',
+    module: 'github/sync-files',
+    load: () => import('../github/sync-files.js'),
+  },
+  {
     id: 'github-sync-repos',
     domain: 'github',
     module: 'github/sync-repos',
@@ -130,6 +136,12 @@ export const scheduledJobs: readonly RegistryEntry[] = [
     domain: 'jira',
     module: 'jira/sort-backlog',
     load: () => import('../jira/sort-backlog.js'),
+  },
+  {
+    id: 'library-sync-mirrors',
+    domain: 'library',
+    module: 'library/sync-mirrors',
+    load: () => import('../library/sync-mirrors.js'),
   },
   {
     id: 'linear-sync-comments',

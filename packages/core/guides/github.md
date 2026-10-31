@@ -4,7 +4,7 @@ title: GitHub
 
 # github/
 
-GitHub repo sync, issue sync, notification monitoring, and collaborator management.
+GitHub repo sync, issue sync, notification monitoring, collaborator management, and cross-repo file and ruleset sync.
 
 ## Scripts
 
@@ -16,6 +16,7 @@ GitHub repo sync, issue sync, notification monitoring, and collaborator manageme
 | `poll-collabs.ts` | Polls repos and pending invitations, enqueues items needing bot access to the `gh-collabs` queue |
 | `drain-collabs.ts` | Dequeues collaborator operations — adds bot as collaborator and accepts invitations |
 | `watch.ts` | Polls GitHub notifications for both primary account and bot user, detects important/stale items, enqueues escalations |
+| `sync-files.ts` | Keeps configured files, and an optional ruleset, identical across the repos of configured owners ([below](#cross-repo-file-and-ruleset-sync)); off until an instance configures and enables it |
 
 ## Data Flow
 
@@ -40,6 +41,7 @@ flowchart LR
 - **sync-issues** maintains change history using JSON patches (up to 50 history entries per issue).
 - **poll-collabs** / **drain-collabs** manage bot access across repos, switching between primary account and bot user as needed.
 - **watch** tracks notification state per user and detects important reasons (review_requested, mention, etc.).
+- **sync-files** reads its files from the instance repo and writes them to GitHub through the Contents and Rulesets APIs; it uses no registry and no local clones.
 
 ## State and Queues
 
@@ -51,6 +53,7 @@ flowchart LR
 | Runner state `gh-collabs`, key `poll-state` | `poll-collabs` progress |
 | Queue `gh-collabs` | Collaborator additions / invitation acceptances for `drain-collabs` |
 | Queue `github-escalations` | Important or stale notifications found by `watch` |
+| Runner state `github-sync-files`, key `last-run` | ISO time of the last `sync-files` run with no failure |
 
 ## Prerequisites
 
@@ -61,14 +64,89 @@ flowchart LR
 
 All entries in core's manifest `jobs/github.json` carry a non-null `prerequisite` (GitHub CLI auth).
 
-| Job                     | Schedule           |
-| ----------------------- | ------------------ |
-| `github-build-registry` | Daily at 02:13 UTC |
-| `github-sync-repos`     | Every 19 min       |
-| `github-sync-issues`    | Every 23 min       |
-| `github-watch`          | Every 29 min       |
-| `github-poll-collabs`   | Daily at 03:07 UTC |
-| `github-drain-collabs`  | Every 31 min       |
+| Job                     | Schedule                            |
+| ----------------------- | ----------------------------------- |
+| `github-build-registry` | Daily at 02:13 UTC                  |
+| `github-sync-repos`     | Every 19 min                        |
+| `github-sync-issues`    | Every 23 min                        |
+| `github-watch`          | Every 29 min                        |
+| `github-poll-collabs`   | Daily at 03:07 UTC                  |
+| `github-drain-collabs`  | Every 31 min                        |
+| `github-sync-files`     | Daily at 04:30 UTC (ships disabled) |
+
+## Cross-repo file and ruleset sync
+
+`github-sync-files` (`sync-files.ts`) keeps one or more files, and optionally a repository ruleset, identical across every non-archived repo of one or more GitHub owners (users or orgs). It writes straight to each repo's default branch through the Contents API (no clone, no pull request). Its manifest ships `enabled: false`.
+
+### Configuration
+
+Four optional fields on its own job delta, `jobs['github-sync-files']` in the instance config, validated by `config check` (an invalid value fails the check and the run):
+
+```json
+{
+  "jobs": {
+    "github-sync-files": {
+      "files": [
+        {
+          "source": "github/copilot-instructions.md",
+          "target": ".github/copilot-instructions.md"
+        }
+      ],
+      "owners": [
+        { "owner": "example-bot", "type": "user" },
+        {
+          "owner": "example-org",
+          "type": "org",
+          "ruleset": false,
+          "exclude": ["example-org/*-archive"]
+        }
+      ],
+      "account": "example-bot",
+      "ruleset": {
+        "name": "PR Review",
+        "target": "branch",
+        "enforcement": "active",
+        "conditions": {
+          "ref_name": { "include": ["~DEFAULT_BRANCH"], "exclude": [] }
+        },
+        "rules": [
+          {
+            "type": "copilot_code_review",
+            "parameters": { "review_on_push": true }
+          }
+        ],
+        "bypass_actors": []
+      }
+    }
+  }
+}
+```
+
+| Key | Meaning |
+| --- | --- |
+| `files[]` | `source`: the content, a path relative to the instance repo root (`paths.scriptsDir`): not empty, no leading `/` or `\`, no drive letter, no `..` segment (the same rule as a library mirror's `subdir`), so `config check` refuses anything else. `target`: the path written in each repo (not empty, no leading `/`). Every source is read before any `gh` call; a missing one, or one that resolves outside the instance root (through a symlink, say), fails the run. Content is the instance's own and is written as is, byte for byte. A `target` under `.github/workflows/` needs the `workflow` scope on the acting login (`jeeves-github` skill). |
+| `owners[]` | `owner`: the login. `type`: `user` syncs the acting account's own repos: GitHub lists only the authenticated user's repos (`/user/repos`), so a `user` owner must be `account` (any other is recorded as that owner's failure, and the error says why; to sync another user's repos, run as that user); `org` syncs `/orgs/<owner>/repos`. `ruleset`: apply the top-level `ruleset` to this owner's repos (default `true`; no effect without one). `include` / `exclude`: glob patterns matched against `full_name` (`owner/repo`, case-insensitive); with `include`, only matching repos are synced; `exclude` leaves matches out. Archived repos are never synced. |
+| `account` | The `gh` login that writes. Default `integrations.gh.botUser`; with neither, the run fails. |
+| `ruleset` | A ruleset as the Rulesets API takes it: `name`, `target`, `enforcement`, `rules[]` (each with a `type`), other keys passed through. |
+
+With `files` or `owners` unset or empty the run logs `[skip] jobs['github-sync-files'].files/owners is not configured` and exits 0 without calling `gh`.
+
+### Dry run and `--live`
+
+Without `--live` the run logs `[github-sync-files] DRY RUN: pass --live to write`, reads everything, logs each ruleset and file it would create or update, and writes nothing; the summary counts what it would do. Review a dry run (`jeeves-scripts run github-sync-files`), then enable the job with a delta: `"enabled": true, "args": ["--live"]`.
+
+### The acting account
+
+Before switching, the run reads the active login (`gh api user --jq .login`); if it can't, it fails without switching. It then runs `gh auth switch -u <account>` and checks the acting login with `verifyActingAccount` (case-insensitive, as for every GitHub job). On any other login it fails with `github-sync-files: acting gh login is "<got>", expected "<account>"; not writing to any repo`, before listing or writing anything; when the acting login can't be read it fails the same way, with `acting gh login unknown, expected "<account>": <why>` in place of the login. Whatever happens, it then switches back to the login that was active before the run, not necessarily the bot; a failed switch back fails an otherwise clean run, which then records no `last-run`. The account needs the token scopes in the `jeeves-github` skill.
+
+### Each repo
+
+For each owner in order, the run lists its repos (100 a page until a short page) and, for each repo:
+
+1. **Ruleset** (when configured and the owner wants it): `GET /repos/<repo>/rulesets`. A failed call is logged as `rulesets API unavailable`; a ruleset with the configured `name` is left alone; otherwise the ruleset is created (`POST`).
+2. **Each file:** `GET /repos/<repo>/contents/<target>?ref=<default branch>`. The file's `sha` there is compared with the git blob SHA of the source (`sha1` of `blob <length>\0<bytes>`), so a file over 1 MB, which the Contents API returns without `content`, compares too. Identical: skipped. Different, or missing (HTTP 404 only): written with `PUT` (with the current `sha` when updating), counted `created` or `updated`. Any other failed read (a 403, a rate limit, a 5xx) fails that repo; the file is never written blind. A refusal with HTTP 409 naming a pull request (the branch only accepts changes through a PR) is counted `protected`, not a failure.
+
+A failed listing, a refused ruleset create, a failed read or write, or any error inside one repo is logged and recorded, and the run goes on to the next repo or owner. At the end it logs `[github-sync-files] done: rulesets created=N failed=N files created=N updated=N skipped=N protected=N failed=N`. With no failure, once `gh` is switched back, it records `last-run` in runner state `github-sync-files`; with any, it fails with one error naming every failure (`github-sync-files: N failure(s); last-run not recorded: ...`) and leaves `last-run` alone. A repeat run with nothing changed writes nothing and records `last-run`.
 
 ## Key Files
 
@@ -76,4 +154,6 @@ All entries in core's manifest `jobs/github.json` carry a non-null `prerequisite
 | --- | --- |
 | `../lib/gh.ts` | GitHub CLI wrappers — `gh()`, `ghJson()`, `ghApi()`, `setupGhConfig()` |
 | `../config/silo-router.ts` | `getBasePathForGitHubOrg()` for org-based output routing (see [silos](./config.md#silos) for the `siloRouting` schema) |
+| `lib/file-sync.ts`, `lib/file-sync-tally.ts`, `lib/file-sources.ts` | `sync-files`: repo listing with globs, ruleset create, file writes compared by git blob SHA; the counts and summary line; reading `files[].source` inside the instance root |
+| `../config/github-sync-files-schema.ts` | `githubSyncFileSchema`, `githubSyncOwnerSchema`, `githubRulesetSchema` (the `sync-files` delta fields) |
 | `../lib/constants.ts` | `constants()`: `GH_*` from `integrations.gh` in the instance config; `GITHUB_DIR`, `GITHUB_REGISTRY_PATH` under `paths.contentDir` |

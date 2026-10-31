@@ -18,9 +18,10 @@ A runnable id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/
 | `calendar` | `calendar-poll` |  |
 | `convert` |  | `convert-docx-to-md`, `convert-pdf-to-md` ([convert](./convert.md#runnables)) |
 | `email` | `email-poll`, `email-download`, `email-drain-updates`, `email-backfill-historical` | `email-apply-labels`, `email-inventory` |
-| `github` | `github-sync-repos`, `github-sync-issues`, `github-watch`, `github-build-registry`, `github-poll-collabs`, `github-drain-collabs` |  |
+| `github` | `github-sync-repos`, `github-sync-issues`, `github-watch`, `github-build-registry`, `github-poll-collabs`, `github-drain-collabs`, `github-sync-files` |  |
 | `google-drive` | `google-drive-sync` |  |
 | `jira` | `jira-refresh-fields`, `jira-sort-backlog` | `jira-backfill`, `jira-drain` |
+| `library` | `library-sync-mirrors` ([library](./library.md#library-mirrors)) |  |
 | `linear` | `linear-sync-issues`, `linear-sync-comments` | `linear-backfill`, `linear-drain` |
 | `meetings` | `meetings-fetch-notes`, `meetings-extract`, `meetings-ingest-notion` |  |
 | `meta` | `meta-sweep-duplicates`, `meta-disable-old` |  |
@@ -44,6 +45,7 @@ export default defineRunnable({
   name: 'acme/report', // crash-log label; default: the id
   crashDir: () => '/base/acme', // where _crash.log goes; default: the working directory
   prerequisite: () => hasAcmeConfig() || 'no acme block in the instance config',
+  doctorCheck: () => hasAcmeCli() || 'acme CLI not found on PATH', // doctor only; run throws on it
   flags: { live: argFlag('--live', 'Write changes') }, // the flags run accepts (see Arguments)
   run: async ({ flags }) => {
     await report(flags.live);
@@ -54,7 +56,7 @@ export default defineRunnable({
 The declaration is validated with Zod (Decision 31) and returned frozen: the id and domain are lowercase words separated by dashes, and the id starts with its domain and a dash (`acme-report` in `acme`, `google-drive-sync-files` in `google-drive`), so `acme` alone or `report-acme` throws. A runnable without a manifest needs a `description`: core's registry tests check every core one. Importing a runnable module never runs it. Running it (`run <id>`):
 
 1. sets `process.argv` to `[node, <id>, ...args]` (runnable code may read `process.argv.slice(2)` as before) and passes the args as `ctx.args`;
-2. checks `prerequisite`: anything but `true` logs `[skip] <reason>` and the run exits 0;
+2. checks `prerequisite`: anything but `true` logs `[skip] <reason>` and the run exits 0 (`doctorCheck` is never called here);
 3. runs `run` inside `runScript(name ?? id, ..., crashDir)` from `@karmaniverous/jeeves`: an uncaught error is logged, appended to `_crash.log`, and exits 1.
 
 Core's runnables keep the crash labels and crash directories they had before the registry (`email/poll`, `x/poll-posts`, ...; the two that named the removed `core` domain are `admin/qdrant-health-check` and `admin/sweep-orphaned-tmp`), and their inline `[skip]` guards; `prerequisite` is for new runnables (the X handle check is one). No runnable module reads config when imported: each `run` builds its collaborators from config when it runs, and hands its work back (returns or awaits it). `src/runnables/registry-runs.test.ts` imports and runs every core runnable with no loadable config to pin both (Decision 58).
@@ -65,6 +67,7 @@ A runnable never ends the process itself (`process.exit` is a lint error in core
 
 - **Failure:** throw. `runScript` writes the `CRASH (<label>)` line and the runnable's `_crash.log`, and the process exits 1.
 - **Clean skip** (a credential or input that isn't configured): an unmet `prerequisite`, or a `[skip] <reason>` line and a return; exit 0.
+- **Failure `doctor` can foresee** (the job is configured, but something it needs is missing, such as a command on `PATH`): `run` throws, so the runner's failure alert fires, and the optional `doctorCheck` returns the same reason, which `doctor` reports as `not met` once the `prerequisite` is met. Only `doctor` calls `doctorCheck`; it never skips a run. `library-sync-mirrors` uses it for `git` and `rsync`.
 - **Usage error** (a missing or invalid argument): the usage message on stderr and `process.exitCode = 1`, then return.
 - **Partial failure** (some items failed, the rest were processed): `process.exitCode = 1` after the run's summary.
 

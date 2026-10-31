@@ -128,7 +128,7 @@ Core ships its skills in the package (`skills/<name>/SKILL.md`); they are wired 
 | `core:` | The installed core version |
 | `config:` | The config file location and `OK` or `FAILED`, with one indented line per problem (as `config check`) |
 | `plugin:` | `jeeves-scripts.plugin.ts` with its runnable and override counts, `none`, or `FAILED` with the load or registration error |
-| `manifests:` | A count of met, not met and manual prerequisites, then every effective manifest (core's and the instance's, deltas applied): enabled or disabled, and its prerequisite state: `met` or `not met: <reason>` from the runnable's `defineRunnable` prerequisite check when it has one; else `met` when the manifest's `prerequisite` is `null` (deploy registers it), or `manual: <text>` |
+| `manifests:` | A count of met, not met and manual prerequisites, then every effective manifest (core's and the instance's, deltas applied): enabled or disabled, and its prerequisite state: `met` or `not met: <reason>` from the runnable's `defineRunnable` prerequisite check when it has one, then, once that is met, from its `doctorCheck` (a condition that fails the run rather than skipping it, [runnables](./runnables.md#failures-skips-and-exit-codes)); else `met` when the manifest's `prerequisite` is `null` (deploy registers it), or `manual: <text>` |
 | `overrides:` | Every declared override with the core version it was written for; one whose `writtenFor` differs from the installed core is marked `DRIFT` with its issue to recheck |
 
 Use it after an upgrade (override drift) and when a runnable won't register.

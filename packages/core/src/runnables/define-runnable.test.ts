@@ -224,4 +224,28 @@ describe('runJobModule', () => {
     expect(run).toHaveBeenCalled();
     expect(log).not.toHaveBeenCalled();
   });
+
+  it('never runs doctorCheck: that is for doctor, with the parsed flags', async () => {
+    const run = vi.fn();
+    const doctorCheck = vi.fn(() => 'rsync not found' as const);
+    const { deps, log } = fakeDeps();
+    const job = defineRunnable({
+      id: 'acme-report',
+      domain: 'acme',
+      flags: { live: argFlag('--live') },
+      doctorCheck,
+      run,
+    });
+    await runJobModule(job, [], deps);
+    expect(run).toHaveBeenCalled();
+    expect(log).not.toHaveBeenCalled();
+    expect(doctorCheck).not.toHaveBeenCalled();
+    expect(await job.doctorCheck?.({ args: ['--live'] })).toBe(
+      'rsync not found',
+    );
+    expect(doctorCheck).toHaveBeenCalledWith({
+      args: ['--live'],
+      flags: { live: true },
+    });
+  });
 });

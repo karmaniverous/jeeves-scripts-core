@@ -30,6 +30,7 @@ The jobs reach GitHub through `gh`, as two logins in `GH_CONFIG_DIR` (`integrati
 
 - **Account:** scopes `repo` (private repos and their clones, issue search, notifications, adding collaborators, which also needs admin rights on the repo) and `read:org` (`github-build-registry` lists the repos of its orgs).
 - **Bot:** scope `repo` (invitations, notifications, and the repos it works in).
-- **Add `workflow`** to a login that pushes changes to `.github/workflows/` (e.g. PRs the bot opens). No job does.
+- **`github-sync-files`** (off unless the instance enables it) writes as `jobs['github-sync-files'].account`, by default the bot. That login needs, on every targeted owner's repos, write access to contents (scope `repo`, and push rights on each repo) and, when a `ruleset` is configured, rulesets admin (admin rights on each repo, or org admin for an org's repos). A `user` owner is the account itself, so it owns those repos. Branches that only accept changes through a pull request are skipped as `protected`, not overridden. When any `files[].target` is under `.github/workflows/`, that login also needs `workflow` (GitHub refuses the write without it).
+- **Add `workflow`** to a login that pushes changes to `.github/workflows/`: `github-sync-files` with a workflow target (above), or e.g. PRs the bot opens. No other job does.
 - **Creating repos** (e.g. an instance's scripts remote) also needs repo-creation rights in the org.
 - A tool that wants `GH_TOKEN` takes it inline from `gh auth token --user <botUser>`: plain `gh auth token` gives whichever login a job last switched to. Never print or log it.

@@ -7,12 +7,18 @@
  * 8). The schedule is the runner's (`config/schedule-schema`), shared
  * with core's job manifests (`runnables/manifest`). Like `silo` and `taskFile`,
  * `extraDirs` is read by the runnable itself (`admin-sweep-orphaned-tmp`,
- * Decision 55) and has no runner effect.
+ * Decision 55) and has no runner effect, as are `files`, `owners`,
+ * `account` and `ruleset` (`github-sync-files`, spec 2.8).
  */
 
 import { z } from 'zod';
 
 import { isAbsolutePath } from './absolute-path.js';
+import {
+  githubRulesetSchema,
+  githubSyncFileSchema,
+  githubSyncOwnerSchema,
+} from './github-sync-files-schema.js';
 import { scheduleSchema } from './schedule-schema.js';
 
 /**
@@ -53,6 +59,14 @@ export const jobDeltaSchema = z.object({
       }),
     )
     .optional(),
+  /** Files `github-sync-files` keeps in sync across repos (unset or empty: it skips). */
+  files: z.array(githubSyncFileSchema).optional(),
+  /** Owners whose repos `github-sync-files` syncs (unset or empty: it skips). */
+  owners: z.array(githubSyncOwnerSchema).optional(),
+  /** The `gh` login `github-sync-files` writes as (default: `integrations.gh.botUser`). */
+  account: z.string().min(1).optional(),
+  /** The ruleset `github-sync-files` ensures on each owner's repos (unless the owner sets `ruleset: false`). */
+  ruleset: githubRulesetSchema.optional(),
 });
 
 /** The `jobs` block: deltas keyed by job id. */

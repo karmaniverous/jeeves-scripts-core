@@ -8,6 +8,7 @@
  */
 
 export { configCheck, type ConfigCheckResult } from './check.js';
+export * from './github-sync-files-schema.js';
 // Every Zod schema is public (Decision 31), so plugins can compose and
 // extend them and the docs can describe each type.
 export {
@@ -29,6 +30,7 @@ export {
   generateJsonSchema,
   generatePointerJsonSchema,
 } from './json-schema.js';
+export * from './library-schema.js';
 export {
   CONFIG_PATH_ENV,
   type ConfigSource,

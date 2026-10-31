@@ -18,6 +18,7 @@ import { z } from 'zod';
 
 import { integrationsSchema } from './integrations-schema.js';
 import { jobsSchema } from './jobs-schema.js';
+import { librarySchema } from './library-schema.js';
 import { pathsSchema } from './paths-schema.js';
 import { peopleSchema } from './people-schema.js';
 import { pipelineSchema } from './pipeline-schema.js';
@@ -64,6 +65,8 @@ export const configObjectSchema = z.object({
   slack: slackConfigSchema.default(() => slackConfigSchema.parse({})),
   /** Which accounts and emails belong to one person (Decision 34). */
   people: peopleSchema.default({}),
+  /** Public repo subdirectories mirrored into the content tree (`library-sync-mirrors`). */
+  library: librarySchema.default({ mirrors: [] }),
   /** Per-job deltas. */
   jobs: jobsSchema,
   /**
@@ -102,6 +105,11 @@ export {
   type XAccountConfig,
 } from './integrations-schema.js';
 export { type JobDelta, type JobsConfig } from './jobs-schema.js';
+export {
+  type LibraryConfig,
+  type LibraryMirror,
+  type LibrarySiteLinks,
+} from './library-schema.js';
 export { type PathsConfigInput } from './paths-schema.js';
 export {
   type AccountConfig,
