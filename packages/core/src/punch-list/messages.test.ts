@@ -78,3 +78,11 @@ describe('quickLinksText', () => {
     );
   });
 });
+
+describe('quickLinksText without a spec', () => {
+  it('leaves the spec line out', () => {
+    expect(quickLinksText('2026-10-18', 'https://t', undefined)).not.toContain(
+      'Spec:',
+    );
+  });
+});

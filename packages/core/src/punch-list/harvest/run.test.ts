@@ -274,3 +274,20 @@ describe('runHarvest without the optional settings', () => {
     expect(s.calls.updates).toEqual([]);
   });
 });
+
+describe('runHarvest task', () => {
+  it('names its task source before dispatching, and the configured spec in the task', async () => {
+    const s = setup();
+    await runHarvest(
+      s.config,
+      { live: true, printTask: false },
+      s.deps(reply([join(s.input, 'new.json')])),
+    );
+    expect(s.calls.logs[0]).toBe(
+      `task from the instance file ${join(s.listDir, 'TASK.md')}`,
+    );
+    expect(s.calls.tasks[0]).toContain(
+      `- Punch-list spec: ${s.config.specPath ?? ''}`,
+    );
+  });
+});

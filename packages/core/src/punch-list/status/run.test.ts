@@ -201,3 +201,32 @@ describe('runStatus', () => {
     expect(s.logs.some((l) => l.startsWith('[dry-run] would post'))).toBe(true);
   });
 });
+
+describe('runStatus logging and scope', () => {
+  it('logs the file only in a dry run', async () => {
+    const live = setup(base);
+    await runStatus(live.config, { live: true }, live.deps('open'));
+    expect(live.logs.some((l) => l.startsWith('# Punch List'))).toBe(false);
+    const dry = setup(base);
+    await runStatus(dry.config, { live: false }, dry.deps('open'));
+    expect(dry.logs.some((l) => l.startsWith('# Punch List'))).toBe(true);
+  });
+
+  it('checks Integrated milestones only when they are sent back', async () => {
+    const s = setup({
+      ...base,
+      integrated: [
+        {
+          slug: 'acme-old',
+          title: 'Old',
+          body: [],
+          status: [],
+          integrated: true,
+          integratedOn: '2026-10-01',
+        },
+      ],
+    });
+    await runStatus(s.config, { live: true }, s.deps('open'));
+    expect(s.logs[0]).toBe('2026-10-18: 1 milestone(s) checked; file written');
+  });
+});

@@ -91,3 +91,15 @@ describe('omitExpired / rollOver', () => {
     expect(moves.unintegrated).toEqual(['acme-old']);
   });
 });
+
+describe('applyTicks with a hand-edited Done milestone', () => {
+  it('keeps a Done milestone with no Integrated box in Done', () => {
+    const { integrated: _box, ...noBox } = first<Milestone>(
+      samplePunchList.done,
+    );
+    const list: PunchList = { ...samplePunchList, done: [noBox] };
+    const { list: next } = applyTicks(list, '2026-10-20');
+    expect(next.done.map((m) => m.slug)).toEqual([noBox.slug]);
+    expect(next.integrated).toEqual(samplePunchList.integrated);
+  });
+});
