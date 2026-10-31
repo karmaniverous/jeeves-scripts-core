@@ -155,15 +155,15 @@ How an assistant answers "where are we", "gather context" or "summarize last pro
 
 **Flags.** Without `--live` the run is a preview: the whole read-only pass and a real worker dispatch, then the report, each proposed value beside the current one, written to `preview.md` in the run directory, with nothing set, delivered, posted or saved. A preview also opens no DM (it finds a user target's workspace with the read-only `users.info`, and takes a configured `reportAccount` as is) and deletes no run directory (only a live run prunes them). `--live` sets the values, writes the dated report and posts the summary. `--print-task` prints the worker's TASK (no worker) and logs the summary and the report. A real worker, with or without `--live`, is dispatched with both `dispatchWithSlack` flags off and no post targets, so the runnable's own flags never reach it; `--print-task` dispatches with `printTask` on, so core prints the TASK and starts no worker.
 
-**Config.** The `slack.channelMeta` block. No block: the run skips (`[skip] no slack.channelMeta block in the instance config`, exit 0). A present block is validated by `config check` and fails every run when invalid (Decision 76); what only the run can know (the OpenClaw owner when `reportChannel` is unset, a directory that is not absolute on this host) fails the run and is reported by `doctor`.
+**Config.** The `slack.channelMeta` block. No block: the run skips (`[skip] no slack.channelMeta block in the instance config`, exit 0); so does a run with no loadable instance config (`[skip] no loadable instance config (...)`). A present block is validated by `config check`, including that `reportAccount` and `reportTextAccounts` name gateway Slack accounts, and fails every run when invalid (Decision 76); what only the run can know (the OpenClaw owner when `reportChannel` is unset, a directory that is not absolute on this host) fails the run and is reported by `doctor`.
 
 | Key | Default | Rule |
 | --- | --- | --- |
 | `timezone` | required | IANA zone of the report date |
 | `serverKey` | required | a machine key in jeeves-server's own `keys` (checked at run time) |
 | `reportChannel` | the OpenClaw command owner's DM (first `slack:<user>` in `commands.ownerAllowFrom`) | a channel (`C`/`G`), DM (`D`) or user (`U`/`W`, their DM) id |
-| `reportAccount` | the first workspace whose bot can reach `reportChannel` | a gateway Slack account |
-| `reportTextAccounts` | the report target's own account | gateway Slack accounts whose channels' generated text the report may show |
+| `reportAccount` | the first workspace whose bot can reach `reportChannel` | a gateway Slack account (checked by `config check`, `doctor` and the run) |
+| `reportTextAccounts` | the report target's own account | gateway Slack accounts whose channels' generated text the report may show (each checked like `reportAccount`) |
 | `outputDir` | `slack.channels.<reportChannel>.homeDir` | absolute; required when the report goes to a DM (`reportChannel` unset, a user or a `D` id) or to a channel with no `homeDir` |
 | `descriptionMaxChars` | `250` | 1-250 |
 | `topicMaxChars` | `160` | 1-250 |
