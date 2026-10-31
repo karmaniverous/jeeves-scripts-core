@@ -44,8 +44,8 @@ flowchart TD
 | --- | --- |
 | `drain.ts` | Webhook drain — reads stdin, routes by event type, persists entity snapshots |
 | `backfill.ts` | One-time historical import via Jira REST API (`--project KEY [--type issue] [--live]`) |
-| `refresh-fields.ts` | Fetch field metadata and write `_fields.json` (daily runner job) |
-| `sort-backlog.ts` | Stable-sort the Jira backlog by priority group (`--live` to execute, dry-run by default) |
+| `refresh-fields.ts` | Fetch field metadata and write `_fields.json` (daily runner job `jira-refresh-fields`) |
+| `sort-backlog.ts` | Stable-sort the Jira backlog by priority group (`jira-sort-backlog`; `--live` to execute, dry-run by default) |
 
 Supporting modules in `lib/`:
 

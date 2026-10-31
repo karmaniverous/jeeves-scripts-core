@@ -91,7 +91,7 @@ The optional top-level `transcripts` block (`transcriptsSchema`, [config](./conf
 | `scratchDir` | `{stateDir}/transcripts`                   | Absolute path. |
 | `userAgent`  | `jeeves-scripts/<instance.name>`           | Non-empty.     |
 
-`TRANSCRIPT_API_KEY` is an environment variable, never a `jeeves-scripts.json` value. The `jeeves-transcripts` skill declares it as its primary env, so OpenClaw keeps it in the skill's own entry (`skills.entries.jeeves-transcripts.apiKey`, a SecretRef) and passes it to the runnable the skill invokes.
+`TRANSCRIPT_API_KEY` is an environment variable, never an instance config value. The `jeeves-transcripts` skill declares it as its primary env, so OpenClaw keeps it in the skill's own entry (`skills.entries.jeeves-transcripts.apiKey`, a SecretRef) and passes it to the runnable the skill invokes.
 
 ## Prerequisites
 

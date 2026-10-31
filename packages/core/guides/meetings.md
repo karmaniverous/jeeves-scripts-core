@@ -12,7 +12,7 @@ Meeting extraction from three independent sources — Google Meet (via email), F
 | --- | --- |
 | `extract.ts` | Scans the email cache for meeting-related threads, detects source (Google Meet, Fathom), creates meeting packages with metadata and artifacts. For each new meeting it enqueues the Gmail `meeting` label (plus an archive if the message is in the inbox and not labelled `watch`, unless `emailConfig.meetings.archive` is `false`; see [the `pipeline` block](./config.md#the-pipeline-block)) on `email-updates` through the email pipeline's `label-actions.ts`, so nothing is enqueued while the message's account is report-only (`emailConfig.reportOnly` or its own `accounts[].reportOnly`; see [email](./email.md#report-only)). Those actions are deferred, not dropped: see [reportOnly catch-up](#reportonly-catch-up). Gemini transcripts are not fetched here; the package gets `gemini_link.txt` and `fetch-notes.ts` exports the Doc |
 | `fetch-notes.ts` | Walks meeting directories, fetches Gemini doc transcripts (exported as the meeting's source mailbox, `meeting.json` `sources[0].account`) and Fathom transcripts for meetings that need them |
-| `ingest-notion.ts` | Polls a Notion inbox database, fetches meeting content via browser extraction, stages artifacts locally, archives the inbox page |
+| `ingest-notion.ts` | Polls a Notion inbox database, fetches meeting content via browser extraction, stages artifacts locally, archives the inbox page. One page per run: `--page-id <id>` (alias `--meeting-id`), else the page id in the override file, else the oldest inbox page older than `--min-age <hours>` (default 4); `--dry-run` reports the page and writes nothing |
 
 ## Data Flow
 

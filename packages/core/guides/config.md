@@ -34,8 +34,8 @@ Whichever file that is: a pointer resolves to `<config>/config.json`; a full con
 Edit the config with `config set` and `config unset`, never by hand and never by a PR:
 
 ```bash
-node bin/jeeves-scripts.js config set slack.channels.C0123.homeDir J:/domains/projects/acme
-node bin/jeeves-scripts.js config set slack.channels.C0123.homeDir J:/domains/projects/acme --live
+node bin/jeeves-scripts.js config set slack.channels.C0123.homeDir J:/content/projects/acme
+node bin/jeeves-scripts.js config set slack.channels.C0123.homeDir J:/content/projects/acme --live
 node bin/jeeves-scripts.js config unset slack.channels.C0123 --live
 ```
 

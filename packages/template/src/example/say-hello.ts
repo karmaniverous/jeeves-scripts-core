@@ -1,6 +1,7 @@
 /**
  * The template's sample runnable, `example-say-hello` (domain `example`):
- * prints a greeting naming this instance, read from `jeeves-scripts.json`.
+ * prints a greeting naming this instance, read from the instance config
+ * (the config directory `jeeves-scripts.json` points at).
  * Offline and side-effect free; replace it with real runnables.
  *
  * Run it with `node bin/jeeves-scripts.js run example-say-hello [name]`.

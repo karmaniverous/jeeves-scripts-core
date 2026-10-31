@@ -45,8 +45,8 @@ flowchart TD
 | Script | Description |
 | --- | --- |
 | `drain.ts` | Webhook drain — reads stdin, routes by action + type, persists entity snapshots |
-| `sync-issues.ts` | Polling sync for issues — runner job, every 23 minutes |
-| `sync-comments.ts` | Polling sync for comments — runner job, every 29 minutes |
+| `sync-issues.ts` | Polling sync for issues - runner job `linear-sync-issues`, every 23 minutes |
+| `sync-comments.ts` | Polling sync for comments - runner job `linear-sync-comments`, every 29 minutes |
 | `backfill.ts` | One-time historical import via GraphQL (`--team KEY [--type issue\|comment] [--live]`) |
 
 Supporting modules in `lib/`:

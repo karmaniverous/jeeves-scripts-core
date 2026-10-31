@@ -29,7 +29,7 @@ node -p "path.dirname(require.resolve('@karmaniverous/jeeves-scripts-core/packag
 
 The `exports` map publishes `./package.json`, `./guides/*`, `./skills/*`, `./task-templates/*`, `./schema/*`, `./config/*` and `./presets/*` (with `./presets/*.js` mapped to the compiled presets in `dist/presets/`), so `require.resolve('@karmaniverous/jeeves-scripts-core/guides/<domain>.md')` (or `import.meta.resolve`) returns a doc's absolute path from anywhere in the instance repo. `test/package-docs.test.ts` keeps this true: every doc and guide ships, resolves, and is indexed below.
 
-Runnable ids named in the docs are core's registered ids ([`guides/runnables.md`](guides/runnables.md)): `jeeves-scripts run <id>` runs any of them. Scheduled jobs have a manifest in core (`jobs/<domain>.json`); an instance adjusts them with `jobs.<id>` deltas in `jeeves-scripts.json` and never copies them. `jeeves-scripts list` shows every registered runnable.
+Runnable ids named in the docs are core's registered ids ([`guides/runnables.md`](guides/runnables.md)): `jeeves-scripts run <id>` runs any of them. Scheduled jobs have a manifest in core (`jobs/<domain>.json`); an instance adjusts them with `jobs.<id>` deltas in its config and never copies them. `jeeves-scripts list` shows every registered runnable.
 
 ### Domain docs
 

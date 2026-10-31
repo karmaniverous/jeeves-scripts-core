@@ -75,12 +75,12 @@ Core's manifest (`jobs/email.json`) is authoritative; an instance adjusts it wit
 
 ```bash
 node bin/jeeves-scripts.js run email-apply-labels --dry-run
-node bin/jeeves-scripts.js run email-apply-labels [--since <date>] [--account <id>] [--max <n>]
+node bin/jeeves-scripts.js run email-apply-labels [--since <date>] [--account <id>] [--max <n>] [--config <file>]
 ```
 
 - It reads each Gmail account's thread state (runner state `email` / `<email>.seenThreadIds`) and, for every thread whose stored classification (`receipt`, `junk`, a currently configured bucket) has labels missing from `labelApplied`, enqueues them on `email-updates` through `enqueueLabelActions()` and records them in `labelApplied`, exactly as `poll` does. It never calls Gmail itself: `drain-updates` applies the queue at its usual rate limit.
 - Idempotent: a second run finds nothing to do. `--max` (default 500 threads) bounds one run so the catch-up doesn't crowd out fresh work in the queue; the summary says when to run again.
-- `--since` keeps threads dated (else last seen) on or after the date; `--account` limits it to one configured Gmail account (polled or backfill).
+- `--since` keeps threads dated (else last seen) on or after the date; `--account` limits it to one configured Gmail account (polled or backfill); `--config <file>` reads that config file (a pointer or a full config) instead of the one the loader resolves.
 - Report-only accounts are skipped (`<account>: report-only, skipped`). When every target account is report-only (`emailConfig.reportOnly` on, or `--account` names a report-only account) it refuses (exit code 1), except as a `--dry-run`, which only reads state and prints what would be enqueued, marking report-only accounts as skipped outside a dry run.
 
 ### Auto-reply (email-respond)
