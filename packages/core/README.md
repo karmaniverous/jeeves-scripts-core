@@ -52,7 +52,7 @@ Runnable ids named in the docs are core's registered ids ([`guides/runnables.md`
 | [`guides/meetings.md`](guides/meetings.md) | Meeting extraction (Meet, Fathom, Notion) |
 | [`guides/meta.md`](guides/meta.md) | Entity lifecycle maintenance |
 | [`guides/punch-list.md`](guides/punch-list.md) | The instance's daily punch list of platform work: status from GitHub, harvesting from the archive |
-| [`guides/slack.md`](guides/slack.md) | Slack polling and archiving |
+| [`guides/slack.md`](guides/slack.md) | Slack polling and archiving; channel descriptions, topics and home-directory proposals |
 | [`guides/transcripts.md`](guides/transcripts.md) | YouTube transcripts fetched to disk through TranscriptAPI |
 | [`guides/x.md`](guides/x.md) | X/Twitter polling, posting, engagement |
 
@@ -120,7 +120,7 @@ See [`guides/config.md`](guides/config.md).
 
 | Import | What it is |
 | --- | --- |
-| `@karmaniverous/jeeves-scripts-core` | The config API (schemas, loader, getters `paths()`, `integrations()`, `pipeline()`, refs, silo resolver and routing, `configCheck`); `constants()`; `defineRunnable`; the plugin API (`definePlugin`, `override`, `localConfig`); the utilities: the task-file dispatcher (`taskFileDispatcher`, `dispatchTaskFile`, `resolveTaskFile`) with `digestTimeZone` and the date helpers (`withDateContext`, `requireTimeZone`, `dayOfWeek`, `formatDate`, `relativeDays`), `dispatchWithSlack` and the worker-slack config schemas, the readers for other components' config (OpenClaw, jeeves-runner, jeeves-meta, any `jeeves-<name>`), the `gh` helpers, `getTokenMetrics`, and `convertDocxToMd` / `convertPdfToMd` (also the runnables `convert-docx-to-md`, `convert-pdf-to-md`). |
+| `@karmaniverous/jeeves-scripts-core` | The config API (schemas, loader, getters `paths()`, `integrations()`, `pipeline()`, refs, silo resolver and routing, `configCheck`); `constants()`; `defineRunnable`; the plugin API (`definePlugin`, `override`, `localConfig`); the utilities: the task-file dispatcher (`taskFileDispatcher`, `dispatchTaskFile`, `resolveTaskFile`) with `digestTimeZone` and the date helpers (`withDateContext`, `requireTimeZone`, `dayOfWeek`, `formatDate`, `relativeDays`), `dispatchWithSlack` and the worker-slack config schemas, the readers for other components' config (OpenClaw, jeeves-runner, jeeves-meta, any `jeeves-<name>`), the `gh` helpers, the dated-report, run-directory and jeeves-server link helpers (`dateInZone`, `reportPath`, `deliverReport`, `runId`, `pruneRuns`, `resolvePublicUrl`, `slackLink`), `getTokenMetrics`, and `convertDocxToMd` / `convertPdfToMd` (also the runnables `convert-docx-to-md`, `convert-pdf-to-md`). |
 | `@karmaniverous/jeeves-scripts-core/cli` | `main`, `buildProgram`: the CLI the launcher runs. |
 
 No other module is exported: instance code imports only these (Decision 7). A core function instance code needs is added to the root export, with docs and tests.

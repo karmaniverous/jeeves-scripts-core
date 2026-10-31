@@ -15,6 +15,7 @@ What we decide about a channel lives in one place: `slack.channels.<channelId>` 
 - When a conversation in a channel is about files, look up its channel id there. If it has a `homeDir`, that directory is where you read and write the channel's work.
 - No entry, or no `homeDir`, means the channel has no home directory: ask, don't guess.
 - The config entry is the only record of a channel's home directory, and a person decides it: never pick or change one yourself (Decision 66). When someone names it, apply it with `config set slack.channels.<channelId>.homeDir <absolute path>` (dry run), then the same with `--live` (see `jeeves-scripts`).
+- `slack-refresh-channel-meta` is where proposed home directories come from: its daily report lists, for each channel whose posts assign one, the exact `jeeves-scripts config set slack.channels.<id>.homeDir <path>` command. It never writes the config itself; a person runs the command ([Channel Meta]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/slack.md#channel-meta)).
 
 ## What comes from Slack
 
