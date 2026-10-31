@@ -10,7 +10,7 @@
  */
 
 import { existsSync, statSync } from 'node:fs';
-import { relative, resolve, sep } from 'node:path';
+import path from 'node:path';
 
 import { z } from 'zod';
 
@@ -38,21 +38,30 @@ export const readServerLinks = (configPath: string): ServerLinks => {
   return links;
 };
 
-/** The jeeves-server URL of `filePath`, or `undefined` when no root holds it. */
+/**
+ * The jeeves-server URL of `filePath`, or `undefined` when no root holds
+ * it (including a file on another Windows drive, where `relative` returns
+ * an absolute path).
+ *
+ * @param p - Path rules; default this host's (tests pass `path.win32`).
+ */
 export const browseUrl = (
   links: ServerLinks,
   filePath: string,
+  p: path.PlatformPath = path,
 ): string | undefined => {
-  const abs = resolve(filePath);
+  const abs = p.resolve(filePath);
   const matches = Object.entries(links.roots)
-    .map(([name, root]) => ({ name, rel: relative(resolve(root), abs) }))
+    .map(([name, root]) => ({ name, rel: p.relative(p.resolve(root), abs) }))
     .filter(
-      ({ rel }) => rel !== '' && !rel.startsWith('..') && !rel.startsWith(sep),
+      ({ rel }) => rel !== '' && !rel.startsWith('..') && !p.isAbsolute(rel),
     )
     .sort((a, b) => a.rel.length - b.rel.length);
   const best = matches[0];
   if (!best) return undefined;
-  const segments = [best.name, ...best.rel.split(sep)].map(encodeURIComponent);
+  const segments = [best.name, ...best.rel.split(p.sep)].map(
+    encodeURIComponent,
+  );
   return `${links.publicUrl.replace(/\/+$/, '')}/browse/${segments.join('/')}`;
 };
 

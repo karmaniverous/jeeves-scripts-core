@@ -1,6 +1,6 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import path, { join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -56,6 +56,28 @@ describe('browseUrl', () => {
     expect(browseUrl(links, resolve('/etc/passwd'))).toBeUndefined();
     expect(browseUrl(links, resolve('/base'))).toBeUndefined();
     expect(browseUrl(links, resolve('/basex/a'))).toBeUndefined();
+  });
+});
+
+describe('browseUrl with Windows paths', () => {
+  const win: ServerLinks = {
+    publicUrl: 'https://jeeves.example.com',
+    roots: { j: 'J:\\', c: 'C:\\base' },
+  };
+
+  it('links a file under a root on the same drive', () => {
+    expect(browseUrl(win, 'J:\\content\\a b.md', path.win32)).toBe(
+      'https://jeeves.example.com/browse/j/content/a%20b.md',
+    );
+    expect(browseUrl(win, 'c:\\base\\x.md', path.win32)).toBe(
+      'https://jeeves.example.com/browse/c/x.md',
+    );
+  });
+
+  it('drops a file on another drive instead of linking its absolute path', () => {
+    expect(path.win32.relative('C:\\base', 'D:\\x\\f.md')).toBe('D:\\x\\f.md');
+    expect(browseUrl(win, 'D:\\x\\f.md', path.win32)).toBeUndefined();
+    expect(browseUrl(win, '\\\\host\\share\\f.md', path.win32)).toBeUndefined();
   });
 });
 
