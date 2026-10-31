@@ -96,7 +96,7 @@ export const SERVER_LINK_TIMEOUT_MS = 10_000;
  * @param access - API base URL and insider key.
  * @param fsPath - Absolute filesystem path under one of the server's roots.
  * @param timeoutMs - How long to wait for the answer (default
- *   {@link SERVER_LINK_TIMEOUT_MS}).
+ *   `SERVER_LINK_TIMEOUT_MS`, 10 s).
  * @returns The `publicUrl` from the server's answer.
  * @throws Error on a non-OK answer (e.g. 404: not under any root), when
  *   the server has no `publicUrl` configured, or when it doesn't answer in
@@ -206,7 +206,8 @@ export interface LinkRequest {
  * report directory the server can't link fails before spending a worker.
  *
  * @param request - Resolver, file, key, run kind and log.
- * @returns The link; {@link NO_LINK} when a preview can't resolve it.
+ * @returns The link; `NO_LINK` (no URL, a placeholder label) when a
+ *   preview can't resolve it.
  * @throws Error when a live run can't resolve it.
  */
 export async function linkBeforeWorker(request: LinkRequest): Promise<string> {
