@@ -52,6 +52,20 @@
     "enabled": true,
     "prerequisite": "GitHub CLI auth (gh auth login)"
   },
+  "github-sync-files": {
+    "name": "GitHub Sync Files",
+    "description": "Keep configured files, and an optional ruleset, in sync across one or more GitHub owners' repos.",
+    "schedule": {
+      "freq": "daily",
+      "byhour": 4,
+      "byminute": 30,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 600,
+    "enabled": false,
+    "prerequisite": "GitHub CLI auth (gh auth login)"
+  },
   "github-poll-collabs": {
     "name": "GitHub Poll Collabs",
     "description": "Poll repos for missing bot collaborator access and enqueue for remediation.",

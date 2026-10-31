@@ -102,6 +102,12 @@ export const scheduledJobs: readonly RegistryEntry[] = [
     load: () => import('../github/sync-issues.js'),
   },
   {
+    id: 'github-sync-files',
+    domain: 'github',
+    module: 'github/sync-files',
+    load: () => import('../github/sync-files.js'),
+  },
+  {
     id: 'github-sync-repos',
     domain: 'github',
     module: 'github/sync-repos',
