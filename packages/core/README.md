@@ -43,7 +43,7 @@ Runnable ids named in the docs are core's registered ids ([`guides/runnables.md`
 | [`guides/convert.md`](guides/convert.md) | DOCX and PDF to Markdown |
 | [`guides/dispatchers.md`](guides/dispatchers.md) | Task-file dispatchers and job-side Slack I/O |
 | [`guides/email.md`](guides/email.md) | Gmail (gog) and IMAP polling, download, backfills |
-| [`guides/github.md`](guides/github.md) | Repo and issue sync, notifications, collaborators |
+| [`guides/github.md`](guides/github.md) | Repo and issue sync, notifications, collaborators, cross-repo file and ruleset sync |
 | [`guides/google-drive.md`](guides/google-drive.md) | Drive sync into the content tree |
 | [`guides/jira.md`](guides/jira.md) | Jira webhook drain, backfill, backlog sort |
 | [`guides/library.md`](guides/library.md) | Public repo subdirectories mirrored into the content tree as reference libraries |

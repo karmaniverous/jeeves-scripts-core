@@ -42,7 +42,7 @@ Hand-written references for `@karmaniverous/jeeves-scripts-core`: the framework 
 - [Convert](./convert.md): DOCX and PDF to Markdown
 - [Dispatchers](./dispatchers.md): Task-file dispatchers and job-side Slack I/O
 - [Email](./email.md): Gmail (gog) and IMAP polling, download, backfills
-- [GitHub](./github.md): Repo and issue sync, notifications, collaborators
+- [GitHub](./github.md): Repo and issue sync, notifications, collaborators, cross-repo file and ruleset sync
 - [Google Drive](./google-drive.md): Drive sync into the content tree
 - [Jira](./jira.md): Jira webhook drain, backfill, backlog sort
 - [Library](./library.md): Public repo subdirectories mirrored into the content tree as reference libraries
