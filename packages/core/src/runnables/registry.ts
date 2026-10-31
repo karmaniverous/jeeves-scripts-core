@@ -49,7 +49,9 @@ export const coreDomains: readonly string[] = [
   'meetings',
   'meta',
   'people',
+  'punch-list',
   'slack',
+  'transcripts',
   'x',
 ];
 

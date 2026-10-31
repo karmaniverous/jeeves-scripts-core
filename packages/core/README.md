@@ -15,6 +15,7 @@ Everything below ships in the npm package. From an instance repo, the package ro
 | `schema/pointer.schema.json` | JSON Schema for the repo's `jeeves-scripts.json` pointer. |
 | `config/token-rates.seed.json` | The token rate card seed (`constants().TOKEN_RATES_SEED_PATH`). |
 | `jobs/<domain>.json` | Core's job manifests, keyed by runnable id ([`guides/runnables.md`](guides/runnables.md)). |
+| `task-templates/` | Core's worker TASK templates (the punch-list harvest, the daily-briefing family), read from the package unless the instance has its own file at the configured path (Decision 75; [`guides/dispatchers.md`](guides/dispatchers.md#core-task-templates)). |
 | `presets/`, `dist/presets/` | The presets an instance repo's one-line tool configs extend: TypeScript (`presets/tsconfig.base.json`, JSON because TypeScript reads only JSON tsconfigs) and the ESLint and Vitest presets, authored in TypeScript and shipped compiled with their types (`dist/presets/eslint.js`, `dist/presets/vitest.js`). All three are imported as `@karmaniverous/jeeves-scripts-core/presets/<file>` (`eslint.js`, `vitest.js`, `tsconfig.base.json`). The TypeScript and ESLint presets both leave out the instance's `coverage/`, `dist/` and `node_modules/`. |
 | `template/` | The instance repo `jeeves-scripts init` writes ([`guides/cli.md`](guides/cli.md#init)). |
 | `CHANGELOG.md` | Release notes. |
@@ -26,7 +27,7 @@ To locate the package root from code or a shell without assuming a layout:
 node -p "path.dirname(require.resolve('@karmaniverous/jeeves-scripts-core/package.json'))"
 ```
 
-The `exports` map publishes `./package.json`, `./guides/*`, `./skills/*`, `./schema/*`, `./config/*` and `./presets/*` (with `./presets/*.js` mapped to the compiled presets in `dist/presets/`), so `require.resolve('@karmaniverous/jeeves-scripts-core/guides/<domain>.md')` (or `import.meta.resolve`) returns a doc's absolute path from anywhere in the instance repo. `test/package-docs.test.ts` keeps this true: every doc and guide ships, resolves, and is indexed below.
+The `exports` map publishes `./package.json`, `./guides/*`, `./skills/*`, `./task-templates/*`, `./schema/*`, `./config/*` and `./presets/*` (with `./presets/*.js` mapped to the compiled presets in `dist/presets/`), so `require.resolve('@karmaniverous/jeeves-scripts-core/guides/<domain>.md')` (or `import.meta.resolve`) returns a doc's absolute path from anywhere in the instance repo. `test/package-docs.test.ts` keeps this true: every doc and guide ships, resolves, and is indexed below.
 
 Runnable ids named in the docs are core's registered ids ([`guides/runnables.md`](guides/runnables.md)): `jeeves-scripts run <id>` runs any of them. Scheduled jobs have a manifest in core (`jobs/<domain>.json`); an instance adjusts them with `jobs.<id>` deltas in `jeeves-scripts.json` and never copies them. `jeeves-scripts list` shows every registered runnable.
 
@@ -50,14 +51,16 @@ Runnable ids named in the docs are core's registered ids ([`guides/runnables.md`
 | [`guides/linear.md`](guides/linear.md) | Linear webhook drain, sync, backfill |
 | [`guides/meetings.md`](guides/meetings.md) | Meeting extraction (Meet, Fathom, Notion) |
 | [`guides/meta.md`](guides/meta.md) | Entity lifecycle maintenance |
+| [`guides/punch-list.md`](guides/punch-list.md) | The instance's daily punch list of platform work: status from GitHub, harvesting from the archive |
 | [`guides/slack.md`](guides/slack.md) | Slack polling and archiving |
+| [`guides/transcripts.md`](guides/transcripts.md) | YouTube transcripts fetched to disk through TranscriptAPI |
 | [`guides/x.md`](guides/x.md) | X/Twitter polling, posting, engagement |
 
 Guides: [`guides/google-drive-spec.md`](guides/google-drive-spec.md) (Drive sync design record), [`guides/token-metrics-runbook.md`](guides/token-metrics-runbook.md) (token metrics operations).
 
 ## Skills
 
-Core ships its own OpenClaw skills, one per domain or pattern whose behaviour lives here, plus `jeeves-scripts` for the package as a whole: `jeeves-scripts`, `jeeves-email`, `jeeves-slack`, `jeeves-calendar`, `jeeves-github`, `jeeves-jira`, `jeeves-linear`, `jeeves-x`, `jeeves-token-metrics`, `jeeves-daily-briefings`, `jeeves-standing-meetings`, `jeeves-dates` (core's date utilities; never state a weekday without computing it), and `channel-status-recap` (a channel's state from its archive, checked against Jira and GitHub). They are thin (when to use, operator rules), declare `JEEVES_SCRIPTS_DIR` (the scripts repo root) in their frontmatter, and name the docs above as `$JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/<domain>.md`, so a skill always matches the installed core version. `jeeves-scripts skills install` wires them in: it lists the installed package's `skills/` directory in OpenClaw's `skills.load.extraDirs` and sets `JEEVES_SCRIPTS_DIR` for each skill ([cli.md](guides/cli.md#skills)). `test/skills.test.ts` checks every shipped skill: frontmatter and the `JEEVES_SCRIPTS_DIR` declaration, size, no instance paths, and package paths that exist.
+Core ships its own OpenClaw skills, one per domain or pattern whose behaviour lives here, plus `jeeves-scripts` for the package as a whole: `jeeves-scripts`, `jeeves-email`, `jeeves-slack`, `jeeves-calendar`, `jeeves-github`, `jeeves-jira`, `jeeves-linear`, `jeeves-x`, `jeeves-token-metrics`, `jeeves-daily-briefings`, `jeeves-standing-meetings`, `jeeves-dates` (core's date utilities; never state a weekday without computing it), `channel-status-recap` (a channel's state from its archive, checked against Jira and GitHub), `punch-list` (reading and adding to the instance's punch list from any session), and `jeeves-transcripts` (YouTube transcripts fetched to a file and answered from it; it also declares `TRANSCRIPT_API_KEY` as its primary env, so OpenClaw keeps the key in the skill's own entry). They are thin (when to use, operator rules), declare `JEEVES_SCRIPTS_DIR` (the scripts repo root) in their frontmatter, and name the docs above as `$JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/<domain>.md`, so a skill always matches the installed core version. `jeeves-scripts skills install` wires them in: it lists the installed package's `skills/` directory in OpenClaw's `skills.load.extraDirs` and sets `JEEVES_SCRIPTS_DIR` for each skill ([cli.md](guides/cli.md#skills)). `test/skills.test.ts` checks every shipped skill: frontmatter and the `JEEVES_SCRIPTS_DIR` declaration, size, no instance paths, and package paths that exist.
 
 ## Install
 
