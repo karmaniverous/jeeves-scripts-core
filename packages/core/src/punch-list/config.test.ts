@@ -6,7 +6,7 @@
 import { homedir } from 'node:os';
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { punchListSchema } from '../config/punch-list-schema.js';
 import { configSchema } from '../config/schema.js';
@@ -14,6 +14,8 @@ import {
   DEFAULT_INPUT_DIRS,
   derivePunchList,
   expandPath,
+  npmGlobalPrefix,
+  type NpmPrefixEnv,
   scannedRepos,
   slackChannelId,
 } from './config.js';
@@ -83,12 +85,30 @@ describe('punchListSchema', () => {
       'Too small: expected string to have >=1 characters',
     ],
     [{ inputRoots: [] }, 'Too small: expected array to have >=1 items'],
-    [{ inputRoots: ['rel'] }, 'inputRoots entry must be an absolute path'],
+    ...['rel', '{homes}/x', '{home}x', 'x/{home}', '{stateDir}/x'].map(
+      (root) => [
+        { inputRoots: [root] },
+        'inputRoots entry must be an absolute path, or start with {home} or {npmGlobal}',
+      ],
+    ),
     [{ specPath: 'rel.md' }, 'specPath must be an absolute path'],
     [{ lockFile: 'x' }, 'lockFile must be an absolute path'],
   ])('rejects %j', (over, message) => {
     const result = punchListSchema.safeParse({ ...minimal, ...over });
     expect(result.error?.issues.map((i) => i.message)).toEqual([message]);
+  });
+
+  it('accepts absolute and {home} / {npmGlobal} input roots', () => {
+    const inputRoots = [
+      '/abs',
+      'D:\\abs',
+      '{home}',
+      '{home}/notes',
+      '{npmGlobal}\\pkg',
+    ];
+    expect(
+      punchListSchema.parse({ ...minimal, inputRoots }).inputRoots,
+    ).toEqual(inputRoots);
   });
 
   it('accepts a user id and channel: / user: targets', () => {
@@ -141,6 +161,19 @@ describe('derivePunchList', () => {
     expect(derived?.inputRoots[0]).toBe(path.join(silo, 'email'));
   });
 
+  it('expands {home} in configured input roots, as the harvester and its task see them', () => {
+    const derived = derivePunchList(
+      config({
+        ...minimal,
+        inputRoots: ['{home}/notes', path.join(base, 'x')],
+      }),
+    );
+    expect(derived?.inputRoots).toEqual([
+      `${homedir()}/notes`,
+      path.join(base, 'x'),
+    ]);
+  });
+
   it('keeps configured paths and strips a target prefix from the channel', () => {
     const own = path.join(base, 'own');
     const derived = derivePunchList(
@@ -186,7 +219,7 @@ describe('scannedRepos', () => {
 describe('expandPath', () => {
   it('expands {npmGlobal} to <prefix>/lib/node_modules, and {home}', () => {
     const env = {
-      execPath: '/n/v24/bin/node',
+      npmPrefix: () => '/n/v24',
       home: '/home/u',
       platform: 'linux' as const,
     };
@@ -196,24 +229,89 @@ describe('expandPath', () => {
     expect(expandPath('{home}/.openclaw/a', env)).toBe('/home/u/.openclaw/a');
   });
 
-  it('expands {npmGlobal} beside node.exe on Windows', () => {
+  it('expands {npmGlobal} to <prefix>\\node_modules on Windows', () => {
     const env = {
-      execPath: 'C:\\node\\node.exe',
+      npmPrefix: () => 'C:\\Users\\u\\AppData\\Roaming\\npm',
       home: 'C:\\Users\\u',
       platform: 'win32' as const,
     };
-    expect(expandPath('{npmGlobal}', env)).toBe('C:\\node\\node_modules');
+    expect(expandPath('{npmGlobal}', env)).toBe(
+      'C:\\Users\\u\\AppData\\Roaming\\npm\\node_modules',
+    );
+  });
+
+  it('reads the npm prefix only for a {npmGlobal} pattern', () => {
+    const npmPrefix = vi.fn(() => '/p');
+    const env = { npmPrefix, home: '/h', platform: 'linux' as const };
+    expect(expandPath('{home}/x', env)).toBe('/h/x');
+    expect(npmPrefix).not.toHaveBeenCalled();
+    expect(expandPath('{npmGlobal}/{home}', env)).toBe(
+      '/p/lib/node_modules//h',
+    );
+    expect(npmPrefix).toHaveBeenCalledTimes(1);
   });
 
   it('defaults to this process', () => {
     expect(expandPath('plain')).toBe('plain');
+    const prefix = npmGlobalPrefix();
     expect(expandPath('{npmGlobal}')).toBe(
       expandPath('{npmGlobal}', {
-        execPath: process.execPath,
+        npmPrefix: () => prefix,
         home: '',
         platform: process.platform,
       }),
     );
     expect(expandPath('{home}')).toBe(homedir());
+  });
+});
+
+describe('npmGlobalPrefix', () => {
+  const env = (over: Partial<NpmPrefixEnv> = {}): NpmPrefixEnv => ({
+    env: {},
+    execPath: '/n/v24/bin/node',
+    platform: 'linux',
+    npmPrefix: () => '/usr/local\n',
+    ...over,
+  });
+
+  it('prefers npm_config_prefix, in either case', () => {
+    const npmPrefix = vi.fn(() => '/unused');
+    expect(
+      npmGlobalPrefix(env({ env: { npm_config_prefix: '/cfg' }, npmPrefix })),
+    ).toBe('/cfg');
+    expect(
+      npmGlobalPrefix(env({ env: { NPM_CONFIG_PREFIX: '/CFG' }, npmPrefix })),
+    ).toBe('/CFG');
+    expect(npmPrefix).not.toHaveBeenCalled();
+  });
+
+  it("uses npm's own answer, trimmed (the standard Windows installer's %APPDATA%\\npm)", () => {
+    expect(npmGlobalPrefix(env())).toBe('/usr/local');
+    expect(
+      npmGlobalPrefix(
+        env({
+          platform: 'win32',
+          execPath: 'C:\\Program Files\\nodejs\\node.exe',
+          npmPrefix: () => 'C:\\Users\\u\\AppData\\Roaming\\npm\r\n',
+        }),
+      ),
+    ).toBe('C:\\Users\\u\\AppData\\Roaming\\npm');
+  });
+
+  it.each([
+    [
+      'throws',
+      () => {
+        throw new Error('npm: not found');
+      },
+    ],
+    ['prints nothing', () => '  \n'],
+  ])("falls back to npm's built-in default when npm %s", (_, npmPrefix) => {
+    expect(npmGlobalPrefix(env({ npmPrefix }))).toBe('/n/v24');
+    expect(
+      npmGlobalPrefix(
+        env({ platform: 'win32', execPath: 'C:\\nvm\\node.exe', npmPrefix }),
+      ),
+    ).toBe('C:\\nvm');
   });
 });

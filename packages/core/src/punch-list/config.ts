@@ -8,6 +8,7 @@
  * Reads the instance config only.
  */
 
+import { execSync } from 'node:child_process';
 import { homedir } from 'node:os';
 import path from 'node:path';
 
@@ -75,7 +76,7 @@ export const derivePunchList = (
     pendingFile: block.pendingFile ?? state('status-pending.json'),
     cursorFile: block.cursorFile ?? state('harvest-cursor.json'),
     inboxDir: block.inboxDir ?? state('inbox'),
-    inputRoots: block.inputRoots ?? [
+    inputRoots: block.inputRoots?.map((root) => expandPath(root)) ?? [
       ...DEFAULT_INPUT_DIRS.map((dir) => path.join(silo, dir)),
       path.join(stateDir, 'jeeves-watcher', 'issues.json'),
     ],
@@ -100,35 +101,88 @@ export const scannedRepos = (config: PunchListConfig): string[] => [
   ...Object.keys(config.installMap),
 ];
 
-/** Where {@link expandPath} finds this Node and the home directory. */
-export interface ExpandEnv {
-  /** The Node binary (`process.execPath`). */
+/** What {@link npmGlobalPrefix} reads; injectable for tests. */
+export interface NpmPrefixEnv {
+  /** The environment (`npm_config_prefix`, set by npm for its scripts or by the user). */
+  env: Readonly<Record<string, string | undefined>>;
+  /** The Node binary (`process.execPath`), for npm's built-in default. */
   execPath: string;
+  /** `process.platform`. */
+  platform: NodeJS.Platform;
+  /** `npm prefix -g`'s output; throws when npm cannot be run. */
+  npmPrefix: () => string;
+}
+
+const liveNpmPrefixEnv = (): NpmPrefixEnv => ({
+  env: process.env,
+  execPath: process.execPath,
+  platform: process.platform,
+  // A fixed command through the shell: npm is `npm.cmd` on Windows.
+  npmPrefix: () =>
+    execSync('npm prefix -g', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 15_000,
+    }),
+});
+
+/**
+ * npm's global prefix: `npm_config_prefix` when set, else what
+ * `npm prefix -g` prints (which honours every npmrc, e.g. the standard
+ * Windows installer's `%APPDATA%\npm`), else npm's built-in default
+ * (`node.exe`'s directory on Windows, the directory above `bin/node`
+ * elsewhere) when npm cannot be run.
+ */
+export const npmGlobalPrefix = (
+  env: NpmPrefixEnv = liveNpmPrefixEnv(),
+): string => {
+  const configured = env.env.npm_config_prefix ?? env.env.NPM_CONFIG_PREFIX;
+  if (configured) return configured;
+  try {
+    const printed = env.npmPrefix().trim();
+    if (printed) return printed;
+  } catch {
+    // npm not runnable: fall back to its built-in default below.
+  }
+  const p = env.platform === 'win32' ? path.win32 : path.posix;
+  const nodeDir = p.dirname(env.execPath);
+  return env.platform === 'win32' ? nodeDir : p.dirname(nodeDir);
+};
+
+let livePrefix: string | undefined;
+
+/** Where {@link expandPath} finds npm's global prefix and the home directory. */
+export interface ExpandEnv {
+  /** npm's global prefix; called only when the pattern holds `{npmGlobal}`. */
+  npmPrefix: () => string;
   /** The home directory. */
   home: string;
-  /** `process.platform`: Windows keeps global modules beside `node.exe`. */
+  /** `process.platform`: Windows keeps global modules at `<prefix>/node_modules`. */
   platform: NodeJS.Platform;
 }
 
 /**
- * Expand `{npmGlobal}` (this Node's global `node_modules`:
- * `<prefix>/lib/node_modules`, or `<node dir>/node_modules` on Windows)
+ * Expand `{npmGlobal}` (npm's global `node_modules`:
+ * `<prefix>/lib/node_modules`, or `<prefix>/node_modules` on Windows,
+ * with the prefix from {@link npmGlobalPrefix}, read once per process)
  * and `{home}`.
  */
 export const expandPath = (
   pattern: string,
   env: ExpandEnv = {
-    execPath: process.execPath,
+    npmPrefix: () => (livePrefix ??= npmGlobalPrefix()),
     home: homedir(),
     platform: process.platform,
   },
 ): string => {
+  if (!pattern.includes('{npmGlobal}'))
+    return pattern.replaceAll('{home}', env.home);
   const p = env.platform === 'win32' ? path.win32 : path.posix;
-  const nodeDir = p.dirname(env.execPath);
+  const prefix = env.npmPrefix();
   const npmGlobal =
     env.platform === 'win32'
-      ? p.join(nodeDir, 'node_modules')
-      : p.join(nodeDir, '..', 'lib', 'node_modules');
+      ? p.join(prefix, 'node_modules')
+      : p.join(prefix, 'lib', 'node_modules');
   return pattern
     .replaceAll('{npmGlobal}', npmGlobal)
     .replaceAll('{home}', env.home);

@@ -22,7 +22,7 @@
 import { mkdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { expandPath, type PunchListConfig } from '../config.js';
+import type { PunchListConfig } from '../config.js';
 import { browseUrl, fileLink, markdownLink } from '../links.js';
 import { harvestMessage, quickLinksText } from '../messages.js';
 import { type JobDeps, type Today, todayFor } from '../runtime.js';
@@ -121,8 +121,7 @@ const windowStart = (run: Run): Date => {
 /** Dispatch, validate, plan, save the record, deliver. */
 const harvest = async (run: Run, since: Date): Promise<void> => {
   const { config, deps, today } = run;
-  const roots = config.inputRoots.map((r) => expandPath(r));
-  if (!hasNewInput(roots, since)) {
+  if (!hasNewInput(config.inputRoots, since)) {
     deps.log(`no new input since ${since.toISOString()}; nothing dispatched`);
     return;
   }

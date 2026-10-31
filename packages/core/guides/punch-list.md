@@ -158,12 +158,12 @@ The top-level `punchList` block (`punchListSchema`, [config](./config.md)). Abse
 | `specPath` | unset | Absolute path of the instance's punch-list spec, linked from the pinned message and the harvest task. |
 | `scriptsRepo.repo` | required | `owner/name` of this instance's scripts repo (unversioned: Done means a merged PR). |
 | `scriptsRepo.clone` | required | Absolute path of its deployed clone. |
-| `installMap` | `{}` | `owner/name` → `[{ component, packageJson }]`: the versioned repos scanned for milestones, and the glob of each released component's installed `package.json`. `{npmGlobal}` expands to this Node's global `node_modules` (`<prefix>/lib/node_modules`; beside `node.exe` on Windows) and `{home}` to the home directory. Core ships no map. |
+| `installMap` | `{}` | `owner/name` → `[{ component, packageJson }]`: the versioned repos scanned for milestones, and the glob of each released component's installed `package.json`. `{npmGlobal}` expands to npm's global `node_modules` (`<prefix>/lib/node_modules`, `<prefix>\node_modules` on Windows), with the prefix from `npm_config_prefix` when set, else `npm prefix -g` (read once per run; it honours every npmrc, e.g. the standard Windows installer's `%APPDATA%\npm`), else npm's built-in default when npm can't be run; `{home}` expands to the home directory. Core ships no map. |
 | `lockFile` | `{stateDir}/punch-list/punch-list.lock` | Absolute path. |
 | `pendingFile` | `{stateDir}/punch-list/status-pending.json` | Absolute path. |
 | `cursorFile` | `{stateDir}/punch-list/harvest-cursor.json` | Absolute path. |
 | `inboxDir` | `{stateDir}/punch-list/inbox` | Absolute path. |
-| `inputRoots` | the default silo's `email`, `slack`, `meetings`, `google-drive`, and `{stateDir}/jeeves-watcher/issues.json` | Non-empty list of absolute paths; set it for a multi-silo instance. |
+| `inputRoots` | the default silo's `email`, `slack`, `meetings`, `google-drive`, and `{stateDir}/jeeves-watcher/issues.json` | Non-empty list of absolute paths, or paths starting with `{home}` or `{npmGlobal}` (expanded as for `installMap` when the config is resolved, so `config check`, the pre-check and the worker's task all agree); set it for a multi-silo instance. |
 
 The jeeves-server config is read from `{configDir}/jeeves-server/config.json` (its `publicUrl` and `roots`), like every component config.
 

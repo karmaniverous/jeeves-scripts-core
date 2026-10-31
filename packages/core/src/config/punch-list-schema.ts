@@ -14,7 +14,7 @@ import { z } from 'zod';
 
 import { isTimeZone } from '../lib/dates.js';
 import { normalizeSlackTarget } from '../lib/worker-slack/slack-target.js';
-import { absolutePathSchema } from './absolute-path.js';
+import { absolutePathSchema, isAbsolutePath } from './absolute-path.js';
 
 /** `owner/name`. */
 const REPO_RE = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
@@ -36,6 +36,18 @@ const slackChannelSchema = z
   .string()
   .refine((raw) => normalizeSlackTarget(raw) !== null, {
     message: 'slack.channel must be a Slack channel or user id',
+  });
+
+/** A path that `expandPath` makes absolute: it starts with `{home}` or `{npmGlobal}`. */
+const PLACEHOLDER_PATH_RE = /^\{(?:home|npmGlobal)\}(?:[\\/]|$)/;
+
+/**
+ * An absolute path, or one starting with `{home}` or `{npmGlobal}` (absolute
+ * once expanded); `what` names it in the error.
+ */
+const expandablePathSchema = (what: string) =>
+  z.string().refine((p) => isAbsolutePath(p) || PLACEHOLDER_PATH_RE.test(p), {
+    message: `${what} must be an absolute path, or start with {home} or {npmGlobal}`,
   });
 
 /** The `punchList` block. */
@@ -81,9 +93,13 @@ export const punchListSchema = z.object({
   /**
    * What the harvester's pre-check watches for new input (default: the
    * default silo's `email`, `slack`, `meetings` and `google-drive`, plus
-   * `{stateDir}/jeeves-watcher/issues.json`).
+   * `{stateDir}/jeeves-watcher/issues.json`). `{home}` and `{npmGlobal}`
+   * are expanded.
    */
-  inputRoots: z.array(absolutePathSchema('inputRoots entry')).min(1).optional(),
+  inputRoots: z
+    .array(expandablePathSchema('inputRoots entry'))
+    .min(1)
+    .optional(),
 });
 
 /** One install-map entry. */
