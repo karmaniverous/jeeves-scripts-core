@@ -193,7 +193,7 @@ How an assistant answers "where are we", "gather context" or "summarize last pro
 
 **Exit codes.** 0 on a clean run; 1 when the worker's result was unusable, on a preview as on a live run (nothing set; the report and summary say what kind of failure, the full diagnostic is in the run directory's `worker-problem.txt` and on stderr); a thrown error (invalid state, an unreachable report target or link on a live run) is a crash.
 
-**Enabling.** The manifest ships disabled and with no arguments (a dry run). Add the block, check it with `config check` and a preview run (`npx jeeves-scripts run slack-refresh-channel-meta`), then enable it with a `jobs` delta that adds `--live`:
+**Enabling.** The manifest ships disabled and with no arguments (a dry run). Add the block, check it with `config check` and a preview run (`node bin/jeeves-scripts.js run slack-refresh-channel-meta`, from the instance repo), then enable it with a `jobs` delta that adds `--live`:
 
 ```json
 "jobs": {
