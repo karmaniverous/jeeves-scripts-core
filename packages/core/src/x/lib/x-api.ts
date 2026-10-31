@@ -49,7 +49,7 @@ export const xHandlePrerequisite =
     if (!handle)
       return `No X account handle provided. Usage: jeeves-scripts run <job-id> <handle> (${check.scriptName})`;
     if (check.requireAccount && !check.accounts()[handle])
-      return `X account '${handle}' is not in integrations.x.accounts in jeeves-scripts.json`;
+      return `X account '${handle}' is not in integrations.x.accounts in the instance config`;
     if (
       check.requireOAuth !== false &&
       !fs.existsSync(getOAuthPath(check.oauthDir(), handle))

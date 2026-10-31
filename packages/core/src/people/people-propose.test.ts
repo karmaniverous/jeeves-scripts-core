@@ -23,6 +23,7 @@ const proposal = {
 const deps = () => ({
   propose: vi.fn(() => Promise.resolve(proposal)),
   write: vi.fn(),
+  configFile: (): string | undefined => undefined,
 });
 
 describe('people-propose', () => {
@@ -67,8 +68,23 @@ describe('people-propose', () => {
       .mockImplementation(() => undefined);
     const d = deps();
     await expect(peoplePropose({ out }, d)).rejects.toThrow(
-      'people-propose never writes jeeves-scripts.json',
+      'people-propose never writes the instance config',
     );
+    expect(d.propose).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+  });
+
+  it('refuses --out naming the instance config file itself (#62 review)', async () => {
+    const write = vi
+      .spyOn(fs, 'writeFileSync')
+      .mockImplementation(() => undefined);
+    const d = {
+      ...deps(),
+      configFile: () => path.resolve('cfg', 'config.json'),
+    };
+    await expect(
+      peoplePropose({ out: path.join('cfg', 'CONFIG.json') }, d),
+    ).rejects.toThrow('people-propose never writes the instance config');
     expect(d.propose).not.toHaveBeenCalled();
     expect(write).not.toHaveBeenCalled();
   });

@@ -8,7 +8,7 @@
  * report-only (`emailConfig.reportOnly` or `accounts[].reportOnly`), label
  * actions are enqueued.
  *
- * Settings come from `pipeline.emailConfig.backfill` in jeeves-scripts.json
+ * Settings come from `pipeline.emailConfig.backfill` in the instance config
  * (`accounts`, `lookbackDays`, `windowDays`), overridable per field with
  * `--accounts a,b`, `--lookback-days N`, `--window-days N`. There are no
  * defaults: missing settings fail the run.

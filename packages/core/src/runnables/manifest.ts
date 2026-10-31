@@ -173,7 +173,7 @@ export const effectiveManifests = ({
   const unknown = Object.keys(deltas).filter((id) => !knownIds.has(id));
   if (unknown.length > 0)
     throw new Error(
-      `jobs in jeeves-scripts.json names unknown runnable id(s): ${unknown.join(', ')}.`,
+      `jobs in the instance config names unknown runnable id(s): ${unknown.join(', ')}.`,
     );
   const withManifest = new Set(manifests.map((m) => m.id));
   const inert = Object.entries(deltas)
@@ -185,7 +185,7 @@ export const effectiveManifests = ({
     .map(([id]) => id);
   if (inert.length > 0)
     throw new Error(
-      `jobs in jeeves-scripts.json sets ${RUNNER_FIELDS.join('/')} on runnable id(s) with no manifest, where they have no effect: ${inert.join(', ')}. Give the runnable a manifest, or remove those fields.`,
+      `jobs in the instance config sets ${RUNNER_FIELDS.join('/')} on runnable id(s) with no manifest, where they have no effect: ${inert.join(', ')}. Give the runnable a manifest, or remove those fields.`,
     );
   return manifests.map((m) => applyDelta(m, deltas[m.id]));
 };

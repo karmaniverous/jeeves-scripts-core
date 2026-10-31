@@ -84,12 +84,23 @@ jobs:
           mkdir -p ../ci-instance
           cd ../ci-instance
           tgz="../pkg/$(ls ../pkg)"
-          npx --yes --package="$tgz" jeeves-scripts init --name ci-instance
+          npx --yes --package="$tgz" jeeves-scripts init --name ci-instance --config-dir ../ci-config
           npm install "$tgz"
 
       - name: Doctor
         working-directory: ../ci-instance
         run: node bin/jeeves-scripts.js doctor
+
+      # #57: the config lives outside the repo; config set edits it in place.
+      - name: Config pointer and config set
+        working-directory: ../ci-instance
+        run: |
+          test -f ../ci-config/config.json
+          node bin/jeeves-scripts.js config check | grep 'from pointer'
+          node bin/jeeves-scripts.js config set instance.name ci-renamed
+          node bin/jeeves-scripts.js config set instance.name ci-renamed --live
+          grep -q ci-renamed ../ci-config/config.json
+          ls ../ci-config/config.json.*.bak
 
       - name: Run the sample runnable
         working-directory: ../ci-instance

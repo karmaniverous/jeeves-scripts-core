@@ -18,6 +18,7 @@ const templateDir = path.resolve(
 let tmp: string;
 let root: string;
 let fixture: string;
+let cfg: string;
 
 const write = (dir: string, rel: string, text: string) => {
   fs.mkdirSync(path.dirname(path.join(dir, rel)), { recursive: true });
@@ -30,6 +31,7 @@ beforeEach(() => {
   tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'jsc-init-'));
   root = path.join(tmp, 'instance');
   fs.mkdirSync(root);
+  cfg = path.join(tmp, 'config');
   fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'jsc-tpl-'));
   write(
     fixture,
@@ -44,6 +46,14 @@ beforeEach(() => {
   write(fixture, 'npmrc', 'save-exact=true\n');
   write(fixture, 'src/example/gitignore', 'nested, not renamed\n');
   write(fixture, 'README.md', '# Instance\n');
+  write(
+    fixture,
+    'config.sample.json',
+    JSON.stringify({
+      $schema: 'x',
+      instance: { name: 'example', baseDir: '/base' },
+    }),
+  );
 });
 
 afterEach(() => {
@@ -66,6 +76,7 @@ describe('initRepo', () => {
       name: '@acme/scripts',
       core: '0.1.0',
       templateDir: fixture,
+      configDir: cfg,
     });
 
     expect(result.created.sort()).toEqual(
@@ -75,6 +86,8 @@ describe('initRepo', () => {
         'README.md',
         'package.json',
         'src/example/gitignore',
+        'jeeves-scripts.json',
+        path.join(cfg, 'config.json'),
       ].sort(),
     );
     expect(result.skipped).toEqual([]);
@@ -92,7 +105,7 @@ describe('initRepo', () => {
   it('defaults to the target folder name and the running core version', () => {
     const target = path.join(root, 'acme-scripts');
     fs.mkdirSync(target);
-    initRepo(target, { templateDir: fixture });
+    initRepo(target, { templateDir: fixture, configDir: cfg });
     const pkg = JSON.parse(
       fs.readFileSync(path.join(target, 'package.json'), 'utf8'),
     ) as { name: string; dependencies: Record<string, string> };
@@ -105,13 +118,15 @@ describe('initRepo', () => {
   it('refuses a folder name that is not a valid package name', () => {
     const target = path.join(root, 'Acme Scripts');
     fs.mkdirSync(target);
-    expect(() => initRepo(target, { templateDir: fixture })).toThrow(
+    expect(() =>
+      initRepo(target, { templateDir: fixture, configDir: cfg }),
+    ).toThrow(
       /--name, default: the folder name\) must be a valid npm package name: "Acme Scripts"/,
     );
   });
 
   it('pins the running core version by default', () => {
-    initRepo(root, { name: 'acme', templateDir: fixture });
+    initRepo(root, { name: 'acme', templateDir: fixture, configDir: cfg });
     expect(readPkg().dependencies['@karmaniverous/jeeves-scripts-core']).toBe(
       coreVersion(),
     );
@@ -121,14 +136,20 @@ describe('initRepo', () => {
     write(root, 'README.md', 'mine\n');
     write(root, 'package.json', '{"name":"mine"}');
 
-    const result = initRepo(root, { core: '0.1.0', templateDir: fixture });
+    const result = initRepo(root, {
+      core: '0.1.0',
+      templateDir: fixture,
+      configDir: cfg,
+    });
 
     expect(result.skipped.sort()).toEqual(['README.md', 'package.json']);
     expect(fs.readFileSync(path.join(root, 'README.md'), 'utf8')).toBe(
       'mine\n',
     );
     expect(readPkg().name).toBe('mine');
-    expect(initRepo(root, { core: '0.1.0', templateDir: fixture })).toEqual({
+    expect(
+      initRepo(root, { core: '0.1.0', templateDir: fixture, configDir: cfg }),
+    ).toEqual({
       created: [],
       skipped: expect.arrayContaining(['.gitignore']) as string[],
     });
@@ -137,21 +158,112 @@ describe('initRepo', () => {
   it.each([['^0.1.0'], ['latest'], ['0.1']])(
     'rejects a core version that is not exact: %s',
     (core) => {
-      expect(() => initRepo(root, { core, templateDir: fixture })).toThrow(
-        /exact version/,
-      );
+      expect(() =>
+        initRepo(root, { core, templateDir: fixture, configDir: cfg }),
+      ).toThrow(/exact version/);
     },
   );
 
+  it('writes config.json in the config dir and a pointer to it (#57)', () => {
+    initRepo(root, { core: '0.1.0', templateDir: fixture, configDir: cfg });
+    expect(
+      JSON.parse(
+        fs.readFileSync(path.join(root, 'jeeves-scripts.json'), 'utf8'),
+      ),
+    ).toEqual({
+      $schema:
+        './node_modules/@karmaniverous/jeeves-scripts-core/schema/pointer.schema.json',
+      config: cfg,
+    });
+    expect(
+      JSON.parse(fs.readFileSync(path.join(cfg, 'config.json'), 'utf8')),
+    ).toEqual({
+      $schema:
+        '../instance/node_modules/@karmaniverous/jeeves-scripts-core/schema/jeeves-scripts.schema.json',
+      instance: { name: 'example', baseDir: '/base' },
+    });
+    expect(fs.existsSync(path.join(root, 'config.sample.json'))).toBe(false);
+  });
+
+  it('never overwrites the config or the pointer', () => {
+    write(cfg, 'config.json', 'mine');
+    write(root, 'jeeves-scripts.json', 'pointer');
+    const result = initRepo(root, {
+      core: '0.1.0',
+      templateDir: fixture,
+      configDir: cfg,
+    });
+    expect(result.skipped).toEqual(
+      expect.arrayContaining([
+        path.join(cfg, 'config.json'),
+        'jeeves-scripts.json',
+      ]),
+    );
+    expect(fs.readFileSync(path.join(cfg, 'config.json'), 'utf8')).toBe('mine');
+    expect(
+      fs.readFileSync(path.join(root, 'jeeves-scripts.json'), 'utf8'),
+    ).toBe('pointer');
+  });
+
+  it('requires --config-dir and a template with a sample config', () => {
+    expect(() =>
+      initRepo(root, { core: '0.1.0', templateDir: fixture, configDir: '' }),
+    ).toThrow(/--config-dir <dir>\) is required/);
+    fs.rmSync(path.join(fixture, 'config.sample.json'));
+    expect(() =>
+      initRepo(root, { core: '0.1.0', templateDir: fixture, configDir: cfg }),
+    ).toThrow(/no config\.sample\.json/);
+  });
+
+  it('refuses a config dir inside the repo', () => {
+    expect(() =>
+      initRepo(root, {
+        core: '0.1.0',
+        templateDir: fixture,
+        configDir: path.join(root, 'cfg'),
+      }),
+    ).toThrow(/must be outside the instance repo/);
+    expect(() =>
+      initRepo(root, { core: '0.1.0', templateDir: fixture, configDir: root }),
+    ).toThrow(/must be outside/);
+  });
+
+  it('writes no sample config for a repo that still holds its full config', () => {
+    write(
+      root,
+      'jeeves-scripts.json',
+      JSON.stringify({ instance: { name: 'x', baseDir: '/b' } }),
+    );
+    const result = initRepo(root, {
+      core: '0.1.0',
+      templateDir: fixture,
+      configDir: cfg,
+    });
+    expect(fs.existsSync(path.join(cfg, 'config.json'))).toBe(false);
+    expect(result.skipped).toEqual(
+      expect.arrayContaining([
+        path.join(cfg, 'config.json'),
+        'jeeves-scripts.json',
+      ]),
+    );
+  });
+
   it('rejects an invalid package name', () => {
     expect(() =>
-      initRepo(root, { name: 'Not A Name', templateDir: fixture }),
+      initRepo(root, {
+        name: 'Not A Name',
+        templateDir: fixture,
+        configDir: cfg,
+      }),
     ).toThrow(/npm package name/);
   });
 
   it('fails when the template is missing', () => {
     expect(() =>
-      initRepo(root, { templateDir: path.join(fixture, 'nope') }),
+      initRepo(root, {
+        templateDir: path.join(fixture, 'nope'),
+        configDir: cfg,
+      }),
     ).toThrow(/No bundled template/);
   });
 
@@ -161,8 +273,12 @@ describe('initRepo', () => {
     const created = initRepo(root, {
       core: '0.1.0',
       templateDir,
+      configDir: cfg,
     }).created.filter(
-      (f) => !f.startsWith('node_modules/') && !f.startsWith('coverage/'),
+      (f) =>
+        !path.isAbsolute(f) &&
+        !f.startsWith('node_modules/') &&
+        !f.startsWith('coverage/'),
     );
     expect(created.length).toBeLessThan(15);
     for (const dotfile of Object.values(RENAMED_DOTFILES))
@@ -195,9 +311,12 @@ describe('init command', () => {
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
 
-    await buildProgram({ root }).parseAsync(['init', '--core', '^1.0.0'], {
-      from: 'user',
-    });
+    await buildProgram({ root }).parseAsync(
+      ['init', '--core', '^1.0.0', '--config-dir', cfg],
+      {
+        from: 'user',
+      },
+    );
 
     expect(error).toHaveBeenCalledWith(
       expect.stringMatching(/^init: FAILED: .*exact version/s),

@@ -1,6 +1,6 @@
 ---
 name: jeeves-scripts
-description: The jeeves-scripts instance repo and @karmaniverous/jeeves-scripts-core - running runnables and jobs with the launcher, jeeves-scripts.json, jobs/*.json, instance code, and where the core docs live. Use when running, adding or debugging a scripts job, editing jeeves-scripts.json, or looking up how a core domain behaves.
+description: The jeeves-scripts instance repo and @karmaniverous/jeeves-scripts-core - running runnables and jobs with the launcher, the instance config (config set), jobs/*.json, instance code, and where the core docs live. Use when running, adding or debugging a scripts job, changing the instance config, or looking up how a core domain behaves.
 metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 
@@ -11,10 +11,10 @@ The scripts repo (`$JEEVES_SCRIPTS_DIR`) is a thin instance repo. The shared beh
 ## What lives where
 
 - **Core (the package):** domain code, the `jeeves-scripts` CLI, the config schema, and the docs: [README]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/README.md), [guides/]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/cli.md) (one per domain, plus runbooks such as [token metrics]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/token-metrics-runbook.md)).
-- **`jeeves-scripts.json`:** every setting of this instance, and nothing else (see [config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md)). State goes to the runner store or the state folder, secrets to the credentials folder; another component's settings are read from that component's own config, never copied here.
-- **`jobs/*.json`:** this instance's own manifests (schedules for its own runnables, or for a core runnable that ships without one), in core's format. Core's runnables are registered in core with their manifests; the instance adjusts them with `jobs.<id>` deltas in `jeeves-scripts.json` and never redeclares them. To send one job's failure alerts somewhere other than the runner's default, set `on_failure` (a Slack channel, DM or user id) in its manifest or delta; set it to `null` to restore the default (deleting the key leaves the runner job's old target).
+- **The instance config** (`config.json` in the config directory the repo's `jeeves-scripts.json` points at): every setting of this instance, and nothing else (see [config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md)). State goes to the runner store or the state folder, secrets to the credentials folder; another component's settings are read from that component's own config, never copied here.
+- **`jobs/*.json`:** this instance's own manifests (schedules for its own runnables, or for a core runnable that ships without one), in core's format. Core's runnables are registered in core with their manifests; the instance adjusts them with `jobs.<id>` deltas in the instance config and never redeclares them. To send one job's failure alerts somewhere other than the runner's default, set `on_failure` (a Slack channel, DM or user id) in its manifest or delta; set it to `null` to restore the default (deleting the key leaves the runner job's old target).
 - **`src/` + `jeeves-scripts.plugin.ts`:** instance-only code: the plugin registers the instance's runnables, its declared overrides of core runnables and the schema of its `local` config block ([runnables.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/runnables.md#instance-runnables-and-overrides)). Shared behaviour belongs in core, not here. `jeeves-scripts list` shows what is registered.
-- **Who someone is** comes from `people` in `jeeves-scripts.json` ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md#people)); draft it with `run people-propose`.
+- **Who someone is** comes from `people` in the instance config ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md#people)); draft it with `run people-propose`.
 
 ## Running runnables
 
@@ -44,8 +44,9 @@ What goes into core, and how (for changes to `@karmaniverous/jeeves-scripts-core
 
 ## Operator rules
 
-- **Run `config check` after every edit** to `jeeves-scripts.json`; it must pass before anything runs.
-- **Never put a secret in `jeeves-scripts.json`** or commit one; the config's secret guard rejects them.
+- **Edit the config with `config set` / `config unset`, never by hand and never by a PR** ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md#editing-the-config)): dry run first, then `--live`. Both validate as `config check` does and back the file up.
+- **If `config check` warns that the config is in the instance repo**, tell the operator; moving it is [a runbook]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md#moving-the-config), not something to do unasked.
+- **Never put a secret in the instance config** or commit one; the config's secret guard rejects them.
 - **Fix shared behaviour in core** (branch, PR, release, bump the pin), never by editing `node_modules` or copying core code into `src/`.
 - **Per-instance values are the operator's call:** accounts, channels, schedules. Ask; don't copy another instance's values.
 - **The docs for the installed core** are under `$JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/`, one per domain.

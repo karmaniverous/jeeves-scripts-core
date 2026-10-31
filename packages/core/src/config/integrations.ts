@@ -1,7 +1,7 @@
 /**
  * @module config/integrations
  *
- * Typed getter over `jeeves-scripts.json`'s `integrations` block —
+ * Typed getter over the instance config's `integrations` block —
  * the template's `constants/integrations.ts` and `constants/trackers.ts` as a
  * function of the loaded config, with the environment overrides that
  * exist today (`QDRANT_API_URL`, `GH_CONFIG_DIR`, `LINEAR_CONFIG_PATH`,

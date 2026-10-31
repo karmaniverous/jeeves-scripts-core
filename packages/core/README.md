@@ -1,6 +1,6 @@
 # @karmaniverous/jeeves-scripts-core
 
-Shared Jeeves scripts domains, configuration and the `jeeves-scripts` CLI for `jeeves-scripts` instance repos. An instance repo depends on this package at an exact version, keeps its settings in one `jeeves-scripts.json`, and runs every job through a two-line launcher.
+Shared Jeeves scripts domains, configuration and the `jeeves-scripts` CLI for `jeeves-scripts` instance repos. An instance repo depends on this package at an exact version, keeps its settings in one config file outside the repo (the repo's `jeeves-scripts.json` points at it), and runs every job through a two-line launcher.
 
 ## Where the documentation lives
 
@@ -11,7 +11,8 @@ Everything below ships in the npm package. From an instance repo, the package ro
 | `README.md` | This file: overview, CLI, config, docs index. |
 | `guides/<domain>.md` | One hand-written reference per domain (table below), plus design records and runbooks, all listed in [`guides/index.md`](guides/index.md). TypeDoc renders them as one Guides section (that index's `children`) alongside the API reference; its output goes to the repo's root `docs/`, which is never shipped or authored. |
 | `skills/<name>/SKILL.md` | The assistant skills core ships ([Skills](#skills)). |
-| `schema/jeeves-scripts.schema.json` | JSON Schema for `jeeves-scripts.json`, generated from the Zod config schema. |
+| `schema/jeeves-scripts.schema.json` | JSON Schema for the instance config, generated from the Zod config schema. |
+| `schema/pointer.schema.json` | JSON Schema for the repo's `jeeves-scripts.json` pointer. |
 | `config/token-rates.seed.json` | The token rate card seed (`constants().TOKEN_RATES_SEED_PATH`). |
 | `jobs/<domain>.json` | Core's job manifests, keyed by runnable id ([`guides/runnables.md`](guides/runnables.md)). |
 | `presets/`, `dist/presets/` | The presets an instance repo's one-line tool configs extend: TypeScript (`presets/tsconfig.base.json`, JSON because TypeScript reads only JSON tsconfigs) and the ESLint and Vitest presets, authored in TypeScript and shipped compiled with their types (`dist/presets/eslint.js`, `dist/presets/vitest.js`). All three are imported as `@karmaniverous/jeeves-scripts-core/presets/<file>` (`eslint.js`, `vitest.js`, `tsconfig.base.json`). The TypeScript and ESLint presets both leave out the instance's `coverage/`, `dist/` and `node_modules/`. |
@@ -34,7 +35,7 @@ Runnable ids named in the docs are core's registered ids ([`guides/runnables.md`
 | Doc | Domain |
 | --- | --- |
 | [`guides/cli.md`](guides/cli.md) | The `jeeves-scripts` CLI and the instance launcher |
-| [`guides/config.md`](guides/config.md) | `jeeves-scripts.json`: schema, resolution, getters, silos |
+| [`guides/config.md`](guides/config.md) | The instance config and its pointer: schema, resolution, editing, moving, getters, silos |
 | [`guides/runnables.md`](guides/runnables.md) | The runnable registry: ids, `defineRunnable`, manifests, instance deltas, the instance plugin |
 | [`guides/lib.md`](guides/lib.md) | Shared infrastructure: constants, gateway, workers, gh, gog, entity store |
 | [`guides/admin.md`](guides/admin.md) | Token metrics, rate card, session refresh, housekeeping (`.tmp` sweep, Qdrant health) |
@@ -98,14 +99,16 @@ See [`guides/cli.md`](guides/cli.md) for every command and how `run` resolves an
 
 ## Configuration
 
-One file, `{root}/jeeves-scripts.json`, holds every setting; it never holds a secret value. Point its `$schema` at the shipped schema for editor completion:
+One file, `<config dir>/config.json` outside the repo, holds every setting; it never holds a secret value. The repo's `jeeves-scripts.json` points at its directory:
 
 ```json
 {
-  "$schema": "./node_modules/@karmaniverous/jeeves-scripts-core/schema/jeeves-scripts.schema.json",
-  "instance": { "name": "my-instance", "baseDir": "/base" }
+  "$schema": "./node_modules/@karmaniverous/jeeves-scripts-core/schema/pointer.schema.json",
+  "config": "J:/config/jeeves-scripts"
 }
 ```
+
+Change it with `config set` / `config unset` (dry run unless `--live`; validated, backed up, written atomically). A full config still in the repo works, with a warning to move it.
 
 See [`guides/config.md`](guides/config.md).
 

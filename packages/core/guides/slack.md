@@ -87,7 +87,7 @@ Earlier versions kept channel workspaces in a separate `{configDir}/slack-channe
 
 ## Channel Config
 
-What _we_ decide about a channel is config, in `jeeves-scripts.json`, and nowhere else:
+What _we_ decide about a channel is config, in the instance config, and nowhere else:
 
 ```json
 "slack": {
@@ -105,7 +105,7 @@ What _we_ decide about a channel is config, in `jeeves-scripts.json`, and nowher
 
 Code reads an entry with `getChannelConfig(channelId)` (`lib/channel-config.ts`): `{ project?, homeDir? }`, or `undefined` for a channel with no entry.
 
-**How the assistant finds a channel's home dir:** a Slack message reaches the assistant with its channel id. The assistant looks that id up in the instance's `jeeves-scripts.json` under `slack.channels.<channelId>.homeDir` (in code: `getChannelConfig(id)?.homeDir`). No entry, or no `homeDir`, means the channel has no home dir. (Feeding `homeDir` into the gateway's per-channel prompt is a separate, later change.)
+**How the assistant finds a channel's home dir:** a Slack message reaches the assistant with its channel id. The assistant looks that id up in the instance config under `slack.channels.<channelId>.homeDir` (in code: `getChannelConfig(id)?.homeDir`). No entry, or no `homeDir`, means the channel has no home dir. (Feeding `homeDir` into the gateway's per-channel prompt is a separate, later change.)
 
 ## Bot Tokens
 
@@ -146,7 +146,7 @@ How an assistant answers "where are we", "gather context" or "summarize last pro
 
 - A Slack bot token (above). The `pipeline` block is not read.
 - The bot must be a member of every channel to archive.
-- `SLACK_DOMAIN_DIR` from `constants()`: `{contentDir}/slack`. The run skips (`[skip]`, exit 0) when `SLACK_DOMAIN_DIR` does not exist. Multi-workspace routing: a channel's workspace is its `teamId` in the [Slack cache](#slack-cache-state), and `siloRouting` in `jeeves-scripts.json` maps workspaces to silos (`slackWorkspaces`; [config.md](./config.md)); unmapped workspaces go to the default silo.
+- `SLACK_DOMAIN_DIR` from `constants()`: `{contentDir}/slack`. The run skips (`[skip]`, exit 0) when `SLACK_DOMAIN_DIR` does not exist. Multi-workspace routing: a channel's workspace is its `teamId` in the [Slack cache](#slack-cache-state), and `siloRouting` in the instance config maps workspaces to silos (`slackWorkspaces`; [config.md](./config.md)); unmapped workspaces go to the default silo.
 - Run under jeeves-runner (or with `JR_DB_PATH` pointing at the runner DB) for read-position state.
 
 | Job          | Schedule     | Manifest               |
@@ -220,13 +220,13 @@ try {
 | --- | --- |
 | `lib/slack-api.ts` | The poller's Slack reads over the [Slack client](#slack-client): `fetchHistoryPage()`, `fetchReplies()`, `discoverChannels()`, `fetchMembers()`, `fetchUsers()`, `slackApi(method, params, token)`, `SlackFileMetadata` type, with pagination |
 | `../lib/slack-client.ts` | `createSlackClient()` and `SlackApiError` (root export) |
-| `../lib/constants.ts` | `constants()`: `SLACK_DOMAIN_DIR` under `paths.contentDir` in `jeeves-scripts.json` |
+| `../lib/constants.ts` | `constants()`: `SLACK_DOMAIN_DIR` under `paths.contentDir` in the instance config |
 | `../config/silo-router.ts` | `getBasePathForSlackWorkspace()` for output directory routing (see [silos](./config.md#silos)) |
 | `lib/channel-config.ts` | `getChannelConfig()` / `channelConfigs()`: the `slack.channels` config |
 | `lib/slack-cache.ts` | The Slack cache files in `{stateDir}/slack` (load, save, user display names) |
 | `lib/channel-workspace.ts` | A channel's workspace (`teamId` on its cache entry), looked up once; DMs take their account's |
 | `lib/account-teams.ts` | Each bot account's workspace (`auth.test`, cached in `{stateDir}/slack/accounts.json`); the primary workspace is the `default` account's |
 | `lib/slack-sync.ts` | Refresh the cache from Slack: discovery, users, members |
-| `lib/map-helpers.ts` | jeeves-watcher map helpers (namespace `slack`): `resolveSlackUserEmails(ids)` from the user cache, `resolveSlackChannelMeta(id)` = the channel's `slack.channels` entry. Point the watcher's `mapHelpers.slack.path` at the built file, `node_modules/@karmaniverous/jeeves-scripts-core/dist/slack/lib/map-helpers.js` in the instance; it finds the instance config from `JEEVES_SCRIPTS_CONFIG`, else the nearest `jeeves-scripts.json` above it |
+| `lib/map-helpers.ts` | jeeves-watcher map helpers (namespace `slack`): `resolveSlackUserEmails(ids)` from the user cache, `resolveSlackChannelMeta(id)` = the channel's `slack.channels` entry. Point the watcher's `mapHelpers.slack.path` at the built file, `node_modules/@karmaniverous/jeeves-scripts-core/dist/slack/lib/map-helpers.js` in the instance; it finds the instance config from `JEEVES_SCRIPTS_CONFIG`, else the nearest `jeeves-scripts.json` above it (pointer or legacy config), and reloads it when the config file changes |
 | `lib/read-channel.ts` | `pollChannel()`: read one channel oldest first, page by page, writing each message and saving the position after each; optional `before` bound. Shared by `slack-poll` and `slack-backfill-history` |
 | `lib/cursors.ts` | Read-position state in the runner store (`slack` / `lastTs-<channelId>`): Slack ts schema, load, save |

@@ -10,20 +10,20 @@ Read [slack.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-c
 
 ## A channel's project and home directory
 
-What we decide about a channel lives in one place: `slack.channels.<channelId>` in the instance's `jeeves-scripts.json`, with `project` and `homeDir` (an absolute path). See [Channel Config]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/slack.md#channel-config).
+What we decide about a channel lives in one place: `slack.channels.<channelId>` in the instance config, with `project` and `homeDir` (an absolute path). See [Channel Config]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/slack.md#channel-config).
 
 - When a conversation in a channel is about files, look up its channel id there. If it has a `homeDir`, that directory is where you read and write the channel's work.
 - No entry, or no `homeDir`, means the channel has no home directory: ask, don't guess.
-- To add or change one, edit `jeeves-scripts.json`, run `config check`, commit and push (see `jeeves-scripts`).
+- The config entry is the only record of a channel's home directory, and a person decides it: never pick or change one yourself (Decision 66). When someone names it, apply it with `config set slack.channels.<channelId>.homeDir <absolute path>` (dry run), then the same with `--live` (see `jeeves-scripts`).
 
 ## What comes from Slack
 
 Channel names, types, privacy, archive state and members, and user names, emails and bot flags, are read from Slack with the bot tokens and cached in the state folder ([Slack Cache]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/slack.md#slack-cache-state)). Never hand-edit the cache or copy those facts into config; a missing cache is rebuilt by the next poll.
 
-Who a Slack user is across workspaces (and other channels) is `people` in `jeeves-scripts.json` ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md#people)): a listed author is named by it, everyone else by Slack.
+Who a Slack user is across workspaces (and other channels) is `people` in the instance config ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md#people)): a listed author is named by it, everyone else by Slack.
 
 ## Operator rules
 
 - The bot must be a member of a channel for it to be archived.
-- Bot tokens come from the gateway's Slack accounts ([Bot Tokens]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/slack.md#bot-tokens)); never put a token in `jeeves-scripts.json`.
+- Bot tokens come from the gateway's Slack accounts ([Bot Tokens]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/slack.md#bot-tokens)); never put a token in the instance config.
 - Runner LLM workers have no `message` tool: job scripts read and post Slack for them. See [dispatchers.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/dispatchers.md) and `jeeves-daily-briefings`.

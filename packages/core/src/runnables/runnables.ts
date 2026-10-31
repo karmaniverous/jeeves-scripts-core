@@ -195,7 +195,7 @@ export interface RegisteredManifestsInput {
   coreManifests: readonly JobManifest[];
   /** The instance's manifests ({@link readInstanceManifests}). */
   instanceManifests: readonly JobManifest[];
-  /** The `jobs` block of `jeeves-scripts.json`. */
+  /** The `jobs` block of the instance config. */
   deltas: Readonly<Record<string, JobDelta>>;
 }
 
@@ -224,7 +224,7 @@ export const registeredManifests = ({
       problems.push(`${file}: "${m.id}" is not a registered runnable`);
     else if (coreIds.has(m.id))
       problems.push(
-        `${file}: "${m.id}" has a core manifest; change it with jobs.${m.id} in jeeves-scripts.json`,
+        `${file}: "${m.id}" has a core manifest; change it with jobs.${m.id} in the instance config`,
       );
     else instance.push({ ...m, domain: runnable.domain });
   }

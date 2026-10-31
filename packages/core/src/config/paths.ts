@@ -1,7 +1,7 @@
 /**
  * @module config/paths
  *
- * Typed getters over `jeeves-scripts.json`'s `instance` and `paths`
+ * Typed getters over the instance config's `instance` and `paths`
  * blocks — core's constants module reborn as a function of the loaded
  * config (Decision 3: `paths().contentDir` instead of importing
  * `CONTENT_DIR`). Derives every path from `instance.baseDir` unless

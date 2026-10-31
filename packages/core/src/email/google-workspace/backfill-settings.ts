@@ -5,7 +5,7 @@
  * (email/google-workspace/backfill-historical.ts).
  *
  * There are NO default accounts, lookback, or window: they come from
- * `pipeline.emailConfig.backfill` in jeeves-scripts.json or CLI args
+ * `pipeline.emailConfig.backfill` in the instance config or CLI args
  * (`--accounts a,b`, `--lookback-days N`, `--window-days N`), and any
  * value missing from both is an error.
  *
@@ -92,7 +92,7 @@ export function resolveBackfillSettings(
     ];
     throw new Error(
       `email/backfill-historical: missing ${missing.join(', ')}. ` +
-        'Set pipeline.emailConfig.backfill in jeeves-scripts.json or pass the CLI args; there are no defaults.',
+        'Set pipeline.emailConfig.backfill in the instance config or pass the CLI args; there are no defaults.',
     );
   }
   return { accounts, lookbackDays, windowDays };

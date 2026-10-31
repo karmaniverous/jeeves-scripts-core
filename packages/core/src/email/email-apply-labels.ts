@@ -85,7 +85,7 @@ export const applyLabelsFlags = {
   }),
   dryRun: argFlag('--dry-run', 'Report the labels; apply nothing'),
   config: argOptional('--config', {
-    description: 'Path to jeeves-scripts.json',
+    description: 'Config file: a pointer or a full config',
   }),
 };
 

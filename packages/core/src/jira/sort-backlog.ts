@@ -109,7 +109,7 @@ export async function sortJiraBacklog(
   const { boardId } = deps;
   if (!boardId) {
     console.error(
-      'Error: set integrations.jira.boardId in jeeves-scripts.json (or the JIRA_BOARD_ID environment variable) to your Jira board ID.',
+      'Error: set integrations.jira.boardId in the instance config (or the JIRA_BOARD_ID environment variable) to your Jira board ID.',
     );
     process.exitCode = 1;
     return;

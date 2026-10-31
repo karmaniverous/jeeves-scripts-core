@@ -7,7 +7,7 @@
  * `admin-report-token-metrics` prints the same report.
  *
  * Reads the buckets and the rate card under `constants().TOKEN_METRICS_DIR`
- * (`paths.tokenMetricsDir` in jeeves-scripts.json, or `TOKEN_METRICS_DIR`).
+ * (`paths.tokenMetricsDir` in the instance config, or `TOKEN_METRICS_DIR`).
  */
 
 import { readJson } from '@karmaniverous/jeeves';

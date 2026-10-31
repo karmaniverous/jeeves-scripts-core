@@ -95,7 +95,7 @@ describe('doctorReport', () => {
 
     expect(lines).toEqual([
       'core: @karmaniverous/jeeves-scripts-core 0.2.0',
-      `config: ${path.join(root, 'jeeves-scripts.json')}: OK`,
+      `config: ${path.join(root, 'jeeves-scripts.json')} (from legacy repo file): OK`,
       'plugin: jeeves-scripts.plugin.ts: 1 runnables, 1 overrides',
       'manifests: 2 (prerequisites: 1 met, 0 not met, 1 manual)',
       '  email-poll: enabled; prerequisite: met',

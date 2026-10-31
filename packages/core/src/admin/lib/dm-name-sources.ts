@@ -2,7 +2,7 @@
  * @module dm-name-sources
  *
  * I/O for Slack DM naming (dm-names.ts):
- * - configured people (`people` in jeeves-scripts.json, lib/people), first;
+ * - configured people (`people` in the instance config, lib/people), first;
  * - the DM-name cache (user id → name JSON beside the buckets; written only
  *   with names learned from the live lookup);
  * - the Slack user cache (`{stateDir}/slack/users.json`, slack/lib/slack-cache), read-only;

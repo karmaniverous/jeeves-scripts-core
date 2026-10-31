@@ -5,7 +5,7 @@
  * point and the notion-inbox-processor library module.
  *
  * Config dependencies: `{paths.credentialsDir}/notion-api-key` (constants().NOTION_API_KEY_PATH)
- * and `integrations.notion.version` in jeeves-scripts.json.
+ * and `integrations.notion.version` in the instance config.
  * The API key file must exist at constants().NOTION_API_KEY_PATH before any Notion
  * scripts will work.
  */

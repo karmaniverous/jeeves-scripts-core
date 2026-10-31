@@ -1,8 +1,9 @@
-import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import {
   CONFIG_PATH_ENV,
-  configCheck,
   resetConfig,
 } from '@karmaniverous/jeeves-scripts-core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -10,13 +11,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import plugin from '../../jeeves-scripts.plugin.js';
 import sayHello from './say-hello.js';
 
-const root = fileURLToPath(new URL('../..', import.meta.url));
 const saved = process.env[CONFIG_PATH_ENV];
+let dir: string;
 
+// The instance's real config lives outside the repo; the test uses its own.
 beforeEach(() => {
-  process.env[CONFIG_PATH_ENV] = fileURLToPath(
-    new URL('../../jeeves-scripts.json', import.meta.url),
+  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'say-hello-'));
+  const config = path.join(dir, 'config.json');
+  fs.writeFileSync(
+    config,
+    JSON.stringify({ instance: { name: 'example', baseDir: dir } }),
   );
+  process.env[CONFIG_PATH_ENV] = config;
   resetConfig();
 });
 
@@ -25,6 +31,7 @@ afterEach(() => {
   resetConfig();
   if (saved === undefined) Reflect.deleteProperty(process.env, CONFIG_PATH_ENV);
   else process.env[CONFIG_PATH_ENV] = saved;
+  fs.rmSync(dir, { recursive: true, force: true });
 });
 
 describe('example-say-hello', () => {
@@ -46,9 +53,5 @@ describe('example-say-hello', () => {
 
   it('is registered by the plugin', () => {
     expect(plugin.jobs).toContain(sayHello);
-  });
-
-  it('ships a sample config that passes config check', () => {
-    expect(configCheck({ root })).toMatchObject({ ok: true, errors: [] });
   });
 });

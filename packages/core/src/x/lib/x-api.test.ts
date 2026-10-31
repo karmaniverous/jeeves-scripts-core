@@ -43,7 +43,7 @@ describe('xHandlePrerequisite', () => {
     expect(
       check({ requireAccount: true })({ args: ['other'], flags: {} }),
     ).toBe(
-      "X account 'other' is not in integrations.x.accounts in jeeves-scripts.json",
+      "X account 'other' is not in integrations.x.accounts in the instance config",
     );
     expect(check()({ args: ['other'], flags: {} })).toBe(
       'X OAuth2 credentials not configured',

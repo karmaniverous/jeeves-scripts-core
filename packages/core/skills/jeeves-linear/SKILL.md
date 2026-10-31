@@ -10,7 +10,7 @@ Read [linear.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-
 
 ## Prerequisites
 
-- The API key is a file in the credentials folder whose path is `integrations.linear.configPath` in `jeeves-scripts.json` ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md)); never a config value or a repo file.
+- The API key is a file in the credentials folder whose path is `integrations.linear.configPath` in the instance config ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md)); never a config value or a repo file.
 - Webhooks reach the drain through the jeeves-server Event Gateway ([Event Gateway Config]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/linear.md#event-gateway-config)); ask the operator to change the route rather than editing the live server config.
 
 ## Operator rules

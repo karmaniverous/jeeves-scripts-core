@@ -1,8 +1,10 @@
 import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { configCheck } from './check.js';
+import { configCheck, describeConfigSource } from './check.js';
 import { CONFIG_PATH_ENV, resetConfig } from './loader.js';
 
 const options = { root: '/root' };
@@ -100,5 +102,56 @@ describe('configCheck', () => {
     );
     const result = configCheck(options);
     expect(result.ok).toBe(true);
+  });
+});
+
+describe('config source (#57)', () => {
+  let tmp: string;
+  beforeEach(() => {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'check-src-'));
+    resetConfig();
+  });
+  afterEach(() => {
+    resetConfig();
+    fs.rmSync(tmp, { recursive: true, force: true });
+  });
+
+  it('reports a pointer and the file it names', () => {
+    fs.mkdirSync(path.join(tmp, 'cfg'));
+    fs.writeFileSync(
+      path.join(tmp, 'cfg', 'config.json'),
+      JSON.stringify({ instance: { name: 't', baseDir: '/base' } }),
+    );
+    const pointer = path.join(tmp, 'jeeves-scripts.json');
+    fs.writeFileSync(
+      pointer,
+      JSON.stringify({ config: path.join(tmp, 'cfg') }),
+    );
+    const result = configCheck({ configPath: pointer });
+    expect(result).toMatchObject({
+      ok: true,
+      configPath: path.join(tmp, 'cfg', 'config.json'),
+      source: { source: 'pointer', pointer },
+    });
+    expect(describeConfigSource(result.source)).toBe(`pointer ${pointer}`);
+  });
+
+  it('reports the source of an invalid config too', () => {
+    const file = path.join(tmp, 'c.json');
+    fs.writeFileSync(file, JSON.stringify({ instance: { name: 't' } }));
+    expect(configCheck({ configPath: file })).toMatchObject({
+      ok: false,
+      configPath: file,
+      source: { source: 'option' },
+    });
+  });
+
+  it.each([
+    [{ source: 'environment' as const }, 'JEEVES_SCRIPTS_CONFIG'],
+    [{ source: 'option' as const }, '--config'],
+    [{ source: 'legacy' as const }, 'legacy repo file'],
+    [undefined, undefined],
+  ])('describes %o as %s', (source, text) => {
+    expect(describeConfigSource(source)).toBe(text);
   });
 });

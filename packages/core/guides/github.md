@@ -54,7 +54,7 @@ flowchart LR
 
 ## Prerequisites
 
-- `GH_ACCOUNT` (primary account) and `GH_BOT_USER` (bot) from `integrations.gh.account` / `integrations.gh.botUser` in `jeeves-scripts.json`; both default to empty. The scripts switch between them with `gh auth switch -u <user>`, so `gh` must hold a login for each. After every switch a job checks that `gh api user` reports the login it switched to (case-insensitive, `verifyActingAccount`); a failed switch or any other login fails the run before the next `gh` call, so nothing is read or written as the wrong account (#59). drain-collabs fails the queue item it was on.
+- `GH_ACCOUNT` (primary account) and `GH_BOT_USER` (bot) from `integrations.gh.account` / `integrations.gh.botUser` in the instance config; both default to empty. The scripts switch between them with `gh auth switch -u <user>`, so `gh` must hold a login for each. After every switch a job checks that `gh api user` reports the login it switched to (case-insensitive, `verifyActingAccount`); a failed switch or any other login fails the run before the next `gh` call, so nothing is read or written as the wrong account (#59). drain-collabs fails the queue item it was on.
 - `GH_CONFIG_DIR` (`integrations.gh.configDir`, default `{configDir}/gh-cli`, where `paths.configDir` defaults to `{baseDir}/config`; the `GH_CONFIG_DIR` environment variable wins): every GitHub script sets the `GH_CONFIG_DIR` environment variable to it (`setupGhConfig()`) before calling `gh`, so the logins must live there. The jobs skip (`[skip]`, exit 0) when the directory does not exist; `build-registry` also skips when `GH_ACCOUNT` is empty.
 - `GH_BIN` (`gh`, resolved through `PATH`).
 - The sync jobs only process repos in the registry, so `github-build-registry` must have run.
@@ -76,4 +76,4 @@ All entries in core's manifest `jobs/github.json` carry a non-null `prerequisite
 | --- | --- |
 | `../lib/gh.ts` | GitHub CLI wrappers — `gh()`, `ghJson()`, `ghApi()`, `setupGhConfig()` |
 | `../config/silo-router.ts` | `getBasePathForGitHubOrg()` for org-based output routing (see [silos](./config.md#silos) for the `siloRouting` schema) |
-| `../lib/constants.ts` | `constants()`: `GH_*` from `integrations.gh` in `jeeves-scripts.json`; `GITHUB_DIR`, `GITHUB_REGISTRY_PATH` under `paths.contentDir` |
+| `../lib/constants.ts` | `constants()`: `GH_*` from `integrations.gh` in the instance config; `GITHUB_DIR`, `GITHUB_REGISTRY_PATH` under `paths.contentDir` |

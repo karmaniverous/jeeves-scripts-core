@@ -1,7 +1,7 @@
 /**
  * @module config/paths-schema
  *
- * Zod schema for the `paths` block of `jeeves-scripts.json`: explicit
+ * Zod schema for the `paths` block of the instance config: explicit
  * overrides of paths derived from `instance.baseDir` (Decision 3). Every
  * field is optional; unset fields are derived (see `config/paths.ts`).
  */

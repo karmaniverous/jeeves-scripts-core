@@ -14,7 +14,8 @@ import {
   loadConfig,
   type LoadConfigOptions,
   resetConfig,
-  resolveConfigPath,
+  resolveConfig,
+  type ResolvedConfig,
 } from './loader.js';
 import { isKnownSilo, siloRouting } from './silo-router.js';
 
@@ -24,6 +25,8 @@ export interface ConfigCheckResult {
   ok: boolean;
   /** The file that was checked, when its location could be resolved. */
   configPath?: string;
+  /** Where that file came from (#57), when its location could be resolved. */
+  source?: Pick<ResolvedConfig, 'source' | 'pointer'>;
   /** One message per problem; empty when `ok`. */
   errors: string[];
 }
@@ -62,11 +65,48 @@ const checkSilos = (options: LoadConfigOptions): string[] => {
 };
 
 /** The config file location, or `undefined` when it can't be resolved. */
-const locate = (options: LoadConfigOptions): string | undefined => {
+const locate = (options: LoadConfigOptions): ResolvedConfig | undefined => {
   try {
-    return resolveConfigPath(options);
+    return resolveConfig(options);
   } catch {
     return undefined;
+  }
+};
+
+/** `configPath` and `source` of a resolved location, for a result. */
+const located = (
+  resolved: ResolvedConfig | undefined,
+): Pick<ConfigCheckResult, 'configPath' | 'source'> =>
+  resolved === undefined
+    ? {}
+    : {
+        configPath: resolved.path,
+        source: {
+          source: resolved.source,
+          ...(resolved.pointer === undefined
+            ? {}
+            : { pointer: resolved.pointer }),
+        },
+      };
+
+/**
+ * Where a checked config came from, for people (#57): `pointer <file>`,
+ * `JEEVES_SCRIPTS_CONFIG`, `--config`, or `legacy repo file`.
+ */
+export const describeConfigSource = (
+  source: ConfigCheckResult['source'],
+): string | undefined => {
+  switch (source?.source) {
+    case 'pointer':
+      return `pointer ${source.pointer ?? ''}`.trim();
+    case 'environment':
+      return 'JEEVES_SCRIPTS_CONFIG';
+    case 'option':
+      return '--config';
+    case 'legacy':
+      return 'legacy repo file';
+    default:
+      return undefined;
   }
 };
 
@@ -82,16 +122,16 @@ export const configCheck = (
   try {
     loadConfig(options);
   } catch (e) {
-    const configPath = locate(options);
     return {
       ok: false,
-      ...(configPath === undefined ? {} : { configPath }),
+      ...located(locate(options)),
       errors: [e instanceof Error ? e.message : String(e)],
     };
   }
   const errors = checkSilos(options);
   return {
     ok: errors.length === 0,
+    ...located(locate(options)),
     configPath: getLoadedConfigPath() ?? undefined,
     errors,
   };

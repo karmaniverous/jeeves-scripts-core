@@ -9,7 +9,7 @@
  * the correct auth tokens regardless of working directory.
  *
  * Config dependencies: `integrations.gh.bin` and `integrations.gh.configDir`
- * (`GH_CONFIG_DIR` wins) in jeeves-scripts.json, through constants().
+ * (`GH_CONFIG_DIR` wins) in the instance config, through constants().
  */
 
 import cp from 'node:child_process';

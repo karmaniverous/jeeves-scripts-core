@@ -23,7 +23,7 @@ describe('digestTimeZone', () => {
 
   it('fails, naming the ref, when no zone is configured', () => {
     expect(() => digestTimeZone()).toThrow(
-      'No time zone configured: set pipeline.refs["digest.timezone"] in jeeves-scripts.json',
+      'No time zone configured: set pipeline.refs["digest.timezone"] in the instance config',
     );
   });
 

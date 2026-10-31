@@ -20,8 +20,10 @@ import path from 'node:path';
 
 import {
   CONFIG_PATH_ENV,
+  getConfigRoot,
   getLoadedConfigPath,
   loadConfig,
+  resetConfig,
 } from '../../config/loader.js';
 import { getChannelConfig } from './channel-config.js';
 import { loadUserCache, type SlackUser, userCacheFile } from './slack-cache.js';
@@ -35,19 +37,35 @@ export function findInstanceConfig(dir: string): string | undefined {
   }
 }
 
-/** Load the instance config once, wherever this module runs. */
+/** The loaded config file's mtime, to notice a `config set` (#62 review). */
+let configMtimeMs: number | undefined;
+
+/** A file's mtime, or undefined when it is gone. */
+const mtimeOf = (file: string): number | undefined =>
+  fs.existsSync(file) ? fs.statSync(file).mtimeMs : undefined;
+
+/**
+ * Load the instance config, wherever this module runs, and load it again
+ * when its file changes: the watcher keeps this module loaded, and the
+ * config is edited in place with `config set`.
+ */
 function ensureConfig(): void {
-  if (getLoadedConfigPath()) return;
-  if (process.env[CONFIG_PATH_ENV]) {
-    loadConfig();
-    return;
+  const loaded = getLoadedConfigPath();
+  if (loaded) {
+    if (mtimeOf(loaded) === configMtimeMs) return;
+    resetConfig();
   }
-  const found = findInstanceConfig(import.meta.dirname);
-  if (!found)
-    throw new Error(
-      `Cannot find jeeves-scripts.json above ${import.meta.dirname}; set ${CONFIG_PATH_ENV}.`,
-    );
-  loadConfig({ configPath: found });
+  if (process.env[CONFIG_PATH_ENV] || getConfigRoot()) loadConfig();
+  else {
+    const found = findInstanceConfig(import.meta.dirname);
+    if (!found)
+      throw new Error(
+        `Cannot find jeeves-scripts.json above ${import.meta.dirname}; set ${CONFIG_PATH_ENV}.`,
+      );
+    loadConfig({ configPath: found });
+  }
+  const file = getLoadedConfigPath();
+  configMtimeMs = file ? mtimeOf(file) : undefined;
 }
 
 let users: { mtimeMs: number; data: Record<string, SlackUser> } | undefined;

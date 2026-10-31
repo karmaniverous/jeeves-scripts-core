@@ -1,7 +1,7 @@
 ﻿/**
  * @module config/pipeline-schema
  *
- * Zod schema for the `pipeline` block of `jeeves-scripts.json`: email
+ * Zod schema for the `pipeline` block of the instance config: email
  * accounts, domain routing, feature flags, named refs, and the raw
  * Google Drive sync block. Same keys as the template's `pipeline-config.json`
  * (Decision 3, Decision 19).

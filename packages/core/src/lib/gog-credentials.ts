@@ -26,7 +26,7 @@
  * calendar/poll.ts (per-account checks in calendar/lib/
  * calendar-accounts.ts).
  *
- * Config dependencies: `paths.gogHome` in jeeves-scripts.json (`GOG_HOME` wins),
+ * Config dependencies: `paths.gogHome` in the instance config (`GOG_HOME` wins),
  * through constants().GOG_CONFIG_DIR and GOG_CLIENT_PATH.
  */
 
@@ -124,6 +124,6 @@ export function requireGogCredentials(
   throw new Error(
     `${job}: ${String(accountCount)} Google account(s) configured but no gog credentials found ` +
       `(no OAuth client at ${constants().GOG_CLIENT_PATH} and no service-account mailboxes in ` +
-      `${gogServiceAccountDirs().join(' or ')}). Configure gog or remove the accounts from pipeline.accounts in jeeves-scripts.json.`,
+      `${gogServiceAccountDirs().join(' or ')}). Configure gog or remove the accounts from pipeline.accounts in the instance config.`,
   );
 }

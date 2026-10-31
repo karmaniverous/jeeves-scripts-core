@@ -17,7 +17,7 @@
  * live card.
  *
  * Config dependencies: none; callers pass constants().TOKEN_RATES_PATH (under
- * `paths.tokenMetricsDir` in jeeves-scripts.json (or `TOKEN_METRICS_DIR`)) and the seed path in core's package.
+ * `paths.tokenMetricsDir` in the instance config (or `TOKEN_METRICS_DIR`)) and the seed path in core's package.
  */
 
 import { randomUUID } from 'node:crypto';

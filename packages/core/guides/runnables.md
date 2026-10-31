@@ -6,7 +6,7 @@ title: Runnables
 
 The runnable registry (Decisions 4, 5, 40, 49, 50): core's runnables, their ids, their manifests, and how an instance adds to and adjusts them through its plugin, its manifests and its deltas.
 
-**Runnable or job (Decision 73).** A _runnable_ is anything `jeeves-scripts run <id>` starts. A _job_ is a runnable registered in jeeves-runner: one with a manifest, scheduled or not. Manifests (`jobs/*.json`), the `jobs.<id>` deltas in `jeeves-scripts.json` and runner job ids keep the word because they describe runner jobs. `defineJob` is the pre-0.3.0 name of `defineRunnable`, still exported and deprecated. It runs unchanged, but core's ESLint preset (`strictTypeChecked`, so `@typescript-eslint/no-deprecated`) fails an instance's lint on every call, so upgrading an instance to 0.3.0 includes replacing `defineJob` with `defineRunnable` in its `src/` (same signature: a rename, nothing else).
+**Runnable or job (Decision 73).** A _runnable_ is anything `jeeves-scripts run <id>` starts. A _job_ is a runnable registered in jeeves-runner: one with a manifest, scheduled or not. Manifests (`jobs/*.json`), the `jobs.<id>` deltas in the instance config and runner job ids keep the word because they describe runner jobs. `defineJob` is the pre-0.3.0 name of `defineRunnable`, still exported and deprecated. It runs unchanged, but core's ESLint preset (`strictTypeChecked`, so `@typescript-eslint/no-deprecated`) fails an instance's lint on every call, so upgrading an instance to 0.3.0 includes replacing `defineJob` with `defineRunnable` in its `src/` (same signature: a rename, nothing else).
 
 ## Runnable ids
 
@@ -43,7 +43,7 @@ export default defineRunnable({
   description: 'Report on acme.', // one line for list; registration fails without it when there's no manifest
   name: 'acme/report', // crash-log label; default: the id
   crashDir: () => '/base/acme', // where _crash.log goes; default: the working directory
-  prerequisite: () => hasAcmeConfig() || 'no acme block in jeeves-scripts.json',
+  prerequisite: () => hasAcmeConfig() || 'no acme block in the instance config',
   flags: { live: argFlag('--live', 'Write changes') }, // the flags run accepts (see Arguments)
   run: async ({ flags }) => {
     await report(flags.live);
@@ -147,7 +147,7 @@ An instance's own manifests are `{root}/jobs/*.json` in the same format. Each id
 
 ## Instance deltas
 
-An instance never copies a core manifest. It adjusts a runnable's manifest (core's or its own) with a delta under `jobs.<id>` in `jeeves-scripts.json` (see [config](./config.md)):
+An instance never copies a core manifest. It adjusts a runnable's manifest (core's or its own) with a delta under `jobs.<id>` in the instance config (see [config](./config.md)):
 
 ```json
 {
@@ -198,7 +198,7 @@ export default definePlugin({
       },
     }),
   ],
-  // Validates the instance's own `local` block in jeeves-scripts.json.
+  // Validates the instance's own `local` block in the instance config.
   configSchema: z.object({ reportChannel: z.string() }),
 });
 ```
@@ -212,7 +212,7 @@ Registration (plugin load) fails, listing every problem with its id and domain, 
 
 An override runs instead of core's runnable, under core's id and domain, and with core's crash label, crash directory and description; `list` shows its source as `override`. It needs unit tests in the instance repo. `writtenFor` records the exact core version (semver, no range) it was written for, so a core upgrade can review every override whose core has moved on: `doctor` marks each one whose `writtenFor` differs from the installed core as `DRIFT` ([cli](./cli.md#doctor)); it never fails a run.
 
-**Instance config.** Core never reads `local` in `jeeves-scripts.json`. When the plugin declares a `configSchema`, the CLI parses `local` with it at plugin load (an invalid block fails, naming the config file; `config check` loads the plugin to report it) and runnables read the result with `localConfig`:
+**Instance config.** Core never reads `local` in the instance config. When the plugin declares a `configSchema`, the CLI parses `local` with it at plugin load (an invalid block fails, naming the config file; `config check` loads the plugin to report it) and runnables read the result with `localConfig`:
 
 ```ts
 import { localConfig } from '@karmaniverous/jeeves-scripts-core';

@@ -16,7 +16,7 @@ Polls Google Calendar events for configured accounts and writes individual JSON 
 
 ```mermaid
 flowchart LR
-  config["pipeline.accounts\n(jeeves-scripts.json)"] --> poll["poll.ts"]
+  config["pipeline.accounts\n(instance config)"] --> poll["poll.ts"]
   poll --> gcal["Google Calendar REST API\n(gog OAuth client or service account)"]
   gcal --> events["per-event JSON files\n(silo-routed by email domain)"]
 ```
@@ -31,7 +31,7 @@ flowchart LR
 
 ## Account Configuration
 
-Calendar accounts are the entries of `pipeline.accounts` in `jeeves-scripts.json` that have a `calendar` block (see [the `pipeline` block](./config.md#the-pipeline-block)):
+Calendar accounts are the entries of `pipeline.accounts` in the instance config that have a `calendar` block (see [the `pipeline` block](./config.md#the-pipeline-block)):
 
 - `"calendar": { "serviceAccount": "auto" }`: a Workspace mailbox through domain-wide delegation. The poller uses the service-account registration gog keeps for that mailbox, `sa-<base64(email), "=" padding stripped>.json`, looked up in `<GOG_CONFIG_DIR>/data/` first, then in the `<GOG_CONFIG_DIR>` root (older gog builds without `data/`). Resolved by `findServiceAccountFile()` in `lib/gog-credentials.ts`.
 - `"calendar": { "tokenFile": "<path>" }`: a personal account with an OAuth refresh token. `tokenFile` is relative to `CREDENTIALS_DIR`, and the account also needs the gog OAuth client at `GOG_CLIENT_PATH` (`<GOG_CONFIG_DIR>/credentials.json`).

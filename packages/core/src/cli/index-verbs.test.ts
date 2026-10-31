@@ -14,10 +14,12 @@ const mocks = vi.hoisted(() => ({
   runSkills: vi.fn(),
   openclawPresent: vi.fn(),
   instanceConfigCheck: vi.fn(),
+  configEdit: vi.fn(),
 }));
 vi.mock('./config-check.js', () => ({
   instanceConfigCheck: mocks.instanceConfigCheck,
 }));
+vi.mock('./config-edit.js', () => ({ configEdit: mocks.configEdit }));
 vi.mock('./run.js', () => ({ runJob: mocks.runJob }));
 vi.mock('./list.js', () => ({
   listRunnables: mocks.listRunnables,
@@ -80,21 +82,53 @@ describe('CLI verb failures and exit codes', () => {
     mocks.initRepo.mockImplementationOnce(() => {
       throw new Error('not empty');
     });
-    await expect(cli('init')).resolves.toBe(1);
+    await expect(cli('init', '--config-dir', 'C:/cfg')).resolves.toBe(1);
     expect(errors).toContain('init: FAILED: not empty');
 
     process.exitCode = undefined;
     mocks.initRepo.mockReturnValue({});
     mocks.openclawPresent.mockResolvedValueOnce(false);
-    await expect(cli('init')).resolves.toBe(0);
+    await expect(cli('init', '--config-dir', 'C:/cfg')).resolves.toBe(0);
     expect(logs.at(-1)).toMatch(/^OpenClaw is not on this host/);
 
     mocks.openclawPresent.mockResolvedValueOnce(true);
     mocks.runSkills.mockResolvedValueOnce(2);
-    await expect(cli('init')).resolves.toBe(1);
+    await expect(cli('init', '--config-dir', 'C:/cfg')).resolves.toBe(1);
     expect(mocks.runSkills).toHaveBeenCalledWith('install', {
       root: expect.any(String) as unknown,
     });
+  });
+
+  it('config set / unset: pass the edit through, print its lines and exit 1 when invalid (#57)', async () => {
+    mocks.configEdit.mockResolvedValueOnce({
+      ok: true,
+      lines: ['+ a.b: 3'],
+      errors: [],
+    });
+    await expect(cli('config', 'set', 'a.b', '3', '--live')).resolves.toBe(0);
+    expect(mocks.configEdit).toHaveBeenCalledWith(expect.any(String), {
+      path: 'a.b',
+      edit: { set: 3 },
+      live: true,
+      configPath: undefined,
+    });
+    expect(logs).toContain('+ a.b: 3');
+
+    mocks.configEdit.mockResolvedValueOnce({
+      ok: false,
+      lines: [],
+      errors: ['bad'],
+    });
+    await expect(
+      cli('config', 'unset', 'a', '--config', 'f.json'),
+    ).resolves.toBe(1);
+    expect(mocks.configEdit).toHaveBeenLastCalledWith(expect.any(String), {
+      path: 'a',
+      edit: { unset: true },
+      live: false,
+      configPath: 'f.json',
+    });
+    expect(errors).toContain('bad');
   });
 
   it('reports an error no verb caught as the program failing', async () => {

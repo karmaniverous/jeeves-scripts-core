@@ -56,6 +56,7 @@ describe('instanceConfigCheck', () => {
     expect(result).toEqual({
       ok: true,
       configPath: path.join(root, 'jeeves-scripts.json'),
+      source: { source: 'legacy' },
       errors: [],
     });
   });

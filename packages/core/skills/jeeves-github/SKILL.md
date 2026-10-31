@@ -10,7 +10,7 @@ Read [github.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-
 
 ## Prerequisites
 
-The `gh` CLI must hold the instance's bot login and its account login (`gh auth status`; see Token requirements below). The jobs switch the active login between them, so which one is active at any moment is unpredictable; never change it yourself (`gh auth switch` would also switch a job running at the time). Which `gh` binary, config dir, account and bot user the jobs use is `integrations.gh` in `jeeves-scripts.json` ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md)).
+The `gh` CLI must hold the instance's bot login and its account login (`gh auth status`; see Token requirements below). The jobs switch the active login between them, so which one is active at any moment is unpredictable; never change it yourself (`gh auth switch` would also switch a job running at the time). Which `gh` binary, config dir, account and bot user the jobs use is `integrations.gh` in the instance config ([config.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/config.md)).
 
 ## Operator rules
 

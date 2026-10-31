@@ -4,17 +4,61 @@ title: Configuration
 
 # config/
 
-One validated file, `jeeves-scripts.json`, configures every script on an instance. It holds instance settings, path overrides, integrations, the pipeline (accounts, buckets, refs, email and Drive settings), silo routing and per-job deltas. It never holds a secret value. Everything here is exported from the package root, `@karmaniverous/jeeves-scripts-core`.
+One validated file, the instance config (`<config dir>/config.json`, outside the instance repo), configures every script on an instance. It holds instance settings, path overrides, integrations, the pipeline (accounts, buckets, refs, email and Drive settings), silo routing and per-job deltas. It never holds a secret value. Everything here is exported from the package root, `@karmaniverous/jeeves-scripts-core`.
 
 ## Where the file is
 
+The config lives outside the instance repo, so instance data (a channel's home directory, an account, a schedule delta) changes without a PR. The repo's `jeeves-scripts.json` is only a pointer to the config directory:
+
+```json
+{
+  "$schema": "./node_modules/@karmaniverous/jeeves-scripts-core/schema/pointer.schema.json",
+  "config": "J:/config/jeeves-scripts"
+}
+```
+
+The config is `<config>/config.json` (same schema as always). `config` must be an absolute directory and `config.json` must exist, or loading fails naming both files. `jobs/*.json`, the plugin, `src/` and the plugin's `local` schema stay in the repo.
+
 Resolution never depends on the working directory. The first that applies wins:
 
-1. An explicit path: `loadConfig({ configPath })`, or `config check --config <file>`.
+1. An explicit path: `loadConfig({ configPath })`, or `--config <file>` on `config check`, `config set` and `config unset`.
 2. The `JEEVES_SCRIPTS_CONFIG` environment variable (`CONFIG_PATH_ENV`).
-3. `{root}/jeeves-scripts.json`, where `root` is the instance repo root the launcher passes.
+3. `{root}/jeeves-scripts.json`, where `root` is the instance repo root the launcher passes (`setConfigRoot`).
 
-`jeeves-scripts run` sets `JEEVES_SCRIPTS_CONFIG` to `{root}/jeeves-scripts.json` (unless already set) before it runs a runnable, so every core module and instance script reads the same file.
+Whichever file that is: a pointer resolves to `<config>/config.json`; a full config (it has `instance`) is used as is. A full config still in the repo (step 3) is the **legacy** layout: it works, and every command prints one warning, `config is in the instance repo; move it (guides/config.md#moving-the-config)`. Anything else fails, naming the file.
+
+`jeeves-scripts run` and `doctor` register the root with the loader (`setConfigRoot(root)`) before anything loads; they no longer set `JEEVES_SCRIPTS_CONFIG`. Runner jobs need no environment and no runner change. `config check` and `doctor` say where the config came from: `pointer <file>`, `JEEVES_SCRIPTS_CONFIG`, `--config` or `legacy repo file` (`resolveConfig()` returns `{ path, source, pointer? }`; `getLoadedConfigSource()` after a load).
+
+## Editing the config
+
+Edit the config with `config set` and `config unset`, never by hand and never by a PR:
+
+```bash
+node bin/jeeves-scripts.js config set slack.channels.C0123.homeDir J:/domains/projects/acme
+node bin/jeeves-scripts.js config set slack.channels.C0123.homeDir J:/domains/projects/acme --live
+node bin/jeeves-scripts.js config unset slack.channels.C0123 --live
+```
+
+- **Path:** dotted keys from the root (`slack.channels.C0123.homeDir`); a key that contains dots is a bracketed JSON string (`pipeline.refs["slack.myChannel"]`). `set` creates missing parent objects; `unset` requires the key to exist.
+- **Value:** parsed as JSON when it parses (`3`, `true`, `{"a":1}`), else taken as a string, so a path or name needs no quotes. A string that would parse as JSON (`"3"`, `"true"`) must reach the command with its double quotes: `'"3"'` in bash and PowerShell 7, `'\"3\"'` in Windows PowerShell 5.1, which strips inner double quotes from native-command arguments. The dry run shows the value as JSON, so check it before `--live`.
+- **Who sees the change:** each run reads the config afresh. The watcher's Slack map helpers reload it when the file changes.
+- **Validation:** the whole edited document is checked exactly as `config check` checks it (core schema with its secret guard, silo references, the plugin's `configSchema` on `local`). Invalid: the problems are printed, the exit code is 1 and the file is untouched.
+- **Dry run by default:** prints the change as `-` / `+` lines and writes nothing. `--live` writes it.
+- **Backups:** before writing, `--live` copies the file to `config.json.<UTC yyyymmddTHHMMSSZ>.bak` beside it and keeps the newest 20.
+- **Atomic:** the new content is written to a temporary file in the same directory and renamed over `config.json`, so a job never reads a half-written file.
+- A legacy config in the repo is refused: move it first.
+
+## Moving the config
+
+To move an instance from the legacy layout (the full config in the repo's `jeeves-scripts.json`) to a config directory:
+
+1. Merge or close open PRs that change `jeeves-scripts.json`; `config check` passes on the repo file.
+2. Copy `jeeves-scripts.json` to `{configRoot}/jeeves-scripts/config.json` (e.g. `J:/config/jeeves-scripts/config.json`).
+3. Replace the repo's `jeeves-scripts.json` with the pointer above, naming that directory. `config check` reports `from pointer ...` and passes.
+4. Commit and push the pointer; pull it on the instance.
+5. Check: `jeeves-scripts list --json` works, one job run (`runner_trigger`) succeeds, and the runner's `sync-jobs` dry run shows no changes.
+
+Rollback: restore the repo's `jeeves-scripts.json` from git (the copy in the config directory is then unused).
 
 The loader is lazy and cached: nothing touches the filesystem until the first getter call, and later calls return the cached config regardless of options. `resetConfig()` clears the cache (tests). `getLoadedConfigPath()` returns the file that was loaded.
 
@@ -102,7 +146,7 @@ Two more `slack` settings tune `slack-poll`: `backfillBudgetSeconds` (positive i
 
 ### Other components' settings
 
-`jeeves-scripts.json` holds this instance's settings only. A setting that belongs to another component is read from that component's own config, never copied here: the gateway port from the OpenClaw config (`gatewayPort()`), the runner's port from `{configDir}/jeeves-runner/config.json` (`runnerUrl()`), Qdrant's URL from the watcher's `vectorStore.url` (the `qdrant.apiUrl` default). See [lib.md](./lib.md#component-configts). There is no `integrations.gateway` block; like any unknown key, an old one is ignored.
+The instance config holds this instance's settings only. A setting that belongs to another component is read from that component's own config, never copied here: the gateway port from the OpenClaw config (`gatewayPort()`), the runner's port from `{configDir}/jeeves-runner/config.json` (`runnerUrl()`), Qdrant's URL from the watcher's `vectorStore.url` (the `qdrant.apiUrl` default). See [lib.md](./lib.md#component-configts). There is no `integrations.gateway` block; like any unknown key, an old one is ignored.
 
 ### Secrets
 

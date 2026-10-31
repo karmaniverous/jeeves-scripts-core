@@ -66,7 +66,7 @@ Core's manifest (`jobs/email.json`) is authoritative; an instance adjusts it wit
 
 `email-backfill-historical` runs `backfill-historical.ts --live` (the manifest passes `--live` in `args`; a manual run without it is a dry run). Each run searches one window per account (all result pages), walking back from the newest unprocessed point until the lookback limit, then does nothing.
 
-- Settings come only from `pipeline.emailConfig.backfill` in `jeeves-scripts.json` (`accounts`, `lookbackDays`, `windowDays`, all required) or the CLI overrides `--accounts` / `--lookback-days` / `--window-days` (per field, CLI wins). There are no defaults: a missing setting fails the run.
+- Settings come only from `pipeline.emailConfig.backfill` in the instance config (`accounts`, `lookbackDays`, `windowDays`, all required) or the CLI overrides `--accounts` / `--lookback-days` / `--window-days` (per field, CLI wins). There are no defaults: a missing setting fails the run.
 - Cursor: runner state namespace `email-backfill`, key `cursor-<email>`. It advances only after a live window completes (after the window's last search page).
 
 ### Label catch-up
@@ -205,7 +205,7 @@ Use `accounts[].reportOnly` for a mailbox authorised with a read-only gog token,
 
 ## Account Configuration
 
-Accounts are the entries of `pipeline.accounts` in `jeeves-scripts.json` (schema: `config/pipeline-schema.ts`; full example in [the `pipeline` block](./config.md#the-pipeline-block)):
+Accounts are the entries of `pipeline.accounts` in the instance config (schema: `config/pipeline-schema.ts`; full example in [the `pipeline` block](./config.md#the-pipeline-block)):
 
 ```json
 {
@@ -225,7 +225,7 @@ Accounts are the entries of `pipeline.accounts` in `jeeves-scripts.json` (schema
 
 - `type` is `gmail` or `imap`; `type: "imap"` requires the `imap` block (schema error otherwise). A `gmail` account **with** an `imap` block is polled over IMAP using the Gmail extensions (thread ids, labels); a `gmail` account without one goes through gog.
 - `folders` is optional (IMAP only). Without it, `gmail` accounts poll `[Gmail]/All Mail`, `[Gmail]/Spam` and `[Gmail]/Trash`; generic IMAP accounts poll every folder the server lists.
-- `imap.password` is a secret reference (below). `jeeves-scripts.json` holds no secrets (the schema rejects literal secret values).
+- `imap.password` is a secret reference (below). The instance config holds no secrets (the schema rejects literal secret values).
 
 ### IMAP passwords
 
@@ -247,7 +247,7 @@ Do these in order. Each step has a check. Ask the operator first whether labels 
 
    Steps 2 and 4 to 7 below are for gog mailboxes. An IMAP mailbox skips step 2 (provision its password file instead), gets no `backfill` entry (the backfill searches through gog, so an IMAP address there fails every run; the IMAP poller's first run caps at the last 100 messages, see [Watermark](#watermark)), and is checked with a `runner_trigger` of `email-poll` and its files under `{siloBase}/email/threads/<account>/`.
 
-2. **Register the credential in the jobs' gog home.** The jobs use `GOG_HOME` when it is set in the runner's environment, else `paths.gogHome` in `jeeves-scripts.json`, else `{configDir}/gogcli` (`paths().gogHome`; [config.md](./config.md#environment-overrides)), and `gogWithRetry` passes it to gog as `GOG_HOME`. Read it from the instance's config and register there (`gog --home <gog home> ...`): a credential in your own shell's default gog home is invisible to the jobs. OAuth tokens also go into gog's keyring, so run the OAuth commands with the runner's gog keyring settings too (`GOG_KEYRING_BACKEND`, `GOG_KEYRING_PASSWORD`, where the runner's environment sets them; jeeves-tools deploy writes them with `GOG_HOME` into the runner's gog environment file). A token stored in a different keyring passes the check below from your shell and still fails in the jobs; step 7 is the proof.
+2. **Register the credential in the jobs' gog home.** The jobs use `GOG_HOME` when it is set in the runner's environment, else `paths.gogHome` in the instance config, else `{configDir}/gogcli` (`paths().gogHome`; [config.md](./config.md#environment-overrides)), and `gogWithRetry` passes it to gog as `GOG_HOME`. Read it from the instance's config and register there (`gog --home <gog home> ...`): a credential in your own shell's default gog home is invisible to the jobs. OAuth tokens also go into gog's keyring, so run the OAuth commands with the runner's gog keyring settings too (`GOG_KEYRING_BACKEND`, `GOG_KEYRING_PASSWORD`, where the runner's environment sets them; jeeves-tools deploy writes them with `GOG_HOME` into the runner's gog environment file). A token stored in a different keyring passes the check below from your shell and still fails in the jobs; step 7 is the proof.
    - Service account: `gog --home <gog home> auth service-account set <email> --key <key file>`, with the instance's delegation key (deploy writes it to `<GOG_CONFIG_DIR>/service-account.json`). Check: `gog --home <gog home> auth service-account status <email>`.
    - OAuth needs the gog OAuth client at `<gog home>/credentials.json` (`GOG_CLIENT_PATH`, [Prerequisites](#prerequisites)); without it step 1 fails. Then two steps (the mailbox owner's browser and gog are on different machines). Step 1 prints a consent URL:
      ```bash
@@ -261,7 +261,7 @@ Do these in order. Each step has a check. Ask the operator first whether labels 
    - **OAuth token expiry.** While the Google OAuth client's user type is External and its publishing status is Testing (Google Auth Platform, Audience), Google expires its refresh tokens after 7 days and every gog call for the account then fails with `invalid_grant`. Tell the operator: publishing the app (Audience, Publish app) stops the expiry; otherwise the OAuth steps have to be repeated weekly. Check the account again after a week.
    - Check (any gog credential): `gog --home <gog home> gmail search "newer_than:3d" --account <email> --max 1 --json` exits 0.
 3. **Read-only: set the account's `reportOnly`** (`accounts[].reportOnly: true`, core 0.2.2 or later; [Report-only](#report-only)). Without it, every label action enqueued for a read-only mailbox fails in `drain-updates`. List the account in `accounts` even if it is only backfilled (then with `emailPolling: false`; `download` and `drain-updates` still cover backfill accounts through `getGmailAccounts()`): an address that is not in `accounts` follows `emailConfig.reportOnly` alone.
-4. **Add the account, and the backfill for its history**, in `jeeves-scripts.json` (merged into the existing `pipeline` block; `reportOnly` only from step 3; `emailPolling: false` for a backfill-only mailbox):
+4. **Add the account, and the backfill for its history**, in the instance config (merged into the existing `pipeline` block; `reportOnly` only from step 3; `emailPolling: false` for a backfill-only mailbox):
    ```json
    {
      "pipeline": {
