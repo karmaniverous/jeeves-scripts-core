@@ -167,13 +167,14 @@ The top-level `punchList` block (`punchListSchema`, [config](./config.md)). Abse
 
 The jeeves-server config is read from `{configDir}/jeeves-server/config.json` (its `publicUrl` and `roots`), like every component config.
 
-To turn it on: add the block, run each runnable without `--live` (and `punch-list-harvest --print-task`) and check the output, then enable the jobs with deltas (the manifests already pass `--live`); set the harvest's schedule and zone in its delta if 05:47 UTC doesn't suit:
+To turn it on: add the block, run each runnable without `--live` (and `punch-list-harvest --print-task`) and check the output, then enable the jobs with deltas that add `--live` (the manifests pass no arguments, so a job enabled without it is a scheduled dry run); set the harvest's schedule and zone in its delta if 05:47 UTC doesn't suit:
 
 ```json
 "jobs": {
-  "punch-list-refresh-status": { "enabled": true },
+  "punch-list-refresh-status": { "enabled": true, "args": ["--live"] },
   "punch-list-harvest": {
     "enabled": true,
+    "args": ["--live"],
     "schedule": { "freq": "daily", "byhour": 5, "byminute": 47, "timezone": "America/Chicago" }
   }
 }

@@ -36,14 +36,14 @@ afterEach(() => {
 });
 
 describe('punch-list-harvest runnable', () => {
-  it('is in the punch-list domain with a disabled, live manifest under its id', () => {
+  it('is in the punch-list domain with a disabled, dry-run manifest under its id', () => {
     expect(HARVEST_JOB_ID).toBe('punch-list-harvest');
     expect(job.id).toBe(HARVEST_JOB_ID);
     expect(job.domain).toBe('punch-list');
-    expect(punchListManifest(HARVEST_JOB_ID)).toMatchObject({
-      enabled: false,
-      args: ['--live'],
-    });
+    const manifest = punchListManifest(HARVEST_JOB_ID);
+    expect(manifest).toMatchObject({ enabled: false });
+    // Dry run until the instance's enabling delta adds `--live` (spec 2.1).
+    expect(manifest).not.toHaveProperty('args');
   });
 
   it.each([
