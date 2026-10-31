@@ -123,11 +123,12 @@ export const expandPath = (
     platform: process.platform,
   },
 ): string => {
-  const nodeDir = path.dirname(env.execPath);
+  const p = env.platform === 'win32' ? path.win32 : path.posix;
+  const nodeDir = p.dirname(env.execPath);
   const npmGlobal =
     env.platform === 'win32'
-      ? path.join(nodeDir, 'node_modules')
-      : path.resolve(nodeDir, '..', 'lib', 'node_modules');
+      ? p.join(nodeDir, 'node_modules')
+      : p.join(nodeDir, '..', 'lib', 'node_modules');
   return pattern
     .replaceAll('{npmGlobal}', npmGlobal)
     .replaceAll('{home}', env.home);

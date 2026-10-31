@@ -3,6 +3,7 @@
  * shipped install map), the derived defaults, and the path helpers.
  */
 
+import { homedir } from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -190,7 +191,7 @@ describe('expandPath', () => {
       platform: 'linux' as const,
     };
     expect(expandPath('{npmGlobal}/@k/x/package.json', env)).toBe(
-      `${path.resolve('/n/v24/lib/node_modules')}/@k/x/package.json`,
+      '/n/v24/lib/node_modules/@k/x/package.json',
     );
     expect(expandPath('{home}/.openclaw/a', env)).toBe('/home/u/.openclaw/a');
   });
@@ -201,13 +202,18 @@ describe('expandPath', () => {
       home: 'C:\\Users\\u',
       platform: 'win32' as const,
     };
-    expect(expandPath('{npmGlobal}', env)).toBe(
-      path.join('C:\\node', 'node_modules'),
-    );
+    expect(expandPath('{npmGlobal}', env)).toBe('C:\\node\\node_modules');
   });
 
   it('defaults to this process', () => {
     expect(expandPath('plain')).toBe('plain');
-    expect(expandPath('{npmGlobal}')).toContain('node_modules');
+    expect(expandPath('{npmGlobal}')).toBe(
+      expandPath('{npmGlobal}', {
+        execPath: process.execPath,
+        home: '',
+        platform: process.platform,
+      }),
+    );
+    expect(expandPath('{home}')).toBe(homedir());
   });
 });
