@@ -103,10 +103,10 @@ const reportTarget = (
     };
   const owner = deps.slackOwner();
   if (owner === undefined)
-    problem(
+    return problem(
       `no report target: set ${BLOCK}.reportChannel (a Slack channel id, or a user id for their DM), or add a "slack:<user id>" entry to commands.ownerAllowFrom in the OpenClaw config`,
     );
-  return { reportChannel: owner ?? '', reportChannelSource: 'owner' };
+  return { reportChannel: owner, reportChannelSource: 'owner' };
 };
 
 /** The report directory: `outputDir`, else the report channel's `homeDir`. */
@@ -125,15 +125,11 @@ const reportDir = (
       ? undefined
       : deps.channelHomeDir(target);
   if (homeDir === undefined)
-    problem(
+    return problem(
       `no report directory: set ${BLOCK}.outputDir (the report goes to ${isUserTarget(target) || isDmTarget(target) ? 'a DM, which has no homeDir' : `${target}, which has no slack.channels.${target}.homeDir`})`,
     );
   return {
-    outputDir: onHost(
-      homeDir ?? '',
-      `slack.channels.${target}.homeDir`,
-      deps.host,
-    ),
+    outputDir: onHost(homeDir, `slack.channels.${target}.homeDir`, deps.host),
     outputDirSource: 'homeDir',
   };
 };
