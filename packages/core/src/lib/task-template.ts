@@ -33,7 +33,7 @@ const CORE_TEMPLATE_ROOT = fileURLToPath(
   new URL('../../task-templates/', import.meta.url),
 );
 
-/** Whether `file` is strictly inside `root` (both resolved the same way). */
+/** Whether `file` is strictly inside `root` (both real paths). */
 const isInside = (root: string, file: string): boolean => {
   const rel = path.relative(root, file);
   return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
@@ -65,7 +65,8 @@ export const coreTaskTemplatePath = (
   )
     throw refuse();
   const file = path.resolve(root, name);
-  if (!isInside(path.resolve(root), file)) throw refuse();
+  // With no absolute or `..` part the name stays under the root lexically;
+  // the real paths catch the root itself (`''`, `.`) and links out of it.
   if (
     fs.existsSync(file) &&
     !isInside(fs.realpathSync(root), fs.realpathSync(file))

@@ -113,7 +113,8 @@ export interface NpmPrefixEnv {
   npmPrefix: () => string;
 }
 
-const liveNpmPrefixEnv = (): NpmPrefixEnv => ({
+/** This process's {@link NpmPrefixEnv}: its environment, Node and platform, and the real `npm`. */
+export const liveNpmPrefixEnv = (): NpmPrefixEnv => ({
   env: process.env,
   execPath: process.execPath,
   platform: process.platform,
