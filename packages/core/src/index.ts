@@ -63,7 +63,15 @@ export {
 } from './lib/json-file.js';
 export * from './lib/meta-config.js';
 export * from './lib/openclaw-config.js';
+export { pruneRuns, runId } from './lib/run-dirs.js';
 export * from './lib/runner-config.js';
+export {
+  type Fetch,
+  type FetchResponse,
+  resolvePublicUrl,
+  type ServerAccess,
+  slackLink,
+} from './lib/server-link.js';
 export {
   createSlackClient,
   SlackApiError,
