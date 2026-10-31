@@ -1,0 +1,31 @@
+{
+  "punch-list-refresh-status": {
+    "name": "Punch List Refresh Status",
+    "description": "Apply punch-list checkbox ticks, follow each milestone's GitHub issues to release and install, write today's punch list and post milestone transitions.",
+    "schedule": {
+      "freq": "minutely",
+      "interval": 61,
+      "timezone": "UTC"
+    },
+    "args": ["--live"],
+    "overlap_policy": "skip",
+    "timeout_seconds": 300,
+    "enabled": false,
+    "prerequisite": null
+  },
+  "punch-list-harvest": {
+    "name": "Punch List Harvest",
+    "description": "Harvest requested and needed platform work from the archive and instance telemetry into the punch-list Backlog through one worker session.",
+    "schedule": {
+      "freq": "daily",
+      "byhour": 5,
+      "byminute": 47,
+      "timezone": "UTC"
+    },
+    "args": ["--live"],
+    "overlap_policy": "skip",
+    "timeout_seconds": 1800,
+    "enabled": false,
+    "prerequisite": null
+  }
+}
