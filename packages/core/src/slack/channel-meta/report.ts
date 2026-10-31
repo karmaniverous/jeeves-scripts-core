@@ -4,8 +4,8 @@
  * The report file (Markdown, {@link reportMarkdown}), written to
  * `<outputDir>/<YYYY-MM-DD>.md`: workspaces (with missing scopes), the
  * home-directory sweep (the exact `config set` command for each proposed
- * home directory, Decision 66;
- * mismatches, assigned paths missing on disk), coverage (no home
+ * home directory, quoted for POSIX shells and PowerShell,
+ * `channel-meta/proposal-command`, Decision 66; mismatches, assigned paths missing on disk), coverage (no home
  * directory, home directory missing, no seeded meta), what happened to
  * descriptions and topics and why (`channel-meta/report-fields`: the generated
  * text of each value set or already current, and in a dry run each
@@ -24,6 +24,7 @@
 
 import { homeDirMissing, noHomeDir, unseeded } from './coverage.js';
 import type { ChannelFacts } from './gather.js';
+import { proposalLines } from './proposal-command.js';
 import { fieldSection } from './report-fields.js';
 import { FIELDS, type ReportInput } from './report-input.js';
 import { code, label, list, mdText } from './report-md.js';
@@ -50,34 +51,10 @@ const proposalsOf = (facts: readonly ChannelFacts[]) =>
       : [],
   );
 
-/** A path argument for the shell: double-quoted when it has whitespace or quotes. */
-const shellArg = (value: string): string =>
-  /[\s"']/.test(value) ? `"${value.replace(/"/g, '\\"')}"` : value;
-
-/**
- * The exact command that applies a proposed home directory (Decision 66:
- * the runnable never writes the config; `config set` validates the edit
- * and is a dry run until `--live` is added).
- *
- * @param channelId - The channel.
- * @param dir - The proposed home directory.
- * @returns The `config set` command line.
- */
-export const homeDirCommand = (channelId: string, dir: string): string =>
-  `jeeves-scripts config set slack.channels.${channelId}.homeDir ${shellArg(dir)}`;
-
 const sweepSection = (facts: readonly ChannelFacts[]): string[] => {
   const proposals = proposalsOf(facts);
   const lines = ['## Home-directory sweep'];
-  if (proposals.length > 0)
-    lines.push(
-      '',
-      `Proposed home directories (${String(proposals.length)}); review each, run it, then run it again with \`--live\` to write the config:`,
-      '',
-      '```bash',
-      ...proposals.map((p) => homeDirCommand(p.id, p.path)),
-      '```',
-    );
+  if (proposals.length > 0) lines.push(...proposalLines(proposals));
   lines.push(
     ...list(
       'Assignments that differ from the config',

@@ -14,9 +14,10 @@
  * reading only messages newer than the last run. The latest assignment
  * per channel wins; bot posts never count. It never writes the instance
  * config (Decision 66): for each new assignment the report gives the
- * exact command,
- * `jeeves-scripts config set slack.channels.<id>.homeDir <path>`, plus
- * mismatches with the config and assigned paths that don't exist.
+ * exact command to run from the instance repo,
+ * `node bin/jeeves-scripts.js config set slack.channels.<id>.homeDir '<path>'`
+ * (`channel-meta/proposal-command`), plus mismatches with the config and
+ * assigned paths that don't exist.
  *
  * **Descriptions and topics (worker writes, script applies).** For
  * channels with a home directory and a seeded meta (`channel-meta/plan`):

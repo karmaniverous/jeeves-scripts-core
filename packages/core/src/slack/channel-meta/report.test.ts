@@ -16,25 +16,12 @@ import {
   SECRETS,
   workspace,
 } from './fakes.test-helper.js';
-import { homeDirCommand, reportBody, reportMarkdown } from './report.js';
+import { reportBody, reportMarkdown } from './report.js';
 import { mdText } from './report-md.js';
 
 const noSecrets = (text: string): void => {
   for (const s of SECRETS) expect(text).not.toContain(s);
 };
-
-describe('homeDirCommand', () => {
-  it.each([
-    ['J:/acme', 'J:/acme'],
-    ['/opt/my docs', '"/opt/my docs"'],
-    ["/opt/o'brien", '"/opt/o\'brien"'],
-    ['/opt/a"b', '"/opt/a\\"b"'],
-  ])('quotes %s only when the shell needs it', (dir, arg) => {
-    expect(homeDirCommand('C0AB', dir)).toBe(
-      `jeeves-scripts config set slack.channels.C0AB.homeDir ${arg}`,
-    );
-  });
-});
 
 describe('mdText', () => {
   it('escapes Markdown and collapses whitespace', () => {
@@ -122,11 +109,11 @@ describe('reportBody', () => {
     );
     expect(body).toContain(
       [
-        'Proposed home directories (2); review each, run it, then run it again with `--live` to write the config:',
+        'Proposed home directories (2); review each, run its command from the instance repo, then run it again with `--live` to write the config (the same command in POSIX shells and PowerShell):',
         '',
-        '```bash',
-        'jeeves-scripts config set slack.channels.C1.homeDir J:/a',
-        'jeeves-scripts config set slack.channels.C2.homeDir "/opt/my docs/b"',
+        '```',
+        "node bin/jeeves-scripts.js config set slack.channels.C1.homeDir 'J:/a'",
+        "node bin/jeeves-scripts.js config set slack.channels.C2.homeDir '/opt/my docs/b'",
         '```',
       ].join('\n'),
     );

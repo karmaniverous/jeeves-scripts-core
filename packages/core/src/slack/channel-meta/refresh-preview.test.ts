@@ -89,7 +89,7 @@ describe('refreshChannelMeta: without --live', () => {
     const report = readPreview();
     expect(report).toContain('(2027-01-14)');
     expect(report).toContain(
-      'jeeves-scripts config set slack.channels.C2.homeDir /home/c2',
+      "node bin/jeeves-scripts.js config set slack.channels.C2.homeDir '/home/c2'",
     );
     expect(report).toContain(
       '**Proposed (preview: not set)** (1):\n\n- #one (`C1`): new\n  - current: \u201cOld purpose\u201d\n  - proposed: \u201cAbout one\u201d',
