@@ -38,8 +38,8 @@ describe('isWindows', () => {
 
 describe('canonicalAbsolute', () => {
   it.each([
-    ['j:/domains/x/', 'J:/domains/x'],
-    ['J:\\domains\\\\x', 'J:/domains/x'],
+    ['j:/content/x/', 'J:/content/x'],
+    ['J:\\content\\\\x', 'J:/content/x'],
     ['c:/', 'C:/'],
   ])('win32: %s -> %s', (input, out) => {
     expect(canonicalAbsolute(input, path.win32)).toBe(out);
@@ -53,14 +53,14 @@ describe('canonicalAbsolute', () => {
     expect(canonicalAbsolute(input, path.posix)).toBe(out);
   });
 
-  it.each(['domains/x', 'J:x', 'J:/a/../b', '/srv/a', '\\\\server\\share'])(
+  it.each(['content/x', 'J:x', 'J:/a/../b', '/srv/a', '\\\\server\\share'])(
     'win32 rejects %s',
     (input) => {
       expect(canonicalAbsolute(input, path.win32)).toBeUndefined();
     },
   );
 
-  it.each(['domains/x', 'J:/a', 'j:\\a', '/a/../b'])(
+  it.each(['content/x', 'J:/a', 'j:\\a', '/a/../b'])(
     'posix rejects %s',
     (input) => {
       expect(canonicalAbsolute(input, path.posix)).toBeUndefined();
@@ -70,28 +70,28 @@ describe('canonicalAbsolute', () => {
 
 describe('resolveToken', () => {
   it.each([
-    ['j/domains/projects/x', false, 'J:/domains/projects/x'],
-    ['J/domains/x.', false, 'J:/domains/x'],
-    ['j:/domains/x', false, 'J:/domains/x'],
-    ['J:\\domains\\x', false, 'J:/domains/x'],
-    ['j\\domains\\x', false, 'J:/domains/x'],
-    ['domains/x', true, 'J:/domains/x'],
+    ['j/content/projects/x', false, 'J:/content/projects/x'],
+    ['J/content/x.', false, 'J:/content/x'],
+    ['j:/content/x', false, 'J:/content/x'],
+    ['J:\\content\\x', false, 'J:/content/x'],
+    ['j\\content\\x', false, 'J:/content/x'],
+    ['content/x', true, 'J:/content/x'],
     ['(j/a/b),', false, 'J:/a/b'],
   ])('win32: %s (code: %s) -> %s', (token, code, out) => {
     expect(resolveToken(token, WIN, code)).toBe(out);
   });
 
   it.each([
-    ['j/domains/projects/x', false, '/opt/jeeves/domains/projects/x'],
-    ['j\\domains\\x', false, '/opt/jeeves/domains/x'],
+    ['j/content/projects/x', false, '/opt/jeeves/content/projects/x'],
+    ['j\\content\\x', false, '/opt/jeeves/content/x'],
     ['/srv/data/x', false, '/srv/data/x'],
-    ['domains/x', true, '/opt/jeeves/domains/x'],
+    ['content/x', true, '/opt/jeeves/content/x'],
   ])('posix: %s (code: %s) -> %s', (token, code, out) => {
     expect(resolveToken(token, POSIX, code)).toBe(out);
   });
 
   it.each([
-    ['domains/x', false],
+    ['content/x', false],
     ['contracts', true],
     ['/approve', false],
     ['and/or', false],
@@ -104,7 +104,7 @@ describe('resolveToken', () => {
 
   it('ignores paths that name nothing on the host', () => {
     expect(resolveToken('/srv/data/x', WIN, false)).toBeUndefined();
-    expect(resolveToken('J:/domains/x', POSIX, false)).toBeUndefined();
+    expect(resolveToken('J:/content/x', POSIX, false)).toBeUndefined();
   });
 
   it.each(['constructor/home', 'toString/home', 'hasOwnProperty/home'])(
@@ -131,7 +131,7 @@ describe('resolveToken', () => {
 
   it('needs a relative root for relative paths', () => {
     expect(
-      resolveToken('domains/x', { roots: {}, host: path.posix }, true),
+      resolveToken('content/x', { roots: {}, host: path.posix }, true),
     ).toBeUndefined();
   });
 });
@@ -139,24 +139,21 @@ describe('resolveToken', () => {
 describe('extractPath', () => {
   it.each([
     [
-      '<@U1> create directory `j/jgs/customers/bca` and seed meta.',
-      'J:/jgs/customers/bca',
+      '<@U1> create directory `j/acme/customers/widgets` and seed meta.',
+      'J:/acme/customers/widgets',
     ],
     [
-      'create directory j/domains/projects/x and seed meta',
-      'J:/domains/projects/x',
+      'create directory j/content/projects/x and seed meta',
+      'J:/content/projects/x',
     ],
     [
-      'Create directory `j:/domains/projects/status-board` and seed meta.',
-      'J:/domains/projects/status-board',
+      'Create directory `j:/content/projects/roadmap` and seed meta.',
+      'J:/content/projects/roadmap',
     ],
+    ['create folder `J:\\globex\\cto`. Seed meta.', 'J:/globex/cto'],
     [
-      'create folder `J:\\veterancrowd\\cto`. Seed meta.',
-      'J:/veterancrowd/cto',
-    ],
-    [
-      'create directory `domains/projects/furniture` and seed meta',
-      'J:/domains/projects/furniture',
+      'create directory `content/projects/catalog` and seed meta',
+      'J:/content/projects/catalog',
     ],
     ['seed meta at `j/a/b`. Copy `contracts` from `j/c/d`.', 'J:/a/b'],
     ['Set `"requireMention": false` and seed `j/a`', 'J:/a'],
@@ -171,8 +168,8 @@ describe('extractPath', () => {
 
   it.each([
     [
-      'create directory `j/jgs/customers/bca` and seed meta.',
-      '/opt/jeeves/jgs/customers/bca',
+      'create directory `j/acme/customers/widgets` and seed meta.',
+      '/opt/jeeves/acme/customers/widgets',
     ],
     ['seed meta in `J:\\old\\path` or `j/new/path`', '/opt/jeeves/new/path'],
     ['home directory `/srv/x/y`, seed meta', '/srv/x/y'],

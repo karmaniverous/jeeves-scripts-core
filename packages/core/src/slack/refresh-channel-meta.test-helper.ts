@@ -85,7 +85,10 @@ export const siloMock = () => ({ getEntityDirs: () => [mocks.slackRoot] });
 
 /** Two gateway Slack accounts and the OpenClaw owner. */
 export const openclawMock = () => ({
-  slackBotTokens: () => ({ vc: 'secret-vc', default: 'secret-default' }),
+  slackBotTokens: () => ({
+    globex: 'secret-globex',
+    default: 'secret-default',
+  }),
   findInOpenclawConfig: <T>(pick: (config: unknown) => T | undefined) =>
     pick(mocks.openclaw),
 });

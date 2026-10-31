@@ -1,5 +1,5 @@
 /**
- * Tests for the flow's previews and guards: `--dry-run` (the worker
+ * Tests for the flow's previews and guards: a run without `--live` (the worker
  * dispatched for real, its result checked, current vs proposed in the
  * run directory's `preview.md`; no set, dated report, post or state) and
  * `--print-task` (TASK only, no worker; summary and report logged),
@@ -64,7 +64,7 @@ const expectNothingDelivered = (h: ReturnType<typeof harness>): void => {
   expect(h.saved).toEqual([]);
 };
 
-describe('refreshChannelMeta: --dry-run', () => {
+describe('refreshChannelMeta: without --live', () => {
   it('dispatches the worker for real and writes current vs proposed to the run directory, setting nothing', async () => {
     const h = harness({ channels: described, result: () => GOOD });
     expect(await refreshChannelMeta(DRY, h.deps)).toBe('previewed');
@@ -148,6 +148,15 @@ describe('refreshChannelMeta: --dry-run', () => {
 });
 
 describe('refreshChannelMeta: previews and guards', () => {
+  it('previews on --print-task even with --live: nothing set or delivered', async () => {
+    const h = harness({ result: () => GOOD });
+    expect(
+      await refreshChannelMeta({ live: true, printTask: true }, h.deps),
+    ).toBe('previewed');
+    expect(h.dispatch.mock.calls[0]?.[1]).toEqual(PRINT_TASK_FLAGS);
+    expectNothingDelivered(h);
+  });
+
   it('prints the TASK on --print-task without a worker; summary and report logged, nothing delivered', async () => {
     const flags = { live: false, printTask: true };
     const h = harness({ result: () => GOOD });

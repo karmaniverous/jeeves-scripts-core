@@ -31,13 +31,17 @@ describe('runId and pruneRuns', () => {
       '20261019-000000',
       '20261020-000000',
       'keep-me',
+      'notes-2026',
+      '20261017',
     ])
       fs.mkdirSync(path.join(root, n));
     expect(pruneRuns(root, 2)).toEqual(['20261018-000000']);
     expect(fs.readdirSync(root).sort()).toEqual([
+      '20261017',
       '20261019-000000',
       '20261020-000000',
       'keep-me',
+      'notes-2026',
     ]);
   });
 

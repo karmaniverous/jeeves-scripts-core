@@ -140,7 +140,7 @@ describe('resolveSettings: report', () => {
       expect(resolve(WITH_DIR)).not.toHaveProperty('reportAccount');
     });
 
-    it.each([[['vc', 'default']], [[]]])('carries %j over', (accounts) => {
+    it.each([[['globex', 'default']], [[]]])('carries %j over', (accounts) => {
       expect(
         resolve({ ...WITH_DIR, reportTextAccounts: accounts }),
       ).toHaveProperty('reportTextAccounts', accounts);

@@ -28,9 +28,9 @@ const read = (messages: ChannelMessage[], truncated = false) =>
 describe('gatherChannel: history fallback', () => {
   it('falls back to history without an archive, from the earlier bound', async () => {
     const history = read([human(NOW_S - DAY, 'hi')]);
-    const ws = workspace('vc', []);
+    const ws = workspace('globex', []);
     const facts = await gatherChannel(
-      channel('C2', { account: 'vc' }),
+      channel('C2', { account: 'globex' }),
       ws,
       settings,
       { sweptTs: ts(NOW_S - 30 * DAY) },

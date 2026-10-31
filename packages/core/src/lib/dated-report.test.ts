@@ -15,7 +15,13 @@ describe('dateInZone', () => {
   it('formats the calendar date in the zone', () => {
     const now = new Date('2026-10-20T20:00:00Z');
     expect(dateInZone(now, 'UTC')).toBe('2026-10-20');
-    expect(dateInZone(now, 'Asia/Makassar')).toBe('2026-10-21');
+    expect(dateInZone(now, 'Asia/Singapore')).toBe('2026-10-21');
+  });
+
+  it('zero-pads the month and day', () => {
+    expect(dateInZone(new Date('2026-01-05T12:00:00Z'), 'UTC')).toBe(
+      '2026-01-05',
+    );
   });
 });
 

@@ -125,9 +125,9 @@ describe('gatherChannel', () => {
     const files = {
       ...archived('/arch/general (C1)', [
         human(NOW_S - 2 * DAY, assignText('J:\\windows\\only')),
-        human(NOW_S - DAY, assignText('j/domains/c1')),
+        human(NOW_S - DAY, assignText('j/content/c1')),
       ]),
-      '/opt/jeeves/domains/c1/x': '',
+      '/opt/jeeves/content/c1/x': '',
     };
     const facts = await gatherChannel(
       channel('C1'),
@@ -139,7 +139,7 @@ describe('gatherChannel', () => {
     );
     expect(facts.finding).toEqual({
       kind: 'proposal',
-      path: '/opt/jeeves/domains/c1',
+      path: '/opt/jeeves/content/c1',
     });
   });
 

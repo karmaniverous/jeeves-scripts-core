@@ -61,7 +61,7 @@ describe('wantedOf', () => {
 
 describe('applyResult', () => {
   const wsA = workspace('default', []);
-  const wsB = workspace('vc', []);
+  const wsB = workspace('globex', []);
   const batch = [
     ...wantedOf(facts('C1'), wsA),
     ...wantedOf(facts('C2', { meta: { file: 'm' } }), wsB),

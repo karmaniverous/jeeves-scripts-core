@@ -114,11 +114,11 @@ describe('refreshChannelMeta: live runs', () => {
 
   it('passes the configured posting account through', async () => {
     const h = harness({
-      block: { ...REPORT_ONLY, reportAccount: 'vc' },
-      workspaces: () => [workspace('default', []), workspace('vc', [])],
+      block: { ...REPORT_ONLY, reportAccount: 'globex' },
+      workspaces: () => [workspace('default', []), workspace('globex', [])],
     });
     await refreshChannelMeta(LIVE, h.deps);
-    expect(h.posts[0]?.account).toBe('vc');
+    expect(h.posts[0]?.account).toBe('globex');
   });
 
   it('overwrites a hand-written value and leaves an identical one unwritten', async () => {

@@ -52,7 +52,7 @@ describe('resolveSettings', () => {
       reportAccount: 'work',
       reportTextAccounts: ['work', 'other'],
       outputDir: 'D:\\reports',
-      timezone: 'Asia/Makassar',
+      timezone: 'Asia/Singapore',
       descriptionMaxChars: 200,
       topicMaxChars: 250,
       activityDays: 3,
@@ -71,7 +71,7 @@ describe('resolveSettings', () => {
       reportTextAccounts: ['work', 'other'],
       outputDir: 'D:\\reports',
       outputDirSource: 'config',
-      timeZone: 'Asia/Makassar',
+      timeZone: 'Asia/Singapore',
       serverKeyName: 'scripts',
       descriptionMaxChars: 200,
       topicMaxChars: 250,
@@ -88,6 +88,19 @@ describe('resolveSettings', () => {
       sweepPatterns: [/^x$/i],
     });
     expect('sweepPatterns' in s && s.sweepPatterns[0]?.test('X')).toBe(true);
+  });
+
+  it.each([
+    [
+      { updateDescriptions: false },
+      { updateDescriptions: false, updateTopics: true },
+    ],
+    [
+      { updateTopics: false },
+      { updateDescriptions: true, updateTopics: false },
+    ],
+  ])('turns one field off on its own: %j', (over, fields) => {
+    expect(resolve({ ...WITH_DIR, ...over })).toMatchObject(fields);
   });
 
   describe('POSIX host', () => {

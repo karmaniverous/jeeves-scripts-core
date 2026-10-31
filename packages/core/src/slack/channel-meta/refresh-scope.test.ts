@@ -1,6 +1,6 @@
 /**
  * Tests for where generated text may go: the description and topic
- * sections of the report (live and `--dry-run` preview) name and quote
+ * sections of the report (live, and the preview without `--live`) name and quote
  * only channels in the report target's own workspace (the account whose
  * bot posts the summary) and count every other workspace's channels;
  * `slack.channelMeta.reportTextAccounts` overrides the list; a target no
@@ -47,10 +47,10 @@ describe('refreshChannelMeta: text stays in its workspace', () => {
     const h = harness(['default']);
     expect(await refreshChannelMeta(LIVE, h.deps)).toBe('posted');
     expect(h.apply.mock.calls.map((c) => [c[0].account, c[1], c[2]])).toEqual([
-      ['vc', 'CV1', 'description'],
-      ['vc', 'CV1', 'topic'],
-      ['vc', 'CV2', 'description'],
-      ['vc', 'CV2', 'topic'],
+      ['globex', 'CV1', 'description'],
+      ['globex', 'CV1', 'topic'],
+      ['globex', 'CV2', 'description'],
+      ['globex', 'CV2', 'topic'],
       ['default', 'C1', 'description'],
       ['default', 'C1', 'topic'],
     ]);
@@ -71,8 +71,8 @@ describe('refreshChannelMeta: text stays in its workspace', () => {
     ]);
   });
 
-  it('follows the report target: a DM reached by the vc bot shows vc text and counts default', async () => {
-    const h = harness(['vc'], { maxChannels: 2 });
+  it('follows the report target: a DM reached by the globex bot shows globex text and counts default', async () => {
+    const h = harness(['globex'], { maxChannels: 2 });
     await refreshChannelMeta(LIVE, h.deps);
     const fields = fieldSections(h.delivered[0]?.text ?? '');
     expect(fields).toContain(
@@ -82,7 +82,7 @@ describe('refreshChannelMeta: text stays in its workspace', () => {
       '**Waiting for a later run (batch cap)** (1):\n\n- 1 channel(s) in `default` (text not shown outside that workspace)',
     );
     expect(fields).not.toContain('#one');
-    expect(h.posts[0]?.account).toBe('vc');
+    expect(h.posts[0]?.account).toBe('globex');
   });
 
   it('keeps every channel in the coverage and sweep lists', async () => {
@@ -96,8 +96,8 @@ describe('refreshChannelMeta: text stays in its workspace', () => {
   });
 
   it.each<[string, string[], string[], string[]]>([
-    ['[]', [], [], ['default', 'vc']],
-    ['[default, vc]', ['default', 'vc'], ['default', 'vc'], []],
+    ['[]', [], [], ['default', 'globex']],
+    ['[default, globex]', ['default', 'globex'], ['default', 'globex'], []],
   ])(
     'shows only the accounts in reportTextAccounts (%s)',
     async (_case, configured, shown, hidden) => {
@@ -111,7 +111,7 @@ describe('refreshChannelMeta: text stays in its workspace', () => {
       for (const account of hidden)
         expect(fields).toContain(`in \`${account}\` (text not shown`);
       expect(fields.includes('Generated alpha text')).toBe(
-        shown.includes('vc'),
+        shown.includes('globex'),
       );
     },
   );
@@ -134,7 +134,7 @@ describe('refreshChannelMeta: text stays in its workspace', () => {
   it('fails a live run whose report target no bot can reach, before the worker', async () => {
     const h = harness([]);
     await expect(refreshChannelMeta(LIVE, h.deps)).rejects.toThrow(
-      'no Slack bot can reach U0OWNER (default: user_not_found; vc: user_not_found)',
+      'no Slack bot can reach U0OWNER (default: user_not_found; globex: user_not_found)',
     );
     expect(h.dispatch).not.toHaveBeenCalled();
     expect(h.saved).toEqual([]);
@@ -145,7 +145,7 @@ describe('refreshChannelMeta: text stays in its workspace', () => {
     const h = harness([]);
     await refreshChannelMeta(DRY, h.deps);
     expect(h.logs[0]).toBe(
-      "[warn] slack/refresh-channel-meta: no Slack bot can reach U0OWNER (default: user_not_found; vc: user_not_found); the preview names and quotes no workspace's channels but those in slack.channelMeta.reportTextAccounts",
+      "[warn] slack/refresh-channel-meta: no Slack bot can reach U0OWNER (default: user_not_found; globex: user_not_found); the preview names and quotes no workspace's channels but those in slack.channelMeta.reportTextAccounts",
     );
     expect(h.logs.join('\n')).toContain('channel text shown for: none):');
     expect(fieldSections(readPreview())).not.toContain('Generated');
@@ -153,7 +153,7 @@ describe('refreshChannelMeta: text stays in its workspace', () => {
     fs.rmSync(runsRoot, { recursive: true, force: true });
     fs.mkdirSync(runsRoot);
     const configured = harness([], {
-      reportTextAccounts: ['vc'],
+      reportTextAccounts: ['globex'],
     });
     await refreshChannelMeta(DRY, configured.deps);
     const fields = fieldSections(readPreview());

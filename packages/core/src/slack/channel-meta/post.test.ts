@@ -52,10 +52,10 @@ const found = async (
 describe('findDestination', () => {
   it('finds the workspace whose bot can open a DM with the owner', async () => {
     const a = ws('default');
-    const b = ws('vc', { dm: 'U0OWNER' });
+    const b = ws('globex', { dm: 'U0OWNER' });
     await expect(found('U0OWNER', undefined, [a, b])).resolves.toEqual([
-      'vc',
-      'D-vc',
+      'globex',
+      'D-globex',
     ]);
     expect(a.client.postMessage).not.toHaveBeenCalled();
     expect(b.client.postMessage).not.toHaveBeenCalled();
@@ -63,7 +63,7 @@ describe('findDestination', () => {
 
   it('tries the default workspace first', async () => {
     const a = ws('default', { dm: 'U0OWNER' });
-    const b = ws('vc', { dm: 'U0OWNER' });
+    const b = ws('globex', { dm: 'U0OWNER' });
     await expect(found('U0OWNER', undefined, [a, b])).resolves.toEqual([
       'default',
       'D-default',
@@ -73,10 +73,10 @@ describe('findDestination', () => {
 
   it('takes a channel from its first member workspace, opening nothing', async () => {
     const a = ws('default');
-    const b = ws('vc', { channels: ['C0REPORT'] });
+    const b = ws('globex', { channels: ['C0REPORT'] });
     const c = ws('x', { channels: ['C0REPORT'] });
     await expect(found('C0REPORT', undefined, [a, b, c])).resolves.toEqual([
-      'vc',
+      'globex',
       'C0REPORT',
     ]);
     expect(b.client.openDm).not.toHaveBeenCalled();
@@ -92,14 +92,14 @@ describe('findDestination', () => {
 
   it("uses only the configured account's bot", async () => {
     const a = ws('default', { dm: 'U0OWNER' });
-    const b = ws('vc', { dm: 'U0OWNER' });
-    await expect(found('U0OWNER', 'vc', [a, b])).resolves.toEqual([
-      'vc',
-      'D-vc',
+    const b = ws('globex', { dm: 'U0OWNER' });
+    await expect(found('U0OWNER', 'globex', [a, b])).resolves.toEqual([
+      'globex',
+      'D-globex',
     ]);
     expect(a.client.openDm).not.toHaveBeenCalled();
-    await expect(found('C0ANY', 'vc', [a, b])).resolves.toEqual([
-      'vc',
+    await expect(found('C0ANY', 'globex', [a, b])).resolves.toEqual([
+      'globex',
       'C0ANY',
     ]);
     await expect(findDestination('U0OWNER', 'nope', [a, b])).rejects.toThrow(
@@ -108,12 +108,12 @@ describe('findDestination', () => {
   });
 
   it('reports every refusal when no bot can reach the user', async () => {
-    const b = ws('vc');
+    const b = ws('globex');
     b.client.openDm = vi.fn(() => Promise.reject(new Error('boom')));
     await expect(
       findDestination('U0OWNER', undefined, [ws('default'), b]),
     ).rejects.toThrow(
-      'no Slack bot can reach U0OWNER (default: user_not_found; vc: boom)',
+      'no Slack bot can reach U0OWNER (default: user_not_found; globex: boom)',
     );
     await expect(findDestination('U0OWNER', undefined, [])).rejects.toThrow(
       'no Slack bot can reach U0OWNER (no Slack accounts)',
@@ -141,13 +141,13 @@ describe('findDestination: a DM conversation id', () => {
 
   it('finds it in the workspace whose bot can see it, opening and posting nothing', async () => {
     const a = await listed('default');
-    const b = await listed('vc', 'D0REPORT');
+    const b = await listed('globex', 'D0REPORT');
     expect([...a.channels, ...b.channels].map((c) => c.id)).toEqual([
       'C0DEFAULT',
       'C0VC',
     ]);
     await expect(found('D0REPORT', undefined, [a, b])).resolves.toEqual([
-      'vc',
+      'globex',
       'D0REPORT',
     ]);
     expect(a.calls.at(-1)).toEqual({
@@ -162,7 +162,7 @@ describe('findDestination: a DM conversation id', () => {
 
   it('tries the default workspace first', async () => {
     const a = await listed('default', 'D0REPORT');
-    const b = await listed('vc', 'D0REPORT');
+    const b = await listed('globex', 'D0REPORT');
     await expect(found('D0REPORT', undefined, [a, b])).resolves.toEqual([
       'default',
       'D0REPORT',
@@ -174,18 +174,18 @@ describe('findDestination: a DM conversation id', () => {
     await expect(
       findDestination('D0REPORT', undefined, [
         await listed('default'),
-        await listed('vc'),
+        await listed('globex'),
       ]),
     ).rejects.toThrow(
-      'no Slack bot can reach D0REPORT (default: channel_not_found; vc: channel_not_found)',
+      'no Slack bot can reach D0REPORT (default: channel_not_found; globex: channel_not_found)',
     );
   });
 
   it("takes it as is from a configured account's bot", async () => {
     const a = await listed('default', 'D0REPORT');
-    const b = await listed('vc');
-    await expect(found('D0REPORT', 'vc', [a, b])).resolves.toEqual([
-      'vc',
+    const b = await listed('globex');
+    await expect(found('D0REPORT', 'globex', [a, b])).resolves.toEqual([
+      'globex',
       'D0REPORT',
     ]);
     for (const w of [a, b])
@@ -195,29 +195,29 @@ describe('findDestination: a DM conversation id', () => {
 
 describe('postSummary', () => {
   it('posts at the destination and returns its account', async () => {
-    const b = ws('vc');
-    await expect(postSummary('hi', { ws: b, channel: 'D-vc' })).resolves.toBe(
-      'vc',
-    );
-    expect(b.client.postMessage).toHaveBeenCalledWith('D-vc', 'hi');
+    const b = ws('globex');
+    await expect(
+      postSummary('hi', { ws: b, channel: 'D-globex' }),
+    ).resolves.toBe('globex');
+    expect(b.client.postMessage).toHaveBeenCalledWith('D-globex', 'hi');
   });
 
   it("names the account and Slack's refusal", async () => {
     await expect(
       postSummary('hi', {
-        ws: ws('vc', {
+        ws: ws('globex', {
           refuse: new SlackApiError('chat.postMessage', 'channel_not_found'),
         }),
         channel: 'C0X',
       }),
     ).rejects.toThrow(
-      'the vc bot could not post the summary to C0X: channel_not_found',
+      'the globex bot could not post the summary to C0X: channel_not_found',
     );
     await expect(
       postSummary('hi', {
-        ws: ws('vc', { refuse: new Error('boom') }),
+        ws: ws('globex', { refuse: new Error('boom') }),
         channel: 'C0X',
       }),
-    ).rejects.toThrow('the vc bot could not post the summary to C0X: boom');
+    ).rejects.toThrow('the globex bot could not post the summary to C0X: boom');
   });
 });

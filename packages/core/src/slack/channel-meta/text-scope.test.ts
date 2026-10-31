@@ -12,7 +12,7 @@ describe('textAccountsFor', () => {
   it.each([
     [undefined, 'default', ['default']],
     [undefined, undefined, []],
-    [['vc', 'x'], 'default', ['vc', 'x']],
+    [['globex', 'x'], 'default', ['globex', 'x']],
     [[], 'default', []],
   ])('configured %j, target %s: %j', (configured, target, shown) => {
     expect([...textAccountsFor(configured, target)]).toEqual(shown);
@@ -24,10 +24,10 @@ describe('scopedLines', () => {
     expect(
       scopedLines(
         [
-          { account: 'vc', line: 'v1' },
+          { account: 'globex', line: 'v1' },
           { account: 'default', line: 'd1' },
           { account: 'x', line: 'x1' },
-          { account: 'vc', line: 'v2' },
+          { account: 'globex', line: 'v2' },
           { account: 'default', line: 'd2' },
         ],
         new Set(['default']),
@@ -35,7 +35,7 @@ describe('scopedLines', () => {
     ).toEqual([
       'd1',
       'd2',
-      '2 channel(s) in `vc` (text not shown outside that workspace)',
+      '2 channel(s) in `globex` (text not shown outside that workspace)',
       '1 channel(s) in `x` (text not shown outside that workspace)',
     ]);
   });

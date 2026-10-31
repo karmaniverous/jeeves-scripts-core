@@ -64,7 +64,7 @@ describe('summaryPost', () => {
           team: 'Acme <&> Co',
           scopes: ALL_SCOPES,
         }),
-        workspace('vc', [channel('C3')], { scopes: ['channels:read'] }),
+        workspace('globex', [channel('C3')], { scopes: ['channels:read'] }),
         workspace('z', [], { error: 'invalid_auth' }),
       ],
       facts: [
@@ -106,7 +106,7 @@ describe('summaryPost', () => {
     expect(post).toBe(
       [
         '*Slack channel meta* (2026-10-22)',
-        'Member channels: 2 in `default` (Acme &lt;&amp;&gt; Co); 1 in `vc`, 3 missing scopes; `z` not read',
+        'Member channels: 2 in `default` (Acme &lt;&amp;&gt; Co); 1 in `globex`, 3 missing scopes; `z` not read',
         'Home directories: 1 missing, 1 missing on disk, 1 unseeded meta',
         'Sweep: 1 proposal, 1 mismatch, 0 assigned missing on disk',
         'Descriptions: 1 updated, 0 unchanged, 1 pending, 0 failed',

@@ -16,12 +16,25 @@ import {
   SECRETS,
   workspace,
 } from './fakes.test-helper.js';
-import { reportBody, reportMarkdown } from './report.js';
+import { homeDirCommand, reportBody, reportMarkdown } from './report.js';
 import { mdText } from './report-md.js';
 
 const noSecrets = (text: string): void => {
   for (const s of SECRETS) expect(text).not.toContain(s);
 };
+
+describe('homeDirCommand', () => {
+  it.each([
+    ['J:/acme', 'J:/acme'],
+    ['/opt/my docs', '"/opt/my docs"'],
+    ["/opt/o'brien", '"/opt/o\'brien"'],
+    ['/opt/a"b', '"/opt/a\\"b"'],
+  ])('quotes %s only when the shell needs it', (dir, arg) => {
+    expect(homeDirCommand('C0AB', dir)).toBe(
+      `jeeves-scripts config set slack.channels.C0AB.homeDir ${arg}`,
+    );
+  });
+});
 
 describe('mdText', () => {
   it('escapes Markdown and collapses whitespace', () => {
@@ -57,14 +70,14 @@ describe('reportBody', () => {
     const body = reportBody(
       input({
         workspaces: [
-          workspace('vc', [], { scopes: ['channels:read', 'groups:read'] }),
+          workspace('globex', [], { scopes: ['channels:read', 'groups:read'] }),
           workspace('x', []),
           workspace('y', [], { error: 'Slack auth.test failed: invalid_auth' }),
         ],
       }),
     );
     expect(body).toContain(
-      '- `vc`: 0 member channel(s), missing scopes `channels:write.topic`, `groups:write.topic`',
+      '- `globex`: 0 member channel(s), missing scopes `channels:write.topic`, `groups:write.topic`',
     );
     expect(body).toContain('- `x`: 0 member channel(s), scopes unknown');
     expect(body).toContain(

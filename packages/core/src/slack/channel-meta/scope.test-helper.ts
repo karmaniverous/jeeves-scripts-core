@@ -2,7 +2,7 @@
  * @module slack/channel-meta/scope.test-helper
  *
  * A two-workspace run for the channel-meta text-scope tests: one
- * seeded channel in `default` (`one`), two in `vc` (`alpha`, `beta`),
+ * seeded channel in `default` (`one`), two in `globex` (`alpha`, `beta`),
  * each with recent human activity, and a worker result with a
  * description and topic for every channel unless overridden; plus
  * readers for the report's field sections and the dry run's preview.
@@ -28,11 +28,11 @@ import { PREVIEW_FILE } from './refresh.js';
 import { harness, NOW_S } from './refresh.test-helper.js';
 import type { Workspace } from './workspaces.js';
 
-/** Seeded channels: `one` in `default`, `alpha` and `beta` in `vc`. */
+/** Seeded channels: `one` in `default`, `alpha` and `beta` in `globex`. */
 export const CHANNELS = [
   ['default', 'C1', 'one'],
-  ['vc', 'CV1', 'alpha'],
-  ['vc', 'CV2', 'beta'],
+  ['globex', 'CV1', 'alpha'],
+  ['globex', 'CV2', 'beta'],
 ] as const;
 
 /** A worker result with a description and topic for every channel. */
@@ -45,7 +45,7 @@ export const RESULT = JSON.stringify({
   ),
 });
 
-/** Every generated or current value of a `vc` channel. */
+/** Every generated or current value of a `globex` channel. */
 export const VC_TEXT = [
   'Generated alpha text',
   'Generated beta text',
@@ -54,9 +54,9 @@ export const VC_TEXT = [
   'Typed alpha purpose',
 ];
 
-/** The count line for the `vc` channels in a field section. */
+/** The count line for the `globex` channels in a field section. */
 export const VC_COUNT =
-  '- 2 channel(s) in `vc` (text not shown outside that workspace)';
+  '- 2 channel(s) in `globex` (text not shown outside that workspace)';
 
 /**
  * A run over two workspaces.
@@ -74,7 +74,7 @@ export const scopeHarness = (
   over: Parameters<typeof harness>[1] = {},
 ): ReturnType<typeof harness> => {
   const workspaces = (): Workspace[] =>
-    ['default', 'vc'].map((account) => {
+    ['default', 'globex'].map((account) => {
       const ws = workspace(
         account,
         CHANNELS.filter(([a]) => a === account).map(([, id, name]) =>

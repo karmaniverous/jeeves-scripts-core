@@ -58,11 +58,11 @@ describe('live wiring', () => {
     const workspaces = await liveWorkspaces();
     expect(workspaces.map((w) => [w.account, w.team])).toEqual([
       ['default', 'Acme'],
-      ['vc', 'Acme'],
+      ['globex', 'Acme'],
     ]);
     expect(mocks.clientOptions.map((o) => o.token)).toEqual([
       'secret-default',
-      'secret-vc',
+      'secret-globex',
     ]);
     await mocks.clientOptions[0]?.fetch?.('https://slack.com/api/auth.test');
     expect(mocks.fetch).toHaveBeenCalledWith(

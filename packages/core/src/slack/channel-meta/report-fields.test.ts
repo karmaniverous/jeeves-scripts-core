@@ -16,9 +16,12 @@ import {
 import { fieldSection } from './report-fields.js';
 import type { ReportInput } from './report-input.js';
 
-const vc = (id: string, over: Parameters<typeof facts>[1] = {}) =>
+const globex = (id: string, over: Parameters<typeof facts>[1] = {}) =>
   facts(id, {
-    channel: channel(id, { name: `vc-${id.toLowerCase()}`, account: 'vc' }),
+    channel: channel(id, {
+      name: `globex-${id.toLowerCase()}`,
+      account: 'globex',
+    }),
     ...over,
   });
 
@@ -40,10 +43,10 @@ describe('fieldSection: workspace scope', () => {
   const scoped: Partial<ReportInput> = {
     facts: [
       facts('C1'),
-      vc('C2'),
-      vc('C3'),
+      globex('C2'),
+      globex('C3'),
       facts('C4', { plans: NO_SCOPE }),
-      vc('C5', { plans: NO_SCOPE }),
+      globex('C5', { plans: NO_SCOPE }),
     ],
     outcomes: [
       {
@@ -73,33 +76,33 @@ describe('fieldSection: workspace scope', () => {
   it('names and quotes shown channels and counts the others per workspace', () => {
     const text = section(scoped);
     expect(text).toContain(
-      '**Proposed (preview: not set)** (2):\n\n- #c1 (`C1`)\n  - current: \u201cWas mine\u201d\n  - proposed: \u201cMine\u201d\n- 1 channel(s) in `vc` (text not shown outside that workspace)',
+      '**Proposed (preview: not set)** (2):\n\n- #c1 (`C1`)\n  - current: \u201cWas mine\u201d\n  - proposed: \u201cMine\u201d\n- 1 channel(s) in `globex` (text not shown outside that workspace)',
     );
     expect(text).toContain(
-      '**Failed** (1):\n\n- 1 channel(s) in `vc` (text not shown outside that workspace)',
+      '**Failed** (1):\n\n- 1 channel(s) in `globex` (text not shown outside that workspace)',
     );
     expect(text).toContain(
-      '**Left alone: the bot lacks the write scope** (2):\n\n- #c4 (`C4`)\n- 1 channel(s) in `vc` (text not shown outside that workspace)',
+      '**Left alone: the bot lacks the write scope** (2):\n\n- #c4 (`C4`)\n- 1 channel(s) in `globex` (text not shown outside that workspace)',
     );
     for (const s of ['VC PROPOSED', 'VC CURRENT', 'VC DETAIL', 'VC FAILED'])
       expect(text).not.toContain(s);
-    expect(text).not.toMatch(/vc-c\d|C2|C3|C5/);
+    expect(text).not.toMatch(/globex-c\d|C2|C3|C5/);
   });
 
   it('names every channel of the shown accounts', () => {
     const text = section({
       ...scoped,
-      textAccounts: new Set(['default', 'vc']),
+      textAccounts: new Set(['default', 'globex']),
     });
     expect(text).toContain('VC PROPOSED');
-    expect(text).toContain('#vc-c5 (`C5`)');
+    expect(text).toContain('#globex-c5 (`C5`)');
     expect(text).not.toContain('text not shown');
   });
 
   it('counts every channel when no account is shown', () => {
     const text = section({ ...scoped, textAccounts: new Set() });
     expect(text).toContain(
-      '**Proposed (preview: not set)** (2):\n\n- 1 channel(s) in `default` (text not shown outside that workspace)\n- 1 channel(s) in `vc` (text not shown outside that workspace)',
+      '**Proposed (preview: not set)** (2):\n\n- 1 channel(s) in `default` (text not shown outside that workspace)\n- 1 channel(s) in `globex` (text not shown outside that workspace)',
     );
     expect(text).not.toContain('Mine');
   });

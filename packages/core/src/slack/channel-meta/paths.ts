@@ -16,7 +16,7 @@
  * - A path whose first segment is a configured root (`j/a` with
  *   `{"j":"/opt/jeeves/"}` on Linux, or `{"j":"J:/"}` on Windows) is
  *   joined onto that root (`/opt/jeeves/a`, `J:/a`).
- * - A relative path written in back-ticks (`domains/a`) is joined onto the
+ * - A relative path written in back-ticks (`content/a`) is joined onto the
  *   configured `relativeRoot`, if any.
  *
  * In a message, `\` and `/` both separate segments (people type either).

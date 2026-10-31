@@ -38,7 +38,7 @@ export interface ScopedLine {
 /**
  * The bullets the report may carry: each shown account's bullet as is,
  * then one count per other account, in first-seen order (e.g. "17
- * channel(s) in `vc` (text not shown outside that workspace)").
+ * channel(s) in `globex` (text not shown outside that workspace)").
  *
  * @param items - Every bullet, with its channel's account.
  * @param shown - Accounts whose channels may be named.

@@ -125,7 +125,7 @@ describe('readWorkspace', () => {
         throw new SlackApiError('users.conversations', 'missing_scope');
       },
     });
-    const ws = await readWorkspace('vc', client, () => undefined);
+    const ws = await readWorkspace('globex', client, () => undefined);
     expect(ws.error).toBe('Slack users.conversations failed: missing_scope');
     expect(ws.channels).toEqual([]);
     expect(ws).not.toHaveProperty('scopes');
@@ -139,11 +139,11 @@ describe('readWorkspace', () => {
       'auth.test': () => ({ team: 'Acme' }),
       'users.conversations': () => ({ channels: [{ name: 'Now alpha' }] }),
     });
-    const ws = await readWorkspace('vc', client, () => undefined);
+    const ws = await readWorkspace('globex', client, () => undefined);
     expect(ws.error).toBe(UNEXPECTED);
     expect(stderr).toHaveBeenCalledExactlyOnceWith(
       expect.stringContaining(
-        'slack/refresh-channel-meta: reading workspace vc: ',
+        'slack/refresh-channel-meta: reading workspace globex: ',
       ),
     );
     stderr.mockRestore();
@@ -157,13 +157,13 @@ describe('memberChannels', () => {
       channel('C3', { name: 'zeta' }),
       shared,
     ]);
-    const second = workspace('vc', [
-      { ...shared, account: 'vc' },
-      channel('C4', { name: 'alpha', account: 'vc' }),
+    const second = workspace('globex', [
+      { ...shared, account: 'globex' },
+      channel('C4', { name: 'alpha', account: 'globex' }),
     ]);
     const list = memberChannels([first, second], new Set(['C3']));
     expect(list.map(({ channel: c, ws }) => [c.id, c.account, ws])).toEqual([
-      ['C4', 'vc', second],
+      ['C4', 'globex', second],
       ['C2', 'default', first],
     ]);
   });
