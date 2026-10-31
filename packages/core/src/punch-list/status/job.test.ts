@@ -3,16 +3,7 @@
  * live dependencies, and the skip with no `punchList` block.
  */
 
-import { readFileSync } from 'node:fs';
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const manifests = JSON.parse(
-  readFileSync(
-    new URL('../../../jobs/punch-list.json', import.meta.url),
-    'utf8',
-  ),
-) as Record<string, { enabled: boolean; args?: string[] }>;
 
 const mocks = vi.hoisted(() => {
   const state: { config: unknown } = { config: undefined };
@@ -27,6 +18,7 @@ vi.mock('./run.js', () => ({ runStatus: mocks.runStatus }));
 vi.mock('../config.js', () => ({ punchListConfig: () => mocks.config }));
 
 import { liveInstallEnv } from '../github/install.js';
+import { punchListManifest } from '../punch-list.test-helper.js';
 import { NO_PUNCH_LIST } from '../runtime.js';
 import job, { STATUS_JOB_ID } from './job.js';
 
@@ -46,7 +38,7 @@ describe('punch-list-refresh-status runnable', () => {
     expect(STATUS_JOB_ID).toBe('punch-list-refresh-status');
     expect(job.id).toBe(STATUS_JOB_ID);
     expect(job.domain).toBe('punch-list');
-    expect(manifests[STATUS_JOB_ID]).toMatchObject({
+    expect(punchListManifest(STATUS_JOB_ID)).toMatchObject({
       enabled: false,
       args: ['--live'],
     });

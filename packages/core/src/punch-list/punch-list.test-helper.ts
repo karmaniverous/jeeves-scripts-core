@@ -6,6 +6,8 @@
  * GitHub port. Not used by production code.
  */
 
+import { readFileSync } from 'node:fs';
+
 import type { PunchListConfig } from './config.js';
 import type { ClosingPr, GitHubPort, Issue, Release } from './github/port.js';
 import type { ReportItem } from './harvest/report.js';
@@ -149,3 +151,14 @@ export const testConfig = (
   serverConfig: '/base/config/jeeves-server/config.json',
   ...overrides,
 });
+
+/** A runnable's entry in core's `jobs/punch-list.json`. */
+export const punchListManifest = (id: string): unknown =>
+  (
+    JSON.parse(
+      readFileSync(
+        new URL('../../jobs/punch-list.json', import.meta.url),
+        'utf8',
+      ),
+    ) as Record<string, unknown>
+  )[id];

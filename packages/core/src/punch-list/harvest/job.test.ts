@@ -4,16 +4,7 @@
  * `punchList` block.
  */
 
-import { readFileSync } from 'node:fs';
-
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-const manifests = JSON.parse(
-  readFileSync(
-    new URL('../../../jobs/punch-list.json', import.meta.url),
-    'utf8',
-  ),
-) as Record<string, { enabled: boolean; args?: string[] }>;
 
 const mocks = vi.hoisted(() => {
   const state: { config: unknown } = { config: undefined };
@@ -29,6 +20,7 @@ vi.mock('./run.js', () => ({ runHarvest: mocks.runHarvest }));
 vi.mock('./worker.js', () => ({ liveHarvestWorker: mocks.liveHarvestWorker }));
 vi.mock('../config.js', () => ({ punchListConfig: () => mocks.config }));
 
+import { punchListManifest } from '../punch-list.test-helper.js';
 import { NO_PUNCH_LIST } from '../runtime.js';
 import job, { HARVEST_JOB_ID } from './job.js';
 
@@ -48,7 +40,7 @@ describe('punch-list-harvest runnable', () => {
     expect(HARVEST_JOB_ID).toBe('punch-list-harvest');
     expect(job.id).toBe(HARVEST_JOB_ID);
     expect(job.domain).toBe('punch-list');
-    expect(manifests[HARVEST_JOB_ID]).toMatchObject({
+    expect(punchListManifest(HARVEST_JOB_ID)).toMatchObject({
       enabled: false,
       args: ['--live'],
     });
