@@ -36,7 +36,8 @@
 
 import fs from 'node:fs';
 
-import { argFlag, argValue, type ParsedArgs } from '../lib/args.js';
+import { argFlag, argValue, type ParsedArgs } from '@karmaniverous/jeeves';
+
 import { constants } from '../lib/constants.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { userCacheFile } from '../slack/lib/slack-cache.js';

@@ -13,7 +13,8 @@
  * Decision 53); without one the run fails (exit 1) before anything else.
  */
 
-import { argFlag, type ParsedArgs } from '../lib/args.js';
+import { argFlag, type ParsedArgs } from '@karmaniverous/jeeves';
+
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { agilePut, fetchBacklog } from './lib/agile-api.js';
 import {

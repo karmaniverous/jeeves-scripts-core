@@ -11,7 +11,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { argFlag, type ParsedArgs } from '../lib/args.js';
+import { argFlag, type ParsedArgs } from '@karmaniverous/jeeves';
+
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { runDocFetch } from './lib/doc-fetch.js';
 import type { DocFetchOptions } from './lib/doc-fetch-scan.js';

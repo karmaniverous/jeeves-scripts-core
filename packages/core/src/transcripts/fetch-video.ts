@@ -12,8 +12,9 @@
  * (never from `jeeves-scripts.json`).
  */
 
+import { argFlag, argOptional, positionalArgs } from '@karmaniverous/jeeves';
+
 import { transcriptsConfig } from '../config/transcripts.js';
-import { argFlag, argOptional, positionalArgs } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { fileTranscript } from './lib/file-transcript.js';
 

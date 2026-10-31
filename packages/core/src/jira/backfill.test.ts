@@ -1,9 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { parseRunnableArgs } from '@karmaniverous/jeeves';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { parseRunnableArgs } from '../lib/args.js';
 import { fakeFetch } from '../lib/fake-fetch.test-helper.js';
 import { jiraBackfill, jiraBackfillFlags, RATE_LIMIT_MS } from './backfill.js';
 import { jiraJobDeps } from './lib/jira-deps.js';

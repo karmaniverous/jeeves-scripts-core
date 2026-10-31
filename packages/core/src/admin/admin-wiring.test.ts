@@ -10,10 +10,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { parseRunnableArgs } from '@karmaniverous/jeeves';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { resetConfig } from '../config/loader.js';
-import { parseRunnableArgs } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
 import { fakeRunnerClient } from '../lib/fake-runner-client.test-helper.js';
 import { useTempConfig } from '../lib/temp-config.test-helper.js';

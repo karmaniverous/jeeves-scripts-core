@@ -4,6 +4,7 @@
  * design §3. This pins the runtime names so either change is deliberate.
  */
 
+import * as jeeves from '@karmaniverous/jeeves';
 import { describe, expect, it } from 'vitest';
 
 import * as root from '../src/index.js';
@@ -196,5 +197,20 @@ const EXPECTED = [
 describe('root export', () => {
   it('exports exactly the documented runtime names', () => {
     expect(Object.keys(root).sort()).toEqual(EXPECTED);
+  });
+
+  it("re-exports the platform's argument parser and retry helpers, not copies (#24)", () => {
+    const platform = [
+      'argFlag',
+      'argOptional',
+      'argValue',
+      'parseRunnableArgs',
+      'positionalArgs',
+      'unknownArgs',
+      'exponentialBackoff',
+      'retryAsync',
+      'retrySync',
+    ] as const;
+    expect(platform.filter((name) => root[name] !== jeeves[name])).toEqual([]);
   });
 });

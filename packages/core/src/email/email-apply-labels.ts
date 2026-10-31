@@ -12,6 +12,7 @@
  * `jeeves-scripts run email-apply-labels`; it has no manifest.
  */
 
+import { argFlag, argOptional, type ParsedArgs } from '@karmaniverous/jeeves';
 import { getRunnerClient } from '@karmaniverous/jeeves-runner';
 
 import {
@@ -22,7 +23,6 @@ import {
   reportOnlyFor,
   resetConfig,
 } from '../config/index.js';
-import { argFlag, argOptional, type ParsedArgs } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   APPLY_LABELS_MAX_THREADS,

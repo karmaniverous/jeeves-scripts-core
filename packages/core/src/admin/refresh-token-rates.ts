@@ -16,9 +16,8 @@
  * constants().TOKEN_RATES_SEED_PATH (core's `config/token-rates.seed.json`).
  */
 
-import { atomicWrite } from '@karmaniverous/jeeves';
+import { argFlag, atomicWrite } from '@karmaniverous/jeeves';
 
-import { argFlag } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { fetchOpenRouterRates, httpGetJson } from './lib/openrouter-pricing.js';

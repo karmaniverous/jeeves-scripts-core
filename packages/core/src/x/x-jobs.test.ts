@@ -7,9 +7,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { type ArgSpec, parseRunnableArgs } from '@karmaniverous/jeeves';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { type ArgSpec, parseRunnableArgs } from '../lib/args.js';
 import { drainXQueues, drainXQueuesFlags } from './drain-queues.js';
 import { pollXFlags, runXPoller } from './lib/poll-x-items.js';
 import {

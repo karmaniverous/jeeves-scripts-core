@@ -14,6 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { argOptional, type ParsedArgs } from '@karmaniverous/jeeves';
 import {
   getRunnerClient,
   type RunnerClient,
@@ -22,7 +23,6 @@ import { z } from 'zod';
 
 import { loadConfig } from '../config/loader.js';
 import type { SlackConfig } from '../config/slack-schema.js';
-import { argOptional, type ParsedArgs } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { accountTeams } from './lib/account-teams.js';

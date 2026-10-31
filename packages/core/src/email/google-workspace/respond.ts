@@ -35,7 +35,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { nowIso } from '@karmaniverous/jeeves';
+import { argFlag, nowIso } from '@karmaniverous/jeeves';
 import {
   dispatchSession,
   getRunnerClient,
@@ -47,7 +47,6 @@ import {
   type PipelineConfig,
   reportOnlyFor,
 } from '../../config/index.js';
-import { argFlag } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
 import { gatewayInvoke } from '../../lib/gateway-client.js';
 import { gatewayRpc } from '../../lib/gateway-rpc.js';

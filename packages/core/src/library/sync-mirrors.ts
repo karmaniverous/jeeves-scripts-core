@@ -13,12 +13,11 @@
  * as not met.
  */
 
-import { run } from '@karmaniverous/jeeves';
+import { argFlag, type ParsedArgs, run } from '@karmaniverous/jeeves';
 
 import type { LibraryMirror } from '../config/library-schema.js';
 import { loadConfig } from '../config/loader.js';
 import { paths } from '../config/paths.js';
-import { argFlag, type ParsedArgs } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   githubCloneUrl,

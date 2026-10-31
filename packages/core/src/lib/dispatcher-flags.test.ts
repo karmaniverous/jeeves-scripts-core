@@ -1,6 +1,6 @@
+import { parseRunnableArgs } from '@karmaniverous/jeeves';
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { parseRunnableArgs } from './args.js';
 import {
   declaredDispatcherFlags,
   dispatcherFlags,

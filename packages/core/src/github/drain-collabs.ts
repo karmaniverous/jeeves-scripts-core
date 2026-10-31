@@ -8,9 +8,12 @@
  * and the bot user (to accept invitations) as needed.
  */
 
-import { getErrorMessage } from '@karmaniverous/jeeves';
+import {
+  argValue,
+  getErrorMessage,
+  type ParsedArgs,
+} from '@karmaniverous/jeeves';
 
-import { argValue, type ParsedArgs } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   collabArgs,

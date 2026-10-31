@@ -15,7 +15,8 @@
 
 import fs from 'node:fs';
 
-import { argOptional, type ParsedArgs } from '../../lib/args.js';
+import { argOptional, type ParsedArgs } from '@karmaniverous/jeeves';
+
 import {
   handleArg,
   logPollHandles,

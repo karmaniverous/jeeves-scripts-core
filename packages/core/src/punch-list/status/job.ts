@@ -9,7 +9,8 @@
  * 0) when the instance config has no `punchList` block.
  */
 
-import { argFlag } from '../../lib/args.js';
+import { argFlag } from '@karmaniverous/jeeves';
+
 import { defineRunnable } from '../../runnables/define-runnable.js';
 import { punchListConfig } from '../config.js';
 import { liveInstallEnv } from '../github/install.js';

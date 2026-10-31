@@ -11,7 +11,7 @@
  * `process.argv` is read as before. Pure apart from that default.
  */
 
-import { argFlag, type ParsedArgs } from './args.js';
+import { argFlag, type ParsedArgs } from '@karmaniverous/jeeves';
 
 /** The flags every dispatcher accepts. */
 export const dispatcherFlags = {

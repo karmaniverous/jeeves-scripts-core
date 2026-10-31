@@ -9,7 +9,8 @@
  * to process.
  */
 
-import type { ParsedArgs } from '../lib/args.js';
+import type { ParsedArgs } from '@karmaniverous/jeeves';
+
 import { defineRunnable } from '../runnables/define-runnable.js';
 import {
   collabArgs,

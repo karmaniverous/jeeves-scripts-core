@@ -14,7 +14,11 @@
  * clean run.
  */
 
-import { getErrorMessage } from '@karmaniverous/jeeves';
+import {
+  argFlag,
+  getErrorMessage,
+  type ParsedArgs,
+} from '@karmaniverous/jeeves';
 
 import type {
   GithubRuleset,
@@ -24,7 +28,6 @@ import type {
 import type { JobDelta } from '../config/jobs-schema.js';
 import { loadConfig } from '../config/loader.js';
 import { paths } from '../config/paths.js';
-import { argFlag, type ParsedArgs } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { readSources } from './lib/file-sources.js';
 import {

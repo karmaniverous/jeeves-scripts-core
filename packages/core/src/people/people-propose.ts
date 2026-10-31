@@ -13,8 +13,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { argFlag, argOptional, type ParsedArgs } from '@karmaniverous/jeeves';
+
 import { getLoadedConfigPath, resolveConfigPath } from '../config/loader.js';
-import { argFlag, argOptional, type ParsedArgs } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { proposeFromSlack } from './propose.js';
 

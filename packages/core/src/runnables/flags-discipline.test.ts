@@ -23,7 +23,6 @@ const src = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 /** Argument plumbing, allowed to read raw arguments. */
 const ALLOWED = new Set(
   [
-    'lib/args.ts',
     'lib/dispatcher-flags.ts',
     'lib/spawn-worker.ts',
     'runnables/define-runnable.ts',

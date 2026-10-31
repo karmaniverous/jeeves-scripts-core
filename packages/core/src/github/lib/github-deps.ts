@@ -13,8 +13,10 @@
 import fs from 'node:fs';
 
 import {
+  argOptional,
   getErrorMessage,
   nowIso,
+  type ParsedArgs,
   run,
   sleepAsync,
 } from '@karmaniverous/jeeves';
@@ -24,7 +26,6 @@ import {
 } from '@karmaniverous/jeeves-runner';
 
 import { getBasePathForGitHubOrg } from '../../config/index.js';
-import { argOptional, type ParsedArgs } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
 import { gh, type GhResult, setupGhConfig } from '../../lib/gh.js';
 

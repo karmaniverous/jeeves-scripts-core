@@ -41,22 +41,9 @@ export {
   digestTimeZone,
 } from './dispatchers/lib/digest-timezone.js';
 export * from './dispatchers/lib/task-file-dispatcher.js';
-export {
-  argFlag,
-  argOptional,
-  type ArgSpec,
-  argValue,
-  type ArgValueOptions,
-  type FlagSpec,
-  type OptionalSpec,
-  type ParsedArgs,
-  parseRunnableArgs,
-  positionalArgs,
-  unknownArgs,
-  type ValueSpec,
-} from './lib/args.js';
 export * from './lib/component-config.js';
 export { type Constants, constants } from './lib/constants.js';
+export { dateInZone, deliverReport, reportPath } from './lib/dated-report.js';
 export {
   dayOfWeek,
   formatDate,
@@ -131,8 +118,20 @@ export {
   pluginDeclarationSchema,
 } from './runnables/plugin.js';
 export {
+  argFlag,
+  argOptional,
+  type ArgSpec,
+  argValue,
+  type ArgValueOptions,
   exponentialBackoff,
+  type FlagSpec,
+  type OptionalSpec,
+  type ParsedArgs,
+  parseRunnableArgs,
+  positionalArgs,
   retryAsync,
   type RetryPolicy,
   retrySync,
+  unknownArgs,
+  type ValueSpec,
 } from '@karmaniverous/jeeves';

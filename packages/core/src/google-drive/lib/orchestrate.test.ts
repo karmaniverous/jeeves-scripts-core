@@ -1,8 +1,8 @@
 import path from 'node:path';
 
+import { parseRunnableArgs } from '@karmaniverous/jeeves';
 import { describe, expect, it } from 'vitest';
 
-import { parseRunnableArgs } from '../../lib/args.js';
 import { googleDriveSyncFlags } from '../sync.js';
 import {
   assertDisjointTargets,

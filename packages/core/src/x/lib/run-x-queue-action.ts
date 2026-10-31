@@ -12,7 +12,8 @@ import {
   argValue,
   type ParsedArgs,
   positionalArgs,
-} from '../../lib/args.js';
+} from '@karmaniverous/jeeves';
+
 import type {
   JobContext,
   JobPrerequisite,

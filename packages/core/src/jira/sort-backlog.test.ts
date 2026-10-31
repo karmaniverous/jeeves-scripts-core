@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 
+import { parseRunnableArgs } from '@karmaniverous/jeeves';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { parseRunnableArgs } from '../lib/args.js';
 import { fakeFetch, type FetchCall } from '../lib/fake-fetch.test-helper.js';
 import {
   jiraTempDir,
