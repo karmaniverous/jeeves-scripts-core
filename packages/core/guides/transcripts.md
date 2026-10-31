@@ -25,7 +25,7 @@ jeeves-scripts run transcripts-fetch-video <video-url-or-id> [--keep] [--dir DIR
 | `--dir DIR` | Library directory override (implies `--keep`; the file name is kept). |
 | `--out FILE` | Exact output path (implies `--keep`). Not with `--dir`. |
 | `--force` | Overwrite an existing kept file, and refetch instead of using the cache. |
-| `--live` | Write the files. Without it, everything is computed and reported (`dryRun: true`) and nothing is written, not even the cache. The skill always passes `--live`. |
+| `--live` | Write the files. Without it, everything is computed and reported (`dryRun: true`) and nothing is written, not even the cache. A dry run with no cached response still calls TranscriptAPI (one credit) to compute the report, and caches nothing, so a following `--live` run calls it again (a second credit). The skill always passes `--live`. |
 
 It prints one JSON line and never the transcript text:
 
@@ -59,7 +59,7 @@ An unknown option, or `--dir`/`--out` without a value, is refused by `run` befor
 
 ```mermaid
 flowchart LR
-  video["YouTube video"] -->|"TranscriptAPI<br/>(TRANSCRIPT_API_KEY)"| cache["{scratchDir}/VIDEO_ID.json<br/>(raw response)"]
+  video["YouTube video"] -->|"TranscriptAPI<br/>(TRANSCRIPT_API_KEY)"| cache["{scratchDir}/VIDEO_ID.json<br/>(response, re-serialised JSON)"]
   cache --> md["rendered Markdown"]
   md -->|no --keep| scratch["{scratchDir}/VIDEO_ID.md<br/>(always rewritten)"]
   md -->|--keep / --dir / --out| kept["{libraryDir}/TITLE-AUTHOR.md<br/>(never overwritten without --force)"]
@@ -67,7 +67,7 @@ flowchart LR
 
 1. A named `--out` that exists without `--force` exits 5 before any network call.
 2. **Cache**: `{scratchDir}/<video_id>.json`. Present (and parseable) without `--force`: reused (`cached: true`): no credit spent, no key needed.
-3. **Fetch**: `GET https://transcriptapi.com/api/v2/youtube/transcript?video_url=<id>&format=json&include_timestamp=true&send_metadata=true` with `Authorization: Bearer <TRANSCRIPT_API_KEY>` and `User-Agent: <transcripts.userAgent>`, a 60-second timeout, and one retry after 2 seconds on HTTP 408 (the `@karmaniverous/jeeves` retry helper). With `--live` the raw response is cached before rendering, so a later run (keeping a video first fetched as a scratch copy, say) spends no credit.
+3. **Fetch**: `GET https://transcriptapi.com/api/v2/youtube/transcript?video_url=<id>&format=json&include_timestamp=true&send_metadata=true` with `Authorization: Bearer <TRANSCRIPT_API_KEY>` and `User-Agent: <transcripts.userAgent>`, a 60-second timeout, and one retry after 2 seconds on HTTP 408 (the `@karmaniverous/jeeves` retry helper). With `--live` the response is cached before rendering: the parsed JSON body, re-serialised (`JSON.stringify`), not the response bytes, so whitespace and key escapes may differ from what the API sent while the data is the same. A later run (keeping a video first fetched as a scratch copy, say) then spends no credit. A dry run caches nothing (above).
 4. **Render**: YAML frontmatter (`title`, `author`, `author_url`, `source`, `video_id`, `length`, `language`, `type: video-transcript`, `retrieved`, `retrieved_via`), a header with the source and author links and the length, a note that the captions are auto-generated, and one `[m:ss]` (or `[h:mm:ss]`) line per caption segment, whitespace collapsed.
 5. **Write**: a kept file that exists without `--force` exits 5 (after the fetch: the response is cached by then). The directory is created as needed. No redaction: the watcher redacts secrets at index time (Decision 70).
 

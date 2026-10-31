@@ -29,6 +29,6 @@ metadata:
 
 ## Notes
 
-- TranscriptAPI is billed per credit; a cached response is reused for free, so keeping a video already fetched costs nothing.
+- TranscriptAPI is billed per credit; a cached response is reused for free, so keeping a video already fetched with `--live` costs nothing. A run without `--live` still spends a credit and caches nothing.
 - An instance's routing (a channel whose videos are always filed, people whose links are always kept) belongs in an instance skill that layers on this one.
 - Searching YouTube, channels or playlists is the optional `transcriptapi` skill's job, not this one.
