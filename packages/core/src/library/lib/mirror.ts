@@ -69,9 +69,9 @@ export interface MirrorOptions {
   /** Command runner (default `run` from `@karmaniverous/jeeves`). */
   run?: RunCommand;
   /** Platform rsync paths are written for (default `process.platform`). */
-  platform?: NodeJS.Platform;
+  platform?: NodeJS.Platform | undefined;
   /** Filesystem device of a path (default: of its nearest existing ancestor). */
-  deviceOf?: (p: string) => number;
+  deviceOf?: ((p: string) => number) | undefined;
   /** Progress logger (default `console.log`). */
   log?: (line: string) => void;
 }

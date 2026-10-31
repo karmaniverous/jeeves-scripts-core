@@ -112,8 +112,8 @@ export const syncMirror = (
     minRatio: mirror.minRatio,
     siteLinks: mirror.siteLinks,
     run: deps.run,
-    ...(deps.platform ? { platform: deps.platform } : {}),
-    ...(deps.deviceOf ? { deviceOf: deps.deviceOf } : {}),
+    platform: deps.platform,
+    deviceOf: deps.deviceOf,
     log: (line) => {
       deps.log(`${mirror.id}: ${line}`);
     },
@@ -151,8 +151,9 @@ export const syncMirrors = (
       reports.push(r);
       deps.log(reportLine(r, settings.live));
     } catch (e) {
-      failed[mirror.id] = getErrorMessage(e);
-      deps.log(`${mirror.id}: FAILED: ${getErrorMessage(e)}`);
+      const message = getErrorMessage(e);
+      failed[mirror.id] = message;
+      deps.log(`${mirror.id}: FAILED: ${message}`);
     }
   }
   const meta = [
@@ -162,10 +163,10 @@ export const syncMirrors = (
   console.log(
     `JR_RESULT:${JSON.stringify({ meta, mirrors: reports, failed })}`,
   );
-  const ids = Object.keys(failed);
-  if (ids.length > 0)
+  const failures = Object.entries(failed);
+  if (failures.length > 0)
     throw new Error(
-      `${LIBRARY_SYNC_ID}: ${String(ids.length)} of ${String(mirrors.length)} mirrors failed: ${ids.map((id) => `${id} (${failed[id] ?? ''})`).join('; ')}`,
+      `${LIBRARY_SYNC_ID}: ${String(failures.length)} of ${String(mirrors.length)} mirrors failed: ${failures.map(([id, message]) => `${id} (${message})`).join('; ')}`,
     );
   return reports;
 };
