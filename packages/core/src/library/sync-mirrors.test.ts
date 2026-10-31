@@ -65,6 +65,13 @@ afterAll(() => {
   fs.rmSync(upstream, { recursive: true, force: true });
 });
 
+/** The registered `library-sync-mirrors` runnable. */
+const loadLibraryJob = async () => {
+  const entry = coreJobs.find((e) => e.id === 'library-sync-mirrors');
+  if (!entry) throw new Error('library-sync-mirrors is not registered');
+  return { entry, job: await loadJob(entry) };
+};
+
 describe('library-sync-mirrors runnable', () => {
   it('ships a manifest that is off, daily at 04:10 UTC', () => {
     expect(
@@ -84,10 +91,8 @@ describe('library-sync-mirrors runnable', () => {
   });
 
   it('is registered in the library domain and accepts only --live', async () => {
-    const entry = coreJobs.find((e) => e.id === 'library-sync-mirrors');
-    if (!entry) throw new Error('library-sync-mirrors is not registered');
+    const { entry, job } = await loadLibraryJob();
     expect(entry.domain).toBe('library');
-    const job = await loadJob(entry);
     expect(Object.keys(job.flags ?? {})).toEqual(['live']);
     // git and rsync are on PATH wherever these tests run (CI installs rsync).
     expect(await job.prerequisite?.({ args: [] })).toBe(true);
@@ -95,9 +100,7 @@ describe('library-sync-mirrors runnable', () => {
   });
 
   it('fails a configured run, not skips it, when the tools are not on PATH', async () => {
-    const entry = coreJobs.find((e) => e.id === 'library-sync-mirrors');
-    if (!entry) throw new Error('library-sync-mirrors is not registered');
-    const job = await loadJob(entry);
+    const { job } = await loadLibraryJob();
     vi.stubEnv('PATH', '');
     // The launcher runs the body (exit 1 on its throw); doctor reports it.
     expect(await job.prerequisite?.({ args: [] })).toBe(true);

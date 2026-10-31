@@ -1,12 +1,11 @@
 /**
- * The `library` block (spec 2.9): field rules, defaults, and the
- * config check (Decision 76: no block passes; an invalid block fails).
+ * The `library` block (spec 2.9): field rules, defaults, and its shape in
+ * the generated JSON Schema. `config check` against the block is proved
+ * with the runnable in `library/sync-mirrors.config.test.ts`.
  */
 
 import { describe, expect, it } from 'vitest';
 
-import { configCheck } from './check.js';
-import { useConfigFile } from './config-file.test-helper.js';
 import { generateJsonSchema } from './json-schema.js';
 import { libraryMirrorSchema, librarySchema } from './library-schema.js';
 
@@ -122,35 +121,56 @@ describe('librarySchema', () => {
   });
 });
 
-describe('config check and the library block', () => {
-  const write = useConfigFile();
-
-  it('passes with no block', () => {
-    expect(configCheck(write({})).ok).toBe(true);
-  });
-
-  it.each([
-    [
-      'a duplicate mirror id',
-      [mirror, { ...mirror, dest: 'other' }],
-      /duplicate mirror id/,
-    ],
-    ['a dest under .meta', [{ ...mirror, dest: '.meta/docs' }], /under \.meta/],
-    [
-      'two mirrors sharing a dest',
-      [mirror, { ...mirror, id: 'b' }],
-      /overlaps mirror "docs"/,
-    ],
-  ])('fails on %s', (_what, mirrors, message) => {
-    const result = configCheck(write({ library: { mirrors } }));
-    expect(result.ok).toBe(false);
-    expect(result.errors.join('\n')).toMatch(message);
-  });
-
-  it('appears in the generated JSON Schema', () => {
+describe('the library block in the generated JSON Schema', () => {
+  it('describes each mirror: its fields, the required ones, the defaults and bounds, nothing else', () => {
     const schema = generateJsonSchema() as {
-      properties: Record<string, unknown>;
+      properties: Record<string, { properties: Record<string, unknown> }>;
     };
-    expect(schema.properties).toHaveProperty('library');
+    const library = schema.properties.library;
+    expect(library).toMatchObject({
+      type: 'object',
+      default: { mirrors: [] },
+      additionalProperties: false,
+    });
+    const item = (
+      library?.properties.mirrors as {
+        default: unknown;
+        items: {
+          properties: Record<string, unknown>;
+          required: string[];
+          additionalProperties: boolean;
+        };
+      }
+    ).items;
+    expect(Object.keys(item.properties).sort()).toEqual([
+      'adopt',
+      'dest',
+      'exclude',
+      'id',
+      'minRatio',
+      'ref',
+      'repo',
+      'siteLinks',
+      'subdir',
+    ]);
+    expect(item.required).toEqual(
+      expect.arrayContaining(['id', 'repo', 'dest']),
+    );
+    expect(item.required).not.toContain('siteLinks');
+    expect(item.additionalProperties).toBe(false);
+    expect(item.properties).toMatchObject({
+      id: { type: 'string', pattern: '^[a-z0-9]+(?:-[a-z0-9]+)*$' },
+      ref: { type: 'string', default: 'main' },
+      subdir: { type: 'string', default: '' },
+      exclude: { type: 'array', default: [] },
+      minRatio: {
+        type: 'number',
+        default: 0.5,
+        exclusiveMinimum: 0,
+        maximum: 1,
+      },
+      siteLinks: { type: 'object', required: ['pattern', 'target'] },
+      adopt: { type: 'boolean', default: false },
+    });
   });
 });

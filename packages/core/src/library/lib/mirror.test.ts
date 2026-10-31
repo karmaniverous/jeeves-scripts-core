@@ -5,12 +5,11 @@
  */
 
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { snapshot, writeTree } from './library.test-helper.js';
+import { mirrorFixture, snapshot, writeTree } from './library.test-helper.js';
 import { type MirrorOptions, mirrorTree } from './mirror.js';
 import { listFiles } from './stage.js';
 
@@ -30,29 +29,15 @@ const MIRRORED = Object.keys(UPSTREAM)
 describe('mirrorTree', () => {
   let root: string;
   let opts: MirrorOptions;
-  const lines: string[] = [];
+  let lines: string[];
 
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'library-mirror-'));
-    writeTree(path.join(root, 'clone', 'sub'), UPSTREAM);
-    lines.length = 0;
-    opts = {
-      paths: {
-        clone: path.join(root, 'clone'),
-        source: path.join(root, 'clone', 'sub'),
-        stage: path.join(root, 'state', 'stage'),
-        tmp: path.join(root, 'state', 'tmp'),
-        incoming: path.join(root, 'state', 'incoming'),
-        dest: path.join(root, 'content', 'library', 'skills'),
-        record: path.join(root, 'state', 'published.json'),
-      },
-      live: true,
-      head: 'abc1234',
+    ({ root, opts, lines } = mirrorFixture('library-mirror-', UPSTREAM, {
+      subdir: 'sub',
+      dest: 'skills',
       exclude: ['/.system/'],
-      minRatio: 0.5,
       siteLinks: { pattern: '/skill/{name}', target: '{dir}/SKILL.md' },
-      log: (l) => lines.push(l),
-    };
+    }));
   });
 
   afterEach(() => {

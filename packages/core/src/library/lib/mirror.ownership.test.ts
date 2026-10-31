@@ -7,12 +7,11 @@
  */
 
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { snapshot, writeTree } from './library.test-helper.js';
+import { mirrorFixture, snapshot, writeTree } from './library.test-helper.js';
 import { type MirrorOptions, mirrorTree } from './mirror.js';
 import { readPublishRecord, writePublishRecord } from './publish-record.js';
 import { listFiles } from './stage.js';
@@ -27,29 +26,14 @@ const FOREIGN = {
 describe('mirrorTree ownership of the destination', () => {
   let root: string;
   let opts: MirrorOptions;
-  const lines: string[] = [];
+  let lines: string[];
 
   beforeEach(() => {
-    root = fs.mkdtempSync(path.join(os.tmpdir(), 'library-owner-'));
-    writeTree(path.join(root, 'clone'), UPSTREAM);
-    lines.length = 0;
-    opts = {
-      paths: {
-        clone: path.join(root, 'clone'),
-        source: path.join(root, 'clone'),
-        stage: path.join(root, 'state', 'stage'),
-        tmp: path.join(root, 'state', 'tmp'),
-        incoming: path.join(root, 'state', 'incoming'),
-        dest: path.join(root, 'content', 'library', 'docs'),
-        record: path.join(root, 'state', 'published.json'),
-      },
-      live: true,
-      head: 'abc1234',
-      exclude: [],
+    ({ root, opts, lines } = mirrorFixture('library-owner-', UPSTREAM, {
+      dest: 'docs',
       // The foreign tree outnumbers the stage: keep the shrink guard out of the way.
       minRatio: 0.1,
-      log: (l) => lines.push(l),
-    };
+    }));
   });
 
   afterEach(() => {

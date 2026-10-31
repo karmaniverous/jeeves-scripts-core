@@ -1,11 +1,12 @@
 /**
  * `library-sync-mirrors` and the config (Decision 76): with no `library`
- * block it skips with exit 0; with an invalid one its prerequisite and its
- * run fail.
+ * block, `config check` passes and the runnable skips with exit 0; with an
+ * invalid one, `config check`, its prerequisite and its run all fail.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { configCheck } from '../config/check.js';
 import { useConfigFile } from '../config/config-file.test-helper.js';
 import libraryJob from './sync-mirrors.js';
 
@@ -20,8 +21,8 @@ describe('library-sync-mirrors and the library block', () => {
     vi.restoreAllMocks();
   });
 
-  it('skips with no block', async () => {
-    write({});
+  it('passes config check and skips with no block', async () => {
+    expect(configCheck(write({})).ok).toBe(true);
     expect(await libraryJob.prerequisite?.({ args: [] })).toBe(
       'no library.mirrors configured',
     );
@@ -43,9 +44,14 @@ describe('library-sync-mirrors and the library block', () => {
       [mirror, { ...mirror, id: 'b' }],
       /overlaps mirror "docs"/,
     ],
-  ])('fails its prerequisite and run on %s', (_what, mirrors, message) => {
-    write({ library: { mirrors } });
-    expect(() => libraryJob.prerequisite?.({ args: [] })).toThrow(message);
-    expect(() => libraryJob.run({ args: [], flags: {} })).toThrow(message);
-  });
+  ])(
+    'fails config check, its prerequisite and the run on %s',
+    (_what, mirrors, message) => {
+      const result = configCheck(write({ library: { mirrors } }));
+      expect(result.ok).toBe(false);
+      expect(result.errors.join('\n')).toMatch(message);
+      expect(() => libraryJob.prerequisite?.({ args: [] })).toThrow(message);
+      expect(() => libraryJob.run({ args: [], flags: {} })).toThrow(message);
+    },
+  );
 });
