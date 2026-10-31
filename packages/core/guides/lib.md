@@ -144,7 +144,7 @@ Timestamped run directories for runnables that hand a worker a snapshot of files
 
 ### server-link.ts
 
-A file's jeeves-server insider link, resolved by the server itself, so it works on any host and never posts a filesystem path. `resolvePublicUrl` and `slackLink` (and the `ServerAccess`, `Fetch` and `FetchResponse` types) are exported from the package root; the rest serves `slack-refresh-channel-meta`.
+A file's jeeves-server insider link, resolved by the server itself, so it works on any host and never posts a filesystem path. `resolvePublicUrl`, `slackLink`, `liveReportLink` and `linkBeforeWorker` (and the `ServerAccess`, `Fetch`, `FetchResponse`, `ReportLink` and `LinkRequest` types) are exported from the package root, so an instance job that writes a dated report links it the same way (Decision 74); the rest serves `slack-refresh-channel-meta`.
 
 - `resolvePublicUrl(fetch, access, fsPath, timeoutMs?)` - `GET <apiUrl>/api/resolve-path?fsPath=<path>&k=<insiderKey>`; resolves the server's `publicUrl`. Throws `jeeves-server could not resolve <path> (HTTP <status>[: <error>])` on a non-OK answer (e.g. a path under no root) and `jeeves-server publicUrl is not configured; refusing to post a filesystem path to Slack` when the server has no `publicUrl`. It waits at most `timeoutMs` (default `SERVER_LINK_TIMEOUT_MS`, 10 s; the server is local, so a longer wait means it is hung) for the answer, body included, then throws `jeeves-server did not answer within <ms> ms resolving <path>` (never the URL or key)
 - `slackLink(url, label)` - `<url|label>`, a Slack mrkdwn link

@@ -68,6 +68,10 @@ export * from './lib/runner-config.js';
 export {
   type Fetch,
   type FetchResponse,
+  linkBeforeWorker,
+  type LinkRequest,
+  liveReportLink,
+  type ReportLink,
   resolvePublicUrl,
   type ServerAccess,
   slackLink,

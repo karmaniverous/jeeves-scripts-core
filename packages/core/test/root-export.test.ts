@@ -116,7 +116,9 @@ const EXPECTED = [
   'librarySchema',
   'librarySiteLinksSchema',
   'linearIntegrationSchema',
+  'linkBeforeWorker',
   'listEntrySchema',
+  'liveReportLink',
   'loadConfig',
   'localConfig',
   'meetingsEmailConfigSchema',
@@ -220,5 +222,12 @@ describe('root export', () => {
       'retrySync',
     ] as const;
     expect(platform.filter((name) => root[name] !== jeeves[name])).toEqual([]);
+  });
+
+  it('exports the report-link helpers an instance job reuses (Decision 74)', async () => {
+    const link = await import('../src/lib/server-link.js');
+    expect(root.liveReportLink).toBe(link.liveReportLink);
+    expect(root.linkBeforeWorker).toBe(link.linkBeforeWorker);
+    expect(typeof root.liveReportLink('Report')).toBe('function');
   });
 });
