@@ -138,6 +138,12 @@ export const scheduledJobs: readonly RegistryEntry[] = [
     load: () => import('../jira/sort-backlog.js'),
   },
   {
+    id: 'library-sync-mirrors',
+    domain: 'library',
+    module: 'library/sync-mirrors',
+    load: () => import('../library/sync-mirrors.js'),
+  },
+  {
     id: 'linear-sync-comments',
     domain: 'linear',
     module: 'linear/sync-comments',

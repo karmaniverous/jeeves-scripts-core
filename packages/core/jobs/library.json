@@ -1,0 +1,16 @@
+{
+  "library-sync-mirrors": {
+    "name": "Library Sync Mirrors",
+    "description": "Mirror configured public-repo subdirectories into the content tree as reference libraries (checksum rsync, .meta preserved).",
+    "schedule": {
+      "freq": "daily",
+      "byhour": 4,
+      "byminute": 10,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 600,
+    "enabled": false,
+    "prerequisite": null
+  }
+}

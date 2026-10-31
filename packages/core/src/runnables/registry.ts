@@ -44,6 +44,7 @@ export const coreDomains: readonly string[] = [
   'github',
   'google-drive',
   'jira',
+  'library',
   'linear',
   'meetings',
   'meta',

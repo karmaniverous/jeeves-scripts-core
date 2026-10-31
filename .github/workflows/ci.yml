@@ -29,6 +29,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # library-sync-mirrors' tests run the real rsync; ubuntu runners have
+      # it, Windows runners get the Cygwin build (cwRsync).
+      - name: Install rsync (Windows)
+        if: runner.os == 'Windows'
+        run: choco install rsync -y --no-progress
+
       # The template compiles against core's built types (design §7), so
       # build before lint and typecheck.
       - name: Build
