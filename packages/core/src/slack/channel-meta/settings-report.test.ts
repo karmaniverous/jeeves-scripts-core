@@ -99,7 +99,7 @@ describe('resolveSettings: report', () => {
             ),
           ),
         ).toBe(
-          'no report directory: set slack.channelMeta.outputDir (the report goes to a DM, which has no homeDir)',
+          'slack.channelMeta.outputDir is required: the report goes to a DM, which has no homeDir',
         );
         expect(asked).toBe(false);
       },
@@ -107,7 +107,7 @@ describe('resolveSettings: report', () => {
 
     it('names a channel with no homeDir', () => {
       expect(problemOf(resolve({ ...REQUIRED, reportChannel: 'C0X' }))).toBe(
-        'no report directory: set slack.channelMeta.outputDir (the report goes to C0X, which has no slack.channels.C0X.homeDir)',
+        'slack.channelMeta.outputDir is required: the report channel C0X has no slack.channels.C0X.homeDir',
       );
     });
 

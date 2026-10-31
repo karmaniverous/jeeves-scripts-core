@@ -1,15 +1,18 @@
 /**
  * Tests for the `slack.channelMeta` block (spec 2.6): defaults, every
  * key's type and bounds, unknown keys refused, and the report directory
- * rule (required unless the report channel has a `homeDir`). A present
- * but invalid block is a `config check` problem (Decision 76); an absent
- * one is valid.
+ * rule (required unless the report channel has a `homeDir`, checked on
+ * the whole config), and the exported schemas left free of refinements
+ * (`.pick()`/`.omit()` work). A present but invalid block is a
+ * `config check` problem (Decision 76); an absent one is valid.
  */
 
 import { describe, expect, it } from 'vitest';
 
+import { configObjectSchema, configSchema } from './schema.js';
 import {
   DEFAULT_SWEEP_PATTERNS,
+  defaultReportDir,
   isChannelTarget,
   SLACK_TEXT_MAX,
   slackChannelMetaSchema,
@@ -19,12 +22,18 @@ import { slackConfigSchema } from './slack-schema.js';
 const REQUIRED = { timezone: 'UTC', serverKey: 'scripts' };
 const VALID = { ...REQUIRED, outputDir: '/srv/reports' };
 
-/** The issues of a `slack` block, as `path: message`. */
+/** The issues of a `slack` block in a whole config, as `path: message`
+ * under `slack`. */
 const issues = (slack: unknown): string[] => {
-  const parsed = slackConfigSchema.safeParse(slack);
+  const parsed = configSchema.safeParse({
+    instance: { name: 'test', baseDir: '/base' },
+    slack,
+  });
   return parsed.success
     ? []
-    : parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+    : parsed.error.issues.map(
+        (i) => `${i.path.slice(1).join('.')}: ${i.message}`,
+      );
 };
 
 describe('slack.channelMeta', () => {
@@ -125,7 +134,7 @@ describe('slack.channelMeta', () => {
 
   describe('report directory', () => {
     const DM =
-      'channelMeta.outputDir: channelMeta.outputDir is required: the report goes to a DM, which has no homeDir';
+      'channelMeta.outputDir: slack.channelMeta.outputDir is required: the report goes to a DM, which has no homeDir';
 
     it.each([
       ['the owner DM (no reportChannel)', {}],
@@ -142,8 +151,20 @@ describe('slack.channelMeta', () => {
           channelMeta: { ...REQUIRED, reportChannel: 'C0ADMIN' },
         }),
       ).toEqual([
-        'channelMeta.outputDir: channelMeta.outputDir is required: the report channel C0ADMIN has no slack.channels.C0ADMIN.homeDir',
+        'channelMeta.outputDir: slack.channelMeta.outputDir is required: the report channel C0ADMIN has no slack.channels.C0ADMIN.homeDir',
       ]);
+    });
+
+    it('is not checked by the slack schema alone (the whole config checks it)', () => {
+      expect(
+        slackConfigSchema.safeParse({ channelMeta: REQUIRED }).success,
+      ).toBe(true);
+    });
+
+    it('gives the run the report channel\u2019s homeDir', () => {
+      expect(defaultReportDir('C0ADMIN', () => '/srv/admin')).toEqual({
+        homeDir: '/srv/admin',
+      });
     });
 
     it.each(['C0ADMIN', 'G0ADMIN'])("defaults to %s's homeDir", (id) => {
@@ -158,6 +179,21 @@ describe('slack.channelMeta', () => {
     it('is accepted when set, whatever the target', () => {
       expect(issues({ channelMeta: VALID })).toEqual([]);
     });
+  });
+
+  it('leaves the exported schemas free of refinements: pick and omit work', () => {
+    expect(slackConfigSchema.pick({ channels: true }).parse({})).toEqual({
+      channels: {},
+    });
+    expect(
+      Object.keys(slackConfigSchema.omit({ channelMeta: true }).shape),
+    ).not.toContain('channelMeta');
+    expect(Object.keys(configObjectSchema.pick({ slack: true }).shape)).toEqual(
+      ['slack'],
+    );
+    expect(
+      Object.keys(slackChannelMetaSchema.pick({ timezone: true }).shape),
+    ).toEqual(['timezone']);
   });
 
   it.each([

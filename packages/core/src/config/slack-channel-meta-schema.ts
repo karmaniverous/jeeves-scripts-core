@@ -2,10 +2,13 @@
  * @module config/slack-channel-meta-schema
  *
  * The `slack.channelMeta` block of `slack-refresh-channel-meta` (spec
- * 2.6, #49): every key, its default and its bounds. `config/slack-schema`
- * puts it in the `slack` block, adds the report directory rule (which
- * needs `slack.channels`) and re-exports the schema and its type; the
- * helpers here stay off the root export.
+ * 2.6, #49): every key, its default and its bounds, and the report
+ * directory rule ({@link defaultReportDir}, which needs `slack.channels`,
+ * so `config/schema` checks it on the whole config and the schemas stay
+ * free of refinements: `.pick()` and `.omit()` work on them).
+ * `config/slack-schema` puts the block in the `slack` block and
+ * re-exports the schema and its type; the helpers here stay off the root
+ * export.
  */
 
 import { z } from 'zod';
@@ -98,3 +101,61 @@ export type SlackChannelMetaBlock = z.infer<typeof slackChannelMetaSchema>;
 
 /** Whether a report target is a channel (`C…`/`G…`), which may have a `homeDir`. */
 export const isChannelTarget = (id: string): boolean => /^[CG]/.test(id);
+
+/**
+ * The report directory when `outputDir` is unset, written once for the
+ * config check (`config/schema`) and the run (`channel-meta/settings`):
+ * the report channel's `homeDir`. A DM target (a `D` id, a user, or
+ * `reportChannel` unset, the OpenClaw owner's DM) has none, and neither
+ * may a channel; either way `outputDir` is required.
+ *
+ * @param target - The report target, `undefined` for the owner's DM.
+ * @param homeDirOf - A channel's configured `homeDir`.
+ * @returns The directory, or why `outputDir` is required.
+ */
+export function defaultReportDir(
+  target: string | undefined,
+  homeDirOf: (channelId: string) => string | undefined,
+): { homeDir: string } | { problem: string } {
+  if (target === undefined || !isChannelTarget(target))
+    return {
+      problem:
+        'slack.channelMeta.outputDir is required: the report goes to a DM, which has no homeDir',
+    };
+  const homeDir = homeDirOf(target);
+  return homeDir === undefined
+    ? {
+        problem: `slack.channelMeta.outputDir is required: the report channel ${target} has no slack.channels.${target}.homeDir`,
+      }
+    : { homeDir };
+}
+
+/** The parts of a parsed `slack` block {@link reportDirIssue} reads. */
+interface SlackBlock {
+  /** Per-channel decisions. */
+  channels: Readonly<Record<string, { homeDir?: string }>>;
+  /** The `channelMeta` block, if any. */
+  channelMeta?: SlackChannelMetaBlock;
+}
+
+/**
+ * The report directory rule on a parsed `slack` block, for the config
+ * check: a `channelMeta` block with no `outputDir` whose report target
+ * has no `homeDir` ({@link defaultReportDir}).
+ *
+ * @param slack - The parsed `slack` block.
+ * @returns The issue's path under `slack` and message, or `undefined`.
+ */
+export function reportDirIssue(
+  slack: SlackBlock,
+): { path: string[]; message: string } | undefined {
+  const meta = slack.channelMeta;
+  if (meta === undefined || meta.outputDir !== undefined) return undefined;
+  const dir = defaultReportDir(
+    meta.reportChannel,
+    (id) => slack.channels[id]?.homeDir,
+  );
+  return 'problem' in dir
+    ? { path: ['channelMeta', 'outputDir'], message: dir.problem }
+    : undefined;
+}

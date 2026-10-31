@@ -14,6 +14,7 @@
  * the injected readers.
  */
 
+import { defaultReportDir } from '../../config/slack-channel-meta-schema.js';
 import type { SlackChannelMetaBlock } from '../../config/slack-schema.js';
 import {
   canonicalAbsolute,
@@ -120,16 +121,15 @@ const reportDir = (
       outputDir: onHost(block.outputDir, `${BLOCK}.outputDir`, deps.host),
       outputDirSource: 'config',
     };
-  const homeDir =
-    isUserTarget(target) || isDmTarget(target)
-      ? undefined
-      : deps.channelHomeDir(target);
-  if (homeDir === undefined)
-    return problem(
-      `no report directory: set ${BLOCK}.outputDir (the report goes to ${isUserTarget(target) || isDmTarget(target) ? 'a DM, which has no homeDir' : `${target}, which has no slack.channels.${target}.homeDir`})`,
-    );
+  // The config check applies the same rule (Decision 76).
+  const dir = defaultReportDir(target, deps.channelHomeDir);
+  if ('problem' in dir) return problem(dir.problem);
   return {
-    outputDir: onHost(homeDir, `slack.channels.${target}.homeDir`, deps.host),
+    outputDir: onHost(
+      dir.homeDir,
+      `slack.channels.${target}.homeDir`,
+      deps.host,
+    ),
     outputDirSource: 'homeDir',
   };
 };
