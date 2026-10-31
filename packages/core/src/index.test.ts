@@ -113,6 +113,7 @@ describe('package exports map', () => {
       './presets/*.js',
       './schema/*',
       './skills/*',
+      './task-templates/*',
     ]);
   });
 });

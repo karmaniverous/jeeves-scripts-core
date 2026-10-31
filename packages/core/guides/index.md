@@ -17,7 +17,9 @@ children:
   - ./linear.md
   - ./meetings.md
   - ./meta.md
+  - ./punch-list.md
   - ./slack.md
+  - ./transcripts.md
   - ./x.md
   - ./google-drive-spec.md
   - ./token-metrics-runbook.md
@@ -49,7 +51,9 @@ Hand-written references for `@karmaniverous/jeeves-scripts-core`: the framework 
 - [Linear](./linear.md): Linear webhook drain, sync, backfill
 - [Meetings](./meetings.md): Meeting extraction (Meet, Fathom, Notion)
 - [Meta](./meta.md): Entity lifecycle maintenance
+- [Punch List](./punch-list.md): The instance's daily punch list of platform work: status from GitHub, harvesting from the archive
 - [Slack](./slack.md): Slack polling and archiving
+- [Transcripts](./transcripts.md): YouTube transcripts fetched to disk through TranscriptAPI
 - [X](./x.md): X/Twitter polling, posting, engagement
 
 ## Design records and runbooks

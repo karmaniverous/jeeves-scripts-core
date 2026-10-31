@@ -12,6 +12,7 @@ Framework for autonomous LLM task dispatchers that read Markdown task files and 
 | --- | --- |
 | `lib/digest-timezone.ts` | `digestTimeZone()` / `DIGEST_TIMEZONE_REF`: reads and validates the `digest.timezone` ref (IANA name, e.g. `America/Chicago`, or `UTC`); a missing or invalid zone throws (there is no default). For an instance's own digest. |
 | `lib/task-file-dispatcher.ts` | `taskFileDispatcher` / `dispatchTaskFile` / `resolveTaskFile`: the generic task-file dispatcher, exported from the package root (below). |
+| `lib/briefing.ts` | `BRIEFING_TEMPLATES`, `briefingVars` / `briefingVarsSchema`, `briefingSummaryPurpose`: the daily-briefing family's core templates, their values and the Slack summary shape ([daily briefings](#daily-briefings)). |
 
 ## Activation
 
@@ -54,7 +55,7 @@ await dispatchWithSlack(
 
 ### Task-file dispatcher (reads a TASK.md file)
 
-Use `dispatchTaskFile` inside a runnable, or pass `taskFileDispatcher(options)` (a `run` function that calls it) to `defineRunnable`, both exported from `@karmaniverous/jeeves-scripts-core`. It reads `<silo>/<taskFile>` (`siloPath`, Decision 28; `silo` omitted = the default silo), `[skip]`s with exit 0 when the file is missing, optionally prefixes the date, and dispatches through `dispatchWithSlack` (with `slack`) or jeeves-runner's `runDispatcher` and core's `spawn-worker` (without). `jobs.<jobId>.silo` / `.taskFile` in the instance config override the values in code, so an instance can move a TASK without code.
+Use `dispatchTaskFile` inside a runnable, or pass `taskFileDispatcher(options)` (a `run` function that calls it) to `defineRunnable`, both exported from `@karmaniverous/jeeves-scripts-core`. It reads `<silo>/<taskFile>` (`siloPath`, Decision 28; `silo` omitted = the default silo), `[skip]`s with exit 0 when the file is missing, optionally prefixes the date, and dispatches through `dispatchWithSlack` (with `slack`) or jeeves-runner's `runDispatcher` and core's `spawn-worker` (without). `jobs.<jobId>.silo` / `.taskFile` in the instance config override the values in code, so an instance can move a TASK without code. Every run logs where its task came from (`<scriptName>: task from the instance file <path>`).
 
 ```typescript
 import {
@@ -147,6 +148,88 @@ task = withDateContext(task, new Date(), tz);
 // > **Today is Monday, 2026-05-11 (America/Chicago).** Use this as the authoritative date reference for all dates in this report.
 ```
 
+### Core TASK templates
+
+Core ships TASK templates under `task-templates/` in the package (the punch-list harvest, the daily-briefing family). One resolver, `resolveTaskTemplate` (`lib/task-template.ts`, root export), decides which text a worker gets (Decision 75): the instance's own file at the configured path when it exists, else core's copy, read from the package. Nothing copies a template into the instance, so a core update reaches every instance that has not written its own. Every caller logs which source it used (`describeTaskSource`): `task from the instance file <path>` or `task from core template <name> (no instance file at <path>)`. A core template or `{{> name}}` include name is a relative path inside `task-templates/`: an absolute, UNC or drive-qualified name, a `..` segment, or a name that resolves outside the directory (through a link too) fails the run, so no name can put another file into a worker's task.
+
+Give `dispatchTaskFile` a `template` (a name under `task-templates/`) and a missing task file no longer skips: core's template is the task. `templateVars` (a value or a function) fills the task's `{{name}}` placeholders, and `{{> name}}` includes another core template (one level). A placeholder with no value fails the run, naming every missing one. `{{runMode}}` always has a value: `scheduled` under jeeves-runner (`JR_RUN_ID` set), else `on-demand` (`runModeOf`; a `runMode` in `templateVars` wins). Placeholders are filled only when `template` or `templateVars` is given, so an existing instance TASK file with literal braces is unchanged. To customise a template, copy it from `node_modules/@karmaniverous/jeeves-scripts-core/task-templates/` to the dispatcher's task-file path and edit it; the placeholders keep working.
+
+## Daily briefings
+
+The executive daily-briefing family (Decision 44 still holds: core ships the templates and helpers, the instance writes the dispatchers). Three reports, each its own dispatcher with its own directory, standing orders and `.meta/`, enabled independently:
+
+| Report | Template (`BRIEFING_TEMPLATES`) | When | Audience |
+| --- | --- | --- | --- |
+| Morning briefing | `morning`: `daily-briefings/morning-briefing.md` | Before the principal's day | Internal: everything the principal owns or waits on, prioritised |
+| End-of-day follow-up | `eod`: `daily-briefings/eod-follow-up.md` | About 6 PM | Internal: what today produced and what fell through the cracks |
+| Market intel | `marketIntel`: `daily-briefings/market-intel.md` | Shortly before the morning briefing | Shareable outside the organisation: no internal items |
+
+Any of them can run on demand instead of (or as well as) on schedule: give the dispatcher no manifest, or a disabled one, and run it when asked (`run <id>`). The dispatcher tells the worker how the run started through `{{runMode}}`, which the morning and end-of-day templates use: `scheduled` when jeeves-runner started it (the runner sets `JR_RUN_ID` for every job run, so a `runner_trigger` run counts as scheduled too), `on-demand` otherwise (`jeeves-scripts run <id>` from a session). On an on-demand run the templates read the delivery channel since the latest artifact instead of a fixed window.
+
+**What the templates hold:** the morning briefing's dated file (`YYYY-MM-DD-daily-briefing.md`) with BLUF, market-intel highlights, action items by owner and urgency (🔴 urgent, 🟡 awaiting the principal, 🔵 awaiting others, ✅ completed since last time, kept one cycle), upcoming calendar and sources; every action item a checkbox with status, source, headline, detail and owner. The end-of-day list (`YYYY-MM-DD-eod-follow-up.md`): do tonight, first thing tomorrow, this week, handled today, each with a category, a suggested delegate and a suspense date. Market intel: highlights, what's new, competitors, trends, fundraising, strategic implications, sources, every URL validated. The morning briefing and the end-of-day list share one set of rules (`daily-briefings/briefing-rules.md`, included in both):
+
+- **Carry-forward across both artifacts**: the more recent of the latest morning briefing and the latest end-of-day list is the baseline; items in the older one missing from the newer one carry forward too, so a skipped run drops nothing; open items carry until someone marks them complete.
+- **Checkbox reconciliation**: an open item checked moves to ✅; a ✅ item unchecked moves back to the open section matching its owner; checkbox state beats chat feedback; when both artifacts hold the same item, the more recent checkbox state wins.
+- **Standing orders**: feedback in the delivery channel that states a lasting preference is appended (dated, attributed) to the report's `standing-orders.md`; nothing is ever edited. **Cleared Items** are permanent suppressions: never carried forward, never mentioned. `daily-briefings/standing-orders.seed.md` is the starting content for a new report's file (report structure, content focus, handling rules for recurring noise, Cleared Items).
+- **Dates**: the dispatcher's date line in the principal's zone, never inferred.
+
+The briefing directory's `.meta/` synthesis is part of the worker's context; steer it with `daily-briefings/meta-steer.md` (conformance to the standing orders, resurfaced cleared items, the report-size trend), set as the meta's `_steer`.
+
+**The job script, not the worker, posts** ([above](#slack-the-job-script-does-it-not-the-worker)). The summary's shape is job-script config: `briefingSummaryPurpose({ emoji, title, bullets? })` gives a post target's `purpose` that fixes it: the emoji and bold title with the date, 3-5 BLUF bullets (or `bullets`, e.g. `'3-4 highlights'` for market intel), then the jeeves-server link to the full report, never the document itself. Status or error notes go to the operator only: give the operator's DM its own post target with that purpose, and never a stakeholder's.
+
+```typescript
+import {
+  BRIEFING_TEMPLATES,
+  briefingSummaryPurpose,
+  briefingVars,
+  defineRunnable,
+  dispatcherFlags,
+  taskFileDispatcher,
+} from '@karmaniverous/jeeves-scripts-core';
+
+const values = () =>
+  briefingVars({
+    org: 'Acme',
+    principal: 'Ana',
+    delegates: 'Bo (operations), Cy (finance)',
+    timeZone: 'America/Chicago',
+    deliveryChannel: '#ceo-briefing',
+    briefingDir: '/base/content/briefings/daily',
+    eodDir: '/base/content/briefings/eod', // omit: the morning briefing reads 'not enabled'
+    marketIntelDir: '/base/content/briefings/market-intel',
+  });
+
+export default defineRunnable({
+  id: 'acme-briefing-morning',
+  domain: 'acme',
+  description: 'Dispatch the morning briefing.',
+  flags: dispatcherFlags,
+  run: taskFileDispatcher({
+    scriptName: 'acme/briefing-morning',
+    jobId: 'acme-briefing-morning',
+    thinking: 'low',
+    taskFile: 'briefings/daily/TASK.md', // an instance file here wins
+    template: BRIEFING_TEMPLATES.morning,
+    templateVars: values,
+    dateTimeZone: 'America/Chicago',
+    slack: {
+      reads: [{ target: 'C000EXAMPLE1', label: '#ceo-briefing', limit: 50 }],
+      posts: [
+        {
+          target: 'C000EXAMPLE1',
+          purpose: briefingSummaryPurpose({
+            emoji: '📋',
+            title: 'Acme CEO Daily Briefing',
+          }),
+        },
+      ],
+    },
+  }),
+});
+```
+
+`briefingVars` validates the values (every field non-empty, `timeZone` an IANA zone, every directory absolute) and fails the run naming each bad field. `eodDir` and `marketIntelDir` are optional. The morning briefing reads them as `eodSource` / `marketIntelSource`: the directory, or `not enabled` ("this report is off") when unset. The end-of-day and market-intel templates write into their own directory, so running either without it fails the run (`task template needs a value for {{eodDir}}`, or `{{marketIntelDir}}`) instead of writing somewhere made up. Placeholders: `org`, `principal`, `delegates`, `timeZone`, `deliveryChannel`, `briefingDir`, `eodDir`, `marketIntelDir`, `eodSource`, `marketIntelSource` (from `briefingVars`) and `runMode` (from the dispatcher; a `runMode` in `templateVars` wins). The `jeeves-daily-briefings` skill has the setup steps.
+
 ## TASK File Anatomy
 
 A TASK file is a Markdown document containing standing orders for an LLM session. It defines:
@@ -168,6 +251,9 @@ TASK files are instance content, in a silo (Decision 23), e.g. `{contentDir}/dig
 | File | Purpose |
 | --- | --- |
 | `lib/task-file-dispatcher.ts` | `taskFileDispatcher`, `dispatchTaskFile`, `resolveTaskFile` |
+| `lib/briefing.ts` | The daily-briefing templates, values and summary shape |
+| `../lib/task-template.ts` | `resolveTaskTemplate`, `describeTaskSource`, `fillTaskTemplate`, `coreTaskTemplatePath` (Decision 75) |
+| core `task-templates/daily-briefings/` | The briefing templates, shared rules, standing-orders seed and `.meta/` steer |
 | `lib/digest-timezone.ts` | Reads and validates the `digest.timezone` ref |
 | `../config/pipeline-accessors.ts` | `getRef()` / `tryGetRef()` for refs |
 | `../config/silo-router.ts` | `siloPath()` for task file locations |
