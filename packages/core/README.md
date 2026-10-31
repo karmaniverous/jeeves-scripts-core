@@ -46,6 +46,7 @@ Runnable ids named in the docs are core's registered ids ([`guides/runnables.md`
 | [`guides/github.md`](guides/github.md) | Repo and issue sync, notifications, collaborators |
 | [`guides/google-drive.md`](guides/google-drive.md) | Drive sync into the content tree |
 | [`guides/jira.md`](guides/jira.md) | Jira webhook drain, backfill, backlog sort |
+| [`guides/library.md`](guides/library.md) | Public repo subdirectories mirrored into the content tree as reference libraries |
 | [`guides/linear.md`](guides/linear.md) | Linear webhook drain, sync, backfill |
 | [`guides/meetings.md`](guides/meetings.md) | Meeting extraction (Meet, Fathom, Notion) |
 | [`guides/meta.md`](guides/meta.md) | Entity lifecycle maintenance |

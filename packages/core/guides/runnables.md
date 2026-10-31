@@ -21,6 +21,7 @@ A runnable id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/
 | `github` | `github-sync-repos`, `github-sync-issues`, `github-watch`, `github-build-registry`, `github-poll-collabs`, `github-drain-collabs`, `github-sync-files` |  |
 | `google-drive` | `google-drive-sync` |  |
 | `jira` | `jira-refresh-fields`, `jira-sort-backlog` | `jira-backfill`, `jira-drain` |
+| `library` | `library-sync-mirrors` ([library](./library.md#library-mirrors)) |  |
 | `linear` | `linear-sync-issues`, `linear-sync-comments` | `linear-backfill`, `linear-drain` |
 | `meetings` | `meetings-fetch-notes`, `meetings-extract`, `meetings-ingest-notion` |  |
 | `meta` | `meta-sweep-duplicates`, `meta-disable-old` |  |

@@ -13,6 +13,7 @@ children:
   - ./github.md
   - ./google-drive.md
   - ./jira.md
+  - ./library.md
   - ./linear.md
   - ./meetings.md
   - ./meta.md
@@ -44,6 +45,7 @@ Hand-written references for `@karmaniverous/jeeves-scripts-core`: the framework 
 - [GitHub](./github.md): Repo and issue sync, notifications, collaborators
 - [Google Drive](./google-drive.md): Drive sync into the content tree
 - [Jira](./jira.md): Jira webhook drain, backfill, backlog sort
+- [Library](./library.md): Public repo subdirectories mirrored into the content tree as reference libraries
 - [Linear](./linear.md): Linear webhook drain, sync, backfill
 - [Meetings](./meetings.md): Meeting extraction (Meet, Fathom, Notion)
 - [Meta](./meta.md): Entity lifecycle maintenance
