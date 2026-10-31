@@ -18,7 +18,7 @@ A runnable id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/
 | `calendar` | `calendar-poll` |  |
 | `convert` |  | `convert-docx-to-md`, `convert-pdf-to-md` ([convert](./convert.md#runnables)) |
 | `email` | `email-poll`, `email-download`, `email-drain-updates`, `email-backfill-historical` | `email-apply-labels`, `email-inventory` |
-| `github` | `github-sync-repos`, `github-sync-issues`, `github-watch`, `github-build-registry`, `github-poll-collabs`, `github-drain-collabs` |  |
+| `github` | `github-sync-repos`, `github-sync-issues`, `github-watch`, `github-build-registry`, `github-poll-collabs`, `github-drain-collabs`, `github-sync-files` |  |
 | `google-drive` | `google-drive-sync` |  |
 | `jira` | `jira-refresh-fields`, `jira-sort-backlog` | `jira-backfill`, `jira-drain` |
 | `linear` | `linear-sync-issues`, `linear-sync-comments` | `linear-backfill`, `linear-drain` |
