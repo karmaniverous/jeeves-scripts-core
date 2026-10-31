@@ -15,6 +15,7 @@ import { getErrorMessage } from '@karmaniverous/jeeves';
 import type { LibraryMirror } from '../../config/library-schema.js';
 import { type RunCommand, updateClone } from './clone.js';
 import { type MirrorPaths, mirrorTree } from './mirror.js';
+import { PUBLISH_RECORD_FILE } from './publish-record.js';
 
 /** The runnable id, used as the log prefix and in failure messages. */
 export const LIBRARY_SYNC_ID = 'library-sync-mirrors';
@@ -81,6 +82,7 @@ export const mirrorDirs = (
     tmp: path.join(root, 'tmp'),
     incoming: path.join(root, 'incoming'),
     dest: path.resolve(settings.contentDir, mirror.dest),
+    record: path.join(root, PUBLISH_RECORD_FILE),
   };
 };
 
@@ -104,6 +106,8 @@ export const syncMirror = (
   const r = mirrorTree({
     paths: dirs,
     live: settings.live,
+    head,
+    adopt: mirror.adopt,
     exclude: mirror.exclude,
     minRatio: mirror.minRatio,
     siteLinks: mirror.siteLinks,

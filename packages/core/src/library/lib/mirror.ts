@@ -6,8 +6,11 @@
  * publish it: a first run assembles the tree beside the destination and
  * renames it in one step; later runs rsync only the changed files into
  * place through a temp dir. `.meta/` in the destination is never touched.
- * Staging always runs (it lives in the state dir); the destination,
- * `incoming` and `tmp` are written only when `live`.
+ * An existing destination this mirror has no publish record for is
+ * refused unless `adopt` (see `publish-record`); each live publish is
+ * recorded. Staging always runs (it lives in the state dir); the
+ * destination, `incoming`, `tmp` and the record are written only when
+ * `live`.
  */
 
 import fs from 'node:fs';
@@ -23,6 +26,7 @@ import {
   linkPattern,
   rewriteLinks,
 } from './library-links.js';
+import { isUnownedDest, writePublishRecord } from './publish-record.js';
 import { rsyncArgs, type RsyncSummary, summarizeRsync } from './rsync.js';
 
 /** Destination paths the mirror never modifies or deletes (meta output). */
@@ -45,6 +49,8 @@ export interface MirrorPaths {
   incoming: string;
   /** The mirror in the content tree. */
   dest: string;
+  /** The publish record in the state dir (`published.json`). */
+  record: string;
 }
 
 /** Options for {@link mirrorTree}. */
@@ -53,6 +59,10 @@ export interface MirrorOptions {
   paths: MirrorPaths;
   /** Write the destination; otherwise report only. */
   live: boolean;
+  /** The head SHA being mirrored, recorded after a live publish. */
+  head: string;
+  /** Take over an existing destination this mirror has no publish record for. */
+  adopt?: boolean | undefined;
   /** rsync filter patterns left out of the stage (`.git/` always is). */
   exclude: readonly string[];
   /** Fail when the staged file count is below this share of the mirrored count. */
@@ -164,8 +174,10 @@ const statDevice = (p: string): number => {
  *
  * @throws Before the destination is touched, when the source is missing
  *   or resolves outside the clone, the stage and destination are on different filesystems (renames would
- *   not be atomic), the staged tree is empty, or it holds fewer than
- *   `minRatio` of the files now mirrored; and on any rsync error.
+ *   not be atomic), the staged tree is empty, the destination exists with
+ *   content this mirror didn't write and `adopt` is not set, or the staged
+ *   tree holds fewer than `minRatio` of the files now mirrored; and on any
+ *   rsync error.
  */
 export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
   const { paths, live } = opts;
@@ -198,6 +210,15 @@ export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
   const links = rewriteStage(paths.stage, staged, opts.siteLinks, log);
 
   const created = !fs.existsSync(paths.dest);
+  if (isUnownedDest(paths.record, paths.dest)) {
+    if (!opts.adopt)
+      throw new Error(
+        live
+          ? `refusing to publish: ${paths.dest} exists and was not written by this mirror; set adopt: true on the mirror to take it over`
+          : `would refuse: ${paths.dest} exists and was not written by this mirror (set adopt: true)`,
+      );
+    log(`${live ? 'ADOPTING' : 'WOULD ADOPT'} ${paths.dest} (adopt: true)`);
+  }
   const current = listFiles(paths.dest, ['.meta']).length;
   if (!created && staged.length < current * opts.minRatio)
     throw new Error(
@@ -231,6 +252,12 @@ export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
       dryRun: !live,
     });
   }
+  if (live)
+    writePublishRecord(paths.record, {
+      dest: path.resolve(paths.dest),
+      head: opts.head,
+      publishedAt: new Date().toISOString(),
+    });
   return {
     ...summarizeRsync(output),
     files: staged.length,

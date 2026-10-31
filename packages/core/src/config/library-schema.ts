@@ -85,6 +85,12 @@ export const libraryMirrorSchema = z.object({
   minRatio: z.number().gt(0).lte(1).default(0.5),
   /** Site-relative links to rewrite; unset, mirrored files are copied unchanged. */
   siteLinks: librarySiteLinksSchema.optional(),
+  /**
+   * Take over an existing `dest` this mirror did not write, on the next
+   * live run (default false: such a `dest` is refused). Once a publish is
+   * recorded the flag has no further effect and can be removed.
+   */
+  adopt: z.boolean().default(false),
 });
 
 /** A mirror's `dest`, normalised for comparison. */

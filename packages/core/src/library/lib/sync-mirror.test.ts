@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { libraryMirrorSchema } from '../../config/library-schema.js';
 import { makeRepo } from './library.test-helper.js';
 import { listFiles } from './mirror.js';
+import { readPublishRecord } from './publish-record.js';
 import {
   githubCloneUrl,
   type LibraryDeps,
@@ -150,6 +151,29 @@ describe('syncMirrors', () => {
     expect(lines).toContain(`docs: WOULD CREATE ${dirs.dest} (single rename)`);
   });
 
+  it('refuses a mirror into a dest it did not write, runs the rest, and adopts it with adopt: true', () => {
+    const dirs = mirrorDirs(docs, settings);
+    fs.mkdirSync(dirs.dest, { recursive: true });
+    fs.writeFileSync(path.join(dirs.dest, 'mine.md'), 'hand-authored');
+    const other = libraryMirrorSchema.parse({
+      ...docs,
+      id: 'other',
+      dest: 'library/other',
+    });
+    expect(() => syncMirrors([docs, other], settings, deps)).toThrow(
+      /1 of 2 mirrors failed: docs \(refusing to publish: .* set adopt: true/,
+    );
+    expect(listFiles(dirs.dest)).toEqual(['mine.md']);
+    expect(listFiles(mirrorDirs(other, settings).dest)).toHaveLength(2);
+
+    const r = only(syncMirrors([{ ...docs, adopt: true }], settings, deps));
+    expect(listFiles(dirs.dest).sort()).toEqual(['a.md', 'b/README.md']);
+    expect(readPublishRecord(dirs.record)).toMatchObject({
+      dest: dirs.dest,
+      head: r.head,
+    });
+  });
+
   it('a re-run with no upstream change writes and touches nothing', () => {
     syncMirrors([docs], settings, deps);
     const r = only(syncMirrors([docs], settings, deps));
@@ -158,7 +182,7 @@ describe('syncMirrors', () => {
 });
 
 describe('mirrorDirs', () => {
-  it('keeps clone and staging under {stateDir}/library/<id>, dest under the content dir', () => {
+  it('keeps clone, staging and the publish record under {stateDir}/library/<id>, dest under the content dir', () => {
     const dirs = mirrorDirs(
       { id: 'docs', subdir: 'guides', dest: 'library/docs' },
       {
@@ -174,6 +198,7 @@ describe('mirrorDirs', () => {
       tmp: path.join(state, 'tmp'),
       incoming: path.join(state, 'incoming'),
       dest: path.resolve('/base/content/library/docs'),
+      record: path.join(state, 'published.json'),
     });
   });
 });

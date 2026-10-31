@@ -24,7 +24,11 @@ describe('libraryMirrorSchema', () => {
       subdir: '',
       exclude: [],
       minRatio: 0.5,
+      adopt: false,
     });
+    expect(libraryMirrorSchema.parse({ ...mirror, adopt: true }).adopt).toBe(
+      true,
+    );
   });
 
   it.each([
@@ -44,6 +48,7 @@ describe('libraryMirrorSchema', () => {
     ['dest', { dest: '.META' }, /under \.meta/],
     ['minRatio', { minRatio: 0 }, /too small|>0/i],
     ['minRatio', { minRatio: 1.5 }, /too big|<=1/i],
+    ['adopt', { adopt: 'yes' }, /expected boolean/i],
     [
       'siteLinks',
       { siteLinks: { pattern: '/s/', target: '{dir}/A.md' } },
