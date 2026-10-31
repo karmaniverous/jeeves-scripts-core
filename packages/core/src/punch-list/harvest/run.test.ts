@@ -125,7 +125,9 @@ describe('runHarvest', () => {
       s.deps('unused'),
     );
     expect(s.calls.tasks).toEqual([]);
-    expect(s.calls.updates).toHaveLength(1);
+    expect(s.calls.updates).toEqual([
+      expect.stringContaining('/browse/t/punch-list/2026-10-18.md'),
+    ]);
     expect(
       parsePunchList(readFileSync(dayFile(s.listDir, '2026-10-18'), 'utf8'))
         .date,
@@ -136,7 +138,7 @@ describe('runHarvest', () => {
     const s = setup();
     await expect(
       runHarvest(s.config, { live: true, printTask: false }, s.deps('no json')),
-    ).rejects.toThrow();
+    ).rejects.toThrow('harvest worker reply holds no JSON object');
     expect(readCursor(s.config.cursorFile)?.toISOString()).toBe(
       '2026-10-17T21:47:00.000Z',
     );
@@ -147,7 +149,7 @@ describe('runHarvest', () => {
     const s = setup();
     await expect(
       runHarvest(s.config, { live: true, printTask: false }, s.deps('no json')),
-    ).rejects.toThrow();
+    ).rejects.toThrow('harvest worker reply holds no JSON object');
     const later = {
       ...s.deps(reply([join(s.input, 'new.json')])),
       now: () => new Date('2026-10-19T21:47:00Z'),
@@ -174,13 +176,15 @@ describe('runHarvest', () => {
     expect(JSON.parse(readFileSync(record, 'utf8'))).toMatchObject({
       delivered: false,
     });
+    const dispatched = [...s.calls.tasks];
+    expect(dispatched.length).toBe(1);
     writeCursor(s.config.cursorFile, new Date('2026-10-19T00:00:00Z'));
     await runHarvest(
       s.config,
       { live: true, printTask: false },
       s.deps('unused'),
     );
-    expect(s.calls.tasks).toHaveLength(1);
+    expect(s.calls.tasks).toEqual(dispatched);
     expect(s.calls.posts[0]).toContain('1 new backlog item(s)');
     expect(JSON.parse(readFileSync(record, 'utf8'))).toMatchObject({
       delivered: true,
@@ -188,7 +192,9 @@ describe('runHarvest', () => {
     const list = parsePunchList(
       readFileSync(dayFile(s.listDir, '2026-10-18'), 'utf8'),
     );
-    expect(list.backlog).toHaveLength(1);
+    expect(list.backlog.map((e) => e.text.split(' \u2014 ')[0])).toEqual([
+      '**Ignore .meta lock files**',
+    ]);
   });
 
   it('prints the task only, and dry-runs without writing', async () => {
@@ -209,7 +215,7 @@ describe('runHarvest', () => {
       { live: false, printTask: false },
       s.deps(reply([join(s.input, 'new.json')])),
     );
-    expect(() => readFileSync(dayFile(s.listDir, '2026-10-18'))).toThrow();
+    expect(existsSync(dayFile(s.listDir, '2026-10-18'))).toBe(false);
     expect(readCursor(s.config.cursorFile)).toBeUndefined();
     expect(s.calls.posts).toEqual([]);
     expect(s.calls.logs.some((l) => l.includes('[dry-run] would post'))).toBe(

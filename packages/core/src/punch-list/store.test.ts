@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -60,7 +60,7 @@ describe('store', () => {
       result: 1,
     }));
     expect(dry.changed).toBe(true);
-    expect(() => readFileSync(dayFile(dir, '2026-10-18'))).toThrow();
+    expect(existsSync(dayFile(dir, '2026-10-18'))).toBe(false);
     const live = updateToday(opts, (list) => ({ list, result: 2 }));
     expect(live.result).toBe(2);
     expect(

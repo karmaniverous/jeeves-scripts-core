@@ -94,6 +94,8 @@ describe('liveGitHub', () => {
 
   it('fails on a response that does not match the schema', () => {
     answer({ 'repos/o/r/releases?per_page=100': [{ nope: true }] });
-    expect(() => liveGitHub().releases('o/r')).toThrow();
+    expect(() => liveGitHub().releases('o/r')).toThrow(
+      /"path": \[\s*0,\s*"tag_name"\s*\]/,
+    );
   });
 });

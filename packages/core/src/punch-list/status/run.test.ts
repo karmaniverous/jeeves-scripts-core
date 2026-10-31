@@ -127,8 +127,9 @@ describe('runStatus', () => {
       '<https://jeeves.example.com/browse/t/2026-10-18.md|Punch list>',
     );
 
+    const [first] = s.posts;
     await runStatus(s.config, { live: true }, s.deps('closed'));
-    expect(s.posts).toHaveLength(1);
+    expect(s.posts).toEqual([first]);
     await runStatus(s.config, { live: true }, s.deps('closed', true));
     expect(s.read().done[0]?.status[2]).toBe('- Installed: ✅');
     expect(s.posts[1]).toContain('`acme-punch-list` is installed ✅');

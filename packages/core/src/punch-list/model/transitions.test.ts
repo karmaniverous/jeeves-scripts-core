@@ -60,7 +60,7 @@ describe('omitExpired / rollOver', () => {
     expect(omitExpired(samplePunchList, '2026-10-01', 30)).toEqual(
       samplePunchList,
     );
-    expect(list.processedBacklog).toHaveLength(1);
+    expect(list.processedBacklog).toEqual(samplePunchList.processedBacklog);
   });
 
   it('rolls over to a new date, idempotently', () => {

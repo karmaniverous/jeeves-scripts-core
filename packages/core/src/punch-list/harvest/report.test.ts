@@ -21,7 +21,7 @@ describe('parseReport', () => {
           summary: '',
         }),
       ),
-    ).toThrow();
+    ).toThrow('a source is an absolute file path or a telemetry reference');
     expect(() =>
       parseReport(
         JSON.stringify({
@@ -29,7 +29,7 @@ describe('parseReport', () => {
           summary: '',
         }),
       ),
-    ).toThrow();
+    ).toThrow('Too small: expected array to have >=1 items');
   });
 
   it('requires a requester on requested items', () => {

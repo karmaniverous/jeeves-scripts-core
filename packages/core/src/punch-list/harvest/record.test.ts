@@ -51,6 +51,8 @@ describe('harvest records', () => {
       join(dir, 'harvest', 'x.json'),
       JSON.stringify({ delivered: false }),
     );
-    expect(() => undeliveredRecords(dir)).toThrow();
+    expect(() => undeliveredRecords(dir)).toThrow(
+      /"path": \[\s*"at"\s*\][\s\S]*"path": \[\s*"skipped"\s*\]/,
+    );
   });
 });
