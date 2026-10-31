@@ -5,10 +5,11 @@
  * list an owner's non-archived repos (paged, narrowed by `include` /
  * `exclude` globs on `full_name`), ensure a ruleset on a repo, and create
  * or update one file on a repo's default branch through the Contents API,
- * compared byte-for-byte. With `live` false nothing is written; the
+ * compared byte-for-byte by git blob SHA. With `live` false nothing is written; the
  * would-be change is logged and counted.
  */
 
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -153,7 +154,21 @@ export type FileResult =
 const requiresPullRequest = (output: string): boolean =>
   output.includes('HTTP 409') && /pull request/i.test(output);
 
-const contentSchema = z.looseObject({ sha: z.string(), content: z.string() });
+const contentSchema = z.looseObject({ sha: z.string() });
+
+/**
+ * The git blob SHA of `content` (`sha1` of `blob <length>\0<bytes>`), as
+ * the Contents API reports a file's `sha`. Comparing it, not the returned
+ * `content`, also works for files over 1 MB, whose `content` is empty.
+ */
+export const gitBlobSha = (content: Buffer): string =>
+  createHash('sha1')
+    .update(`blob ${String(content.length)}\0`)
+    .update(content)
+    .digest('hex');
+
+/** True when a failed `gh api` call was a 404 (the file doesn't exist). */
+const notFound = (output: string): boolean => output.includes('HTTP 404');
 
 /** A file's content, as the instance authored it, and where it goes. */
 export interface FileContent {
@@ -163,7 +178,14 @@ export interface FileContent {
   content: Buffer;
 }
 
-/** Bring `file.target` on `repo`'s default branch to `file.content`, byte for byte. */
+/**
+ * Bring `file.target` on `repo`'s default branch to `file.content`, byte
+ * for byte.
+ *
+ * @throws When the current file can't be read for any reason but a 404
+ *   (a 403, a 5xx, a rate limit): writing blind would report a create for
+ *   a file that exists.
+ */
 export function syncFile(
   deps: GhDeps,
   repo: RepoInfo,
@@ -183,12 +205,14 @@ export function syncFile(
   );
 
   let existingSha: string | undefined;
-  if (current.ok && current.out) {
+  if (current.ok) {
     const found = contentSchema.parse(JSON.parse(current.out));
-    if (Buffer.from(found.content, 'base64').equals(file.content))
-      return 'skipped';
+    if (found.sha === gitBlobSha(file.content)) return 'skipped';
     existingSha = found.sha;
-  }
+  } else if (!notFound(current.err || current.out))
+    throw new Error(
+      `cannot read ${where}: ${current.err || current.out || 'gh api failed'}`,
+    );
   const outcome = existingSha ? 'updated' : 'created';
 
   if (!live) {

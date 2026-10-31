@@ -10,10 +10,18 @@
 
 import { z } from 'zod';
 
+import { pathSegments, relativePath } from './relative-path.js';
+
 /** One file to keep in sync: read from `source`, written to `target` in every repo. */
 export const githubSyncFileSchema = z.object({
-  /** Path of the content to write, relative to the instance repo root (`paths.scriptsDir`). */
-  source: z.string().min(1),
+  /**
+   * Path of the content to write, relative to the instance repo root
+   * (`paths.scriptsDir`): not empty, no leading `/` or `\`, no drive
+   * letter, no `..` segment, so nothing outside the repo is ever read.
+   */
+  source: relativePath('source').refine((s) => pathSegments(s).length > 0, {
+    message: 'source must name a file under the instance repo root',
+  }),
   /** Path written in each repo (relative to the repo root; no leading `/`). */
   target: z
     .string()

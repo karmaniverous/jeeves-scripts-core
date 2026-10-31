@@ -14,9 +14,6 @@
  * clean run.
  */
 
-import fs from 'node:fs';
-import path from 'node:path';
-
 import { getErrorMessage } from '@karmaniverous/jeeves';
 
 import type {
@@ -29,6 +26,7 @@ import { loadConfig } from '../config/loader.js';
 import { paths } from '../config/paths.js';
 import { argFlag, type ParsedArgs } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
+import { readSources } from './lib/file-sources.js';
 import {
   ensureRuleset,
   type FileContent,
@@ -78,23 +76,6 @@ export type SyncFilesDeps = Pick<
   'gh' | 'botUser' | 'runner' | 'now'
 >;
 
-/** Read every `source` up front, so a missing one fails before any `gh` call. */
-const readSources = (
-  files: readonly GithubSyncFile[],
-  root: string,
-): FileContent[] =>
-  files.map(({ source, target }) => {
-    const file = path.resolve(root, source);
-    try {
-      return { target, content: fs.readFileSync(file) };
-    } catch (e) {
-      throw new Error(
-        `${SYNC_FILES_ID}: cannot read files[].source ${file}: ${getErrorMessage(e)}`,
-        { cause: e },
-      );
-    }
-  });
-
 /** Sync one repo into `tally`; a throw is recorded as that repo's failure. */
 function syncRepo(
   deps: SyncFilesDeps,
@@ -142,7 +123,7 @@ function syncOwner(
       owner.owner.toLowerCase() !== settings.account.toLowerCase()
     )
       throw new Error(
-        `a 'user' owner must be the acting account (${settings.account})`,
+        `a 'user' owner must be the acting account (${settings.account}): GitHub lists only the authenticated user's own repos (/user/repos); sync another user's repos by acting as that user`,
       );
     repos = listOwnerRepos(deps, owner);
   } catch (e) {
@@ -187,12 +168,14 @@ function restoreLogin(
 }
 
 /**
- * Sync every owner as the account, record `last-run` when nothing failed,
- * and always switch `gh` back to the login active before the switch.
+ * Sync every owner as the account, always switch `gh` back to the login
+ * active before the switch, and record `last-run` only when nothing
+ * failed and that switch back succeeded.
  *
- * @throws When no account is configured, a source can't be read, the
- *   acting login isn't the account, or (after every repo was attempted)
- *   any listing or write failed.
+ * @throws When no account is configured, a source can't be read or
+ *   resolves outside `root`, the acting login isn't the account, (after
+ *   every repo was attempted) any listing, read or write failed, or the
+ *   switch back failed on an otherwise clean run.
  */
 export function syncAll(
   settings: SyncFilesSettings,
@@ -224,11 +207,11 @@ export function syncAll(
       syncOwner(deps, { ...settings, account }, owner, files, tally);
     console.log(summaryLine(tally));
     if (tally.failures.length > 0) throw failuresError(tally);
-    client.setState(SYNC_FILES_ID, 'last-run', deps.now());
     clean = true;
   } finally {
     try {
       restoreLogin(deps, original, clean);
+      if (clean) client.setState(SYNC_FILES_ID, 'last-run', deps.now());
     } finally {
       client.close();
     }

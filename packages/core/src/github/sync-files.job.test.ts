@@ -167,4 +167,25 @@ describe('the github-sync-files delta fields', () => {
   ])('rejects %s', (_what, d) => {
     expect(jobDeltaSchema.safeParse(d).success).toBe(false);
   });
+
+  it.each([
+    ['/etc/passwd', /source must be a relative path/],
+    ['\\\\host\\share\\key', /source must be a relative path/],
+    ['C:/Users/x/.config/gh/hosts.yml', /source must be a relative path/],
+    ['c:key', /source must be a relative path/],
+    ['../../.ssh/id_rsa', /source must not contain a \.\. segment/],
+    ['github/../../x', /source must not contain a \.\. segment/],
+    ['./', /source must name a file/],
+  ])('rejects files[].source %s', (source, message) => {
+    const r = jobDeltaSchema.safeParse({ files: [{ source, target: 'a' }] });
+    expect(r.error?.issues.map((i) => i.message).join('; ')).toMatch(message);
+  });
+
+  it('accepts a nested relative source', () => {
+    expect(
+      jobDeltaSchema.safeParse({
+        files: [{ source: 'github/./copilot.md', target: 'a' }],
+      }).success,
+    ).toBe(true);
+  });
 });

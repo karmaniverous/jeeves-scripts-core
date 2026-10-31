@@ -157,7 +157,7 @@ describe('github-sync-files failures', () => {
         x.deps,
       );
     }).toThrow(
-      `someone-else repo listing: a 'user' owner must be the acting account (${ACCOUNT})`,
+      `someone-else repo listing: a 'user' owner must be the acting account (${ACCOUNT}): GitHub lists only the authenticated user's own repos (/user/repos)`,
     );
     expect(x.calls().some((c) => c.includes('/user/repos'))).toBe(false);
     expectRestored(x);
@@ -259,6 +259,8 @@ describe('github-sync-files failures', () => {
     expect(console.log).toHaveBeenCalledWith(
       `[github-sync-files] could not switch gh back to ${OPERATOR}: restore failed`,
     );
+    // last-run only after a clean run that also switched back.
+    expect(clean.runner.state.has('github-sync-files|last-run')).toBe(false);
     expect(clean.runner.closed()).toBe(true);
     clean.cleanup();
 

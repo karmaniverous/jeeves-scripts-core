@@ -16,6 +16,7 @@ import path from 'node:path';
 
 import type { GithubRuleset } from '../../config/github-sync-files-schema.js';
 import type { SyncFilesSettings } from '../sync-files.js';
+import { gitBlobSha } from './file-sync.js';
 import {
   type GhAnswer,
   type GitHubWorld,
@@ -78,11 +79,17 @@ export const defaultAnswer = (call: string): GhAnswer => {
   if (call === `api /repos/${ACCOUNT}/new/rulesets`) return [];
   if (call.includes(`contents/${TARGET}?ref=main`)) {
     if (call.includes(`${ORG}/same/`))
-      return { sha: 's1', content: b64(CONTENT), encoding: 'base64' };
+      return {
+        sha: gitBlobSha(Buffer.from(CONTENT)),
+        content: b64(CONTENT),
+        encoding: 'base64',
+      };
     if (call.includes(`${ORG}/stale/`))
       return { sha: 's2', content: b64('old'), encoding: 'base64' };
     return missing();
   }
+  // Any other file read: not there (GitHub answers 404).
+  if (call.includes('/contents/') && call.includes('?ref=')) return missing();
   return '';
 };
 

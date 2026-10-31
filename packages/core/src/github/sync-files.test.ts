@@ -14,6 +14,7 @@ import path from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { gitBlobSha } from './lib/file-sync.js';
 import {
   ACCOUNT,
   b64,
@@ -117,7 +118,7 @@ describe('github-sync-files', () => {
     );
   });
 
-  it('compares bytes: a binary file that matches is skipped, one that differs is written', () => {
+  it('compares by git blob SHA: a binary file that matches is skipped, one that differs is written', () => {
     const bytes = Buffer.from([0, 255, 10, 13, 128]);
     fs.writeFileSync(path.join(world().root, 'logo.bin'), bytes);
     const x = w!;
@@ -130,11 +131,12 @@ describe('github-sync-files', () => {
           ok: true,
           status: 0,
           out: JSON.stringify({
-            sha: 'b',
-            content: call.includes('same')
-              ? b64(bytes)
-              : // Differs only in bytes that decode to the same text.
-                b64(Buffer.from([0, 254, 10, 13, 128])),
+            sha: gitBlobSha(
+              call.includes('same')
+                ? bytes
+                : // Differs only in bytes that decode to the same text.
+                  Buffer.from([0, 254, 10, 13, 128]),
+            ),
           }),
           err: '',
         };
@@ -146,7 +148,10 @@ describe('github-sync-files', () => {
         /^api \/repos\/example-org\/stale\/contents\/logo\.bin -X PUT /,
       ),
     ]);
-    expect(x.payloads[0]).toMatchObject({ content: b64(bytes), sha: 'b' });
+    expect(x.payloads[0]).toMatchObject({
+      content: b64(bytes),
+      sha: gitBlobSha(Buffer.from([0, 254, 10, 13, 128])),
+    });
   });
 
   it('syncs every configured file, each to its own target', () => {
@@ -292,7 +297,7 @@ describe('github-sync-files', () => {
     const x = world((c) => {
       if (c === `api /repos/${ACCOUNT}/new/rulesets`) return [RULESET];
       if (c.includes(`contents/${TARGET}?ref=main`))
-        return { sha: 's', content: b64(CONTENT) };
+        return { sha: gitBlobSha(Buffer.from(CONTENT)), content: b64(CONTENT) };
       return undefined;
     });
     syncAll(x.settings(), x.deps);
