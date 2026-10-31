@@ -37,8 +37,13 @@ vi.mock('../lib/worker-slack/run.js', async () =>
   (await helper()).workerMock(),
 );
 
-const { accountOrder, liveRefreshDeps, liveSettings, liveWorkspaces } =
-  await import('./channel-meta/live.js');
+const {
+  accountOrder,
+  liveRefreshDeps,
+  liveSettings,
+  liveSettingsDeps,
+  liveWorkspaces,
+} = await import('./channel-meta/live.js');
 
 useJobFixture();
 
@@ -121,6 +126,13 @@ describe('live wiring', () => {
     expect(deps.now()).toBeInstanceOf(Date);
   });
 
+  it('reads the gateway Slack accounts from OpenClaw for the settings', () => {
+    expect([...liveSettingsDeps().slackAccounts()].sort()).toEqual([
+      'default',
+      'globex',
+    ]);
+  });
+
   it('resolves the settings from the block, and none without one', () => {
     expect(liveSettings()).toMatchObject({
       reportChannel: 'U0OWNER',
@@ -133,7 +145,9 @@ describe('live wiring', () => {
       reportChannel: 'U0OWNER',
     });
     mocks.block = undefined;
-    expect(liveSettings()).toBeUndefined();
+    expect(liveSettings()).toEqual({
+      skip: 'no slack.channelMeta block in the instance config',
+    });
     expect(liveRefreshDeps().settings()).toEqual({
       problem: 'no slack.channelMeta block in the instance config',
     });

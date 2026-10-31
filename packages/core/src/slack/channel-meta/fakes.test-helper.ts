@@ -108,8 +108,8 @@ export const blockOf = (input: BlockInput): SlackChannelMetaBlock =>
   slackChannelMetaSchema.parse(input);
 
 /**
- * Run-time readers: no OpenClaw owner, no channel `homeDir`, a Windows
- * host, unless overridden.
+ * Run-time readers: no OpenClaw owner, no channel `homeDir`, the gateway
+ * Slack accounts the tests name, a Windows host, unless overridden.
  *
  * @param over - Reader overrides.
  * @returns The readers.
@@ -119,6 +119,7 @@ export const settingsDeps = (
 ): SettingsDeps => ({
   slackOwner: () => undefined,
   channelHomeDir: () => undefined,
+  slackAccounts: () => ['default', 'globex', 'work', 'other'],
   host: path.win32,
   ...over,
 });

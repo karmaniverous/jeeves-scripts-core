@@ -37,11 +37,12 @@
  * (`channel-meta/text-scope`). An unchanged report is neither written nor
  * posted again.
  *
- * **Config.** No `slack.channelMeta` block: the run skips. A
- * present block is validated by `config check` (Decision 76); what only
- * the run can know (the OpenClaw owner when `reportChannel` is unset,
- * directories absolute on this host) fails the run and is reported by
- * `doctor`. State and run directories: `{stateDir}/slack/channel-meta/`.
+ * **Config.** No loadable instance config, or no `slack.channelMeta`
+ * block: the run skips (exit 0). A present block is validated by
+ * `config check`, its gateway Slack accounts included (Decision 76); an
+ * invalid one fails the run; what only the run can know (the OpenClaw
+ * owner when `reportChannel` is unset, directories absolute on this host)
+ * fails the run and is reported by `doctor`. State and run directories: `{stateDir}/slack/channel-meta/`.
  *
  * **Flags.** Without `--live` the run does the whole read-only pass,
  * dispatches the worker for real (one AI session, the batch a live run
@@ -60,12 +61,7 @@
 import { argFlag } from '@karmaniverous/jeeves';
 
 import { defineRunnable } from '../runnables/define-runnable.js';
-import {
-  JOB_ID,
-  liveRefreshDeps,
-  liveSettings,
-  NO_BLOCK,
-} from './channel-meta/live.js';
+import { JOB_ID, liveRefreshDeps, liveSettings } from './channel-meta/live.js';
 import { refreshChannelMeta, SCRIPT_NAME } from './channel-meta/refresh.js';
 
 /** The runnable's flags. */
@@ -84,16 +80,18 @@ export default defineRunnable({
   description:
     'Sweep Slack channels for home-directory assignments, refresh descriptions and topics from each channel\u2019s meta, write a dated report and post a summary with its link.',
   flags: refreshChannelMetaFlags,
-  prerequisite: () => (liveSettings() === undefined ? NO_BLOCK : true),
+  prerequisite: () => {
+    const settings = liveSettings();
+    return 'skip' in settings ? settings.skip : true;
+  },
   doctorCheck: () => {
     const settings = liveSettings();
-    return settings !== undefined && 'problem' in settings
-      ? settings.problem
-      : true;
+    return 'problem' in settings ? settings.problem : true;
   },
   run: async ({ flags }) => {
-    if (liveSettings() === undefined) {
-      console.log(`[skip] ${NO_BLOCK}`);
+    const settings = liveSettings();
+    if ('skip' in settings) {
+      console.log(`[skip] ${settings.skip}`);
       return;
     }
     const outcome = await refreshChannelMeta(flags, liveRefreshDeps());

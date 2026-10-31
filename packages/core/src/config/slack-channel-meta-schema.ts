@@ -11,6 +11,7 @@
  * export.
  */
 
+import { getErrorMessage } from '@karmaniverous/jeeves';
 import { z } from 'zod';
 
 import { isTimeZone } from '../lib/dates.js';
@@ -128,6 +129,49 @@ export function defaultReportDir(
         problem: `slack.channelMeta.outputDir is required: the report channel ${target} has no slack.channels.${target}.homeDir`,
       }
     : { homeDir };
+}
+
+/**
+ * The accounts `reportAccount` and `reportTextAccounts` name that are not
+ * gateway Slack accounts (spec 2.6: "each a configured gateway Slack
+ * account"), written once for the config check (`config/check`) and the
+ * run (`channel-meta/settings`, so `doctor` reports it too). The accounts
+ * are read only when the block names one.
+ *
+ * @param block - The block's account keys.
+ * @param accounts - The gateway Slack accounts (live: OpenClaw's
+ *   configured bot tokens, `slackBotTokens`).
+ * @returns The problem, or `undefined`.
+ */
+export function slackAccountsProblem(
+  block: Pick<SlackChannelMetaBlock, 'reportAccount' | 'reportTextAccounts'>,
+  accounts: () => readonly string[],
+): string | undefined {
+  const named: [key: string, account: string][] = [
+    ...(block.reportAccount === undefined
+      ? []
+      : [['reportAccount', block.reportAccount] as [string, string]]),
+    ...(block.reportTextAccounts ?? []).map((a): [string, string] => [
+      'reportTextAccounts',
+      a,
+    ]),
+  ];
+  if (named.length === 0) return undefined;
+  let known: readonly string[];
+  try {
+    known = accounts();
+  } catch (e) {
+    return `slack.channelMeta names Slack accounts, but the gateway's could not be read: ${getErrorMessage(e)}`;
+  }
+  const unknown = named.filter(([, a]) => !known.includes(a));
+  if (unknown.length === 0) return undefined;
+  const which = unknown
+    .map(
+      ([key, a]) =>
+        `slack.channelMeta.${key}: "${a}" is not a gateway Slack account`,
+    )
+    .join('; ');
+  return `${which} (gateway Slack accounts: ${known.join(', ') || 'none'})`;
 }
 
 /** The parts of a parsed `slack` block {@link reportDirIssue} reads. */

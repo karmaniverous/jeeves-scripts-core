@@ -14,8 +14,15 @@
 
 import path from 'node:path';
 
-import { loadConfig } from '../../config/loader.js';
+import { getErrorMessage } from '@karmaniverous/jeeves';
+
+import {
+  getLoadedConfigPath,
+  loadConfig,
+  resolveConfig,
+} from '../../config/loader.js';
 import { paths } from '../../config/paths.js';
+import type { Config } from '../../config/schema.js';
 import { getEntityDirs } from '../../config/silo-router.js';
 import { deliverReport } from '../../lib/dated-report.js';
 import { slackBotTokens } from '../../lib/openclaw-config.js';
@@ -75,32 +82,56 @@ const homeDirOf = (id: string): string | undefined =>
 export const liveSettingsDeps = (): SettingsDeps => ({
   slackOwner: readSlackOwner,
   channelHomeDir: homeDirOf,
+  slackAccounts: () => Object.keys(slackBotTokens()),
   host: path,
 });
 
-/**
- * The settings from the instance config, or why they are missing.
- *
- * @returns `undefined` with no `slack.channelMeta` block (the runnable
- *   skips), else the settings or the problem.
- */
-export const liveSettings = ():
-  ChannelMetaSettings | { problem: string } | undefined => {
-  const block = loadConfig().slack.channelMeta;
-  return block === undefined
-    ? undefined
-    : resolveSettings(block, liveSettingsDeps());
-};
-
 /** Why the runnable skips: no `slack.channelMeta` block. */
 export const NO_BLOCK = 'no slack.channelMeta block in the instance config';
+
+/**
+ * The instance config, or why there is none to read: no config can be
+ * located or read (no pointer, environment or repo file; a pointer to a
+ * missing file). A config that is found but invalid throws (Decision 76:
+ * an invalid config, the `slack.channelMeta` block included, fails the
+ * run).
+ */
+const readableConfig = (): Config | { skip: string } => {
+  if (getLoadedConfigPath() === null)
+    try {
+      resolveConfig();
+    } catch (e) {
+      return { skip: `no loadable instance config (${getErrorMessage(e)})` };
+    }
+  return loadConfig();
+};
+
+/**
+ * The settings from the instance config, why the runnable skips (no
+ * loadable config, or no `slack.channelMeta` block), or the problem.
+ *
+ * @returns The settings, `{ skip }` or `{ problem }`.
+ * @throws When a config is found but invalid.
+ */
+export const liveSettings = ():
+  ChannelMetaSettings | { problem: string } | { skip: string } => {
+  const config = readableConfig();
+  if ('skip' in config) return config;
+  const block = config.slack.channelMeta;
+  return block === undefined
+    ? { skip: NO_BLOCK }
+    : resolveSettings(block, liveSettingsDeps());
+};
 
 /** Live side effects. */
 export const liveRefreshDeps = (): RefreshDeps => {
   const root = path.join(paths().stateDir, 'slack', 'channel-meta');
   const stateFile = path.join(root, 'state.json');
   return {
-    settings: () => liveSettings() ?? { problem: NO_BLOCK },
+    settings: () => {
+      const settings = liveSettings();
+      return 'skip' in settings ? { problem: settings.skip } : settings;
+    },
     workspaces: liveWorkspaces,
     archiveRoots: () => getEntityDirs('slack'),
     io: nodeArchiveFs,

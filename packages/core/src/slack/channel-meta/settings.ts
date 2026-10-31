@@ -7,14 +7,18 @@
  * what only the run can know: the report target when `reportChannel` is
  * unset (the OpenClaw command owner's DM, `channel-meta/owner`), the
  * report directory when `outputDir` is unset (the report channel's
- * `slack.channels.<id>.homeDir`), and whether each directory is absolute
- * on this host (`channel-meta/paths`: a drive path on Windows, a `/` path
+ * `slack.channels.<id>.homeDir`), whether `reportAccount` and
+ * `reportTextAccounts` name gateway Slack accounts, and whether each
+ * directory is absolute on this host (`channel-meta/paths`: a drive path on Windows, a `/` path
  * on POSIX). A problem is returned as `{ problem }`, naming the key; a
  * run then fails (Decision 76) and `doctor` reports it. Pure apart from
  * the injected readers.
  */
 
-import { defaultReportDir } from '../../config/slack-channel-meta-schema.js';
+import {
+  defaultReportDir,
+  slackAccountsProblem,
+} from '../../config/slack-channel-meta-schema.js';
 import type { SlackChannelMetaBlock } from '../../config/slack-schema.js';
 import {
   canonicalAbsolute,
@@ -69,6 +73,8 @@ export interface SettingsDeps {
   slackOwner: () => string | undefined;
   /** A channel's configured `homeDir`. */
   channelHomeDir: (channelId: string) => string | undefined;
+  /** The gateway Slack accounts (live: OpenClaw's bot tokens). */
+  slackAccounts: () => readonly string[];
   /** The host's path style. */
   host: PlatformPath;
 }
@@ -166,6 +172,9 @@ export function resolveSettings(
   deps: SettingsDeps,
 ): ChannelMetaSettings | { problem: string } {
   try {
+    // The config check applies the same rule (Decision 76).
+    const accounts = slackAccountsProblem(block, deps.slackAccounts);
+    if (accounts !== undefined) problem(accounts);
     const target = reportTarget(block, deps);
     return {
       ...target,

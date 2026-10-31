@@ -145,6 +145,66 @@ describe('resolveSettings: report', () => {
         resolve({ ...WITH_DIR, reportTextAccounts: accounts }),
       ).toHaveProperty('reportTextAccounts', accounts);
     });
+
+    it('fails on an account the gateway does not have, naming the key and the accounts', () => {
+      expect(
+        problemOf(
+          resolve(
+            { ...WITH_DIR, reportTextAccounts: ['globex', 'typo'] },
+            { slackAccounts: () => ['default', 'globex'] },
+          ),
+        ),
+      ).toBe(
+        'slack.channelMeta.reportTextAccounts: "typo" is not a gateway Slack account (gateway Slack accounts: default, globex)',
+      );
+    });
+
+    it('fails on an unknown reportAccount too, listing every unknown name', () => {
+      expect(
+        problemOf(
+          resolve(
+            { ...WITH_DIR, reportAccount: 'nope', reportTextAccounts: ['x'] },
+            { slackAccounts: () => [] },
+          ),
+        ),
+      ).toBe(
+        'slack.channelMeta.reportAccount: "nope" is not a gateway Slack account; slack.channelMeta.reportTextAccounts: "x" is not a gateway Slack account (gateway Slack accounts: none)',
+      );
+    });
+
+    it('reads the gateway accounts only when the block names one', () => {
+      let asked = false;
+      const slackAccounts = () => {
+        asked = true;
+        return [];
+      };
+      expect(problemOf(resolve(WITH_DIR, { slackAccounts }))).toBe(
+        '(no problem)',
+      );
+      expect(
+        problemOf(
+          resolve({ ...WITH_DIR, reportTextAccounts: [] }, { slackAccounts }),
+        ),
+      ).toBe('(no problem)');
+      expect(asked).toBe(false);
+    });
+
+    it('says so when the gateway accounts cannot be read', () => {
+      expect(
+        problemOf(
+          resolve(
+            { ...WITH_DIR, reportAccount: 'default' },
+            {
+              slackAccounts: () => {
+                throw new Error('No Slack bot token found');
+              },
+            },
+          ),
+        ),
+      ).toBe(
+        "slack.channelMeta names Slack accounts, but the gateway's could not be read: No Slack bot token found",
+      );
+    });
   });
 
   it.each([

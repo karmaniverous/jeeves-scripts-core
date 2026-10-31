@@ -61,6 +61,9 @@ export const mocks = createMocks();
 
 /** The instance config the mocked loader returns (the block validated). */
 export const configMock = () => ({
+  // A config is always loaded (the no-config skip is in the config test).
+  getLoadedConfigPath: () => '/instance/config.json',
+  resolveConfig: () => ({ path: '/instance/config.json', source: 'option' }),
   loadConfig: () => ({
     slack: {
       channels: mocks.channels,
