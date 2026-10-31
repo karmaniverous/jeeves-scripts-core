@@ -4,88 +4,38 @@
  * `dispatchWithSlack` vs the runner's `runDispatcher`.
  */
 
-import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { CONFIG_PATH_ENV, resetConfig } from '../../config/loader.js';
 import { UnknownSiloError } from '../../config/silo-router.js';
-import type { TaskFileDispatcherDeps } from './task-file-dispatcher.js';
 import {
   dispatchTaskFile,
   resolveTaskFile,
   taskFileDispatcher,
 } from './task-file-dispatcher.js';
+import { useDispatcherSandbox } from './task-file-dispatcher.test-helper.js';
 
-let dir: string;
-let savedEnv: string | undefined;
-
-const writeConfig = (jobs: Record<string, unknown> = {}): void => {
-  const configPath = path.join(dir, 'jeeves-scripts.json');
-  fs.writeFileSync(
-    configPath,
-    JSON.stringify({
-      instance: { name: 't', baseDir: dir },
-      paths: { contentDir: path.join(dir, 'content') },
-      siloRouting: {
-        silos: { acme: { basePath: path.join(dir, 'acme') } },
-      },
-      jobs,
-    }),
-  );
-  process.env[CONFIG_PATH_ENV] = configPath;
-  resetConfig();
-};
-
-const writeTask = (rel: string, text = 'Do the thing.'): string => {
-  const file = path.join(dir, rel);
-  fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, text);
-  return file;
-};
-
-const makeDeps = () => {
-  const deps = {
-    dispatchWithSlack: vi.fn<TaskFileDispatcherDeps['dispatchWithSlack']>(),
-    runDispatcher: vi.fn<TaskFileDispatcherDeps['runDispatcher']>(),
-    now: () => new Date('2026-05-11T12:00:00Z'),
-    log: vi.fn<(message: string) => void>(),
-  };
-  deps.dispatchWithSlack.mockResolvedValue({ task: '', posts: [], posted: 0 });
-  return deps;
-};
-
-beforeEach(() => {
-  savedEnv = process.env[CONFIG_PATH_ENV];
-  dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tfd-'));
-  writeConfig();
-});
-
-afterEach(() => {
-  process.env[CONFIG_PATH_ENV] = savedEnv;
-  resetConfig();
-  fs.rmSync(dir, { recursive: true, force: true });
-});
+const sandbox = useDispatcherSandbox();
+const { writeConfig, writeTask, makeDeps } = sandbox;
 
 describe('resolveTaskFile', () => {
   it('resolves against the default silo when none is given', () => {
     expect(resolveTaskFile({ jobId: 'j', taskFile: 'digest/TASK.md' })).toBe(
-      path.join(dir, 'content', 'digest', 'TASK.md'),
+      path.join(sandbox.dir(), 'content', 'digest', 'TASK.md'),
     );
   });
 
   it('resolves against a named silo', () => {
     expect(
       resolveTaskFile({ jobId: 'j', silo: 'acme', taskFile: 'ops/TASK.md' }),
-    ).toBe(path.join(dir, 'acme', 'ops', 'TASK.md'));
+    ).toBe(path.join(sandbox.dir(), 'acme', 'ops', 'TASK.md'));
   });
 
   it('lets jobs.<id>.silo and .taskFile in config override the caller', () => {
     writeConfig({ j: { silo: 'acme', taskFile: 'moved/TASK.md' } });
     expect(resolveTaskFile({ jobId: 'j', taskFile: 'digest/TASK.md' })).toBe(
-      path.join(dir, 'acme', 'moved', 'TASK.md'),
+      path.join(sandbox.dir(), 'acme', 'moved', 'TASK.md'),
     );
   });
 
@@ -105,7 +55,7 @@ describe('dispatchTaskFile', () => {
     );
     expect(result).toBe('skipped');
     expect(deps.log).toHaveBeenCalledWith(
-      `[skip] s: no task file at ${path.join(dir, 'content', 'digest', 'TASK.md')}`,
+      `[skip] s: no task file at ${path.join(sandbox.dir(), 'content', 'digest', 'TASK.md')}`,
     );
     expect(deps.runDispatcher).not.toHaveBeenCalled();
     expect(deps.dispatchWithSlack).not.toHaveBeenCalled();
