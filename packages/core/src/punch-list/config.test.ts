@@ -65,7 +65,7 @@ describe('punchListSchema', () => {
     [{ retentionDays: 0 }, 'Too small: expected number to be >0'],
     [
       { slack: { channel: '#punch-list' } },
-      'slack.channel must be a Slack channel or user id',
+      'slack.channel must be a Slack conversation id (C…, G… or D…)',
     ],
     [
       { slack: { channel: 'C000PUNCH01', account: '' } },
@@ -111,16 +111,30 @@ describe('punchListSchema', () => {
     ).toEqual(inputRoots);
   });
 
-  it('accepts a user id and channel: / user: targets', () => {
+  it('accepts conversation ids and channel: targets', () => {
     for (const channel of [
-      'U000PERSON1',
+      'C000PUNCH01',
+      'G000PUNCH01',
+      'D000PUNCH01',
       'channel:C000PUNCH01',
-      'user:U000PERSON1',
     ])
       expect(
         punchListSchema.parse({ ...minimal, slack: { channel } }).slack.channel,
       ).toBe(channel);
   });
+
+  it.each(['U000PERSON1', 'W000PERSON1', 'user:U000PERSON1'])(
+    'refuses the user id %s: chat.update needs a conversation id',
+    (channel) => {
+      const result = punchListSchema.safeParse({
+        ...minimal,
+        slack: { channel },
+      });
+      expect(result.error?.issues.map((i) => i.message)).toEqual([
+        "slack.channel must be a conversation id, not a user id: use the DM's D… id (chat.update of the pinned message needs it)",
+      ]);
+    },
+  );
 });
 
 describe('derivePunchList', () => {
@@ -179,7 +193,7 @@ describe('derivePunchList', () => {
     const derived = derivePunchList(
       config({
         ...minimal,
-        slack: { channel: 'user:U000PERSON1', pinnedTs: '1.2' },
+        slack: { channel: 'channel:D000PUNCH01', pinnedTs: '1.2' },
         lockFile: path.join(own, 'l'),
         pendingFile: path.join(own, 'p'),
         cursorFile: path.join(own, 'c'),
@@ -188,7 +202,7 @@ describe('derivePunchList', () => {
       }),
     );
     expect(derived).toMatchObject({
-      slack: { channel: 'U000PERSON1', account: 'default', pinnedTs: '1.2' },
+      slack: { channel: 'D000PUNCH01', account: 'default', pinnedTs: '1.2' },
       lockFile: path.join(own, 'l'),
       pendingFile: path.join(own, 'p'),
       cursorFile: path.join(own, 'c'),
@@ -202,7 +216,6 @@ describe('slackChannelId', () => {
   it.each([
     ['C000PUNCH01', 'C000PUNCH01'],
     ['channel:C000PUNCH01', 'C000PUNCH01'],
-    ['user:U000PERSON1', 'U000PERSON1'],
   ])('%s → %s', (raw, id) => {
     expect(slackChannelId(raw)).toBe(id);
   });

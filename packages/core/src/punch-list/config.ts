@@ -89,7 +89,7 @@ export const punchListConfig = (
   options: LoadConfigOptions = {},
 ): PunchListConfig | undefined => derivePunchList(loadConfig(options));
 
-/** The bare Slack id of a configured channel or user (`channel:C…` → `C…`). */
+/** The bare Slack id of a configured conversation (`channel:C…` → `C…`). */
 export const slackChannelId = (raw: string): string => {
   const target = requireSlackTarget(raw);
   return target.slice(target.indexOf(':') + 1);

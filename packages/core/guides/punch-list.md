@@ -152,7 +152,7 @@ The top-level `punchList` block (`punchListSchema`, [config](./config.md)). Abse
 | `dir` | required | Absolute path. The daily files, `harvest/` records and an optional `TASK.md`. |
 | `timeZone` | required | IANA zone. Sets the day boundaries, not when the runner fires a job. |
 | `retentionDays` | `30` | Positive integer. |
-| `slack.channel` | required | A channel or user id (`C…`, `G…`, `D…`, `U…`, `W…`), or a `channel:` / `user:` target. Channel names are refused, as everywhere in core. |
+| `slack.channel` | required | A conversation id (`C…`, `G…`, `D…`), or a `channel:` target. A user id (`U…`, `W…`, `user:`) is refused, because `chat.update` of the pinned message needs the conversation id: configure a DM by its `D…` id. Channel names are refused, as everywhere in core. |
 | `slack.account` | `default` | The gateway Slack account whose bot token posts. |
 | `slack.pinnedTs` | unset | `ts` of the pinned quick-links message; unset, the harvester leaves it alone. |
 | `specPath` | unset | Absolute path of the instance's punch-list spec, linked from the pinned message and the harvest task. |

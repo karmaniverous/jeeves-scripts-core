@@ -31,12 +31,22 @@ export const punchListInstallTargetSchema = z.object({
   packageJson: z.string().min(1),
 });
 
-/** The notification channel: a channel or user id, or a `channel:` / `user:` target (`normalizeSlackTarget`). */
-const slackChannelSchema = z
-  .string()
-  .refine((raw) => normalizeSlackTarget(raw) !== null, {
-    message: 'slack.channel must be a Slack channel or user id',
+/**
+ * The notification channel: a conversation id (`C…`, `G…`, `D…`) or a
+ * `channel:` target (`normalizeSlackTarget`). A user id is refused:
+ * `chat.update` of the pinned message needs the conversation id, so a DM
+ * is configured by its `D…` id. Channel names are refused, as everywhere.
+ */
+const slackChannelSchema = z.string().superRefine((raw, ctx) => {
+  const target = normalizeSlackTarget(raw);
+  if (target?.startsWith('channel:')) return;
+  ctx.addIssue({
+    code: 'custom',
+    message: target
+      ? "slack.channel must be a conversation id, not a user id: use the DM's D… id (chat.update of the pinned message needs it)"
+      : 'slack.channel must be a Slack conversation id (C…, G… or D…)',
   });
+});
 
 /** A path that `expandPath` makes absolute: it starts with `{home}` or `{npmGlobal}`. */
 const PLACEHOLDER_PATH_RE = /^\{(?:home|npmGlobal)\}(?:[\\/]|$)/;
@@ -62,7 +72,7 @@ export const punchListSchema = z.object({
   retentionDays: z.number().int().positive().default(30),
   /** Where both runnables post. */
   slack: z.object({
-    /** Channel or user id the runnables post to. */
+    /** Conversation id the runnables post to. */
     channel: slackChannelSchema,
     /** Gateway Slack account whose bot token posts (default `default`). */
     account: z.string().min(1).default('default'),
