@@ -22,9 +22,11 @@ import { librarySchema } from './library-schema.js';
 import { pathsSchema } from './paths-schema.js';
 import { peopleSchema } from './people-schema.js';
 import { pipelineSchema } from './pipeline-schema.js';
+import { punchListSchema } from './punch-list-schema.js';
 import { findSecretLiterals } from './secret-guard.js';
 import { siloRoutingSchema } from './silo-schema.js';
 import { slackConfigSchema } from './slack-schema.js';
+import { transcriptsSchema } from './transcripts-schema.js';
 
 /** The `instance` block: who this instance is and where it lives. */
 export const instanceSchema = z.object({
@@ -67,6 +69,10 @@ export const configObjectSchema = z.object({
   people: peopleSchema.default({}),
   /** Public repo subdirectories mirrored into the content tree (`library-sync-mirrors`). */
   library: librarySchema.default({ mirrors: [] }),
+  /** The instance's daily punch list (`punch-list-*`); absent: both runnables skip. */
+  punchList: punchListSchema.optional(),
+  /** Where `transcripts-fetch-video` files and caches transcripts. */
+  transcripts: transcriptsSchema.optional(),
   /** Per-job deltas. */
   jobs: jobsSchema,
   /**
