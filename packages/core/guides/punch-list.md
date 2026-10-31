@@ -120,7 +120,7 @@ Without `--live` it logs the file it would write and `[dry-run] would post to <c
 11. **Pinned quick links**: with `slack.pinnedTs` set, edits that message to link today's file and the spec (the spec line is left out without `specPath`); without it, logs `no pinned message ts configured; quick links not updated`.
 12. Advances the cursor to the run's start, only on a successful live run.
 
-Without `--live` the worker is still dispatched (the report is real) but no file, record or cursor is written and nothing is posted. Re-running with no new input and no undelivered record does nothing.
+Without `--live` the worker is still dispatched (the report is real) but no file, record or cursor is written, the pinned message is left alone and nothing is posted: the worker writes its report to a temporary directory that the run removes (even when the run fails), not to `inboxDir`, which a dry run never creates. Re-running with no new input and no undelivered record does nothing.
 
 The file is an authored record, not a mirror: harvested items are the worker's paraphrase with attribution and links. Nothing here redacts; the watcher redacts secrets at index time (Decision 70).
 

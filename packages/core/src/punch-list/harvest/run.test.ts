@@ -7,7 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -221,6 +221,32 @@ describe('runHarvest', () => {
     expect(s.calls.logs.some((l) => l.includes('[dry-run] would post'))).toBe(
       true,
     );
+    // No harvest record, no pinned-message update, no inbox, no leftover report.
+    expect(existsSync(join(s.listDir, 'harvest'))).toBe(false);
+    expect(s.calls.updates).toEqual([]);
+    expect(
+      s.calls.logs.some((l) => l.startsWith('[dry-run] would update pinned')),
+    ).toBe(true);
+    expect(existsSync(s.config.inboxDir)).toBe(false);
+    const [report] = s.calls.reportFiles;
+    expect(report?.startsWith(s.config.inboxDir)).toBe(false);
+    expect(report && existsSync(dirname(report))).toBe(false);
+    // Cursor, inbox and lock all live under state/: nothing created it.
+    expect(existsSync(join(s.dir, 'state'))).toBe(false);
+  });
+
+  it('removes a dry run’s report directory when the worker fails', async () => {
+    const s = setup();
+    await expect(
+      runHarvest(
+        s.config,
+        { live: false, printTask: false },
+        s.deps('no json'),
+      ),
+    ).rejects.toThrow('harvest worker reply holds no JSON object');
+    const [report] = s.calls.reportFiles;
+    expect(report && existsSync(dirname(report))).toBe(false);
+    expect(existsSync(s.config.inboxDir)).toBe(false);
   });
 
   it('tells the worker where to write its report and removes it once recorded', async () => {

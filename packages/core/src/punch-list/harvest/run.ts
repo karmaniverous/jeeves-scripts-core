@@ -15,11 +15,13 @@
  * 5. Refresh the pinned quick-links message, then advance the cursor.
  *
  * `printTask` prints the task and its source and dispatches nothing;
- * without `live` it dispatches
- * the worker but writes and posts nothing.
+ * without `live` it dispatches the worker but writes and posts nothing:
+ * the worker's report goes to a temporary directory the run removes, not
+ * to `inboxDir`.
  */
 
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import type { PunchListConfig } from '../config.js';
@@ -70,12 +72,13 @@ interface Run {
 
 const DAY_MS = 86_400_000;
 
-const reportFile = (run: Run): string =>
+/** Where a live run's worker writes its report. */
+const inboxReport = (run: Run): string =>
   join(run.config.inboxDir, runFileName(run.started));
 
-const task = (run: Run, since: Date): HarvestTask =>
+const task = (run: Run, since: Date, reportFile: string): HarvestTask =>
   buildTask({
-    reportFile: reportFile(run),
+    reportFile,
     dir: run.config.dir,
     list: loadToday(run.today.store).list,
     since,
@@ -118,17 +121,16 @@ const windowStart = (run: Run): Date => {
   return start;
 };
 
-/** Dispatch, validate, plan, save the record, deliver. */
-const harvest = async (run: Run, since: Date): Promise<void> => {
+/** Dispatch with the report at `reportFile`, validate, plan, save the record, deliver. */
+const dispatch = async (
+  run: Run,
+  since: Date,
+  reportFile: string,
+): Promise<void> => {
   const { config, deps, today } = run;
-  if (!hasNewInput(config.inputRoots, since)) {
-    deps.log(`no new input since ${since.toISOString()}; nothing dispatched`);
-    return;
-  }
-  mkdirSync(config.inboxDir, { recursive: true });
-  const built = task(run, since);
+  const built = task(run, since, reportFile);
   deps.log(built.source);
-  const report = parseReport(await deps.worker(built.text, reportFile(run)));
+  const report = parseReport(await deps.worker(built.text, reportFile));
   const plan = mergeItems(
     loadToday(today.store).list,
     report.items,
@@ -150,9 +152,33 @@ const harvest = async (run: Run, since: Date): Promise<void> => {
   const file = recordPath(config.dir, run.started);
   if (!run.flags.dryRun) {
     writeRecord(file, record);
-    rmSync(reportFile(run), { force: true });
+    rmSync(reportFile, { force: true });
   }
   await deliver(run, file, record);
+};
+
+/**
+ * When anything changed since `since`, dispatch: a live run's report goes
+ * to `inboxDir`; a dry run's to a temporary directory removed afterwards,
+ * so a dry run leaves nothing behind.
+ */
+const harvest = async (run: Run, since: Date): Promise<void> => {
+  const { config, deps } = run;
+  if (!hasNewInput(config.inputRoots, since)) {
+    deps.log(`no new input since ${since.toISOString()}; nothing dispatched`);
+    return;
+  }
+  if (!run.flags.dryRun) {
+    mkdirSync(config.inboxDir, { recursive: true });
+    await dispatch(run, since, inboxReport(run));
+    return;
+  }
+  const scratch = mkdtempSync(join(tmpdir(), 'punch-list-harvest-'));
+  try {
+    await dispatch(run, since, join(scratch, runFileName(run.started)));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
 };
 
 /** Point the pinned quick-links message at today's file. */
@@ -197,6 +223,7 @@ export const runHarvest = async (
     const built = task(
       run,
       readCursor(config.cursorFile) ?? new Date(started.getTime() - DAY_MS),
+      inboxReport(run),
     );
     deps.log(built.source);
     deps.log(built.text);
