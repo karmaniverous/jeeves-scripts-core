@@ -9,18 +9,12 @@
  * worker replied never loses items or their notification.
  */
 
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  renameSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { z } from 'zod';
 
+import { readJsonFile, writeJsonFile } from '../../lib/json-file.js';
 import { harvestReportSchema, reportItemSchema } from './report.js';
 
 export const harvestRecordSchema = z.object({
@@ -52,13 +46,7 @@ export const recordPath = (dir: string, at: Date): string =>
 
 /** Save a record atomically. */
 export const writeRecord = (file: string, record: HarvestRecord): void => {
-  mkdirSync(join(file, '..'), { recursive: true });
-  const tmp = `${file}.${String(process.pid)}.tmp`;
-  writeFileSync(
-    tmp,
-    `${JSON.stringify(harvestRecordSchema.parse(record), null, 2)}\n`,
-  );
-  renameSync(tmp, file);
+  writeJsonFile(file, harvestRecordSchema.parse(record));
 };
 
 /** Undelivered records, oldest first. */
@@ -72,9 +60,7 @@ export const undeliveredRecords = (
     .sort()
     .map((f) => ({
       file: join(d, f),
-      record: harvestRecordSchema.parse(
-        JSON.parse(readFileSync(join(d, f), 'utf8')),
-      ),
+      record: readJsonFile(join(d, f), harvestRecordSchema),
     }))
     .filter(({ record }) => !record.delivered);
 };

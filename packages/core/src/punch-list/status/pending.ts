@@ -7,25 +7,17 @@
  * once posted; each run posts what is left first.
  */
 
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
-import { dirname } from 'node:path';
+import { rmSync } from 'node:fs';
 
 import { z } from 'zod';
+
+import { readJsonFileIfExists, writeJsonFile } from '../../lib/json-file.js';
 
 const pendingSchema = z.object({ messages: z.array(z.string()) });
 
 /** Messages still to post. */
 export const readPending = (file: string): string[] =>
-  existsSync(file)
-    ? pendingSchema.parse(JSON.parse(readFileSync(file, 'utf8'))).messages
-    : [];
+  readJsonFileIfExists(file, pendingSchema, { messages: [] }).messages;
 
 /** Save the messages still to post; none removes the file. */
 export const writePending = (file: string, messages: string[]): void => {
@@ -33,10 +25,7 @@ export const writePending = (file: string, messages: string[]): void => {
     rmSync(file, { force: true });
     return;
   }
-  mkdirSync(dirname(file), { recursive: true });
-  const tmp = `${file}.${String(process.pid)}.tmp`;
-  writeFileSync(tmp, `${JSON.stringify({ messages }, null, 2)}\n`);
-  renameSync(tmp, file);
+  writeJsonFile(file, { messages });
 };
 
 /**

@@ -9,35 +9,24 @@
  * and stops at the first hit.
  */
 
-import {
-  existsSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
-  statSync,
-  writeFileSync,
-} from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { z } from 'zod';
+
+import { readJsonFile, writeJsonFile } from '../../lib/json-file.js';
 
 const cursorSchema = z.object({ windowStart: z.iso.datetime() });
 
 /** The start of the next harvest window, if one was saved. */
 export const readCursor = (file: string): Date | undefined => {
   if (!existsSync(file)) return undefined;
-  return new Date(
-    cursorSchema.parse(JSON.parse(readFileSync(file, 'utf8'))).windowStart,
-  );
+  return new Date(readJsonFile(file, cursorSchema).windowStart);
 };
 
 /** Save the start of the next harvest window. */
 export const writeCursor = (file: string, at: Date): void => {
-  mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(
-    file,
-    `${JSON.stringify({ windowStart: at.toISOString() }, null, 2)}\n`,
-  );
+  writeJsonFile(file, { windowStart: at.toISOString() });
 };
 
 /**
