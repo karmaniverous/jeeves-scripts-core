@@ -6,8 +6,10 @@
  * after 2 s on HTTP 408), cache it, render the Markdown and write the
  * scratch copy or the kept file. The transcript text never reaches stdout:
  * the outcome is one report object and an exit code (0 ok, 2 usage, 3 no
- * captions, 4 API or other error, 5 exists). Writes nothing without
- * `live`. Filesystem and network I/O (fetch injectable).
+ * captions, 4 API or other error, 5 exists). Without `live` the only
+ * write is the response cache, so a following live run spends no second
+ * credit; the transcript is never written. Filesystem and network I/O
+ * (fetch injectable).
  */
 
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -54,7 +56,7 @@ export interface FileTranscriptRequest {
   out?: string | undefined;
   /** Overwrite a kept file, and refetch instead of using the cache. */
   force: boolean;
-  /** Write (default: report only). */
+  /** Write the transcript (default: report only; a fetched response is cached either way). */
   live: boolean;
 }
 
@@ -195,10 +197,9 @@ export const fileTranscript = async (
     } catch {
       return fail(EXIT.error, 'TranscriptAPI returned invalid JSON');
     }
-    if (req.live) {
-      await mkdir(deps.dirs.scratchDir, { recursive: true });
-      await writeFile(cacheFile, JSON.stringify(data), 'utf8');
-    }
+    // Cached even on a dry run (owner decision), so `--live` reuses it.
+    await mkdir(deps.dirs.scratchDir, { recursive: true });
+    await writeFile(cacheFile, JSON.stringify(data), 'utf8');
   }
 
   const parsed = transcriptResponseSchema.safeParse(data);

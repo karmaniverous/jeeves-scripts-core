@@ -10,7 +10,7 @@ Off by default: nothing runs it on a schedule, and without `TRANSCRIPT_API_KEY` 
 
 | Script | Description |
 | --- | --- |
-| `fetch-video.ts` | Runnable `transcripts-fetch-video`, on demand only (no manifest). Without `--live` it reports what it would write and writes nothing. |
+| `fetch-video.ts` | Runnable `transcripts-fetch-video`, on demand only (no manifest). Without `--live` it reports what it would write and writes no transcript; a response it fetched is still cached. |
 
 ## transcripts-fetch-video
 
@@ -25,7 +25,7 @@ jeeves-scripts run transcripts-fetch-video <video-url-or-id> [--keep] [--dir DIR
 | `--dir DIR` | Library directory override (implies `--keep`; the file name is kept). |
 | `--out FILE` | Exact output path (implies `--keep`). Not with `--dir`. |
 | `--force` | Overwrite an existing kept file, and refetch instead of using the cache. |
-| `--live` | Write the files. Without it, everything is computed and reported (`dryRun: true`) and nothing is written, not even the cache. A dry run with no cached response still calls TranscriptAPI (one credit) to compute the report, and caches nothing, so a following `--live` run calls it again (a second credit). The skill always passes `--live`. |
+| `--live` | Write the transcript. Without it, everything is computed and reported (`dryRun: true`) and no transcript is written (no scratch copy, no kept file, no library or `--dir` directory). A dry run with no cached response (or with `--force`) still calls TranscriptAPI (one credit) and caches the response, the only file it writes, so a following `--live` run reuses it and spends no second credit. A dry run with a cached response writes nothing. The skill always passes `--live`. |
 
 It prints one JSON line and never the transcript text:
 
@@ -67,7 +67,7 @@ flowchart LR
 
 1. A named `--out` that exists without `--force` exits 5 before any network call.
 2. **Cache**: `{scratchDir}/<video_id>.json`. Present (and parseable) without `--force`: reused (`cached: true`): no credit spent, no key needed.
-3. **Fetch**: `GET https://transcriptapi.com/api/v2/youtube/transcript?video_url=<id>&format=json&include_timestamp=true&send_metadata=true` with `Authorization: Bearer <TRANSCRIPT_API_KEY>` and `User-Agent: <transcripts.userAgent>`, a 60-second timeout, and one retry after 2 seconds on HTTP 408 (the `@karmaniverous/jeeves` retry helper). With `--live` the response is cached before rendering: the parsed JSON body, re-serialised (`JSON.stringify`), not the response bytes, so whitespace and key escapes may differ from what the API sent while the data is the same. A later run (keeping a video first fetched as a scratch copy, say) then spends no credit. A dry run caches nothing (above).
+3. **Fetch**: `GET https://transcriptapi.com/api/v2/youtube/transcript?video_url=<id>&format=json&include_timestamp=true&send_metadata=true` with `Authorization: Bearer <TRANSCRIPT_API_KEY>` and `User-Agent: <transcripts.userAgent>`, a 60-second timeout, and one retry after 2 seconds on HTTP 408 (the `@karmaniverous/jeeves` retry helper). The response is cached before rendering, with or without `--live`: the parsed JSON body, re-serialised (`JSON.stringify`), not the response bytes, so whitespace and key escapes may differ from what the API sent while the data is the same. A later run (keeping a video first fetched as a scratch copy, or the `--live` run after a dry run, say) then spends no credit.
 4. **Render**: YAML frontmatter (`title`, `author`, `author_url`, `source`, `video_id`, `length`, `language`, `type: video-transcript`, `retrieved`, `retrieved_via`), a header with the source and author links and the length, a note that the captions are auto-generated, and one `[m:ss]` (or `[h:mm:ss]`) line per caption segment, whitespace collapsed.
 5. **Write**: a kept file that exists without `--force` exits 5 (after the fetch: the response is cached by then). The directory is created as needed. No redaction: the watcher redacts secrets at index time (Decision 70).
 

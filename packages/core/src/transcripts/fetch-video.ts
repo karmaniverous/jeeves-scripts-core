@@ -7,7 +7,8 @@
  * agent never retypes or holds the whole transcript. Prints one JSON
  * line and exits 0, or 2 (usage), 3 (no captions), 4 (API or other
  * error), 5 (exists). Without `--live` it reports what it would write
- * and writes nothing. Reads `TRANSCRIPT_API_KEY` from the environment
+ * and writes no transcript; a response it had to fetch is still cached,
+ * so a following `--live` run spends no second credit. Reads `TRANSCRIPT_API_KEY` from the environment
  * (never from `jeeves-scripts.json`).
  */
 
@@ -29,7 +30,10 @@ export const fetchVideoFlags = {
     '--force',
     'Overwrite a kept file, and refetch instead of using the cache',
   ),
-  live: argFlag('--live', 'Write the files (default: report only)'),
+  live: argFlag(
+    '--live',
+    'Write the transcript (default: report only; a fetched response is cached either way)',
+  ),
 };
 
 export default defineRunnable({
