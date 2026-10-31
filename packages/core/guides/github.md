@@ -124,8 +124,8 @@ Four optional fields on its own job delta, `jobs['github-sync-files']` in the in
 
 | Key | Meaning |
 | --- | --- |
-| `files[]` | `source`: the content, a path relative to the instance repo root (`paths.scriptsDir`); `target`: the path written in each repo (no leading `/`). Every source is read before any `gh` call; a missing one fails the run. Content is the instance's own and is written as is, byte for byte. |
-| `owners[]` | `owner`: the login. `type`: `user` syncs the acting account's own repos (`/user/repos`), so a `user` owner must be `account` (any other is recorded as that owner's failure); `org` syncs `/orgs/<owner>/repos`. `ruleset`: apply the top-level `ruleset` to this owner's repos (default `true`; no effect without one). `include` / `exclude`: glob patterns matched against `full_name` (`owner/repo`, case-insensitive); with `include`, only matching repos are synced; `exclude` leaves matches out. Archived repos are never synced. |
+| `files[]` | `source`: the content, a path relative to the instance repo root (`paths.scriptsDir`): not empty, no leading `/` or `\`, no drive letter, no `..` segment (the same rule as a library mirror's `subdir`), so `config check` refuses anything else. `target`: the path written in each repo (no leading `/`). Every source is read before any `gh` call; a missing one, or one that resolves outside the instance root (through a symlink, say), fails the run. Content is the instance's own and is written as is, byte for byte. A `target` under `.github/workflows/` needs the `workflow` scope on the acting login (`jeeves-github` skill). |
+| `owners[]` | `owner`: the login. `type`: `user` syncs the acting account's own repos: GitHub lists only the authenticated user's repos (`/user/repos`), so a `user` owner must be `account` (any other is recorded as that owner's failure, and the error says why; to sync another user's repos, run as that user); `org` syncs `/orgs/<owner>/repos`. `ruleset`: apply the top-level `ruleset` to this owner's repos (default `true`; no effect without one). `include` / `exclude`: glob patterns matched against `full_name` (`owner/repo`, case-insensitive); with `include`, only matching repos are synced; `exclude` leaves matches out. Archived repos are never synced. |
 | `account` | The `gh` login that writes. Default `integrations.gh.botUser`; with neither, the run fails. |
 | `ruleset` | A ruleset as the Rulesets API takes it: `name`, `target`, `enforcement`, `rules[]` (each with a `type`), other keys passed through. |
 
@@ -137,16 +137,16 @@ Without `--live` the run logs `[github-sync-files] DRY RUN: pass --live to write
 
 ### The acting account
 
-Before switching, the run reads the active login (`gh api user --jq .login`); if it can't, it fails without switching. It then runs `gh auth switch -u <account>` and checks the acting login with `verifyActingAccount` (case-insensitive, as for every GitHub job). On any other login it fails with `github-sync-files: acting gh login is "<got>", expected "<account>"; not writing to any repo`, before listing or writing anything. Whatever happens, it then switches back to the login that was active before the run, not necessarily the bot; a failed switch back fails an otherwise clean run. The account needs the token scopes in the `jeeves-github` skill.
+Before switching, the run reads the active login (`gh api user --jq .login`); if it can't, it fails without switching. It then runs `gh auth switch -u <account>` and checks the acting login with `verifyActingAccount` (case-insensitive, as for every GitHub job). On any other login it fails with `github-sync-files: acting gh login is "<got>", expected "<account>"; not writing to any repo`, before listing or writing anything. Whatever happens, it then switches back to the login that was active before the run, not necessarily the bot; a failed switch back fails an otherwise clean run, which then records no `last-run`. The account needs the token scopes in the `jeeves-github` skill.
 
 ### Each repo
 
 For each owner in order, the run lists its repos (100 a page until a short page) and, for each repo:
 
 1. **Ruleset** (when configured and the owner wants it): `GET /repos/<repo>/rulesets`. A failed call is logged as `rulesets API unavailable`; a ruleset with the configured `name` is left alone; otherwise the ruleset is created (`POST`).
-2. **Each file:** `GET /repos/<repo>/contents/<target>?ref=<default branch>`. Identical bytes: skipped. Different or missing: written with `PUT` (with the current `sha` when updating), counted `created` or `updated`. A refusal with HTTP 409 naming a pull request (the branch only accepts changes through a PR) is counted `protected`, not a failure.
+2. **Each file:** `GET /repos/<repo>/contents/<target>?ref=<default branch>`. The file's `sha` there is compared with the git blob SHA of the source (`sha1` of `blob <length>\0<bytes>`), so a file over 1 MB, which the Contents API returns without `content`, compares too. Identical: skipped. Different, or missing (HTTP 404 only): written with `PUT` (with the current `sha` when updating), counted `created` or `updated`. Any other failed read (a 403, a rate limit, a 5xx) fails that repo; the file is never written blind. A refusal with HTTP 409 naming a pull request (the branch only accepts changes through a PR) is counted `protected`, not a failure.
 
-A failed listing, a refused ruleset create, a failed write or any error inside one repo is logged and recorded, and the run goes on to the next repo or owner. At the end it logs `[github-sync-files] done: rulesets created=N failed=N files created=N updated=N skipped=N protected=N failed=N`. With no failure it records `last-run` in runner state `github-sync-files`; with any, it fails with one error naming every failure (`github-sync-files: N failure(s); last-run not recorded: ...`) and leaves `last-run` alone. A repeat run with nothing changed writes nothing and records `last-run`.
+A failed listing, a refused ruleset create, a failed read or write, or any error inside one repo is logged and recorded, and the run goes on to the next repo or owner. At the end it logs `[github-sync-files] done: rulesets created=N failed=N files created=N updated=N skipped=N protected=N failed=N`. With no failure, once `gh` is switched back, it records `last-run` in runner state `github-sync-files`; with any, it fails with one error naming every failure (`github-sync-files: N failure(s); last-run not recorded: ...`) and leaves `last-run` alone. A repeat run with nothing changed writes nothing and records `last-run`.
 
 ## Key Files
 
@@ -154,6 +154,6 @@ A failed listing, a refused ruleset create, a failed write or any error inside o
 | --- | --- |
 | `../lib/gh.ts` | GitHub CLI wrappers — `gh()`, `ghJson()`, `ghApi()`, `setupGhConfig()` |
 | `../config/silo-router.ts` | `getBasePathForGitHubOrg()` for org-based output routing (see [silos](./config.md#silos) for the `siloRouting` schema) |
-| `lib/file-sync.ts`, `lib/file-sync-tally.ts` | `sync-files`: repo listing with globs, ruleset create, byte-for-byte file writes; the counts and summary line |
+| `lib/file-sync.ts`, `lib/file-sync-tally.ts`, `lib/file-sources.ts` | `sync-files`: repo listing with globs, ruleset create, file writes compared by git blob SHA; the counts and summary line; reading `files[].source` inside the instance root |
 | `../config/github-sync-files-schema.ts` | `githubSyncFileSchema`, `githubSyncOwnerSchema`, `githubRulesetSchema` (the `sync-files` delta fields) |
 | `../lib/constants.ts` | `constants()`: `GH_*` from `integrations.gh` in the instance config; `GITHUB_DIR`, `GITHUB_REGISTRY_PATH` under `paths.contentDir` |
