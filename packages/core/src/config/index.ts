@@ -30,6 +30,7 @@ export {
   generateJsonSchema,
   generatePointerJsonSchema,
 } from './json-schema.js';
+export * from './library-schema.js';
 export {
   CONFIG_PATH_ENV,
   type ConfigSource,

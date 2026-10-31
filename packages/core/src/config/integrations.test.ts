@@ -42,6 +42,7 @@ const baseConfig = (
   siloRouting: { silos: {} },
   slack: { channels: {}, backfillBudgetSeconds: 60 },
   people: {},
+  library: { mirrors: [] },
   jobs: {},
 });
 
