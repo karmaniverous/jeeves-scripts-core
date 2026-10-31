@@ -10,6 +10,6 @@
     "overlap_policy": "skip",
     "timeout_seconds": 300,
     "enabled": true,
-    "prerequisite": "Google Calendar via gog (OAuth client or service-account mailboxes) + calendar accounts in jeeves-scripts.json (pipeline)"
+    "prerequisite": "Google Calendar via gog (OAuth client or service-account mailboxes) + calendar accounts in the instance config (pipeline)"
   }
 }

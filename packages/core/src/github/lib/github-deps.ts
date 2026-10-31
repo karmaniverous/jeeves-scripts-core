@@ -4,7 +4,7 @@
  * What the GitHub runnables read and call: the gh settings (config dir,
  * binary, account, bot user), the archive paths, `gh` and command runners,
  * the runner client and the clock; the live values are resolved from
- * `jeeves-scripts.json` when a runnable runs (never at import), which is
+ * the instance config when a runnable runs (never at import), which is
  * also when `GH_CONFIG_DIR` is set for the `gh` child processes. Also the
  * round-robin batch over a registry kept in runner state items, shared by
  * the repo and issue syncs.

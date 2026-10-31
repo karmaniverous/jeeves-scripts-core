@@ -4,7 +4,7 @@
  * Locate and read another Jeeves component's own config file, so scripts
  * pull a component's settings (the runner's port, the watcher's Qdrant
  * URL) from the component instead of copying them into
- * `jeeves-scripts.json`. The layout is the platform's
+ * the instance config. The layout is the platform's
  * (`@karmaniverous/jeeves`): `{configRoot}/jeeves-<name>/config.json`.
  * The platform config root is core's `paths().configDir`.
  */

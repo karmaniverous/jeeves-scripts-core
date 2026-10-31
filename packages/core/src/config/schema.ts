@@ -1,7 +1,7 @@
 /**
  * @module config/schema
  *
- * The single `jeeves-scripts.json` schema (Decision 3, Decision 19):
+ * The single instance config schema (Decision 3, Decision 19):
  * instance settings (the template's constants), `paths` overrides,
  * `integrations`, `pipeline` (the template's `pipeline-config.json`, same keys),
  * `siloRouting` (silo routing), `jobs` deltas and the instance's own
@@ -114,7 +114,7 @@ export const configSchema = z
     }),
   );
 
-/** A validated `jeeves-scripts.json`. */
+/** A validated instance config. */
 export type Config = z.infer<typeof configSchema>;
 /** Parsed `instance` block. */
 export type InstanceConfig = z.infer<typeof instanceSchema>;

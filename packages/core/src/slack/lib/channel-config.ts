@@ -2,7 +2,7 @@
  * @module slack/lib/channel-config
  *
  * What this instance decides about a Slack channel: `slack.channels` in
- * `jeeves-scripts.json` (project tag, home directory). The single source
+ * the instance config (project tag, home directory). The single source
  * for those decisions; everything else about a channel comes from Slack
  * (see slack-cache).
  */

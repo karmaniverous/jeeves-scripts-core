@@ -1,7 +1,7 @@
 /**
  * @module google-drive/lib/config
  *
- * Zod schema and types for the `pipeline.googleDrive` block of jeeves-scripts.json
+ * Zod schema and types for the `pipeline.googleDrive` block of the instance config
  * (spec §8), and its loader. The main `PipelineConfigSchema`
  * (`config/pipeline-schema.ts`) carries the block unvalidated; it is
  * validated here, when the Drive job loads it, so a mistake in it fails

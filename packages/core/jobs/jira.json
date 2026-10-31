@@ -11,7 +11,7 @@
     "overlap_policy": "skip",
     "timeout_seconds": 60,
     "enabled": true,
-    "prerequisite": "Jira API credentials (integrations.jira siteUrl, email and apiTokenPath in jeeves-scripts.json)"
+    "prerequisite": "Jira API credentials (integrations.jira siteUrl, email and apiTokenPath in the instance config)"
   },
   "jira-sort-backlog": {
     "name": "Jira Backlog Priority Sort",
@@ -26,6 +26,6 @@
     "overlap_policy": "skip",
     "timeout_seconds": 120,
     "enabled": true,
-    "prerequisite": "Jira API credentials + integrations.jira.boardId in jeeves-scripts.json (or the JIRA_BOARD_ID environment variable)"
+    "prerequisite": "Jira API credentials + integrations.jira.boardId in the instance config (or the JIRA_BOARD_ID environment variable)"
   }
 }

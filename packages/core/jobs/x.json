@@ -10,7 +10,7 @@
     "overlap_policy": "skip",
     "timeout_seconds": 300,
     "enabled": true,
-    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+    "prerequisite": "integrations.x.accounts in the instance config lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
   },
   "x-poll-mentions": {
     "name": "X Poll Mentions",
@@ -23,7 +23,7 @@
     "overlap_policy": "skip",
     "timeout_seconds": 300,
     "enabled": true,
-    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+    "prerequisite": "integrations.x.accounts in the instance config lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
   },
   "x-poll-feed": {
     "name": "X Poll Feed",
@@ -36,7 +36,7 @@
     "overlap_policy": "skip",
     "timeout_seconds": 300,
     "enabled": true,
-    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+    "prerequisite": "integrations.x.accounts in the instance config lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
   },
   "x-poll-likes": {
     "name": "X Poll Likes",
@@ -49,7 +49,7 @@
     "overlap_policy": "skip",
     "timeout_seconds": 300,
     "enabled": true,
-    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+    "prerequisite": "integrations.x.accounts in the instance config lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
   },
   "x-poll-bookmarks": {
     "name": "X Poll Bookmarks",
@@ -62,7 +62,7 @@
     "overlap_policy": "skip",
     "timeout_seconds": 300,
     "enabled": true,
-    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+    "prerequisite": "integrations.x.accounts in the instance config lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
   },
   "x-drain-queues": {
     "name": "X Drain Queues",
@@ -75,6 +75,6 @@
     "overlap_policy": "skip",
     "timeout_seconds": 300,
     "enabled": true,
-    "prerequisite": "integrations.x.accounts in jeeves-scripts.json lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
+    "prerequisite": "integrations.x.accounts in the instance config lists the handles, each with its OAuth JSON file x-<handle>-oauth2.json in the X OAuth dir. With no args the job covers every configured handle (see guides/x.md)"
   }
 }

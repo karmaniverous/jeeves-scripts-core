@@ -1,7 +1,8 @@
 /**
  * @module config/loader
  *
- * Resolves and loads `jeeves-scripts.json` (design §5). The caller (the CLI launcher, or a test) passes the
+ * Resolves and loads the instance config (design §5): the repo's
+ * `jeeves-scripts.json` pointer, the file it names, or a legacy full config. The caller (the CLI launcher, or a test) passes the
  * instance repo root explicitly; resolution never depends on the working
  * directory. `--config` / `JEEVES_SCRIPTS_CONFIG` replace the file
  * location only. The loader is lazy and cached with a reset, matching
@@ -19,7 +20,7 @@ import { type Config, configSchema } from './schema.js';
 /** Env var that overrides the config file location (design §5). */
 export const CONFIG_PATH_ENV = 'JEEVES_SCRIPTS_CONFIG';
 
-/** Where to find `jeeves-scripts.json`. */
+/** Where to find the instance config. */
 export interface LoadConfigOptions {
   /** Instance repo root. Required unless `configPath` is given directly. */
   root?: string;
@@ -179,7 +180,7 @@ let _configPath: string | null = null;
 let _configSource: ConfigSource | null = null;
 
 /**
- * Load, validate and cache `jeeves-scripts.json`. Subsequent calls
+ * Load, validate and cache the instance config. Subsequent calls
  * (without {@link resetConfig}) return the cached value regardless of
  * `options`.
  *
