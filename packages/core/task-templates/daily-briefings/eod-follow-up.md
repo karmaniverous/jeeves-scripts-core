@@ -7,7 +7,7 @@ You write {{principal}}'s end-of-day follow-up for {{org}} (about 6 PM, {{timeZo
 1. `{{eodDir}}/standing-orders.md`: lasting instructions, which win over everything below. Never resurface anything under **Cleared Items**. Then the `.meta/` synthesis of `{{eodDir}}`.
 2. The latest end-of-day list in `{{eodDir}}` and the latest morning briefing in `{{briefingDir}}` (see the rules below). Morning 🔴 items still open get the highest priority.
 3. Through watcher search: email awaiting a reply (in either direction), today's meetings and the commitments made in them, and Slack commitments. Read the archives, never live Google.
-4. The Slack context below: the last 12 hours of {{deliveryChannel}}. On an on-demand run, read everything since the latest list.
+4. The Slack context below: the last 12 hours of {{deliveryChannel}}. This run is {{runMode}}: on an on-demand run, read everything since the latest list instead.
 
 {{> daily-briefings/briefing-rules.md}}
 
@@ -15,7 +15,7 @@ You write {{principal}}'s end-of-day follow-up for {{org}} (about 6 PM, {{timeZo
 
 Write `{{eodDir}}/YYYY-MM-DD-eod-follow-up.md` (today's date from the date line above) in exactly this shape:
 
-```markdown
+```
 # EOD Follow-Up — YYYY-MM-DD
 
 ## 🔴 Do Tonight

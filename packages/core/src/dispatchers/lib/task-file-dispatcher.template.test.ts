@@ -6,14 +6,22 @@
 
 import path from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
-import { BRIEFING_TEMPLATES } from './briefing.js';
-import { dispatchTaskFile } from './task-file-dispatcher.js';
+import { BRIEFING_TEMPLATES, briefingVars } from './briefing.js';
+import { dispatchTaskFile, runModeOf } from './task-file-dispatcher.js';
 import { useDispatcherSandbox } from './task-file-dispatcher.test-helper.js';
 
 const sandbox = useDispatcherSandbox();
 const { writeTask, makeDeps } = sandbox;
+
+describe('runModeOf', () => {
+  it('is scheduled under jeeves-runner (JR_RUN_ID set), else on-demand', () => {
+    expect(runModeOf({ JR_RUN_ID: '17' })).toBe('scheduled');
+    expect(runModeOf({ JR_RUN_ID: '' })).toBe('on-demand');
+    expect(runModeOf({})).toBe('on-demand');
+  });
+});
 
 describe('dispatchTaskFile with a core template (Decision 75)', () => {
   const base = {
@@ -82,6 +90,48 @@ describe('dispatchTaskFile with a core template (Decision 75)', () => {
       `s: task from the instance file ${instanceFile()}`,
     );
     expect(deps.runDispatcher.mock.calls[0]?.[0]).toBe('Literal {{braces}}.');
+  });
+
+  it.each([
+    ['scheduled', 'This run is scheduled:'],
+    ['on-demand', 'This run is on-demand:'],
+  ] as const)('fills {{runMode}} with %s', async (runMode, line) => {
+    const deps = { ...makeDeps(), runMode: () => runMode };
+    await dispatchTaskFile(
+      {
+        ...base,
+        template: BRIEFING_TEMPLATES.eod,
+        templateVars: () =>
+          briefingVars({
+            org: 'Acme',
+            principal: 'Ana',
+            delegates: 'Ben',
+            timeZone: 'UTC',
+            deliveryChannel: '#eod',
+            briefingDir: '/c/brief',
+            eodDir: '/c/eod',
+          }),
+      },
+      deps,
+    );
+    expect(deps.runDispatcher.mock.calls[0]?.[0]).toContain(line);
+  });
+
+  it('reads the run mode from the environment by default, and lets templateVars override it', async () => {
+    writeTask('content/brief/TASK.md', 'Mode {{runMode}}.');
+    const plain = { scriptName: 's', jobId: 'j', taskFile: 'brief/TASK.md' };
+    vi.stubEnv('JR_RUN_ID', '42');
+    const deps = makeDeps();
+    await dispatchTaskFile({ ...plain, templateVars: {} }, deps);
+    await dispatchTaskFile(
+      { ...plain, templateVars: { runMode: 'on-demand' } },
+      deps,
+    );
+    vi.unstubAllEnvs();
+    expect(deps.runDispatcher.mock.calls.map(([task]) => task)).toEqual([
+      'Mode scheduled.',
+      'Mode on-demand.',
+    ]);
   });
 
   it('fills core template without templateVars only when it has no placeholders', async () => {

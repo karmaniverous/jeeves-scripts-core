@@ -6,10 +6,10 @@ You write {{principal}}'s morning briefing for {{org}}: an internal punch list o
 
 1. `{{briefingDir}}/standing-orders.md`: lasting instructions. They win over everything below. Never resurface anything under **Cleared Items**.
 2. The `.meta/` synthesis of `{{briefingDir}}`: long-run priorities, recurring themes, conformance notes.
-3. The latest morning briefing in `{{briefingDir}}` and the latest end-of-day list in `{{eodDir}}` (see the rules below). If either says `not enabled`, use the other alone.
-4. Today's market intel in `{{marketIntelDir}}`: 3-4 headlines and a link to the full report. If it says `not enabled`, leave the section out.
+3. The latest morning briefing in `{{briefingDir}}` and the latest end-of-day list in `{{eodSource}}` (see the rules below). If either says `not enabled`, use the other alone.
+4. Today's market intel in `{{marketIntelSource}}`: 3-4 headlines and a link to the full report. If it says `not enabled`, leave the section out.
 5. The pipeline archives through watcher search: meeting transcripts and notes from the last 48 hours, email threads, calendar, and Slack channels where {{principal}} makes commitments. Read the archives, never live Google.
-6. The Slack context below: the last 24 hours of {{deliveryChannel}} (feedback, completions such as "done" or "handled", new requests). On an on-demand run, read everything since the latest briefing.
+6. The Slack context below: the last 24 hours of {{deliveryChannel}} (feedback, completions such as "done" or "handled", new requests). This run is {{runMode}}: on an on-demand run, read everything since the latest briefing instead.
 
 {{> daily-briefings/briefing-rules.md}}
 
@@ -17,8 +17,8 @@ You write {{principal}}'s morning briefing for {{org}}: an internal punch list o
 
 Write `{{briefingDir}}/YYYY-MM-DD-daily-briefing.md` (today's date from the date line above) in exactly this shape:
 
-```markdown
-# {{org}} Daily Briefing — YYYY-MM-DD
+```
+# {{org}} CEO Daily Briefing — YYYY-MM-DD
 
 ## BLUF (Bottom Line Up Front)
 
@@ -26,7 +26,8 @@ Write `{{briefingDir}}/YYYY-MM-DD-daily-briefing.md` (today's date from the date
 
 ## Market Intel Highlights
 
-- 3-4 headlines from today's market intel report Full report: [<title> — YYYY-MM-DD](link)
+- 3-4 headlines from today's market intel report
+Full report: [<title> — YYYY-MM-DD](<insider link>)
 
 ## Action Items
 

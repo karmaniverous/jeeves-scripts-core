@@ -162,6 +162,7 @@ const EXPECTED = [
   'respondConfigSchema',
   'retryAsync',
   'retrySync',
+  'runModeOf',
   'runnerConfig',
   'runnerUrl',
   'scheduleSchema',

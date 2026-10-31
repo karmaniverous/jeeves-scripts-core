@@ -152,7 +152,7 @@ task = withDateContext(task, new Date(), tz);
 
 Core ships TASK templates under `task-templates/` in the package (the punch-list harvest, the daily-briefing family). One resolver, `resolveTaskTemplate` (`lib/task-template.ts`, root export), decides which text a worker gets (Decision 75): the instance's own file at the configured path when it exists, else core's copy, read from the package. Nothing copies a template into the instance, so a core update reaches every instance that has not written its own. Every caller logs which source it used (`describeTaskSource`): `task from the instance file <path>` or `task from core template <name> (no instance file at <path>)`. A core template or `{{> name}}` include name is a relative path inside `task-templates/`: an absolute, UNC or drive-qualified name, a `..` segment, or a name that resolves outside the directory (through a link too) fails the run, so no name can put another file into a worker's task.
 
-Give `dispatchTaskFile` a `template` (a name under `task-templates/`) and a missing task file no longer skips: core's template is the task. `templateVars` (a value or a function) fills the task's `{{name}}` placeholders, and `{{> name}}` includes another core template (one level). A placeholder with no value fails the run, naming every missing one. Placeholders are filled only when `template` or `templateVars` is given, so an existing instance TASK file with literal braces is unchanged. To customise a template, copy it from `node_modules/@karmaniverous/jeeves-scripts-core/task-templates/` to the dispatcher's task-file path and edit it; the placeholders keep working.
+Give `dispatchTaskFile` a `template` (a name under `task-templates/`) and a missing task file no longer skips: core's template is the task. `templateVars` (a value or a function) fills the task's `{{name}}` placeholders, and `{{> name}}` includes another core template (one level). A placeholder with no value fails the run, naming every missing one. `{{runMode}}` always has a value: `scheduled` under jeeves-runner (`JR_RUN_ID` set), else `on-demand` (`runModeOf`; a `runMode` in `templateVars` wins). Placeholders are filled only when `template` or `templateVars` is given, so an existing instance TASK file with literal braces is unchanged. To customise a template, copy it from `node_modules/@karmaniverous/jeeves-scripts-core/task-templates/` to the dispatcher's task-file path and edit it; the placeholders keep working.
 
 ## Daily briefings
 
@@ -164,7 +164,7 @@ The executive daily-briefing family (Decision 44 still holds: core ships the tem
 | End-of-day follow-up | `eod`: `daily-briefings/eod-follow-up.md` | About 6 PM | Internal: what today produced and what fell through the cracks |
 | Market intel | `marketIntel`: `daily-briefings/market-intel.md` | Shortly before the morning briefing | Shareable outside the organisation: no internal items |
 
-Any of them can run on demand instead of (or as well as) on schedule: give the dispatcher no manifest, or a disabled one, and run it when asked (`run <id>`); the templates then read everything since the latest artifact instead of a fixed window.
+Any of them can run on demand instead of (or as well as) on schedule: give the dispatcher no manifest, or a disabled one, and run it when asked (`run <id>`). The dispatcher tells the worker how the run started through `{{runMode}}`, which the morning and end-of-day templates use: `scheduled` when jeeves-runner started it (the runner sets `JR_RUN_ID` for every job run, so a `runner_trigger` run counts as scheduled too), `on-demand` otherwise (`jeeves-scripts run <id>` from a session). On an on-demand run the templates read the delivery channel since the latest artifact instead of a fixed window.
 
 **What the templates hold:** the morning briefing's dated file (`YYYY-MM-DD-daily-briefing.md`) with BLUF, market-intel highlights, action items by owner and urgency (🔴 urgent, 🟡 awaiting the principal, 🔵 awaiting others, ✅ completed since last time, kept one cycle), upcoming calendar and sources; every action item a checkbox with status, source, headline, detail and owner. The end-of-day list (`YYYY-MM-DD-eod-follow-up.md`): do tonight, first thing tomorrow, this week, handled today, each with a category, a suggested delegate and a suspense date. Market intel: highlights, what's new, competitors, trends, fundraising, strategic implications, sources, every URL validated. The morning briefing and the end-of-day list share one set of rules (`daily-briefings/briefing-rules.md`, included in both):
 
@@ -195,7 +195,7 @@ const values = () =>
     timeZone: 'America/Chicago',
     deliveryChannel: '#ceo-briefing',
     briefingDir: '/base/content/briefings/daily',
-    eodDir: '/base/content/briefings/eod', // omit: 'not enabled'
+    eodDir: '/base/content/briefings/eod', // omit: the morning briefing reads 'not enabled'
     marketIntelDir: '/base/content/briefings/market-intel',
   });
 
@@ -228,7 +228,7 @@ export default defineRunnable({
 });
 ```
 
-`briefingVars` validates the values (every field non-empty, `timeZone` an IANA zone) and fails the run naming each bad field. `eodDir` and `marketIntelDir` default to `not enabled`, which the templates read as "this report is off". Placeholders: `org`, `principal`, `delegates`, `timeZone`, `deliveryChannel`, `briefingDir`, `eodDir`, `marketIntelDir`. The `jeeves-daily-briefings` skill has the setup steps.
+`briefingVars` validates the values (every field non-empty, `timeZone` an IANA zone, every directory absolute) and fails the run naming each bad field. `eodDir` and `marketIntelDir` are optional. The morning briefing reads them as `eodSource` / `marketIntelSource`: the directory, or `not enabled` ("this report is off") when unset. The end-of-day and market-intel templates write into their own directory, so running either without it fails the run (`task template needs a value for {{eodDir}}`, or `{{marketIntelDir}}`) instead of writing somewhere made up. Placeholders: `org`, `principal`, `delegates`, `timeZone`, `deliveryChannel`, `briefingDir`, `eodDir`, `marketIntelDir`, `eodSource`, `marketIntelSource` (from `briefingVars`) and `runMode` (from the dispatcher; a `runMode` in `templateVars` wins). The `jeeves-daily-briefings` skill has the setup steps.
 
 ## TASK File Anatomy
 

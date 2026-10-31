@@ -24,7 +24,7 @@ import {
 const read = (name: string): string =>
   fs.readFileSync(coreTaskTemplatePath(name), 'utf8');
 
-const vars = briefingVars({
+const input = {
   org: 'Acme',
   principal: 'Ana',
   delegates: 'Ben (ops)',
@@ -33,37 +33,63 @@ const vars = briefingVars({
   briefingDir: '/c/brief',
   eodDir: '/c/eod',
   marketIntelDir: '/c/intel',
-});
+};
+const vars = briefingVars(input);
 
 const RULES = '{{> daily-briefings/briefing-rules.md}}';
 
+/** A template filled as the dispatcher fills it (it adds `runMode`). */
+const fill = (
+  name: string,
+  values: Readonly<Record<string, string>> = vars,
+  runMode = 'scheduled',
+): string => fillTaskTemplate(read(name), { runMode, ...values });
+
+const withoutCompanions = briefingVars({
+  org: 'Acme',
+  principal: 'Ana',
+  delegates: 'none',
+  timeZone: 'UTC',
+  deliveryChannel: '#b',
+  briefingDir: '/c/b',
+});
+
 describe('briefingVars', () => {
-  it('defaults the companion directories to not enabled', () => {
-    expect(
-      briefingVars({
-        org: 'Acme',
-        principal: 'Ana',
-        delegates: 'none',
-        timeZone: 'UTC',
-        deliveryChannel: '#b',
-        briefingDir: '/c/b',
-      }),
-    ).toEqual({
+  it('leaves unset companion directories out, and the morning briefing reads them as not enabled', () => {
+    expect(withoutCompanions).toEqual({
       org: 'Acme',
       principal: 'Ana',
       delegates: 'none',
       timeZone: 'UTC',
       deliveryChannel: '#b',
       briefingDir: '/c/b',
-      eodDir: BRIEFING_NOT_ENABLED,
-      marketIntelDir: BRIEFING_NOT_ENABLED,
+      eodSource: BRIEFING_NOT_ENABLED,
+      marketIntelSource: BRIEFING_NOT_ENABLED,
     });
     expect(BRIEFING_NOT_ENABLED).toBe('not enabled');
   });
 
+  it('keeps configured companion directories and reads them as such', () => {
+    expect(vars).toMatchObject({
+      eodDir: '/c/eod',
+      eodSource: '/c/eod',
+      marketIntelDir: '/c/intel',
+      marketIntelSource: '/c/intel',
+    });
+  });
+
+  it.each(['briefingDir', 'eodDir', 'marketIntelDir'])(
+    'requires %s to be absolute',
+    (key) => {
+      expect(() => briefingVars({ ...input, [key]: 'rel/dir' })).toThrow(
+        `${key} must be an absolute path`,
+      );
+    },
+  );
+
   it('rejects an unknown time zone and an empty value, naming both', () => {
     expect(() =>
-      briefingVars({ ...vars, timeZone: 'Mars/Base', org: ' ' }),
+      briefingVars({ ...input, timeZone: 'Mars/Base', org: ' ' }),
     ).toThrow(
       /^Invalid briefing values: [\s\S]*org[\s\S]*timeZone must be an IANA time zone/,
     );
@@ -72,7 +98,7 @@ describe('briefingVars', () => {
 
 describe.each(Object.entries(BRIEFING_TEMPLATES))('%s template', (_, name) => {
   it('fills completely from the briefing values', () => {
-    const task = fillTaskTemplate(read(name), vars);
+    const task = fill(name);
     expect(task).not.toMatch(/\{\{/);
     expect(task).toContain('Acme');
     expect(task).toContain('#brief');
@@ -109,7 +135,7 @@ describe('the briefing rules', () => {
   });
 
   it('use the dispatcher date and the delivery channel as the feedback channel', () => {
-    const task = fillTaskTemplate(read(BRIEFING_TEMPLATES.morning), vars);
+    const task = fill(BRIEFING_TEMPLATES.morning);
     expect(task).toContain(
       'Use the date line at the top of this task, in America/Chicago.',
     );
@@ -121,7 +147,7 @@ describe('the briefing rules', () => {
 
 describe('the morning briefing', () => {
   it('writes the dated file in the reference shape with checkbox items', () => {
-    const task = fillTaskTemplate(read(BRIEFING_TEMPLATES.morning), vars);
+    const task = fill(BRIEFING_TEMPLATES.morning);
     expect(task).toContain('`/c/brief/YYYY-MM-DD-daily-briefing.md`');
     for (const heading of [
       '## BLUF (Bottom Line Up Front)',
@@ -140,7 +166,7 @@ describe('the morning briefing', () => {
   });
 
   it('reads the companion reports from their directories, or works without them', () => {
-    const task = fillTaskTemplate(read(BRIEFING_TEMPLATES.morning), vars);
+    const task = fill(BRIEFING_TEMPLATES.morning);
     expect(task).toContain('the latest end-of-day list in `/c/eod`');
     expect(task).toContain("Today's market intel in `/c/intel`");
     expect(task).toContain(
@@ -148,22 +174,64 @@ describe('the morning briefing', () => {
     );
   });
 
-  it('reads everything since the latest briefing on an on-demand run', () => {
-    expect(read(BRIEFING_TEMPLATES.morning)).toContain(
-      'On an on-demand run, read everything since the latest briefing.',
-    );
+  it('says without companions that they are not enabled, in reading context only', () => {
+    const task = fill(BRIEFING_TEMPLATES.morning, withoutCompanions);
+    expect(task).toContain('the latest end-of-day list in `not enabled`');
+    expect(task).toContain("Today's market intel in `not enabled`");
+    expect(task).not.toContain('not enabled/');
+  });
+
+  it.each([
+    [BRIEFING_TEMPLATES.morning, 'briefing'],
+    [BRIEFING_TEMPLATES.eod, 'list'],
+  ])(
+    '%s tells the worker how it was started, so its on-demand rule applies',
+    (name, artifact) => {
+      expect(fill(name, vars, 'on-demand')).toContain(
+        `This run is on-demand: on an on-demand run, read everything since the latest ${artifact} instead.`,
+      );
+      expect(fill(name, vars, 'scheduled')).toContain('This run is scheduled:');
+      expect(() => fillTaskTemplate(read(name), vars)).toThrow(
+        'task template needs a value for {{runMode}}',
+      );
+    },
+  );
+
+  it('has the format reference heading and market-intel block, line for line', () => {
+    const lines = fill(BRIEFING_TEMPLATES.morning).split('\n');
+    expect(lines).toContain('# Acme CEO Daily Briefing \u2014 YYYY-MM-DD');
+    const at = lines.indexOf('## Market Intel Highlights');
+    expect(lines.slice(at, at + 5)).toEqual([
+      '## Market Intel Highlights',
+      '',
+      "- 3-4 headlines from today's market intel report",
+      'Full report: [<title> \u2014 YYYY-MM-DD](<insider link>)',
+      '',
+    ]);
   });
 });
 
 describe('the end-of-day list and market intel', () => {
   it('write their own dated files', () => {
-    expect(fillTaskTemplate(read(BRIEFING_TEMPLATES.eod), vars)).toContain(
+    expect(fill(BRIEFING_TEMPLATES.eod)).toContain(
       '`/c/eod/YYYY-MM-DD-eod-follow-up.md`',
     );
-    expect(
-      fillTaskTemplate(read(BRIEFING_TEMPLATES.marketIntel), vars),
-    ).toContain('`/c/intel/YYYY-MM-DD-market-intel.md`');
+    expect(fill(BRIEFING_TEMPLATES.marketIntel)).toContain(
+      '`/c/intel/YYYY-MM-DD-market-intel.md`',
+    );
   });
+
+  it.each([
+    [BRIEFING_TEMPLATES.eod, 'eodDir'],
+    [BRIEFING_TEMPLATES.marketIntel, 'marketIntelDir'],
+  ])(
+    '%s fails the run without its own directory, never writing to a made-up path',
+    (name, key) => {
+      expect(() => fill(name, withoutCompanions)).toThrow(
+        `task template needs a value for {{${key}}}`,
+      );
+    },
+  );
 
   it('market intel validates every URL and keeps internal items out', () => {
     const text = read(BRIEFING_TEMPLATES.marketIntel);

@@ -13,7 +13,11 @@
  *   unless the caller names a core `template`: then core's copy is the
  *   task (Decision 75; `lib/task-template`). Every run logs which source
  *   it used. With `template` or `templateVars`, `{{name}}` placeholders
- *   and `{{> core/template.md}}` includes are filled.
+ *   and `{{> core/template.md}}` includes are filled, and `{{runMode}}` is
+ *   always available: `scheduled` when jeeves-runner started the run (it
+ *   sets `JR_RUN_ID` for every job it runs), else `on-demand` (e.g.
+ *   `jeeves-scripts run <id>` from a session). A `runMode` in
+ *   `templateVars` wins.
  * - With `dateTimeZone`, the task is prefixed with today's date in that
  *   zone (`withDateContext`). There is no default zone (Decision 26).
  * - With `slack`, dispatch goes through `dispatchWithSlack` (job-side Slack
@@ -83,8 +87,22 @@ export interface TaskFileDispatcherOptions extends DispatchOptions {
   args?: readonly string[];
 }
 
+/** How a dispatcher run was started, for a template's `{{runMode}}`. */
+export type RunMode = 'scheduled' | 'on-demand';
+
+/**
+ * `scheduled` when jeeves-runner started this process (it sets `JR_RUN_ID`
+ * for every job run, on schedule or by `runner_trigger`), else
+ * `on-demand`.
+ */
+export const runModeOf = (
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): RunMode => (env.JR_RUN_ID ? 'scheduled' : 'on-demand');
+
 /** Collaborators of {@link dispatchTaskFile}, injectable for tests. */
 export interface TaskFileDispatcherDeps {
+  /** How this run was started. Default: {@link runModeOf} the process environment. */
+  runMode?: () => RunMode;
   /** Dispatch with job-side Slack I/O. Default: `lib/worker-slack`'s `dispatchWithSlack`. */
   dispatchWithSlack: typeof dispatchWithSlack;
   /** Dispatch without Slack. Default: jeeves-runner's `runDispatcher` with core's `spawn-worker`. */
@@ -162,7 +180,10 @@ export const dispatchTaskFile = async (
   let task =
     template === undefined && templateVars === undefined
       ? resolved.text
-      : fillTaskTemplate(resolved.text, resolve(templateVars ?? {}));
+      : fillTaskTemplate(resolved.text, {
+          runMode: (deps.runMode ?? runModeOf)(),
+          ...resolve(templateVars ?? {}),
+        });
   if (dateTimeZone !== undefined)
     task = withDateContext(task, deps.now(), resolve(dateTimeZone));
 

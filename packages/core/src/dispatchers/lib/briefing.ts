@@ -13,6 +13,7 @@
 
 import { z } from 'zod';
 
+import { absolutePathSchema } from '../../config/absolute-path.js';
 import { isTimeZone } from '../../lib/dates.js';
 
 /** Core's briefing TASK templates, by report (names under `task-templates/`). */
@@ -25,12 +26,24 @@ export const BRIEFING_TEMPLATES = {
   marketIntel: 'daily-briefings/market-intel.md',
 } as const;
 
-/** The value of `eodDir` / `marketIntelDir` when that report is not enabled. */
+/**
+ * The value of `eodSource` / `marketIntelSource` (what the morning
+ * briefing reads) when that report has no directory configured.
+ */
 export const BRIEFING_NOT_ENABLED = 'not enabled';
 
 const text = z.string().trim().min(1);
 
-/** The values a briefing template's placeholders take. */
+/**
+ * The values a caller gives for a briefing template's placeholders. Every
+ * directory is absolute. `eodDir` and `marketIntelDir` are optional: the
+ * morning briefing reads them through `eodSource` / `marketIntelSource`
+ * ({@link BRIEFING_NOT_ENABLED} when unset), while the end-of-day and
+ * market-intel templates use their own directory as `{{eodDir}}` /
+ * `{{marketIntelDir}}`, so running either without it fails the run
+ * (`task template needs a value for {{eodDir}}`), never writing to a
+ * made-up path.
+ */
 export const briefingVarsSchema = z.object({
   /** The organisation, e.g. `Acme`. */
   org: text,
@@ -44,16 +57,23 @@ export const briefingVarsSchema = z.object({
   }),
   /** The delivery (and feedback) channel as the worker sees it, e.g. `#ceo-briefing`. */
   deliveryChannel: text,
-  /** The morning briefing's directory (absolute). */
-  briefingDir: text,
-  /** The end-of-day list's directory; default {@link BRIEFING_NOT_ENABLED}. */
-  eodDir: text.default(BRIEFING_NOT_ENABLED),
-  /** The market intel directory; default {@link BRIEFING_NOT_ENABLED}. */
-  marketIntelDir: text.default(BRIEFING_NOT_ENABLED),
+  /** The morning briefing's directory. */
+  briefingDir: absolutePathSchema('briefingDir'),
+  /** The end-of-day list's directory; required to run the end-of-day template. */
+  eodDir: absolutePathSchema('eodDir').optional(),
+  /** The market intel directory; required to run the market-intel template. */
+  marketIntelDir: absolutePathSchema('marketIntelDir').optional(),
 });
 
-/** Briefing template values (defaults applied). */
-export type BriefingVars = z.infer<typeof briefingVarsSchema>;
+/** Briefing values as given (before the derived `eodSource` / `marketIntelSource`). */
+export type BriefingVarsInput = z.input<typeof briefingVarsSchema>;
+
+/**
+ * Filled-in placeholder values: the given ones (an unset directory left
+ * out), plus `eodSource` and `marketIntelSource` (the directory, or
+ * {@link BRIEFING_NOT_ENABLED}).
+ */
+export type BriefingVars = Readonly<Record<string, string>>;
 
 /**
  * Validate briefing template values, for `dispatchTaskFile`'s
@@ -61,13 +81,20 @@ export type BriefingVars = z.infer<typeof briefingVarsSchema>;
  *
  * @throws Error listing every invalid field.
  */
-export const briefingVars = (input: z.input<typeof briefingVarsSchema>) => {
+export const briefingVars = (input: BriefingVarsInput): BriefingVars => {
   const parsed = briefingVarsSchema.safeParse(input);
   if (!parsed.success)
     throw new Error(
       `Invalid briefing values: ${z.prettifyError(parsed.error)}`,
     );
-  return parsed.data;
+  const { eodDir, marketIntelDir, ...given } = parsed.data;
+  return {
+    ...given,
+    ...(eodDir === undefined ? {} : { eodDir }),
+    ...(marketIntelDir === undefined ? {} : { marketIntelDir }),
+    eodSource: eodDir ?? BRIEFING_NOT_ENABLED,
+    marketIntelSource: marketIntelDir ?? BRIEFING_NOT_ENABLED,
+  };
 };
 
 /** The Slack summary shape for one report. */
