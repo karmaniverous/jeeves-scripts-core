@@ -35,8 +35,11 @@ describe('updateClone', () => {
   const read = (rel: string) => fs.readFileSync(path.join(clone, rel), 'utf8');
 
   it('clones the ref shallowly when there is no clone, returning the short head', () => {
+    writeTree(upstream, { 'docs/a.md': 'two\n' });
+    commitAll(upstream, 'second');
     expect(updateClone(deps, url, 'main', clone)).toBe(head());
-    expect(read('docs/a.md')).toBe('one\n');
+    expect(read('docs/a.md')).toBe('two\n');
+    // Two commits upstream, one in the clone.
     expect(git(clone, 'rev-list', '--count', 'HEAD')).toBe('1');
     expect(lines).toEqual([`CLONE ${url} (main)`]);
   });

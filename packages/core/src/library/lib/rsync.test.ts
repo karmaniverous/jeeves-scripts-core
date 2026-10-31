@@ -106,6 +106,9 @@ describe('summarizeRsync', () => {
       'cd+++++++++ author-b/',
       '>f+++++++++ author-b/author.md',
       '>fc.t...... author-a/x/SKILL.md',
+      // A file sent (`<`) or created locally (`c`) is written too.
+      '<f+++++++++ sent/SKILL.md',
+      'cf+++++++++ local/SKILL.md',
       '*deleting   old/SKILL.md',
       '.d..t...... author-a/',
       '.f..t...... author-a/report/SKILL.md',
@@ -113,7 +116,7 @@ describe('summarizeRsync', () => {
       '',
     ].join('\n');
     expect(summarizeRsync(out)).toEqual({
-      written: 2,
+      written: 4,
       deleted: 1,
       dirsCreated: 1,
       touched: 1,

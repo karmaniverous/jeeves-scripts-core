@@ -20,6 +20,7 @@ import {
   b64,
   BOT,
   CONTENT,
+  fail,
   missing,
   OPERATOR,
   ORG,
@@ -87,6 +88,20 @@ describe('github-sync-files', () => {
     expect(x.calls().at(-1)).toBe(`auth switch -u ${OPERATOR}`);
     expect(lastRun(x)).toBe(GH_NOW);
     expect(x.runner.closed()).toBe(true);
+  });
+
+  it('hands each payload to gh in its own temp dir and removes it after the call', () => {
+    const x = world((c) =>
+      c.includes(' -X PUT ') ? fail('gh: Server Error (HTTP 502)') : undefined,
+    );
+    expect(() => {
+      syncAll(x.settings(), x.deps);
+    }).toThrow(/write failed/);
+    // A ruleset POST and two PUTs (both failed): three files, three dirs.
+    expect(x.inputs).toHaveLength(3);
+    const dirs = x.inputs.map((f) => path.dirname(f));
+    expect(new Set(dirs).size).toBe(3);
+    for (const dir of dirs) expect(fs.existsSync(dir)).toBe(false);
   });
 
   it('writes nothing without --live and logs what it would do', () => {

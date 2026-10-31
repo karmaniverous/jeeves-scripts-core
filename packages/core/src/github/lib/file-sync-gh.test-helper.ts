@@ -106,6 +106,8 @@ export interface SyncFilesWorld extends GitHubWorld {
   writes: () => string[];
   /** The `--input` payloads, in call order. */
   payloads: Record<string, unknown>[];
+  /** The `--input` file paths, in call order. */
+  inputs: string[];
   /** The default settings (`overrides` merged over them). */
   settings: (overrides?: Partial<SyncFilesSettings>) => SyncFilesSettings;
 }
@@ -118,16 +120,17 @@ export function syncFilesWorld(
   override: (call: string) => GhAnswer = () => undefined,
 ): SyncFilesWorld {
   const payloads: Record<string, unknown>[] = [];
+  const inputs: string[] = [];
   const world = githubWorld(
     (args) => {
       const at = args.indexOf('--input');
-      if (at >= 0)
+      if (at >= 0) {
+        const input = args[at + 1] ?? '';
+        inputs.push(input);
         payloads.push(
-          JSON.parse(fs.readFileSync(args[at + 1] ?? '', 'utf8')) as Record<
-            string,
-            unknown
-          >,
+          JSON.parse(fs.readFileSync(input, 'utf8')) as Record<string, unknown>,
         );
+      }
       const call = args.join(' ');
       return override(call) ?? defaultAnswer(call);
     },
@@ -143,6 +146,7 @@ export function syncFilesWorld(
     calls,
     writes: () => calls().filter((c) => / -X (POST|PUT) /.test(c)),
     payloads,
+    inputs,
     settings: (overrides = {}) => ({
       files: [{ source: SOURCE, target: TARGET }],
       owners: [

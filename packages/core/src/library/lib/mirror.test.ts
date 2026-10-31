@@ -7,10 +7,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { run } from '@karmaniverous/jeeves';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { mirrorFixture, snapshot, writeTree } from './library.test-helper.js';
 import { type MirrorOptions, mirrorTree } from './mirror.js';
+import { rsyncPath } from './rsync.js';
 import { listFiles } from './stage.js';
 
 const UPSTREAM = {
@@ -64,10 +66,39 @@ describe('mirrorTree', () => {
     expect(fs.existsSync(opts.paths.dest)).toBe(false);
   });
 
-  it('first live run clears a stale incoming before assembling', () => {
-    writeTree(opts.paths.incoming, { 'stale.md': 'left over' });
-    mirrorTree(opts);
+  it('first live run clears a stale incoming before assembling, so it reports the whole tree as written', () => {
+    writeTree(opts.paths.incoming, {
+      'author-a/author.md': UPSTREAM['author-a/author.md'],
+      'stale.md': 'left over',
+    });
+    const r = mirrorTree(opts);
     expect(listFiles(opts.paths.dest).sort()).toEqual(MIRRORED);
+    expect(r).toMatchObject({ created: true, written: 5, deleted: 0 });
+  });
+
+  it('later live runs write through the temp dir; dry runs never create it', () => {
+    const rsyncCalls: string[][] = [];
+    const recording = {
+      ...opts,
+      run: (cmd: string, args: string[]) => {
+        if (cmd === 'rsync') rsyncCalls.push(args);
+        return run(cmd, args);
+      },
+    };
+    mirrorTree(recording);
+    writeTree(opts.paths.source, { 'author-a/author.md': '# Author A, v2' });
+    rsyncCalls.length = 0;
+    mirrorTree({ ...recording, live: false });
+    expect(rsyncCalls.flat().some((a) => a.startsWith('--temp-dir='))).toBe(
+      false,
+    );
+    expect(fs.existsSync(opts.paths.tmp)).toBe(false);
+    rsyncCalls.length = 0;
+    mirrorTree(recording);
+    // Staging (no temp dir), then publishing through it.
+    expect(
+      rsyncCalls.map((a) => a.filter((x) => x.startsWith('--temp-dir='))),
+    ).toEqual([[], [`--temp-dir=${rsyncPath(opts.paths.tmp)}`]]);
   });
 
   it('an exclude added after a run removes its files from stage and dest, keeping .meta/', () => {

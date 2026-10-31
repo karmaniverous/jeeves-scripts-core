@@ -92,6 +92,18 @@ describe('rewriteLinks', () => {
     expect(rewrite(text)).toEqual({ text, rewritten: 0 });
   });
 
+  it('leaves a name shared within the same top-level directory unchanged', () => {
+    const twice = indexLinkTargets(
+      ['author-a/x/dup/SKILL.md', 'author-a/y/dup/SKILL.md'],
+      SITE.target,
+    );
+    const text = '[d](/skill/dup)';
+    expect(rewriteLinks(text, 'author-a/z/SKILL.md', twice, pattern)).toEqual({
+      text,
+      rewritten: 0,
+    });
+  });
+
   it('leaves relative, external and other site links unchanged', () => {
     const text =
       '[a](./references/x.md) [b](https://example.com/skill/scorecard) [c](/skills/scorecard)';
