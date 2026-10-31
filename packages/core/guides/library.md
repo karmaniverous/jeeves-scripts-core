@@ -131,7 +131,8 @@ Index the mirrors with a watcher inference rule, for example:
 | `sync-mirrors.ts` | The runnable: prerequisite, tool check, `--live`, config and paths |
 | `lib/sync-mirror.ts` | One mirror end to end, and the loop over every mirror |
 | `lib/clone.ts` | The working clone (clone, update, re-clone) |
-| `lib/mirror.ts` | `mirrorTree`: stage, rewrite, guards, publish |
+| `lib/mirror.ts` | `mirrorTree`: guards, then publish the stage (first-run rename or rsync) |
+| `lib/stage.ts` | Staging: rsync the source into the stage, rewrite site links; `listFiles` |
 | `lib/publish-record.ts` | The publish record and the existing-destination ownership check |
 | `lib/library-links.ts` | Site-link template matching and rewriting |
 | `lib/rsync.ts` | rsync arguments (with Windows path conversion) and `--itemize-changes` counts |

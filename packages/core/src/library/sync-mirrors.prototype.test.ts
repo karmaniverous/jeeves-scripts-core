@@ -19,7 +19,7 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { libraryMirrorSchema } from '../config/library-schema.js';
 import { makeRepo } from './lib/library.test-helper.js';
-import { listFiles } from './lib/mirror.js';
+import { listFiles } from './lib/stage.js';
 import { syncMirrors } from './lib/sync-mirror.js';
 
 const AUTHORS = 30;

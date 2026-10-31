@@ -48,6 +48,9 @@ export interface RsyncArgsOptions {
   dryRun: boolean;
 }
 
+/** Runs rsync with {@link rsyncArgs} for these options; returns its output. */
+export type RsyncRunner = (opts: RsyncArgsOptions) => string;
+
 /**
  * The rsync argument vector for a checksum mirror of `source` into
  * `dest`: recursive, mtimes kept, content compared by checksum, extra

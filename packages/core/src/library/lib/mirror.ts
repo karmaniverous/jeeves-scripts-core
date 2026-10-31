@@ -1,9 +1,8 @@
 /**
  * @module library/lib/mirror
  *
- * `mirrorTree` (spec 2.9 steps 3-7): stage a source tree with checksum
- * rsync, rewrite its site links when configured, check the guards, then
- * publish it: a first run assembles the tree beside the destination and
+ * `mirrorTree` (spec 2.9 steps 3-7): stage a source tree (`stage`), check
+ * the guards, then publish it: a first run assembles the tree beside the destination and
  * renames it in one step; later runs rsync only the changed files into
  * place through a temp dir. `.meta/` in the destination is never touched.
  * An existing destination this mirror has no publish record for is
@@ -21,19 +20,17 @@ import { ensureDir, run } from '@karmaniverous/jeeves';
 import type { LibrarySiteLinks } from '../../config/library-schema.js';
 import { isWithin } from '../../lib/path-within.js';
 import type { RunCommand } from './clone.js';
-import {
-  indexLinkTargets,
-  linkPattern,
-  rewriteLinks,
-} from './library-links.js';
 import { isUnownedDest, writePublishRecord } from './publish-record.js';
-import { rsyncArgs, type RsyncSummary, summarizeRsync } from './rsync.js';
+import {
+  rsyncArgs,
+  type RsyncRunner,
+  type RsyncSummary,
+  summarizeRsync,
+} from './rsync.js';
+import { listFiles, stageTree } from './stage.js';
 
 /** Destination paths the mirror never modifies or deletes (meta output). */
 export const LIBRARY_DEST_PROTECT: readonly string[] = ['.meta/'];
-
-/** Excluded from every source: the clone's own git metadata. */
-const SOURCE_ALWAYS_EXCLUDED = '.git/';
 
 /** The directories one mirror run uses. */
 export interface MirrorPaths {
@@ -90,65 +87,6 @@ export interface MirrorResult extends RsyncSummary {
 }
 
 /**
- * Every file under `root`, relative and `/`-separated; `[]` when `root`
- * is missing. Directories named in `skip` are not descended into.
- */
-export const listFiles = (
-  root: string,
-  skip: readonly string[] = [],
-): string[] => {
-  const out: string[] = [];
-  const walk = (dir: string, rel: string): void => {
-    for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-      const next = rel ? `${rel}/${e.name}` : e.name;
-      if (e.isDirectory()) {
-        if (!skip.includes(e.name)) walk(path.join(dir, e.name), next);
-      } else if (e.isFile()) out.push(next);
-    }
-  };
-  if (fs.existsSync(root)) walk(root, '');
-  return out;
-};
-
-/** The file's text when it is UTF-8 that round-trips byte for byte, else undefined. */
-const textOf = (buf: Buffer): string | undefined => {
-  if (buf.includes(0)) return undefined;
-  const text = buf.toString('utf8');
-  return Buffer.from(text, 'utf8').equals(buf) ? text : undefined;
-};
-
-/**
- * Rewrite site links in every staged text file, restoring each changed
- * file's atime and mtime: staging restores the upstream content each run,
- * so without this the rewritten file would get a new mtime daily and the
- * publishing rsync would touch it in the destination.
- */
-const rewriteStage = (
-  stage: string,
-  files: readonly string[],
-  siteLinks: LibrarySiteLinks | undefined,
-  log: (line: string) => void,
-): number => {
-  if (!siteLinks) return 0;
-  const index = indexLinkTargets(files, siteLinks.target);
-  const pattern = linkPattern(siteLinks.pattern);
-  let total = 0;
-  for (const rel of files) {
-    const abs = path.join(stage, rel);
-    const text = textOf(fs.readFileSync(abs));
-    if (text === undefined) continue;
-    const r = rewriteLinks(text, rel, index, pattern);
-    if (r.rewritten === 0) continue;
-    const { atime, mtime } = fs.statSync(abs);
-    fs.writeFileSync(abs, r.text, 'utf8');
-    fs.utimesSync(abs, atime, mtime);
-    log(`LINKS ${rel}: ${String(r.rewritten)} rewritten`);
-    total += r.rewritten;
-  }
-  return total;
-};
-
-/**
  * Refuse a source that resolves outside the clone: an untrusted repo can
  * make `subdir` (or a directory above it) a symlink to a host directory,
  * which rsync, given `source/`, would descend into.
@@ -168,25 +106,11 @@ const statDevice = (p: string): number => {
   return fs.statSync(cur).dev;
 };
 
-/**
- * Stage `paths.source`, rewrite links, check the guards, and mirror the
- * stage into `paths.dest`.
- *
- * @throws Before the destination is touched, when the source is missing
- *   or resolves outside the clone, the stage and destination are on different filesystems (renames would
- *   not be atomic), the staged tree is empty, the destination exists with
- *   content this mirror didn't write and `adopt` is not set, or the staged
- *   tree holds fewer than `minRatio` of the files now mirrored; and on any
- *   rsync error.
- */
-export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
-  const { paths, live } = opts;
-  const log = opts.log ?? console.log;
-  const deviceOf = opts.deviceOf ?? statDevice;
-  const exec = opts.run ?? run;
-  const rsync = (args: Parameters<typeof rsyncArgs>[0]) =>
-    exec('rsync', rsyncArgs(args, opts.platform));
-
+/** The guards that need no staging: the source exists inside the clone, on the destination's filesystem. */
+const checkSource = (
+  paths: MirrorPaths,
+  deviceOf: (p: string) => number,
+): void => {
   if (!fs.existsSync(paths.source))
     throw new Error(`source not found: ${paths.source}`);
   assertInsideClone(paths);
@@ -194,22 +118,16 @@ export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
     throw new Error(
       `${paths.stage} and ${paths.dest} are on different filesystems; renames would not be atomic`,
     );
+};
 
-  ensureDir(paths.stage);
-  rsync({
-    source: paths.source,
-    dest: paths.stage,
-    exclude: [...opts.exclude, SOURCE_ALWAYS_EXCLUDED],
-    // An exclude added since the last run drops what that run staged.
-    deleteExcluded: true,
-    dryRun: false,
-  });
-  const staged = listFiles(paths.stage);
-  if (staged.length === 0)
-    throw new Error(`no files to mirror in ${paths.source}`);
-  const links = rewriteStage(paths.stage, staged, opts.siteLinks, log);
-
-  const created = !fs.existsSync(paths.dest);
+/** Refuse an existing destination this mirror doesn't own (unless `adopt`), or a shrink below `minRatio`. */
+const checkDest = (
+  opts: MirrorOptions,
+  staged: number,
+  created: boolean,
+  log: (line: string) => void,
+): void => {
+  const { paths, live } = opts;
   if (isUnownedDest(paths.record, paths.dest)) {
     if (!opts.adopt)
       throw new Error(
@@ -220,31 +138,23 @@ export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
     log(`${live ? 'ADOPTING' : 'WOULD ADOPT'} ${paths.dest} (adopt: true)`);
   }
   const current = listFiles(paths.dest, ['.meta']).length;
-  if (!created && staged.length < current * opts.minRatio)
+  if (!created && staged < current * opts.minRatio)
     throw new Error(
-      `source has ${String(staged.length)} files vs ${String(current)} mirrored; refusing to shrink the mirror below ${String(opts.minRatio * 100)}%`,
+      `source has ${String(staged)} files vs ${String(current)} mirrored; refusing to shrink the mirror below ${String(opts.minRatio * 100)}%`,
     );
+};
 
-  let output: string;
-  if (created) {
-    // A failed live run can leave `incoming` behind: live clears it; a dry
-    // run compares against the absent `dest` instead, so it reports the
-    // whole tree as new without writing anything.
-    if (live) fs.rmSync(paths.incoming, { recursive: true, force: true });
-    output = rsync({
-      source: paths.stage,
-      dest: live ? paths.incoming : paths.dest,
-      exclude: [],
-      dryRun: !live,
-    });
-    if (live) {
-      ensureDir(path.dirname(paths.dest));
-      fs.renameSync(paths.incoming, paths.dest);
-    }
-    log(`${live ? 'CREATED' : 'WOULD CREATE'} ${paths.dest} (single rename)`);
-  } else {
+/** Mirror the stage into the destination (first run: one rename); returns rsync's output. */
+const publish = (
+  opts: MirrorOptions,
+  rsync: RsyncRunner,
+  created: boolean,
+  log: (line: string) => void,
+): string => {
+  const { paths, live } = opts;
+  if (!created) {
     if (live) ensureDir(paths.tmp);
-    output = rsync({
+    return rsync({
       source: paths.stage,
       dest: paths.dest,
       exclude: LIBRARY_DEST_PROTECT,
@@ -252,6 +162,56 @@ export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
       dryRun: !live,
     });
   }
+  // A failed live run can leave `incoming` behind: live clears it; a dry
+  // run compares against the absent `dest` instead, so it reports the
+  // whole tree as new without writing anything.
+  if (live) fs.rmSync(paths.incoming, { recursive: true, force: true });
+  const output = rsync({
+    source: paths.stage,
+    dest: live ? paths.incoming : paths.dest,
+    exclude: [],
+    dryRun: !live,
+  });
+  if (live) {
+    ensureDir(path.dirname(paths.dest));
+    fs.renameSync(paths.incoming, paths.dest);
+  }
+  log(`${live ? 'CREATED' : 'WOULD CREATE'} ${paths.dest} (single rename)`);
+  return output;
+};
+
+/**
+ * Stage `paths.source`, rewrite links, check the guards, and mirror the
+ * stage into `paths.dest`.
+ *
+ * @throws Before the destination is touched, when the source is missing
+ *   or resolves outside the clone, the stage and destination are on
+ *   different filesystems (renames would not be atomic), the staged tree
+ *   is empty, the destination exists with content this mirror didn't
+ *   write and `adopt` is not set, or the staged tree holds fewer than
+ *   `minRatio` of the files now mirrored; and on any rsync error.
+ */
+export const mirrorTree = (opts: MirrorOptions): MirrorResult => {
+  const { paths, live } = opts;
+  const log = opts.log ?? console.log;
+  const exec = opts.run ?? run;
+  const rsync: RsyncRunner = (args) =>
+    exec('rsync', rsyncArgs(args, opts.platform));
+
+  checkSource(paths, opts.deviceOf ?? statDevice);
+  const { staged, links } = stageTree(
+    {
+      source: paths.source,
+      stage: paths.stage,
+      exclude: opts.exclude,
+      siteLinks: opts.siteLinks,
+    },
+    rsync,
+    log,
+  );
+  const created = !fs.existsSync(paths.dest);
+  checkDest(opts, staged.length, created, log);
+  const output = publish(opts, rsync, created, log);
   if (live)
     writePublishRecord(paths.record, {
       dest: path.resolve(paths.dest),

@@ -11,7 +11,8 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { snapshot, writeTree } from './library.test-helper.js';
-import { listFiles, type MirrorOptions, mirrorTree } from './mirror.js';
+import { type MirrorOptions, mirrorTree } from './mirror.js';
+import { listFiles } from './stage.js';
 
 const UPSTREAM = {
   'author-a/author.md': '# Author A',

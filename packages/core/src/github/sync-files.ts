@@ -40,8 +40,11 @@ import {
   summaryLine,
   SYNC_FILES_ID,
   type SyncTally,
+  tallyFile,
+  tallyRuleset,
 } from './lib/file-sync-tally.js';
 import {
+  actingLogin,
   GhAccountMismatchError,
   ghReady,
   type GitHubJobDeps,
@@ -87,17 +90,14 @@ function syncRepo(
 ): void {
   const name = repo.full_name;
   try {
-    const result = ruleset && ensureRuleset(deps, name, ruleset, live);
-    if (result === 'created') tally.rulesetsCreated++;
-    if (result === 'failed') {
-      tally.rulesetsFailed++;
-      tally.failures.push(`${name}: ruleset create failed`);
-    }
+    tallyRuleset(
+      tally,
+      name,
+      ruleset && ensureRuleset(deps, name, ruleset, live),
+    );
     for (const file of files) {
       const outcome = syncFile(deps, repo, file, live);
-      tally.files[outcome]++;
-      if (outcome === 'failed')
-        tally.failures.push(`${name}: ${file.target} write failed`);
+      tallyFile(tally, name, file.target, outcome);
       if (outcome === 'created' || outcome === 'updated')
         console.log(`  [file] ${outcome} ${file.target} in ${name}`);
     }
@@ -140,7 +140,7 @@ function syncOwner(
 /** The login `gh` acts as now; throws when it can't be read. */
 function activeLogin(deps: SyncFilesDeps): string {
   try {
-    const login = deps.gh(['api', 'user', '--jq', '.login']).out.trim();
+    const login = actingLogin(deps);
     if (login) return login;
     throw new Error('empty login');
   } catch (e) {

@@ -12,8 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { libraryMirrorSchema } from '../../config/library-schema.js';
 import { makeRepo } from './library.test-helper.js';
-import { listFiles } from './mirror.js';
 import { readPublishRecord } from './publish-record.js';
+import { listFiles } from './stage.js';
 import {
   githubCloneUrl,
   type LibraryDeps,

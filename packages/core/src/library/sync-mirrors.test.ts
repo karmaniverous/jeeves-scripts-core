@@ -26,7 +26,7 @@ import { useTempConfig } from '../lib/temp-config.test-helper.js';
 import { readCoreManifests } from '../runnables/manifest.js';
 import { coreJobs, loadJob } from '../runnables/registry.js';
 import { makeRepo } from './lib/library.test-helper.js';
-import { listFiles } from './lib/mirror.js';
+import { listFiles } from './lib/stage.js';
 import {
   libraryDeps,
   libraryPrerequisite,

@@ -108,8 +108,17 @@ export class GhAccountMismatchError extends Error {
 }
 
 /**
- * Check that `gh` now acts as `expected` (`gh api user --jq .login`,
- * compared case-insensitively, as GitHub logins are). Call it after every
+ * The login `gh` acts as now (`gh api user --jq .login`, trimmed; `''`
+ * when `gh` prints none).
+ *
+ * @throws When the `gh` call fails.
+ */
+export const actingLogin = (deps: Pick<GitHubJobDeps, 'gh'>): string =>
+  deps.gh(['api', 'user', '--jq', '.login']).out.trim();
+
+/**
+ * Check that `gh` now acts as `expected` ({@link actingLogin}, compared
+ * case-insensitively, as GitHub logins are). Call it after every
  * `gh auth switch`, before the next `gh` call (#59).
  *
  * @throws GhAccountMismatchError when the login differs or can't be read.
@@ -120,7 +129,7 @@ export function verifyActingAccount(
 ): void {
   let got: string;
   try {
-    got = deps.gh(['api', 'user', '--jq', '.login']).out.trim();
+    got = actingLogin(deps);
   } catch (e) {
     throw new GhAccountMismatchError(
       `acting gh login unknown, expected "${expected}": ${getErrorMessage(e)}`,

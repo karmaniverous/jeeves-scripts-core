@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url';
 
 import { run } from '@karmaniverous/jeeves';
 
-import { listFiles } from './mirror.js';
+import { listFiles } from './stage.js';
 
 /** Write `files` (relative path to content) under `root`. */
 export const writeTree = (
