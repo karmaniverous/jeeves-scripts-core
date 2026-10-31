@@ -144,7 +144,7 @@ describe('findDestination: a DM conversation id', () => {
     const b = await listed('globex', 'D0REPORT');
     expect([...a.channels, ...b.channels].map((c) => c.id)).toEqual([
       'C0DEFAULT',
-      'C0VC',
+      'C0GLOBEX',
     ]);
     await expect(found('D0REPORT', undefined, [a, b])).resolves.toEqual([
       'globex',

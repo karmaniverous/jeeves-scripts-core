@@ -60,15 +60,15 @@ describe('fieldSection: workspace scope', () => {
         id: 'C2',
         field: 'description',
         status: 'proposed',
-        text: 'VC PROPOSED',
-        current: 'VC CURRENT',
+        text: 'GLOBEX ',
+        current: 'GLOBEX ',
       },
       {
         id: 'C3',
         field: 'description',
         status: 'failed',
-        detail: 'VC DETAIL',
-        text: 'VC FAILED',
+        detail: 'GLOBEX ',
+        text: 'GLOBEX ',
       },
     ],
   };
@@ -84,7 +84,7 @@ describe('fieldSection: workspace scope', () => {
     expect(text).toContain(
       '**Left alone: the bot lacks the write scope** (2):\n\n- #c4 (`C4`)\n- 1 channel(s) in `globex` (text not shown outside that workspace)',
     );
-    for (const s of ['VC PROPOSED', 'VC CURRENT', 'VC DETAIL', 'VC FAILED'])
+    for (const s of ['GLOBEX ', 'GLOBEX ', 'GLOBEX ', 'GLOBEX '])
       expect(text).not.toContain(s);
     expect(text).not.toMatch(/globex-c\d|C2|C3|C5/);
   });
@@ -94,7 +94,7 @@ describe('fieldSection: workspace scope', () => {
       ...scoped,
       textAccounts: new Set(['default', 'globex']),
     });
-    expect(text).toContain('VC PROPOSED');
+    expect(text).toContain('GLOBEX ');
     expect(text).toContain('#globex-c5 (`C5`)');
     expect(text).not.toContain('text not shown');
   });
