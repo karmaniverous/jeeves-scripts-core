@@ -124,12 +124,23 @@ describe('mirrorTree ownership of the destination', () => {
     expect(listFiles(opts.paths.dest).sort()).toEqual(Object.keys(FOREIGN));
   });
 
-  it('fails on a record that is not valid, touching nothing', () => {
-    writeTree(opts.paths.dest, FOREIGN);
-    writeTree(path.dirname(opts.paths.record), {
-      [path.basename(opts.paths.record)]: '{"dest":1}',
-    });
-    expect(() => mirrorTree({ ...opts, adopt: true })).toThrow();
-    expect(listFiles(opts.paths.dest).sort()).toEqual(Object.keys(FOREIGN));
-  });
+  it.each([
+    ['a field of the wrong type', '{"dest":1}', /dest/],
+    ['bad JSON', '{', /JSON/],
+  ])(
+    'fails on a record holding %s, naming it and touching nothing',
+    (_what, content, detail) => {
+      writeTree(opts.paths.dest, FOREIGN);
+      writeTree(path.dirname(opts.paths.record), {
+        [path.basename(opts.paths.record)]: content,
+      });
+      const run = () => mirrorTree({ ...opts, adopt: true });
+      expect(run).toThrow(
+        `cannot read the publish record ${opts.paths.record}: `,
+      );
+      expect(run).toThrow(detail);
+      expect(listFiles(opts.paths.dest).sort()).toEqual(Object.keys(FOREIGN));
+      expect(fs.readFileSync(opts.paths.record, 'utf8')).toBe(content);
+    },
+  );
 });

@@ -13,6 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { getErrorMessage } from '@karmaniverous/jeeves';
 import { z } from 'zod';
 
 import { readJsonFileIfExists, writeJsonFile } from '../../lib/json-file.js';
@@ -36,10 +37,23 @@ export type PublishRecord = z.infer<typeof publishRecordSchema>;
 /**
  * The record at `file`, or `undefined` when the mirror has never published.
  *
- * @throws When the file is not a valid record.
+ * @throws When the file can't be read or is not a valid record, naming
+ *   the file.
  */
-export const readPublishRecord = (file: string): PublishRecord | undefined =>
-  readJsonFileIfExists(file, publishRecordSchema.optional(), undefined);
+export const readPublishRecord = (file: string): PublishRecord | undefined => {
+  try {
+    return readJsonFileIfExists(
+      file,
+      publishRecordSchema.optional(),
+      undefined,
+    );
+  } catch (e) {
+    throw new Error(
+      `cannot read the publish record ${file}: ${getErrorMessage(e)}`,
+      { cause: e },
+    );
+  }
+};
 
 /** Write the record (atomically) after a successful live publish. */
 export const writePublishRecord = (
