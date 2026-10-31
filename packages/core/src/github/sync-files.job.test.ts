@@ -73,8 +73,7 @@ describe('github-sync-files job', () => {
   ])('skips with %s, before any gh call', (_what, d) => {
     const deps = vi.fn();
     syncFiles({ live: true }, d, deps);
-    expect(console.log).toHaveBeenCalledWith(SYNC_FILES_SKIP);
-    expect(SYNC_FILES_SKIP).toBe(
+    expect(console.log).toHaveBeenCalledWith(
       "[skip] jobs['github-sync-files'].files/owners is not configured",
     );
     expect(deps).not.toHaveBeenCalled();
@@ -105,8 +104,9 @@ describe('github-sync-files job', () => {
 
   it('is registered, and runs from the registry with no delta configured: it skips', async () => {
     const entry = coreJobs.find((e) => e.id === 'github-sync-files');
-    expect(entry).toBeDefined();
-    const job = await loadJob(entry!);
+    if (!entry) throw new Error('github-sync-files is not registered');
+    expect(entry.domain).toBe('github');
+    const job = await loadJob(entry);
     const jobs = loadConfig().jobs;
     const saved = jobs['github-sync-files'];
     Reflect.deleteProperty(jobs, 'github-sync-files');

@@ -50,7 +50,8 @@ describe('updateClone', () => {
     expect(read('docs/a.md')).toBe('two\n');
     expect(read('docs/b.md')).toBe('new\n');
     expect(fs.existsSync(path.join(clone, 'stray.md'))).toBe(false);
-    expect(lines).toHaveLength(1);
+    // Updated in place: the first run's clone, no RECLONE.
+    expect(lines).toEqual([`CLONE ${url} (main)`]);
   });
 
   it('tracks a tag', () => {

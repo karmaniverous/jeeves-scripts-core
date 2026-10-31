@@ -111,10 +111,12 @@ describe('librarySchema', () => {
   it("rejects a dest inside, or around, another mirror's", () => {
     expect(
       mirrors(mirror, { ...mirror, id: 'b', dest: 'library/docs/sub' }),
-    ).toHaveLength(1);
-    expect(
-      mirrors(mirror, { ...mirror, id: 'b', dest: 'library' }),
-    ).toHaveLength(1);
+    ).toEqual([
+      `dest "library/docs/sub" overlaps mirror "docs"'s dest "library/docs"`,
+    ]);
+    expect(mirrors(mirror, { ...mirror, id: 'b', dest: 'library' })).toEqual([
+      `dest "library" overlaps mirror "docs"'s dest "library/docs"`,
+    ]);
     expect(
       mirrors(mirror, { ...mirror, id: 'b', dest: 'library/docs2' }),
     ).toEqual([]);

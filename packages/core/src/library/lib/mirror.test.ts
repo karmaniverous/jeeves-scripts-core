@@ -74,7 +74,8 @@ describe('mirrorTree', () => {
     mirrorTree(opts);
     writeTree(opts.paths.dest, { '.meta/meta.json': '{}' });
     const r = mirrorTree({ ...opts, exclude: ['/.system/', '/author-b/'] });
-    expect(r.deleted).toBeGreaterThan(0);
+    // author-b/, author-b/cold-email/ and its SKILL.md.
+    expect(r.deleted).toBe(3);
     for (const tree of [opts.paths.stage, opts.paths.dest])
       expect(listFiles(tree).some((f) => f.startsWith('author-b/'))).toBe(
         false,
@@ -239,7 +240,8 @@ describe('mirrorTree', () => {
     expect(() => mirrorTree(opts)).toThrow(/refusing to shrink/);
     expect(snapshot(opts.paths.dest)).toEqual(before);
     // 1 of 5 passes at 0.2.
-    expect(mirrorTree({ ...opts, minRatio: 0.2 }).deleted).toBeGreaterThan(0);
+    // author-a's 4 files and 4 directories.
+    expect(mirrorTree({ ...opts, minRatio: 0.2 }).deleted).toBe(8);
   });
 
   it('rejects state and destination on different filesystems', () => {

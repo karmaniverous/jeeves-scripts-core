@@ -17,6 +17,7 @@ import { gitBlobSha } from './lib/file-sync.js';
 import {
   ACCOUNT,
   fail,
+  interceptGh,
   ORG,
   TARGET,
   useSyncFilesWorld,
@@ -102,12 +103,41 @@ describe('reading the current file', () => {
     );
   });
 
-  it('treats a 404 as missing and creates the file', () => {
+  it('treats a 404 as missing, on stderr or (with stderr empty) stdout, and creates the file without a sha', () => {
     const x = world();
-    syncAll(x.settings({ live: false }), x.deps);
-    expect(console.log).toHaveBeenCalledWith(
-      `  [file] would create ${TARGET} in ${ACCOUNT}/new`,
+    interceptGh(x, (args) =>
+      args.join(' ').includes(`${ORG}/stale/contents/${TARGET}?ref=main`)
+        ? { ok: false, status: 1, out: 'gh: Not Found (HTTP 404)', err: '' }
+        : undefined,
     );
+    syncAll(x.settings({ ruleset: undefined }), x.deps);
+    // `${ACCOUNT}/new` gets the 404 on stderr (the fake's default).
+    expect(x.writes()).toEqual([
+      expect.stringContaining(`${ACCOUNT}/new/contents/`),
+      expect.stringContaining(`${ORG}/stale/contents/`),
+    ]);
+    expect(x.payloads.map((p) => ({ message: p.message, sha: p.sha }))).toEqual(
+      [
+        { message: `chore: add ${TARGET}`, sha: undefined },
+        { message: `chore: add ${TARGET}`, sha: undefined },
+      ],
+    );
+    expect(x.runner.state.has(LAST_RUN)).toBe(true);
+  });
+
+  it('fails the repo on a read that fails with no output at all', () => {
+    const x = world();
+    interceptGh(x, (args) =>
+      args.join(' ').includes(`${ORG}/stale/contents/${TARGET}?ref=main`)
+        ? { ok: false, status: 1, out: '', err: '' }
+        : undefined,
+    );
+    expect(() => {
+      syncAll(x.settings(), x.deps);
+    }).toThrow(
+      `${ORG}/stale: cannot read ${TARGET} in ${ORG}/stale: gh api failed`,
+    );
+    expect(x.writes().some((c) => c.includes(`${ORG}/stale/`))).toBe(false);
   });
 
   it('skips an unchanged file over 1 MB, which GitHub returns without content', () => {
@@ -127,6 +157,20 @@ describe('reading the current file', () => {
       x.deps,
     );
     expect(x.writes()).toEqual([]);
+    expect(x.runner.state.has(LAST_RUN)).toBe(true);
+  });
+});
+
+describe('listing repos', () => {
+  it('counts an owner whose listing prints nothing as having no repos, not as a failure', () => {
+    const x = world((c) => (c.includes(`/orgs/${ORG}/repos`) ? '' : undefined));
+    syncAll(x.settings(), x.deps);
+    expect(console.log).toHaveBeenCalledWith(
+      `[github-sync-files] ${ORG}: 0 repos`,
+    );
+    expect(x.calls().filter((c) => c.includes(`/orgs/${ORG}/repos`))).toEqual([
+      `api -X GET /orgs/${ORG}/repos?per_page=100&sort=updated&direction=desc&page=1`,
+    ]);
     expect(x.runner.state.has(LAST_RUN)).toBe(true);
   });
 });
