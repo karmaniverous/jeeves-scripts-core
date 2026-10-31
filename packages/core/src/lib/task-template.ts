@@ -14,6 +14,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { isWithin } from './path-within.js';
+
 /** Where a worker's task text came from. */
 export interface ResolvedTaskTemplate {
   /** The task text, as read (placeholders unfilled). */
@@ -33,11 +35,9 @@ const CORE_TEMPLATE_ROOT = fileURLToPath(
   new URL('../../task-templates/', import.meta.url),
 );
 
-/** Whether `file` is strictly inside `root` (both real paths). */
-const isInside = (root: string, file: string): boolean => {
-  const rel = path.relative(root, file);
-  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
-};
+/** Whether `file` lies under `root` and is not `root` itself (both real paths). */
+const isInside = (root: string, file: string): boolean =>
+  file !== root && isWithin(root, file);
 
 /**
  * The absolute path of a core template: `task-templates/<name>` at the
