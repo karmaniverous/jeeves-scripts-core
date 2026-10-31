@@ -14,7 +14,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { afterEach, beforeEach, vi } from 'vitest';
+
 import type { GithubRuleset } from '../../config/github-sync-files-schema.js';
+import type { GhResult } from '../../lib/gh.js';
 import type { SyncFilesSettings } from '../sync-files.js';
 import { gitBlobSha } from './file-sync.js';
 import {
@@ -158,3 +161,53 @@ export function syncFilesWorld(
     },
   };
 }
+
+/**
+ * Register the hooks every `github-sync-files` suite shares (silence
+ * `console.log`; after each test, clean up every world it built and
+ * restore mocks) and return the builder for a test's world
+ * ({@link syncFilesWorld}).
+ */
+export function useSyncFilesWorld(): (
+  override?: (call: string) => GhAnswer,
+) => SyncFilesWorld {
+  const worlds: SyncFilesWorld[] = [];
+  beforeEach(() => {
+    vi.spyOn(console, 'log').mockImplementation(() => undefined);
+  });
+  afterEach(() => {
+    for (const w of worlds.splice(0)) w.cleanup();
+    vi.restoreAllMocks();
+  });
+  return (override) => {
+    const w = syncFilesWorld(override);
+    worlds.push(w);
+    return w;
+  };
+}
+
+/** A successful `gh` result printing `out`. */
+export const ghOk = (out: string): GhResult => ({
+  ok: true,
+  status: 0,
+  out,
+  err: '',
+});
+
+/**
+ * Answer the world's `gh` calls with `fn` first: a result is recorded as
+ * a call and returned; `undefined` passes the call on to the world's
+ * `gh`; a throw is a `gh` failure (not recorded).
+ */
+export const interceptGh = (
+  x: GitHubWorld,
+  fn: (args: string[]) => GhResult | undefined,
+): void => {
+  const gh = x.deps.gh;
+  x.deps.gh = (args, options) => {
+    const r = fn(args);
+    if (r === undefined) return gh(args, options);
+    x.ghCalls.push(args);
+    return r;
+  };
+};

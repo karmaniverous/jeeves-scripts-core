@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { gitBlobSha } from './lib/file-sync.js';
 import {
@@ -27,24 +27,13 @@ import {
   RULESET,
   SOURCE,
   type SyncFilesWorld,
-  syncFilesWorld,
   TARGET,
+  useSyncFilesWorld,
 } from './lib/file-sync-gh.test-helper.js';
 import { GH_NOW } from './lib/github-deps.test-helper.js';
 import { syncAll } from './sync-files.js';
 
-let w: SyncFilesWorld | undefined;
-const world = (override?: Parameters<typeof syncFilesWorld>[0]) =>
-  (w = syncFilesWorld(override));
-
-beforeEach(() => {
-  vi.spyOn(console, 'log').mockImplementation(() => undefined);
-});
-afterEach(() => {
-  w?.cleanup();
-  w = undefined;
-  vi.restoreAllMocks();
-});
+const world = useSyncFilesWorld();
 
 const lastRun = (x: SyncFilesWorld) =>
   x.runner.state.get('github-sync-files|last-run');
@@ -120,28 +109,21 @@ describe('github-sync-files', () => {
 
   it('compares by git blob SHA: a binary file that matches is skipped, one that differs is written', () => {
     const bytes = Buffer.from([0, 255, 10, 13, 128]);
-    fs.writeFileSync(path.join(world().root, 'logo.bin'), bytes);
-    const x = w!;
-    const files = [{ source: 'logo.bin', target: 'logo.bin' }];
-    const owners = [{ owner: ORG, type: 'org' as const }];
-    x.deps.gh = ((gh) => (args, options) => {
-      const call = args.join(' ');
-      if (call.includes('/contents/logo.bin?ref=main'))
-        return {
-          ok: true,
-          status: 0,
-          out: JSON.stringify({
+    const x = world((call) =>
+      call.includes('/contents/logo.bin?ref=main')
+        ? {
             sha: gitBlobSha(
               call.includes('same')
                 ? bytes
                 : // Differs only in bytes that decode to the same text.
                   Buffer.from([0, 254, 10, 13, 128]),
             ),
-          }),
-          err: '',
-        };
-      return gh(args, options);
-    })(x.deps.gh);
+          }
+        : undefined,
+    );
+    fs.writeFileSync(path.join(x.root, 'logo.bin'), bytes);
+    const files = [{ source: 'logo.bin', target: 'logo.bin' }];
+    const owners = [{ owner: ORG, type: 'org' as const }];
     syncAll(x.settings({ files, owners, ruleset: undefined }), x.deps);
     expect(x.writes()).toEqual([
       expect.stringMatching(

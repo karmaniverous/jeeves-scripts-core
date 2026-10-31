@@ -9,32 +9,23 @@
  * run and the runner client is closed.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import {
   ACCOUNT,
   fail,
+  ghOk,
+  interceptGh,
   OPERATOR,
   ORG,
   type SyncFilesWorld,
-  syncFilesWorld,
   TARGET,
+  useSyncFilesWorld,
 } from './lib/file-sync-gh.test-helper.js';
 import { GhAccountMismatchError } from './lib/github-deps.js';
 import { syncAll } from './sync-files.js';
 
-let w: SyncFilesWorld | undefined;
-const world = (override?: Parameters<typeof syncFilesWorld>[0]) =>
-  (w = syncFilesWorld(override));
-
-beforeEach(() => {
-  vi.spyOn(console, 'log').mockImplementation(() => undefined);
-});
-afterEach(() => {
-  w?.cleanup();
-  w = undefined;
-  vi.restoreAllMocks();
-});
+const world = useSyncFilesWorld();
 
 const LOGIN = 'api user --jq .login';
 
@@ -165,16 +156,13 @@ describe('github-sync-files failures', () => {
 
   it('fails before any listing or write when gh acts as another login, and still restores auth', () => {
     const x = world();
-    const gh = x.deps.gh;
     let switched = false;
-    x.deps.gh = (args, options) => {
+    interceptGh(x, (args) => {
       if (args[0] === 'auth') switched = args[3] === ACCOUNT;
-      if (switched && args.join(' ') === LOGIN) {
-        x.ghCalls.push(args);
-        return { ok: true, status: 0, out: 'example-intruder', err: '' };
-      }
-      return gh(args, options);
-    };
+      return switched && args.join(' ') === LOGIN
+        ? ghOk('example-intruder')
+        : undefined;
+    });
     expect(() => {
       syncAll(x.settings(), x.deps);
     }).toThrow(
@@ -194,14 +182,13 @@ describe('github-sync-files failures', () => {
 
   it('fails when the acting login cannot be read after the switch, and still restores auth', () => {
     const x = world();
-    const gh = x.deps.gh;
     let switched = false;
-    x.deps.gh = (args, options) => {
+    interceptGh(x, (args) => {
       if (args[0] === 'auth') switched = args[3] === ACCOUNT;
       if (switched && args.join(' ') === LOGIN)
         throw new Error('bad credentials');
-      return gh(args, options);
-    };
+      return undefined;
+    });
     expect(() => {
       syncAll(x.settings(), x.deps);
     }).toThrow(/not writing to any repo/);
@@ -229,12 +216,11 @@ describe('github-sync-files failures', () => {
 
   it('fails when the switch itself fails, and still tries to restore auth', () => {
     const x = world();
-    const gh = x.deps.gh;
-    x.deps.gh = (args, options) => {
+    interceptGh(x, (args) => {
       if (args.join(' ') === `auth switch -u ${ACCOUNT}`)
         throw new Error('no such login');
-      return gh(args, options);
-    };
+      return undefined;
+    });
     expect(() => {
       syncAll(x.settings(), x.deps);
     }).toThrow('no such login');
@@ -244,12 +230,11 @@ describe('github-sync-files failures', () => {
 
   it('a failed restore fails an otherwise clean run, and never hides an earlier error', () => {
     const failRestore = (x: SyncFilesWorld) => {
-      const gh = x.deps.gh;
-      x.deps.gh = (args, options) => {
+      interceptGh(x, (args) => {
         if (args.join(' ') === `auth switch -u ${OPERATOR}`)
           throw new Error('restore failed');
-        return gh(args, options);
-      };
+        return undefined;
+      });
     };
     const clean = world();
     failRestore(clean);
@@ -262,7 +247,6 @@ describe('github-sync-files failures', () => {
     // last-run only after a clean run that also switched back.
     expect(clean.runner.state.has('github-sync-files|last-run')).toBe(false);
     expect(clean.runner.closed()).toBe(true);
-    clean.cleanup();
 
     const failing = world((c) =>
       c.includes(' -X PUT ') ? fail('HTTP 500') : undefined,

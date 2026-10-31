@@ -11,34 +11,27 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { gitBlobSha } from './lib/file-sync.js';
 import {
   ACCOUNT,
   fail,
   ORG,
-  type SyncFilesWorld,
-  syncFilesWorld,
   TARGET,
+  useSyncFilesWorld,
 } from './lib/file-sync-gh.test-helper.js';
 import { syncAll } from './sync-files.js';
 
-let w: SyncFilesWorld | undefined;
-const world = (override?: Parameters<typeof syncFilesWorld>[0]) =>
-  (w = syncFilesWorld(override));
+const world = useSyncFilesWorld();
 let outside: string;
 
 beforeEach(() => {
-  vi.spyOn(console, 'log').mockImplementation(() => undefined);
   outside = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-files-outside-'));
   fs.writeFileSync(path.join(outside, 'secret.md'), 'host secret');
 });
 afterEach(() => {
-  w?.cleanup();
-  w = undefined;
   fs.rmSync(outside, { recursive: true, force: true });
-  vi.restoreAllMocks();
 });
 
 const LAST_RUN = 'github-sync-files|last-run';

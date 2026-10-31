@@ -12,15 +12,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import {
-  afterAll,
-  afterEach,
-  beforeEach,
-  describe,
-  expect,
-  it,
-  vi,
-} from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 
 import { jobDeltaSchema } from '../config/jobs-schema.js';
 import { loadConfig } from '../config/loader.js';
@@ -33,9 +25,8 @@ import {
   ORG,
   RULESET,
   SOURCE,
-  type SyncFilesWorld,
-  syncFilesWorld,
   TARGET,
+  useSyncFilesWorld,
 } from './lib/file-sync-gh.test-helper.js';
 import { SYNC_FILES_SKIP, syncFiles } from './sync-files.js';
 
@@ -54,15 +45,7 @@ useTempConfig({
   jobs: { 'github-sync-files': delta },
 });
 
-let w: SyncFilesWorld | undefined;
-beforeEach(() => {
-  vi.spyOn(console, 'log').mockImplementation(() => undefined);
-});
-afterEach(() => {
-  w?.cleanup();
-  w = undefined;
-  vi.restoreAllMocks();
-});
+const world = useSyncFilesWorld();
 afterAll(() => {
   fs.rmSync(root, { recursive: true, force: true });
 });
@@ -98,9 +81,9 @@ describe('github-sync-files job', () => {
   });
 
   it('skips like every GitHub job when the gh config dir is missing', () => {
-    w = syncFilesWorld();
+    const w = world();
     w.deps.configDir = path.join(w.dir, 'absent');
-    syncFiles({ live: true }, delta, () => w!.deps);
+    syncFiles({ live: true }, delta, () => w.deps);
     expect(console.log).toHaveBeenCalledWith(
       '[skip] GitHub CLI config not configured',
     );
@@ -108,13 +91,13 @@ describe('github-sync-files job', () => {
   });
 
   it('reads the delta from the config and the sources from paths.scriptsDir; dry unless --live', () => {
-    w = syncFilesWorld();
-    syncFiles({}, undefined, () => w!.deps);
+    const w = world();
+    syncFiles({}, undefined, () => w.deps);
     expect(w.writes()).toEqual([]);
     expect(console.log).toHaveBeenCalledWith(
       '[github-sync-files] DRY RUN: pass --live to write',
     );
-    syncFiles({ live: true }, undefined, () => w!.deps);
+    syncFiles({ live: true }, undefined, () => w.deps);
     expect(w.writes()).toEqual([
       expect.stringMatching(new RegExp(`^api /repos/${ORG}/stale/contents/`)),
     ]);

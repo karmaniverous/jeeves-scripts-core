@@ -8,26 +8,18 @@
  * The expected values are the prototype's own test expectations.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   ACCOUNT,
   fail,
   ORG,
   type SyncFilesWorld,
-  syncFilesWorld,
+  useSyncFilesWorld,
 } from './lib/file-sync-gh.test-helper.js';
 import { syncAll } from './sync-files.js';
 
-let w: SyncFilesWorld | undefined;
-beforeEach(() => {
-  vi.spyOn(console, 'log').mockImplementation(() => undefined);
-});
-afterEach(() => {
-  w?.cleanup();
-  w = undefined;
-  vi.restoreAllMocks();
-});
+const world = useSyncFilesWorld();
 
 const FILE = '.github/copilot-instructions.md';
 
@@ -66,7 +58,7 @@ const summary = () =>
 
 describe('github-sync-files matches the prototype on the same input', () => {
   it('live run: same calls, same counts', () => {
-    w = syncFilesWorld();
+    const w = world();
     syncAll(w.settings(), w.deps);
     expect(githubCalls(w)).toEqual(PROTOTYPE_CALLS);
     expect(summary()).toEqual([
@@ -75,7 +67,7 @@ describe('github-sync-files matches the prototype on the same input', () => {
   });
 
   it('dry run: the same reads, no writes, the same counts', () => {
-    w = syncFilesWorld();
+    const w = world();
     syncAll(w.settings({ live: false }), w.deps);
     expect(githubCalls(w)).toEqual(
       PROTOTYPE_CALLS.filter((c) => !/ -X (POST|PUT) /.test(c)),
@@ -86,7 +78,7 @@ describe('github-sync-files matches the prototype on the same input', () => {
   });
 
   it('a pull-request-only branch: protected, as the prototype counts it', () => {
-    w = syncFilesWorld((c) =>
+    const w = world((c) =>
       c.includes(`${ORG}/stale/contents/`) && c.includes(' -X PUT ')
         ? fail('gh: Changes must be made through a pull request. (HTTP 409)')
         : undefined,
