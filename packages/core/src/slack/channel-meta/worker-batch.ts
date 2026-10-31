@@ -2,8 +2,9 @@
  * @module slack/channel-meta/worker-batch
  *
  * The worker step for the channels that need text: their snapshot goes
- * to the run directory (`channel-meta/snapshot`; the newest {@link KEEP_RUNS}
- * kept, `lib/run-dirs`), ONE worker with no Slack rights is dispatched
+ * to the run directory (`channel-meta/snapshot`; a live run keeps the newest
+ * {@link KEEP_RUNS}, `lib/run-dirs`, and a preview deletes none, so it
+ * never removes a live run's record), ONE worker with no Slack rights is dispatched
  * with the TASK (`channel-meta/task`), and its `result.json` is checked
  * (`channel-meta/apply-result`). On a live run each accepted value is set and
  * verified, recording what was set in the next state; without `--live`
@@ -183,7 +184,7 @@ export async function runBatch(
     batch.flatMap(snapshotChannel),
     limits,
   );
-  pruneRuns(deps.runsRoot, KEEP_RUNS);
+  if (flags.live && !flags.printTask) pruneRuns(deps.runsRoot, KEEP_RUNS);
   const channelIds = batch.map((w) => w.id);
   const task = buildTask({ ...snapshot, ...limits, channelIds });
   if (flags.printTask) {

@@ -214,7 +214,7 @@ export function scriptedSlack(script: SlackScript): {
   return { client, calls };
 }
 
-/** A workspace with channels and an unused client. */
+/** A workspace with channels and a client that answers only `users.info`. */
 export const workspace = (
   account: string,
   channels: MemberChannel[],
@@ -222,7 +222,8 @@ export const workspace = (
 ): Workspace => ({
   account,
   channels,
-  client: scriptedSlack({}).client,
+  // Its bot knows every user (a preview's read-only owner lookup).
+  client: scriptedSlack({ 'users.info': () => ({ user: {} }) }).client,
   ...over,
 });
 

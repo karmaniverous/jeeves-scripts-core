@@ -92,6 +92,12 @@ export const scopeHarness = (
               new SlackApiError('conversations.open', 'user_not_found'),
             ),
       );
+      // A preview looks the owner up instead of opening the DM.
+      ws.client.call = vi.fn((method: string) =>
+        method === 'users.info' && reach.includes(account)
+          ? Promise.resolve({ user: {} })
+          : Promise.reject(new SlackApiError(method, 'user_not_found')),
+      );
       return ws;
     });
   return harness(runsRoot, {

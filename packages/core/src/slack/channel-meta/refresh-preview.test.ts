@@ -107,12 +107,12 @@ describe('refreshChannelMeta: without --live', () => {
     );
   });
 
-  it('reports a missing or invalid result without setting anything', async () => {
+  it('ends partial (exit 1) on an invalid result, setting nothing', async () => {
     const stderr = vi
       .spyOn(console, 'error')
       .mockImplementation(() => undefined);
     const h = harness({ result: () => '{"channels": {"C1": 3}}' });
-    expect(await refreshChannelMeta(DRY, h.deps)).toBe('previewed');
+    expect(await refreshChannelMeta(DRY, h.deps)).toBe('partial');
     expectNothingDelivered(h);
     expect(readPreview()).toContain(
       "No values set: the worker's result does not match the contract (1 issue); details in worker-problem.txt",
@@ -185,7 +185,10 @@ describe('refreshChannelMeta: previews and guards', () => {
   });
 
   it('previews with a warning when the report cannot be linked', async () => {
-    const h = harness({ link: () => Promise.reject(new Error('HTTP 404')) });
+    const h = harness({
+      link: () => Promise.reject(new Error('HTTP 404')),
+      result: () => GOOD,
+    });
     expect(await refreshChannelMeta(DRY, h.deps)).toBe('previewed');
     expect(h.logs[0]).toBe(
       `[warn] slack/refresh-channel-meta: no insider link for ${REPORT_FILE}; the live run would fail: HTTP 404`,
@@ -218,14 +221,26 @@ describe('refreshChannelMeta: previews and guards', () => {
     expect(task).not.toContain('- `C3`');
   });
 
-  it('keeps only the newest run directories', async () => {
+  it('keeps only the newest run directories on a live run', async () => {
     for (let i = 0; i < KEEP_RUNS + 2; i += 1)
       fs.mkdirSync(
         path.join(runsRoot, `20200101-0000${String(i).padStart(2, '0')}`),
       );
-    await refreshChannelMeta(DRY, harness().deps);
+    await refreshChannelMeta(LIVE, harness({ result: () => GOOD }).deps);
     expect(fs.readdirSync(runsRoot)).toHaveLength(KEEP_RUNS);
     expect(fs.readdirSync(runsRoot)).not.toContain('20200101-000000');
+  });
+
+  it.each([
+    ['a preview', DRY],
+    ['--print-task', { live: true, printTask: true }],
+  ])('deletes no run directory on %s', async (_name, flags) => {
+    for (let i = 0; i < KEEP_RUNS + 2; i += 1)
+      fs.mkdirSync(
+        path.join(runsRoot, `20200101-0000${String(i).padStart(2, '0')}`),
+      );
+    await refreshChannelMeta(flags, harness({ result: () => GOOD }).deps);
+    expect(fs.readdirSync(runsRoot)).toHaveLength(KEEP_RUNS + 3);
   });
 
   it('fails on incomplete settings before reading anything', async () => {

@@ -150,8 +150,7 @@ export const harness = (
       delivered.push({ outputDir, date, text });
       return `${outputDir}/${date}.md`;
     },
-    destination: (target, account, workspaces) =>
-      findDestination(target, account, workspaces),
+    destination: findDestination,
     post: (text, destination) => {
       posts.push({
         text,

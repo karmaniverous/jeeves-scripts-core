@@ -11,7 +11,9 @@
  * reach them; opening a DM sends nothing); for a DM conversation id
  * (`D…`, which the member-channel listing never holds) the first
  * workspace whose bot can see it (`conversations.info`, read-only); for
- * a channel, the first workspace the bot is a member of it in.
+ * a channel, the first workspace the bot is a member of it in. A preview
+ * opens no DM: it finds a user's workspace with `users.info` (read-only)
+ * instead, and takes a configured account as is.
  * {@link postSummary} then posts there and nowhere else.
  */
 
@@ -50,18 +52,29 @@ const candidates = (
   return workspaces.filter((w) => w.channels.some((c) => c.id === target));
 };
 
+/** How {@link findDestination} looks. */
+export interface DestinationOptions {
+  /** A preview: open no DM (a user is looked up read-only, and the
+   * returned conversation is the user id itself; nothing is posted). */
+  preview?: boolean;
+}
+
 /**
  * The conversation a candidate bot reaches the target in; throws when it
- * can't. A user's DM is opened; a DM id is looked up, unless the account
- * is configured (then it is taken as is, like a channel).
+ * can't. A user's DM is opened (a preview looks the user up instead); a
+ * DM id is looked up. A configured account is taken as is, like a
+ * channel, except that a live run still opens a user's DM to post in.
  */
 const reach = async (
   ws: Workspace,
   target: string,
   configured: boolean,
+  preview: boolean,
 ): Promise<string> => {
-  if (isUserTarget(target)) return ws.client.openDm(target);
-  if (isDmTarget(target) && !configured)
+  if (isUserTarget(target) && !preview) return ws.client.openDm(target);
+  if (!configured && isUserTarget(target))
+    await ws.client.call('users.info', { user: target });
+  if (!configured && isDmTarget(target))
     await ws.client.call('conversations.info', { channel: target });
   return target;
 };
@@ -72,6 +85,7 @@ const reach = async (
  * @param target - Channel id, DM id, or user id (their DM).
  * @param account - The configured posting account, if any.
  * @param workspaces - Every workspace, `default` first.
+ * @param options - `preview`: open no DM.
  * @returns The posting workspace and conversation.
  * @throws Error when no bot can reach the target, with each workspace's
  *   refusal (for a channel: no workspace has the bot as a member).
@@ -80,11 +94,14 @@ export async function findDestination(
   target: string,
   account: string | undefined,
   workspaces: readonly Workspace[],
+  options: DestinationOptions = {},
 ): Promise<Destination> {
   const refusals: string[] = [];
+  const configured = account !== undefined;
+  const preview = options.preview === true;
   for (const ws of candidates(target, account, workspaces))
     try {
-      return { ws, channel: await reach(ws, target, account !== undefined) };
+      return { ws, channel: await reach(ws, target, configured, preview) };
     } catch (e) {
       refusals.push(`${ws.account}: ${codeOf(e)}`);
     }

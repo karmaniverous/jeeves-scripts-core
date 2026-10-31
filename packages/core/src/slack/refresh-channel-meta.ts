@@ -47,9 +47,11 @@
  * dispatches the worker for real (one AI session, the batch a live run
  * would take) and writes the report, each proposed value beside the
  * current one, to `preview.md` in the run directory, setting, delivering,
- * posting and saving nothing. `--live` sets the values, writes the dated
- * report and posts the summary. `--print-task` only prints the worker's
- * TASK and logs the summary and the report.
+ * posting and saving nothing, opening no DM and deleting no run
+ * directory. `--live` sets the values, writes the dated report and posts
+ * the summary. `--print-task` only prints the worker's TASK and logs the
+ * summary and the report. An unusable worker result sets exit code 1,
+ * with or without `--live`.
  *
  * **Manifest.** `jobs/slack.json`, daily, shipped disabled with no
  * arguments (a dry run); the enabling delta adds `--live`.

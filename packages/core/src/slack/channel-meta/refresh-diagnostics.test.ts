@@ -104,7 +104,7 @@ describe('refreshChannelMeta: worker diagnostics stay out of the report', () => 
           result: () => result,
         });
         const outcome = await refreshChannelMeta(flags, h.deps);
-        expect(outcome).toBe(!flags.live ? 'previewed' : 'partial');
+        expect(outcome).toBe('partial');
         const report = !flags.live
           ? readPreview(runsRoot)
           : (h.delivered[0]?.text ?? '');

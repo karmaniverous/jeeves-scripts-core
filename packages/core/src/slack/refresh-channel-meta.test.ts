@@ -126,6 +126,23 @@ describe('slack-refresh-channel-meta runnable', () => {
     expect(process.exitCode).toBeUndefined();
   });
 
+  it('fails a preview whose worker result is unusable, opening no DM and deleting no run directory', async () => {
+    seedHome();
+    const runs = path.join(jobDir(), 'runs');
+    const old = Array.from({ length: 15 }, (_, i) =>
+      path.join(runs, `20200101-0000${String(i).padStart(2, '0')}`),
+    );
+    for (const dir of old) fs.mkdirSync(dir, { recursive: true });
+    await job.run({ args: [] });
+    expect(process.exitCode).toBe(1);
+    expect(mocks.openDm).not.toHaveBeenCalled();
+    expect(mocks.call).toHaveBeenCalledWith('users.info', { user: 'U0OWNER' });
+    expect(mocks.postMessage).not.toHaveBeenCalled();
+    for (const dir of old) expect(fs.existsSync(dir)).toBe(true);
+    expect(fs.readdirSync(runs)).toHaveLength(16);
+    expect(fs.existsSync(stateFile())).toBe(false);
+  });
+
   it('previews with a real worker dispatch (its flags off, no post targets) and sets nothing', async () => {
     seedHome();
     mocks.dispatchWithSlack.mockImplementation((task) => {

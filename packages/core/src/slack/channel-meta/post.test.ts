@@ -121,6 +121,53 @@ describe('findDestination', () => {
   });
 });
 
+describe('findDestination: a preview opens no DM', () => {
+  /** A workspace whose bot can look up only `user` (read-only). */
+  const lookup = (account: string, user?: string) => {
+    const { client, calls } = scriptedSlack({
+      'users.info': (params) => {
+        if (params.user === user) return { user: { id: user } };
+        throw new SlackApiError('users.info', 'user_not_found');
+      },
+    });
+    client.openDm = vi.fn(() => Promise.resolve('D0OPENED'));
+    return Object.assign(workspace(account, [], { client }), { calls });
+  };
+
+  it('finds the user\u2019s workspace with users.info and returns the user id', async () => {
+    const a = lookup('default');
+    const b = lookup('globex', 'U0OWNER');
+    const d = await findDestination('U0OWNER', undefined, [a, b], {
+      preview: true,
+    });
+    expect([d.ws.account, d.channel]).toEqual(['globex', 'U0OWNER']);
+    expect(a.calls).toEqual([
+      { method: 'users.info', params: { user: 'U0OWNER' } },
+    ]);
+    for (const w of [a, b]) expect(w.client.openDm).not.toHaveBeenCalled();
+  });
+
+  it('takes a configured account as is, calling nothing', async () => {
+    const a = lookup('default');
+    const d = await findDestination('U0OWNER', 'default', [a], {
+      preview: true,
+    });
+    expect([d.ws.account, d.channel]).toEqual(['default', 'U0OWNER']);
+    expect(a.calls).toEqual([]);
+    expect(a.client.openDm).not.toHaveBeenCalled();
+  });
+
+  it('reports each lookup refusal when no bot knows the user', async () => {
+    await expect(
+      findDestination('U0OWNER', undefined, [lookup('default')], {
+        preview: true,
+      }),
+    ).rejects.toThrow(
+      'no Slack bot can reach U0OWNER (default: user_not_found)',
+    );
+  });
+});
+
 describe('findDestination: a DM conversation id', () => {
   /** A workspace read through the real listing (public and private
    * channels only), whose bot can see the DM `dm`, if given. */

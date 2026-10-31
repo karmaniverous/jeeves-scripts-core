@@ -37,8 +37,10 @@
  * `--live` writes the report (each proposed value beside the current one) to
  * `preview.md` in the run directory, never the live `outputDir`, and logs
  * its path and the summary; `--print-task` logs the summary and the
- * report. A worker result that is missing or breaks
- * the contract sets nothing and ends the run `partial`; the report and
+ * report. A preview opens no DM (`channel-meta/post`) and deletes no run
+ * directory (`channel-meta/worker-batch`). A worker result that is missing
+ * or breaks the contract sets nothing and ends the run `partial`, a
+ * preview too; the report and
  * summary say only what kind of failure it was, the full diagnostic
  * going to the run directory and stderr (`channel-meta/worker-batch`).
  */
@@ -52,7 +54,7 @@ import { dateInZone, reportPath } from '../../lib/dated-report.js';
 import { runId } from '../../lib/run-dirs.js';
 import { linkBeforeWorker, type ReportLink } from '../../lib/server-link.js';
 import { splitBatch } from './batch-order.js';
-import type { Destination } from './post.js';
+import type { Destination, DestinationOptions } from './post.js';
 import { reportBody, reportMarkdown } from './report.js';
 import type { ReportInput } from './report-input.js';
 import { BLOCK, type ChannelMetaSettings } from './settings.js';
@@ -106,6 +108,7 @@ export interface RefreshDeps extends SurveyDeps, Omit<BatchDeps, 'io'> {
     target: string,
     account: string | undefined,
     workspaces: readonly Workspace[],
+    options: DestinationOptions,
   ) => Promise<Destination>;
   /** Post the summary there (`channel-meta/post`); returns the posting account. */
   post: (text: string, destination: Destination) => Promise<string>;
@@ -160,6 +163,7 @@ export async function refreshChannelMeta(
       settings.reportChannel,
       settings.reportAccount,
       workspaces,
+      { preview },
     );
   const runDir = path.join(deps.runsRoot, runId(now));
   /** Dispatch the worker and build the report for a destination. */
@@ -208,21 +212,24 @@ export async function refreshChannelMeta(
         `[warn] ${SCRIPT_NAME}: ${getErrorMessage(e)}; the preview names and quotes no workspace's channels but those in ${BLOCK}.reportTextAccounts`,
       );
     }
-    const { markdown, summary, shown } = await report(destination);
+    const { markdown, summary, shown, done } = await report(destination);
+    // An unusable worker result fails a preview too (exit 1), so an
+    // enabled job left without --live never hides a broken worker.
+    const outcome = done ? 'previewed' : 'partial';
     if (flags.printTask) {
       deps.log(
         `${SCRIPT_NAME}: preview only; the report would go to ${reportFile} (${settings.outputDirSource}) and this summary to ${settings.reportChannel} (${settings.reportChannelSource}; channel text shown for: ${shown}):`,
       );
       deps.log(summary);
       deps.log(markdown);
-      return 'previewed';
+      return outcome;
     }
     const file = writePreview(runDir, markdown);
     deps.log(
       `${SCRIPT_NAME}: preview: nothing set; report ${file} (a live run writes ${reportFile}, ${settings.outputDirSource}); this summary would go to ${settings.reportChannel} (${settings.reportChannelSource}; channel text shown for: ${shown}):`,
     );
     deps.log(summary);
-    return 'previewed';
+    return outcome;
   }
 
   // A report target no bot can reach fails the live run here, before a
