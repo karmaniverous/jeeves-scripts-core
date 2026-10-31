@@ -58,8 +58,8 @@ export const coreTaskTemplatePath = (
       `core task template name ${JSON.stringify(name)} must be a relative path inside task-templates/`,
     );
   if (
+    // Win32 rules treat `/x` as rooted too, so this covers POSIX paths.
     path.win32.isAbsolute(name) ||
-    path.posix.isAbsolute(name) ||
     /^[A-Za-z]:/.test(name) ||
     name.split(/[\\/]/).includes('..')
   )

@@ -50,9 +50,9 @@ export const browseUrl = (
   filePath: string,
   p: typeof path = path,
 ): string | undefined => {
-  const abs = p.resolve(filePath);
+  // `relative` resolves both paths itself.
   const matches = Object.entries(links.roots)
-    .map(([name, root]) => ({ name, rel: p.relative(p.resolve(root), abs) }))
+    .map(([name, root]) => ({ name, rel: p.relative(root, filePath) }))
     .filter(
       ({ rel }) => rel !== '' && !rel.startsWith('..') && !p.isAbsolute(rel),
     )
