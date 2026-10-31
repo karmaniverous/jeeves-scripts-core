@@ -35,6 +35,7 @@ export * from './config/index.js';
 export { convertDocxToMd } from './convert/docx-to-md.js';
 export type { ConvertResult } from './convert/lib/convert-files.js';
 export { convertPdfToMd } from './convert/pdf-to-md.js';
+export * from './dispatchers/lib/briefing.js';
 export {
   DIGEST_TIMEZONE_REF,
   digestTimeZone,
@@ -86,10 +87,21 @@ export {
   type SlackPostMessageOptions,
   type SlackResponse,
 } from './lib/slack-client.js';
+export * from './lib/task-template.js';
 export { dispatchWithSlack } from './lib/worker-slack/run.js';
 export { normalizeSlackTarget } from './lib/worker-slack/slack-target.js';
 export * from './lib/worker-slack/worker-slack-config.js';
 export type { WorkerSlackResult } from './lib/worker-slack/worker-slack-job.js';
+export { parsePunchList } from './punch-list/model/parse.js';
+export { renderPunchList } from './punch-list/model/render.js';
+export {
+  type ListEntry,
+  listEntrySchema,
+  type Milestone,
+  milestoneSchema,
+  type PunchList,
+  punchListModelSchema,
+} from './punch-list/model/types.js';
 export {
   defineRunnable,
   isJobModule,

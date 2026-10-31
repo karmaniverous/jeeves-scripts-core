@@ -35,7 +35,9 @@ const EXPECTED = [
   'jeeves-slack',
   'jeeves-standing-meetings',
   'jeeves-token-metrics',
+  'jeeves-transcripts',
   'jeeves-x',
+  'punch-list',
 ];
 
 /** A thin skill fits on a screen or two. */
@@ -62,6 +64,7 @@ const PKG_PATHS =
 const metadataSchema = z.object({
   openclaw: z.object({
     requires: z.object({ env: z.array(z.string()) }),
+    primaryEnv: z.string().optional(),
   }),
 });
 
@@ -162,6 +165,16 @@ describe('shipped skills', () => {
       parseFrontmatter('---\nname: a\ndescription: >\n  b c\n  d\n---\nx'),
     ).toEqual({ name: 'a', description: 'b c d' });
     expect(parseFrontmatter('no frontmatter')).toEqual({});
+  });
+
+  it('jeeves-transcripts requires TRANSCRIPT_API_KEY as its primary env', () => {
+    const fm = frontmatterSchema.parse(
+      parseFrontmatter(read('jeeves-transcripts')),
+    );
+    expect(fm.metadata.openclaw).toEqual({
+      requires: { env: ['JEEVES_SCRIPTS_DIR', 'TRANSCRIPT_API_KEY'] },
+      primaryEnv: 'TRANSCRIPT_API_KEY',
+    });
   });
 
   describe.each(skills)('%s', (name) => {

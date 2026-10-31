@@ -9,7 +9,11 @@
  * - The task file path is relative to a silo (`siloPath(silo, [taskFile])`);
  *   the instance config's `jobs.<jobId>.silo` / `.taskFile` override the
  *   caller's values, so an instance can move a task without code.
- * - A missing task file is a `[skip]` (the job is not configured yet).
+ * - A missing task file is a `[skip]` (the job is not configured yet),
+ *   unless the caller names a core `template`: then core's copy is the
+ *   task (Decision 75; `lib/task-template`). Every run logs which source
+ *   it used. With `template` or `templateVars`, `{{name}}` placeholders
+ *   and `{{> core/template.md}}` includes are filled.
  * - With `dateTimeZone`, the task is prefixed with today's date in that
  *   zone (`withDateContext`). There is no default zone (Decision 26).
  * - With `slack`, dispatch goes through `dispatchWithSlack` (job-side Slack
@@ -23,8 +27,6 @@
  * Side effects: reads the config and the task file; spawns a worker.
  */
 
-import fs from 'node:fs';
-
 import type { DispatchOptions } from '@karmaniverous/jeeves-runner';
 import { runDispatcher } from '@karmaniverous/jeeves-runner';
 
@@ -37,6 +39,11 @@ import {
   type DispatcherFlags,
   resolveDispatcherFlags,
 } from '../../lib/dispatcher-flags.js';
+import {
+  describeTaskSource,
+  fillTaskTemplate,
+  resolveTaskTemplate,
+} from '../../lib/task-template.js';
 import { dispatchWithSlack } from '../../lib/worker-slack/run.js';
 import type { WorkerSlackConfig } from '../../lib/worker-slack/worker-slack-config.js';
 
@@ -49,6 +56,14 @@ export interface TaskFileDispatcherOptions extends DispatchOptions {
   scriptName: string;
   /** Task file path relative to the silo, e.g. `briefing/TASK.md`. */
   taskFile: string;
+  /**
+   * Core TASK template used when the instance has no file at `taskFile`
+   * (Decision 75), e.g. `BRIEFING_TEMPLATES.morning`. Unset: a missing
+   * task file skips the run.
+   */
+  template?: string;
+  /** Values for the task's `{{name}}` placeholders (e.g. {@link briefingVars}). */
+  templateVars?: Lazy<Readonly<Record<string, string>>>;
   /** Data silo holding the task file. Default: the default silo. */
   silo?: string;
   /** IANA time zone; when set, the task is prefixed with today's date in it. */
@@ -122,6 +137,8 @@ export const dispatchTaskFile = async (
   const {
     scriptName,
     taskFile,
+    template,
+    templateVars,
     silo,
     dateTimeZone,
     slack,
@@ -135,12 +152,17 @@ export const dispatchTaskFile = async (
     silo,
     taskFile,
   });
-  if (!fs.existsSync(file)) {
+  const resolved = resolveTaskTemplate(file, template);
+  if (resolved === undefined) {
     deps.log(`[skip] ${scriptName}: no task file at ${file}`);
     return 'skipped';
   }
+  deps.log(`${scriptName}: ${describeTaskSource(resolved)}`);
 
-  let task = fs.readFileSync(file, 'utf8');
+  let task =
+    template === undefined && templateVars === undefined
+      ? resolved.text
+      : fillTaskTemplate(resolved.text, resolve(templateVars ?? {}));
   if (dateTimeZone !== undefined)
     task = withDateContext(task, deps.now(), resolve(dateTimeZone));
 

@@ -36,7 +36,8 @@ export class UnknownSiloError extends Error {
   }
 }
 
-const resolveDefaultBasePath = (config: Config): string =>
+/** A validated config's default silo base: `siloRouting.defaultBasePath`, else `paths().contentDir`. */
+export const resolveDefaultBasePath = (config: Config): string =>
   config.siloRouting.defaultBasePath ?? derivePaths(config).contentDir;
 
 /** The loaded config's resolved `siloRouting` block. */

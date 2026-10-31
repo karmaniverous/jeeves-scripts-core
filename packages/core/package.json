@@ -14,6 +14,7 @@
     "skills",
     "schema",
     "presets",
+    "task-templates",
     "CHANGELOG.md"
   ],
   "publishConfig": {
@@ -37,6 +38,7 @@
     "./schema/*": "./schema/*",
     "./config/*": "./config/*",
     "./skills/*": "./skills/*",
+    "./task-templates/*": "./task-templates/*",
     "./presets/*.js": {
       "types": "./dist/presets/*.d.ts",
       "default": "./dist/presets/*.js"

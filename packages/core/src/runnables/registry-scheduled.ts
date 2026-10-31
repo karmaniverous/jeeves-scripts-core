@@ -186,6 +186,18 @@ export const scheduledJobs: readonly RegistryEntry[] = [
     load: () => import('../meta/sweep-duplicates.js'),
   },
   {
+    id: 'punch-list-harvest',
+    domain: 'punch-list',
+    module: 'punch-list/harvest/job',
+    load: () => import('../punch-list/harvest/job.js'),
+  },
+  {
+    id: 'punch-list-refresh-status',
+    domain: 'punch-list',
+    module: 'punch-list/status/job',
+    load: () => import('../punch-list/status/job.js'),
+  },
+  {
     id: 'slack-poll',
     domain: 'slack',
     module: 'slack/poll',
