@@ -238,7 +238,8 @@ export interface History {
  * window first and the cursor pages backward. When the page cap stops
  * the read before the last page, the result says so (`truncated`):
  * the newest messages (with a bound) or the oldest (without) were not
- * read, so the caller must not treat the range as read.
+ * read, and the caller decides how far the read sweeps
+ * (`channel-meta/gather` `readHistoryFallback`).
  *
  * @param client - The channel's workspace client.
  * @param channel - Channel id.

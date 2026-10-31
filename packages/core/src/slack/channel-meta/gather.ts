@@ -7,9 +7,10 @@
  * activity, and the plan for its description and topic. Also the
  * channel's next sweep state (how far it has read, the latest
  * assignment), which the flow saves only on a live run. When the history
- * read stopped at its page cap, the sweep position stays where it was
- * (the next run reads the range again) and the channel is reported; so
- * is a post whose path couldn't be read (by its ts, never its text or
+ * read stops at its page cap ({@link readHistoryFallback}), the sweep
+ * position still moves to the newest message read, so a busy channel
+ * makes progress every run instead of re-reading the same pages, and the
+ * channel is reported; so is a post whose path couldn't be read (by its ts, never its text or
  * the error, which goes to the job's stderr log). A failed read is
  * reported as Slack's method and code, else as an unexpected error
  * (`channel-meta/report-safe`).
@@ -88,6 +89,82 @@ export interface GatherDeps {
 const earlierBound = (a: string | undefined, b: string): string | undefined =>
   a === undefined ? undefined : compareTs(a, b) <= 0 ? a : b;
 
+/** What the history fallback read, and how far that sweeps. */
+interface HistoryRead {
+  /** Messages read, oldest first. */
+  messages: ChannelMessage[];
+  /** The newest message the sweep may count as read, if any. */
+  sweptTo?: string;
+  /** Why the read is incomplete, if it is. */
+  note?: string;
+}
+
+const CUT = `history cut at ${String(MAX_HISTORY_PAGES)} pages`;
+
+/** `a` and `b` merged by ts (one copy each), oldest first. */
+const mergeByTs = (
+  a: readonly ChannelMessage[],
+  b: readonly ChannelMessage[],
+): ChannelMessage[] =>
+  [...new Map([...a, ...b].map((m) => [m.ts, m])).values()].sort((x, y) =>
+    compareTs(x.ts, y.ts),
+  );
+
+/**
+ * Read a channel with no archive from `since`, never stuck on its page
+ * cap (`channel-meta/workspaces` `readHistory`):
+ *
+ * - no bound (no sweep position yet): Slack serves the newest pages
+ *   first, so a cut read holds the newest messages; the sweep moves to
+ *   the newest one, and older history is never swept (the latest
+ *   assignment is what counts);
+ * - a bound: Slack pages forward from it, so a cut read is contiguous
+ *   from `since` and the sweep moves to the newest message read. When
+ *   the sweep position was already past that (the bound was the
+ *   activity window), a second capped read from the sweep position
+ *   gets the newest messages, so the sweep and the topic's recent
+ *   messages still advance; the messages in between were swept before.
+ *
+ * @param read - The history reader for this channel.
+ * @param since - The read's bound (the earlier of the sweep position and
+ *   the activity window).
+ * @param sweptTs - The sweep position.
+ * @returns What was read and how far it sweeps.
+ */
+export async function readHistoryFallback(
+  read: (since: string | undefined) => Promise<History>,
+  since: string | undefined,
+  sweptTs: string | undefined,
+): Promise<HistoryRead> {
+  const first = await read(since);
+  const newest = first.messages.at(-1)?.ts;
+  if (!first.truncated) return { messages: first.messages, sweptTo: newest };
+  if (since === undefined)
+    return {
+      messages: first.messages,
+      sweptTo: newest,
+      note: `${CUT}: only the newest messages read; older history not swept`,
+    };
+  if (
+    sweptTs === undefined ||
+    newest === undefined ||
+    compareTs(sweptTs, newest) <= 0
+  )
+    return {
+      messages: first.messages,
+      sweptTo: newest,
+      note: `${CUT}: swept up to the newest message read; the next run reads on from there`,
+    };
+  const second = await read(sweptTs);
+  return {
+    messages: mergeByTs(first.messages, second.messages),
+    sweptTo: second.messages.at(-1)?.ts,
+    note: second.truncated
+      ? `${CUT} twice: swept up to the newest message read; the next run reads on from there`
+      : `${CUT}: part of the activity window not read; every new message swept`,
+  };
+}
+
 /**
  * Gather one channel.
  *
@@ -110,13 +187,25 @@ export async function gatherChannel(
   const windowStart = tsAt(nowMs - settings.activityDays * 86_400_000);
   const since = earlierBound(state.sweptTs, windowStart);
   let messages: ChannelMessage[] = [];
-  let truncated = false;
+  let sweptTo: string | undefined;
+  let historyNote: string | undefined;
   let readError: string | undefined;
   const dir = deps.archiveDirs.get(channel.id);
   try {
     if (dir === undefined)
-      ({ messages, truncated } = await deps.history(ws, channel.id, since));
-    else messages = readArchivedSince(dir, since, deps.io);
+      ({
+        messages,
+        sweptTo,
+        note: historyNote,
+      } = await readHistoryFallback(
+        (bound) => deps.history(ws, channel.id, bound),
+        since,
+        state.sweptTs,
+      ));
+    else {
+      messages = readArchivedSince(dir, since, deps.io);
+      sweptTo = messages.at(-1)?.ts;
+    }
   } catch (e) {
     readError = reportSafeError(e, `reading ${channel.id}`);
   }
@@ -130,11 +219,7 @@ export async function gatherChannel(
     state.assignment,
   );
   const sweepNotes = [
-    ...(truncated
-      ? [
-          `history cut at ${String(MAX_HISTORY_PAGES)} pages: sweep position kept`,
-        ]
-      : []),
+    ...(historyNote === undefined ? [] : [historyNote]),
     ...failed.map((f) => {
       stderrWarn(
         `[warn] slack/refresh-channel-meta: post ${f.ts} in ${channel.id}: path unreadable: ${f.error}`,
@@ -152,9 +237,7 @@ export async function gatherChannel(
     ws.scopes.includes(writeScopeFor(channel.isPrivate));
   const common = { homeDir, homeDirExists, meta, canWrite, lastHumanTs };
   const next: ChannelState = { ...state };
-  const sweptTs = truncated
-    ? state.sweptTs
-    : laterTs(state.sweptTs, messages.at(-1)?.ts);
+  const sweptTs = laterTs(state.sweptTs, sweptTo);
   if (sweptTs !== undefined) next.sweptTs = sweptTs;
   if (assignment !== undefined) next.assignment = assignment;
   return {
