@@ -27,7 +27,7 @@ describe('mergeItems', () => {
         reportItem({
           title: 'Budget alert · Gemini',
           kind: 'requested',
-          requester: 'Pat Example',
+          requester: 'Kim Example',
           sources: ['/ok/a.json', 'runner:email-poll#9'],
         }),
       ],
@@ -43,7 +43,7 @@ describe('mergeItems', () => {
     expect(next.backlog[1]).toEqual({
       id: 'b-0000000f',
       checked: false,
-      text: '**Budget alert, Gemini** — The watcher logs ENOENT for deleted lock files. · requested by Pat Example · sources: [/ok/a.json](https://x/ok/a.json), `runner:email-poll#9` · added 2026-10-18',
+      text: '**Budget alert, Gemini** — The watcher logs ENOENT for deleted lock files. · requested by Kim Example · sources: [/ok/a.json](https://x/ok/a.json), `runner:email-poll#9` · added 2026-10-18',
     });
   });
 

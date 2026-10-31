@@ -32,7 +32,7 @@ export const samplePunchList: PunchList = {
     {
       id: 'b-0000000b',
       checked: false,
-      text: '**Dropbox support** — files live there · requested by Pat Example · [acme/jeeves-scripts-acme#2](https://github.com/acme/jeeves-scripts-acme/issues/2) · added 2026-10-17',
+      text: '**Dropbox support** — files live there · requested by Kim Example · [acme/jeeves-scripts-acme#2](https://github.com/acme/jeeves-scripts-acme/issues/2) · added 2026-10-17',
     },
   ],
   todo: [

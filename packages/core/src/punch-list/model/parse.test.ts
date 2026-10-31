@@ -21,12 +21,12 @@ describe('parse/render', () => {
   it('gives a typed entry without an id a fresh id', () => {
     const text = renderPunchList(emptyPunchList('2026-10-18')).replace(
       '## Tasks\n\n_None._',
-      '## Tasks\n\n- [ ] **Upload the NR logo** — Slack app · added 2026-10-18',
+      '## Tasks\n\n- [ ] **Upload the Acme logo** — Slack app · added 2026-10-18',
     );
     const task = parsePunchList(text).tasks[0] ?? { id: '', text: '' };
     expect(task.id).toMatch(/^t-[0-9a-f]{8}$/);
     expect(task.text).toBe(
-      '**Upload the NR logo** — Slack app · added 2026-10-18',
+      '**Upload the Acme logo** — Slack app · added 2026-10-18',
     );
   });
 

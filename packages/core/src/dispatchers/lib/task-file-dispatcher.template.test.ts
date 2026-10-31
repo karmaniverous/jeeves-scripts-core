@@ -105,7 +105,7 @@ describe('dispatchTaskFile with a core template (Decision 75)', () => {
           briefingVars({
             org: 'Acme',
             principal: 'Ana',
-            delegates: 'Ben',
+            delegates: 'Bo',
             timeZone: 'UTC',
             deliveryChannel: '#eod',
             briefingDir: '/c/brief',

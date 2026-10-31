@@ -49,7 +49,7 @@ export const briefingVarsSchema = z.object({
   org: text,
   /** The executive the briefing serves. */
   principal: text,
-  /** The people the principal hands work to, e.g. `Ana (ops), Ben (finance)`. */
+  /** The people the principal hands work to, e.g. `Ana (ops), Bo (finance)`. */
   delegates: text,
   /** The principal's IANA time zone (the dispatcher's `dateTimeZone` too). */
   timeZone: text.refine(isTimeZone, {

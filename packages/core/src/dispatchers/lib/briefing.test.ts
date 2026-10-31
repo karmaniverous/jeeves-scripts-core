@@ -27,7 +27,7 @@ const read = (name: string): string =>
 const input = {
   org: 'Acme',
   principal: 'Ana',
-  delegates: 'Ben (ops)',
+  delegates: 'Bo (ops)',
   timeZone: 'America/Chicago',
   deliveryChannel: '#brief',
   briefingDir: '/c/brief',

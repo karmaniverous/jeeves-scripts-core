@@ -191,7 +191,7 @@ const values = () =>
   briefingVars({
     org: 'Acme',
     principal: 'Ana',
-    delegates: 'Ben (operations), Cy (finance)',
+    delegates: 'Bo (operations), Cy (finance)',
     timeZone: 'America/Chicago',
     deliveryChannel: '#ceo-briefing',
     briefingDir: '/base/content/briefings/daily',
