@@ -25,6 +25,7 @@ const {
   readServerAccess,
   reportLinkLabel,
   resolvePublicUrl,
+  SERVER_LINK_TIMEOUT_MS,
   serverAccessFrom,
   slackLink,
 } = await import('./server-link.js');
@@ -106,9 +107,62 @@ describe('resolvePublicUrl', () => {
     await expect(
       resolvePublicUrl(fetchFn, ACCESS, '/srv/out/a b.md'),
     ).resolves.toBe('https://jeeves.test/browse/srv/out/a%20b.md');
-    expect(fetchFn).toHaveBeenCalledWith(
+    const [url, init] = vi.mocked(fetchFn).mock.calls[0] ?? [];
+    expect(url).toBe(
       'http://127.0.0.1:1934/api/resolve-path?fsPath=%2Fsrv%2Fout%2Fa+b.md&k=abc123',
     );
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it('gives up on a hung server after the timeout, naming the path but not the key', async () => {
+    // Like fetch, the fake rejects only when its signal aborts.
+    const hung = vi.fn<Fetch>(
+      (_url, init) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            reject(init.signal?.reason as Error);
+          });
+        }),
+    );
+    const error = await resolvePublicUrl(hung, ACCESS, '/srv/x.md', 20).catch(
+      (e: unknown) => e,
+    );
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe(
+      'jeeves-server did not answer within 20 ms resolving /srv/x.md',
+    );
+    expect((error as Error).message).not.toContain('abc123');
+  });
+
+  it('gives up when the answer\u2019s body hangs', async () => {
+    const slowBody = vi.fn<Fetch>((_url, init) =>
+      Promise.resolve({
+        ok: true,
+        status: 200,
+        json: () =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              reject(init.signal?.reason as Error);
+            });
+          }),
+      }),
+    );
+    await expect(
+      resolvePublicUrl(slowBody, ACCESS, '/srv/x.md', 20),
+    ).rejects.toThrow('jeeves-server did not answer within 20 ms');
+  });
+
+  it('waits SERVER_LINK_TIMEOUT_MS by default and passes other failures through', async () => {
+    expect(SERVER_LINK_TIMEOUT_MS).toBe(10_000);
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    const refused = vi.fn<Fetch>(() =>
+      Promise.reject(new Error('connect ECONNREFUSED')),
+    );
+    await expect(
+      resolvePublicUrl(refused, ACCESS, '/srv/x.md'),
+    ).rejects.toThrow('connect ECONNREFUSED');
+    expect(timeout).toHaveBeenCalledWith(SERVER_LINK_TIMEOUT_MS);
+    timeout.mockRestore();
   });
 
   it.each([
@@ -161,7 +215,7 @@ describe('liveReportLink', () => {
       port: 1934,
       keys: { scripts: 'seed-a' },
     });
-    const fetchMock = vi.fn(() =>
+    const fetchMock = vi.fn((_url: string, _init?: { signal?: AbortSignal }) =>
       Promise.resolve(Response.json({ publicUrl: 'https://p/x' })),
     );
     vi.stubGlobal('fetch', fetchMock);
@@ -169,9 +223,11 @@ describe('liveReportLink', () => {
       expect(
         await liveReportLink('Report')('/out/2026-10-22.md', 'scripts'),
       ).toBe('<https://p/x|Report \u2014 2026-10-22>');
-      expect(fetchMock).toHaveBeenCalledWith(
+      const [url, init] = fetchMock.mock.calls[0] ?? [];
+      expect(url).toBe(
         `http://127.0.0.1:1934/api/resolve-path?fsPath=%2Fout%2F2026-10-22.md&k=${SEED_A_INSIDER}`,
       );
+      expect(init?.signal).toBeInstanceOf(AbortSignal);
     } finally {
       vi.unstubAllGlobals();
     }

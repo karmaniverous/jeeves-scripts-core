@@ -79,8 +79,15 @@ export interface FetchResponse {
   json: () => Promise<unknown>;
 }
 
-/** `fetch`, injectable for tests. */
-export type Fetch = (url: string) => Promise<FetchResponse>;
+/** `fetch`, injectable for tests; `signal` aborts it (the timeout). */
+export type Fetch = (
+  url: string,
+  init?: { signal?: AbortSignal },
+) => Promise<FetchResponse>;
+
+/** How long {@link resolvePublicUrl} waits for jeeves-server, answer
+ * included (it is local, so a long wait means it is hung). */
+export const SERVER_LINK_TIMEOUT_MS = 10_000;
 
 /**
  * The public insider URL jeeves-server gives for a path.
@@ -88,23 +95,39 @@ export type Fetch = (url: string) => Promise<FetchResponse>;
  * @param fetchFn - `fetch`.
  * @param access - API base URL and insider key.
  * @param fsPath - Absolute filesystem path under one of the server's roots.
+ * @param timeoutMs - How long to wait for the answer (default
+ *   {@link SERVER_LINK_TIMEOUT_MS}).
  * @returns The `publicUrl` from the server's answer.
- * @throws Error on a non-OK answer (e.g. 404: not under any root) or when
- *   the server has no `publicUrl` configured.
+ * @throws Error on a non-OK answer (e.g. 404: not under any root), when
+ *   the server has no `publicUrl` configured, or when it doesn't answer in
+ *   time (the message names the path, never the URL or key).
  */
 export async function resolvePublicUrl(
   fetchFn: Fetch,
   access: ServerAccess,
   fsPath: string,
+  timeoutMs = SERVER_LINK_TIMEOUT_MS,
 ): Promise<string> {
   const query = new URLSearchParams({ fsPath, k: access.insiderKey });
-  const res = await fetchFn(
-    `${access.apiUrl}/api/resolve-path?${query.toString()}`,
-  );
-  const body = (await res.json().catch(() => ({}))) as {
-    publicUrl?: unknown;
-    error?: unknown;
-  };
+  const signal = AbortSignal.timeout(timeoutMs);
+  let res: FetchResponse;
+  let body: { publicUrl?: unknown; error?: unknown };
+  try {
+    res = await fetchFn(
+      `${access.apiUrl}/api/resolve-path?${query.toString()}`,
+      { signal },
+    );
+    body = (await res.json().catch((e: unknown) => {
+      if (signal.aborted) throw e;
+      return {};
+    })) as typeof body;
+  } catch (e) {
+    if (!signal.aborted) throw e;
+    throw new Error(
+      `jeeves-server did not answer within ${String(timeoutMs)} ms resolving ${fsPath}`,
+      { cause: e },
+    );
+  }
   if (!res.ok)
     throw new Error(
       `jeeves-server could not resolve ${fsPath} (HTTP ${String(res.status)}${typeof body.error === 'string' ? `: ${body.error}` : ''})`,
