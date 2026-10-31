@@ -1,83 +1,20 @@
-import {
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  utimesSync,
-  writeFileSync,
-} from 'node:fs';
+/**
+ * The harvester's live runs: dispatch, merge, record, post, pin, the
+ * cursor, failure and resume. Dry runs: `run.dry-run.test.ts`.
+ */
+
+import { existsSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
 import { parsePunchList } from '../model/parse.js';
-import { reportItem, testConfig } from '../punch-list.test-helper.js';
+import { reportItem } from '../punch-list.test-helper.js';
 import { dayFile } from '../store.js';
 import { readCursor, writeCursor } from './input.js';
-import { type HarvestDeps, runHarvest } from './run.js';
-
-const setup = () => {
-  const dir = mkdtempSync(join(tmpdir(), 'pl-harvest-'));
-  const listDir = join(dir, 'punch-list');
-  const input = join(dir, 'content');
-  mkdirSync(listDir, { recursive: true });
-  mkdirSync(input, { recursive: true });
-  writeFileSync(join(listDir, 'TASK.md'), '# Harvest\n\nDo the thing.');
-  writeFileSync(join(input, 'new.json'), '{}');
-  const inWindow = new Date('2026-10-18T12:00:00Z');
-  utimesSync(join(input, 'new.json'), inWindow, inWindow);
-  const serverConfig = join(dir, 'server.json');
-  writeFileSync(
-    serverConfig,
-    JSON.stringify({
-      publicUrl: 'https://jeeves.example.com',
-      roots: { t: dir },
-    }),
-  );
-  const config = testConfig({
-    dir: listDir,
-    serverConfig,
-    timeZone: 'UTC',
-    specPath: join(dir, 'spec.md'),
-    cursorFile: join(dir, 'state', 'cursor.json'),
-    inboxDir: join(dir, 'state', 'inbox'),
-    lockFile: join(dir, 'state', 'pl.lock'),
-    inputRoots: [input],
-    slack: { channel: 'C000PUNCH01', account: 'default', pinnedTs: '1.2' },
-  });
-  const calls = {
-    tasks: [] as string[],
-    reportFiles: [] as string[],
-    posts: [] as string[],
-    updates: [] as string[],
-    logs: [] as string[],
-  };
-  const deps = (reply: string): HarvestDeps => ({
-    worker: (task, reportFile) => {
-      calls.tasks.push(task);
-      calls.reportFiles.push(reportFile);
-      writeFileSync(reportFile, reply);
-      return Promise.resolve(reply);
-    },
-    slack: () => ({
-      post: (_c, t) => {
-        calls.posts.push(t);
-        return Promise.resolve();
-      },
-      update: (_c, _ts, t) => {
-        calls.updates.push(t);
-        return Promise.resolve();
-      },
-    }),
-    now: () => new Date('2026-10-18T21:47:00Z'),
-    log: (m) => calls.logs.push(m),
-  });
-  return { dir, listDir, input, config, calls, deps };
-};
-
-const reply = (sources: string[]): string =>
-  JSON.stringify({ items: [reportItem({ sources })], summary: 'One need.' });
+import { runHarvest } from './run.js';
+import { reply, setup } from './run.test-helper.js';
 
 describe('runHarvest', () => {
   it('dispatches, merges, records, posts, pins and advances the cursor', async () => {
@@ -195,58 +132,6 @@ describe('runHarvest', () => {
     expect(list.backlog.map((e) => e.text.split(' \u2014 ')[0])).toEqual([
       '**Ignore .meta lock files**',
     ]);
-  });
-
-  it('prints the task only, and dry-runs without writing', async () => {
-    const s = setup();
-    await runHarvest(
-      s.config,
-      { live: true, printTask: true },
-      s.deps('unused'),
-    );
-    expect(s.calls.tasks).toEqual([]);
-    expect(s.calls.logs[0]).toBe(
-      `task from the instance file ${join(s.listDir, 'TASK.md')}`,
-    );
-    expect(s.calls.logs[1]).toContain('Do the thing.');
-    expect(s.calls.logs).toHaveLength(2);
-    await runHarvest(
-      s.config,
-      { live: false, printTask: false },
-      s.deps(reply([join(s.input, 'new.json')])),
-    );
-    expect(existsSync(dayFile(s.listDir, '2026-10-18'))).toBe(false);
-    expect(readCursor(s.config.cursorFile)).toBeUndefined();
-    expect(s.calls.posts).toEqual([]);
-    expect(s.calls.logs.some((l) => l.includes('[dry-run] would post'))).toBe(
-      true,
-    );
-    // No harvest record, no pinned-message update, no inbox, no leftover report.
-    expect(existsSync(join(s.listDir, 'harvest'))).toBe(false);
-    expect(s.calls.updates).toEqual([]);
-    expect(
-      s.calls.logs.some((l) => l.startsWith('[dry-run] would update pinned')),
-    ).toBe(true);
-    expect(existsSync(s.config.inboxDir)).toBe(false);
-    const [report] = s.calls.reportFiles;
-    expect(report?.startsWith(s.config.inboxDir)).toBe(false);
-    expect(report && existsSync(dirname(report))).toBe(false);
-    // Cursor, inbox and lock all live under state/: nothing created it.
-    expect(existsSync(join(s.dir, 'state'))).toBe(false);
-  });
-
-  it('removes a dry run’s report directory when the worker fails', async () => {
-    const s = setup();
-    await expect(
-      runHarvest(
-        s.config,
-        { live: false, printTask: false },
-        s.deps('no json'),
-      ),
-    ).rejects.toThrow('harvest worker reply holds no JSON object');
-    const [report] = s.calls.reportFiles;
-    expect(report && existsSync(dirname(report))).toBe(false);
-    expect(existsSync(s.config.inboxDir)).toBe(false);
   });
 
   it('tells the worker where to write its report and removes it once recorded', async () => {

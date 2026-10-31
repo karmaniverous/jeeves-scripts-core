@@ -86,7 +86,7 @@ describe('punchListSchema', () => {
     ],
     [{ inputRoots: [] }, 'Too small: expected array to have >=1 items'],
     ...['rel', '{homes}/x', '{home}x', 'x/{home}', '{stateDir}/x'].map(
-      (root) => [
+      (root): [object, string] => [
         { inputRoots: [root] },
         'inputRoots entry must be an absolute path, or start with {home} or {npmGlobal}',
       ],

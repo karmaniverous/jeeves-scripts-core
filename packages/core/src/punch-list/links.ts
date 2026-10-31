@@ -48,7 +48,7 @@ export const readServerLinks = (configPath: string): ServerLinks => {
 export const browseUrl = (
   links: ServerLinks,
   filePath: string,
-  p: path.PlatformPath = path,
+  p: typeof path = path,
 ): string | undefined => {
   const abs = p.resolve(filePath);
   const matches = Object.entries(links.roots)
