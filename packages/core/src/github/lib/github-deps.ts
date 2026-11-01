@@ -4,7 +4,7 @@
  * What the GitHub runnables read and call: the gh settings (config dir,
  * binary, account, bot user), the archive paths, `gh` and command runners,
  * the runner client and the clock; the live values are resolved from
- * `jeeves-scripts.json` when a runnable runs (never at import), which is
+ * the instance config when a runnable runs (never at import), which is
  * also when `GH_CONFIG_DIR` is set for the `gh` child processes. Also the
  * round-robin batch over a registry kept in runner state items, shared by
  * the repo and issue syncs.
@@ -13,8 +13,10 @@
 import fs from 'node:fs';
 
 import {
+  argOptional,
   getErrorMessage,
   nowIso,
+  type ParsedArgs,
   run,
   sleepAsync,
 } from '@karmaniverous/jeeves';
@@ -24,7 +26,6 @@ import {
 } from '@karmaniverous/jeeves-runner';
 
 import { getBasePathForGitHubOrg } from '../../config/index.js';
-import { argOptional, type ParsedArgs } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
 import { gh, type GhResult, setupGhConfig } from '../../lib/gh.js';
 

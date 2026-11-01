@@ -8,9 +8,9 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { parseRunnableArgs } from '@karmaniverous/jeeves';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { parseRunnableArgs } from '../lib/args.js';
 import {
   ingestNotion,
   type IngestNotionDeps,

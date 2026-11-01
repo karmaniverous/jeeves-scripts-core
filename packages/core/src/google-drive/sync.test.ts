@@ -1,6 +1,6 @@
+import { parseRunnableArgs } from '@karmaniverous/jeeves';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { parseRunnableArgs } from '../lib/args.js';
 import { fakeRunnerClient } from '../lib/fake-runner-client.test-helper.js';
 import { SyncEntrySchema } from './lib/config.js';
 import { emptySummary } from './lib/summary.js';

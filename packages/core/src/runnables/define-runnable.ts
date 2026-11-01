@@ -16,14 +16,13 @@
  * called `runScript` itself.
  */
 
-import { runScript } from '@karmaniverous/jeeves';
-import { z } from 'zod';
-
 import {
   type ArgSpec,
   type ParsedArgs,
   parseRunnableArgs,
-} from '../lib/args.js';
+  runScript,
+} from '@karmaniverous/jeeves';
+import { z } from 'zod';
 
 /** What a running job receives. */
 export const jobContextSchema = z.object({
@@ -90,7 +89,7 @@ export const jobDeclarationSchema = z
     /** Directory for `_crash.log`, resolved when the job runs (default: the working directory). */
     crashDir: fn<() => string>('crashDir').optional(),
     /**
-     * The flags and valued options the job accepts (`lib/args`). When set,
+     * The flags and valued options the job accepts (the argument parser from `@karmaniverous/jeeves`). When set,
      * `run <id>` rejects any other option before the body runs, and the job
      * reads the parsed values from `ctx.flags`. When unset, the job accepts
      * no flags (any given are passed through with a deprecation warning).

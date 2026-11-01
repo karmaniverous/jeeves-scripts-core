@@ -3,7 +3,7 @@
  *
  * What the Jira runnables read and call (settings, `fetch`, the archive
  * directory, the clock, a sleep), and the live values resolved from
- * `jeeves-scripts.json` when a runnable runs (never at import).
+ * the instance config when a runnable runs (never at import).
  */
 
 import path from 'node:path';

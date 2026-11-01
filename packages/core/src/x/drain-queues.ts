@@ -12,7 +12,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { argValue, type ParsedArgs } from '../lib/args.js';
+import { argValue, type ParsedArgs } from '@karmaniverous/jeeves';
+
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { type XJobDeps, xJobDeps } from './lib/x-deps.js';
 

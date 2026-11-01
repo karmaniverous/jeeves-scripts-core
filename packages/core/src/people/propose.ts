@@ -7,7 +7,7 @@
  * group users across workspaces by email (case-insensitive) and by real
  * name, and print a proposed `people` block with the matches that need a
  * human look. It never writes config: the operator confirms the proposal
- * and copies what is right into `jeeves-scripts.json`.
+ * and copies what is right into the instance config (`config set`).
  */
 
 import type { People } from '../config/people-schema.js';

@@ -1,6 +1,6 @@
+import { parseRunnableArgs } from '@karmaniverous/jeeves';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { parseRunnableArgs } from '../lib/args.js';
 import job, {
   reportFlags,
   reportOptions,

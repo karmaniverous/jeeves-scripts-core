@@ -1,14 +1,17 @@
 /**
  * @module config/check
  *
- * `configCheck` (design §5, §6; R10, R30): validates `jeeves-scripts.json`
- * against the schema and its silo references (`jobs.<id>.silo` and
- * `integrations.x.accounts.<handle>.silo`). It is the root export's
+ * `configCheck` (design §5, §6; R10, R30): validates the instance config
+ * against the schema, its silo references (`jobs.<id>.silo` and
+ * `integrations.x.accounts.<handle>.silo`) and the gateway Slack
+ * accounts `slack.channelMeta` names (`reportAccount`,
+ * `reportTextAccounts`; Decision 76). It is the root export's
  * config check and checks core's schema only; the CLI's `config check`
  * (`cli/config-check.ts`) runs it and then loads the instance plugin, so
  * the plugin's `configSchema` also validates the `local` block.
  */
 
+import { slackBotTokens } from '../lib/openclaw-config.js';
 import {
   getLoadedConfigPath,
   loadConfig,
@@ -18,6 +21,15 @@ import {
   type ResolvedConfig,
 } from './loader.js';
 import { isKnownSilo, siloRouting } from './silo-router.js';
+import { slackAccountsProblem } from './slack-channel-meta-schema.js';
+
+/** What {@link configCheck} reads besides the config. */
+export interface ConfigCheckDeps {
+  /** The gateway Slack accounts, read only when `slack.channelMeta`
+   * names one. Default: OpenClaw's configured bot tokens
+   * (`slackBotTokens`). */
+  slackAccounts?: () => readonly string[];
+}
 
 /** Outcome of {@link configCheck}. */
 export interface ConfigCheckResult {
@@ -62,6 +74,22 @@ const checkSilos = (options: LoadConfigOptions): string[] => {
       ([where, silo]) =>
         `${where}: unknown silo "${silo}". Configured silos: ${known}.`,
     );
+};
+
+/** The accounts `slack.channelMeta` names that the gateway lacks. */
+const checkSlackAccounts = (
+  options: LoadConfigOptions,
+  deps: ConfigCheckDeps,
+): string[] => {
+  const block = loadConfig(options).slack.channelMeta;
+  const problem =
+    block === undefined
+      ? undefined
+      : slackAccountsProblem(
+          block,
+          deps.slackAccounts ?? (() => Object.keys(slackBotTokens())),
+        );
+  return problem === undefined ? [] : [problem];
 };
 
 /** The config file location, or `undefined` when it can't be resolved. */
@@ -111,12 +139,17 @@ export const describeConfigSource = (
 };
 
 /**
- * Validate `jeeves-scripts.json`: schema (including the secret-literal
- * guard) and silo references. Never throws; failures are collected in
+ * Validate the instance config: schema (including the secret-literal
+ * guard), silo references and the gateway Slack accounts
+ * `slack.channelMeta` names. Never throws; failures are collected in
  * `errors`.
+ *
+ * @param options - Where the config is.
+ * @param deps - What it reads besides the config.
  */
 export const configCheck = (
   options: LoadConfigOptions = {},
+  deps: ConfigCheckDeps = {},
 ): ConfigCheckResult => {
   resetConfig();
   try {
@@ -128,7 +161,7 @@ export const configCheck = (
       errors: [e instanceof Error ? e.message : String(e)],
     };
   }
-  const errors = checkSilos(options);
+  const errors = [...checkSilos(options), ...checkSlackAccounts(options, deps)];
   return {
     ok: errors.length === 0,
     ...located(locate(options)),

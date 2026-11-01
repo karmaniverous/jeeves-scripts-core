@@ -11,6 +11,6 @@
     "overlap_policy": "skip",
     "timeout_seconds": 720,
     "enabled": true,
-    "prerequisite": "googleDrive block in jeeves-scripts.json (pipeline); sync account registered in gog (service-account mailbox); DWD grant covers gog's Drive + Sheets scopes (VCS exclusion deferred until jeeves-watcher#253: it would also de-index the mirror)"
+    "prerequisite": "googleDrive block in the instance config (pipeline); sync account registered in gog (service-account mailbox); DWD grant covers gog's Drive + Sheets scopes (VCS exclusion deferred until jeeves-watcher#253: it would also de-index the mirror)"
   }
 }

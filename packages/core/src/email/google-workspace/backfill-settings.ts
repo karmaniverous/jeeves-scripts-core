@@ -12,10 +12,10 @@
  * Called by email/google-workspace/backfill-historical.ts.
  */
 
+import { argOptional, type ParsedArgs } from '@karmaniverous/jeeves';
 import { z } from 'zod';
 
 import type { BackfillConfig } from '../../config/index.js';
-import { argOptional, type ParsedArgs } from '../../lib/args.js';
 
 /** Resolved backfill settings. */
 export interface BackfillSettings {

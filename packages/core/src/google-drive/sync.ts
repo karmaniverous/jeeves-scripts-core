@@ -19,16 +19,16 @@
  */
 
 import {
-  getRunnerClient,
-  type RunnerClient,
-} from '@karmaniverous/jeeves-runner';
-
-import {
   argFlag,
   argOptional,
   argValue,
   type ParsedArgs,
-} from '../lib/args.js';
+} from '@karmaniverous/jeeves';
+import {
+  getRunnerClient,
+  type RunnerClient,
+} from '@karmaniverous/jeeves-runner';
+
 import { constants } from '../lib/constants.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import {

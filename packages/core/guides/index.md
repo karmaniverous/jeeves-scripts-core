@@ -52,7 +52,7 @@ Hand-written references for `@karmaniverous/jeeves-scripts-core`: the framework 
 - [Meetings](./meetings.md): Meeting extraction (Meet, Fathom, Notion)
 - [Meta](./meta.md): Entity lifecycle maintenance
 - [Punch List](./punch-list.md): The instance's daily punch list of platform work: status from GitHub, harvesting from the archive
-- [Slack](./slack.md): Slack polling and archiving
+- [Slack](./slack.md): Slack polling and archiving; channel descriptions, topics and home-directory proposals
 - [Transcripts](./transcripts.md): YouTube transcripts fetched to disk through TranscriptAPI
 - [X](./x.md): X/Twitter polling, posting, engagement
 

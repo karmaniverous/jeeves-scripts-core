@@ -1,7 +1,7 @@
 /**
  * @module config/secret-guard
  *
- * Rejects literal secret values anywhere in a parsed `jeeves-scripts.json`
+ * Rejects literal secret values anywhere in a parsed instance config
  * tree (Decision 19, Decision 3). Credentials stay in files under
  * `CREDENTIALS_DIR`, referenced by path or `secretRef`; the config file
  * itself never holds a secret value.

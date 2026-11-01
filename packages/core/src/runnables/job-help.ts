@@ -14,7 +14,12 @@
  * Pure.
  */
 
-import { type ArgSpec, unknownArgs, valuelessArgs } from '../lib/args.js';
+import {
+  type ArgSpec,
+  unknownArgs,
+  valuelessArgs,
+} from '@karmaniverous/jeeves';
+
 import type { JobModule } from './define-runnable.js';
 import type { JobManifest } from './manifest.js';
 

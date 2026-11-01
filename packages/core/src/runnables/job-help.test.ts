@@ -1,6 +1,6 @@
+import { argFlag, argOptional, argValue } from '@karmaniverous/jeeves';
 import { describe, expect, it } from 'vitest';
 
-import { argFlag, argOptional, argValue } from '../lib/args.js';
 import { defineRunnable } from './define-runnable.js';
 import {
   argsError,

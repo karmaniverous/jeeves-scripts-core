@@ -4,6 +4,7 @@
  * design §3. This pins the runtime names so either change is deliberate.
  */
 
+import * as jeeves from '@karmaniverous/jeeves';
 import { describe, expect, it } from 'vitest';
 
 import * as root from '../src/index.js';
@@ -40,10 +41,12 @@ const EXPECTED = [
   'convertPdfToMd',
   'coreTaskTemplatePath',
   'createSlackClient',
+  'dateInZone',
   'dayOfWeek',
   'defineJob',
   'definePlugin',
   'defineRunnable',
+  'deliverReport',
   'deriveIntegrations',
   'derivePaths',
   'describeTaskSource',
@@ -113,7 +116,9 @@ const EXPECTED = [
   'librarySchema',
   'librarySiteLinksSchema',
   'linearIntegrationSchema',
+  'linkBeforeWorker',
   'listEntrySchema',
+  'liveReportLink',
   'loadConfig',
   'localConfig',
   'meetingsEmailConfigSchema',
@@ -142,6 +147,7 @@ const EXPECTED = [
   'pluginDeclarationSchema',
   'pointerSchema',
   'positionalArgs',
+  'pruneRuns',
   'punchListInstallTargetSchema',
   'punchListModelSchema',
   'punchListSchema',
@@ -152,16 +158,19 @@ const EXPECTED = [
   'relativeDays',
   'renderPunchList',
   'reportOnlyFor',
+  'reportPath',
   'requireTimeZone',
   'resetConfig',
   'resolveConfig',
   'resolveConfigPath',
   'resolveImapPassword',
+  'resolvePublicUrl',
   'resolveTaskFile',
   'resolveTaskTemplate',
   'respondConfigSchema',
   'retryAsync',
   'retrySync',
+  'runId',
   'runModeOf',
   'runnerConfig',
   'runnerUrl',
@@ -176,7 +185,9 @@ const EXPECTED = [
   'slackBotTokens',
   'slackChannelConfigSchema',
   'slackChannelIdSchema',
+  'slackChannelMetaSchema',
   'slackConfigSchema',
+  'slackLink',
   'slackPostTargetSchema',
   'slackReadSpecSchema',
   'slackTargetSchema',
@@ -196,5 +207,27 @@ const EXPECTED = [
 describe('root export', () => {
   it('exports exactly the documented runtime names', () => {
     expect(Object.keys(root).sort()).toEqual(EXPECTED);
+  });
+
+  it("re-exports the platform's argument parser and retry helpers, not copies (#24)", () => {
+    const platform = [
+      'argFlag',
+      'argOptional',
+      'argValue',
+      'parseRunnableArgs',
+      'positionalArgs',
+      'unknownArgs',
+      'exponentialBackoff',
+      'retryAsync',
+      'retrySync',
+    ] as const;
+    expect(platform.filter((name) => root[name] !== jeeves[name])).toEqual([]);
+  });
+
+  it('exports the report-link helpers an instance job reuses (Decision 74)', async () => {
+    const link = await import('../src/lib/server-link.js');
+    expect(root.liveReportLink).toBe(link.liveReportLink);
+    expect(root.linkBeforeWorker).toBe(link.linkBeforeWorker);
+    expect(typeof root.liveReportLink('Report')).toBe('function');
   });
 });

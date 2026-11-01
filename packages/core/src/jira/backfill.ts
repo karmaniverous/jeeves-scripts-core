@@ -14,7 +14,8 @@
  *   --live           Perform actual writes (default: dry run)
  */
 
-import { argFlag, argValue, type ParsedArgs } from '../lib/args.js';
+import { argFlag, argValue, type ParsedArgs } from '@karmaniverous/jeeves';
+
 import { backfillEntity } from '../lib/entity-store.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import {

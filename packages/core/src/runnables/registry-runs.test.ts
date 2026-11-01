@@ -1,6 +1,6 @@
 /**
  * Registry-wide contract (SOLID-1): every core runnable's `run` returns or
- * awaits its work. Each job runs with no loadable `jeeves-scripts.json`, so
+ * awaits its work. Each job runs with no loadable instance config, so
  * its work fails at its first config read; that failure must arrive through
  * what `run` returned (a rejected promise, or a synchronous throw), never as
  * an unhandled rejection after `run` has returned. Its source must not

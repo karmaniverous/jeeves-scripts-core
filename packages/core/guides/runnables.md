@@ -17,7 +17,7 @@ A runnable id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/
 | `admin` | `admin-check-qdrant-health`, `admin-collect-token-metrics`, `admin-refresh-sessions`, `admin-refresh-token-rates`, `admin-sweep-orphaned-tmp` | `admin-regenerate-token-metrics`, `admin-report-token-metrics` |
 | `calendar` | `calendar-poll` |  |
 | `convert` |  | `convert-docx-to-md`, `convert-pdf-to-md` ([convert](./convert.md#runnables)) |
-| `email` | `email-poll`, `email-download`, `email-drain-updates`, `email-backfill-historical` | `email-apply-labels`, `email-inventory` |
+| `email` | `email-poll`, `email-download`, `email-drain-updates`, `email-backfill-historical`, `email-respond` | `email-apply-labels`, `email-inventory` |
 | `github` | `github-sync-repos`, `github-sync-issues`, `github-watch`, `github-build-registry`, `github-poll-collabs`, `github-drain-collabs`, `github-sync-files` |  |
 | `google-drive` | `google-drive-sync` |  |
 | `jira` | `jira-refresh-fields`, `jira-sort-backlog` | `jira-backfill`, `jira-drain` |
@@ -26,7 +26,7 @@ A runnable id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/
 | `meetings` | `meetings-fetch-notes`, `meetings-extract`, `meetings-ingest-notion` |  |
 | `meta` | `meta-sweep-duplicates`, `meta-disable-old` |  |
 | `punch-list` | `punch-list-refresh-status`, `punch-list-harvest` ([punch list](./punch-list.md); shipped disabled) |  |
-| `slack` | `slack-poll` | `slack-backfill-history` ([slack](./slack.md#re-reading-history)) |
+| `slack` | `slack-poll`, `slack-refresh-channel-meta` ([slack](./slack.md#channel-meta); shipped disabled) | `slack-backfill-history` ([slack](./slack.md#re-reading-history)) |
 | `transcripts` |  | `transcripts-fetch-video` ([transcripts](./transcripts.md)) |
 | `x` | `x-poll-posts`, `x-poll-mentions`, `x-poll-feed`, `x-poll-likes`, `x-poll-bookmarks`, `x-drain-queues` | `x-post`, `x-refresh-token`, `x-like`, `x-repost` (kept, Decision 50) |
 | `people` |  | `people-propose` |

@@ -26,7 +26,7 @@ export interface InstanceConfigCheckDeps extends RegisterOptions {
 }
 
 /**
- * Check an instance's `jeeves-scripts.json`, including its `local` block,
+ * Check an instance's config, including its `local` block,
  * its plugin's registration, its manifests and its deltas. The plugin is
  * loaded only when the core checks pass (it parses `local` from the config
  * they loaded), after `JEEVES_SCRIPTS_CONFIG` is set to the checked file,

@@ -62,7 +62,7 @@ const watcherConfigSchema = z.looseObject({
 
 /**
  * The Qdrant URL the watcher uses (`vectorStore.url` in its own config),
- * so the Qdrant address is not copied into `jeeves-scripts.json`.
+ * so the Qdrant address is not copied into the instance config.
  * `undefined` when there is no readable watcher config: every script
  * resolves integrations, so a broken watcher file must not stop them all;
  * the health check then probes the default URL and reports what it finds.

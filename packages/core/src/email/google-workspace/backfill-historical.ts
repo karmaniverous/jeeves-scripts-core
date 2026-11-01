@@ -22,7 +22,7 @@
  * window processing) and gmail-search.ts (validated paging).
  */
 
-import { ensureDir } from '@karmaniverous/jeeves';
+import { argFlag, ensureDir, type ParsedArgs } from '@karmaniverous/jeeves';
 import {
   getRunnerClient,
   type RunnerClient,
@@ -33,7 +33,6 @@ import {
   type PipelineConfig,
   reportOnlyFor,
 } from '../../config/index.js';
-import { argFlag, type ParsedArgs } from '../../lib/args.js';
 import { constants } from '../../lib/constants.js';
 import { type GogRunner, gogWithRetry } from '../../lib/gog.js';
 import { requireGogCredentials } from '../../lib/gog-credentials.js';

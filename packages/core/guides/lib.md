@@ -127,6 +127,30 @@ The jeeves-meta service's HTTP address, from the meta service's own config (`{co
 
 Used by `google-drive` meta seeding (`POST /seed`).
 
+### dated-report.ts
+
+One report file per day, for runnables that keep a dated report (`slack-refresh-channel-meta`; instance runnables). Exported from the package root.
+
+- `dateInZone(now, timeZone)` - the calendar date in an IANA zone, `YYYY-MM-DD`
+- `reportPath(outputDir, date)` - `<outputDir>/<date>.md`, joined with the host's `node:path`
+- `deliverReport(outputDir, date, report)` - writes the report there atomically (`atomicWrite` from `@karmaniverous/jeeves`; directories created, a same-day report replaced, a final newline added when missing); returns the file
+
+### run-dirs.ts
+
+Timestamped run directories for runnables that hand a worker a snapshot of files. Exported from the package root.
+
+- `runId(now)` - `YYYYMMDD-HHMMSS` in UTC, the run directory's name
+- `pruneRuns(root, keep)` - deletes all but the newest `keep` run directories under `root` (other entries are left alone; an unreadable `root` deletes nothing); returns what it deleted
+
+### server-link.ts
+
+A file's jeeves-server insider link, resolved by the server itself, so it works on any host and never posts a filesystem path. `resolvePublicUrl`, `slackLink`, `liveReportLink` and `linkBeforeWorker` (and the `ServerAccess`, `Fetch`, `FetchResponse`, `ReportLink` and `LinkRequest` types) are exported from the package root, so an instance job that writes a dated report links it the same way (Decision 74); the rest serves `slack-refresh-channel-meta`.
+
+- `resolvePublicUrl(fetch, access, fsPath, timeoutMs?)` - `GET <apiUrl>/api/resolve-path?fsPath=<path>&k=<insiderKey>`; resolves the server's `publicUrl`. Throws `jeeves-server could not resolve <path> (HTTP <status>[: <error>])` on a non-OK answer (e.g. a path under no root) and `jeeves-server publicUrl is not configured; refusing to post a filesystem path to Slack` when the server has no `publicUrl`. It waits at most `timeoutMs` (default `SERVER_LINK_TIMEOUT_MS`, 10 s; the server is local, so a longer wait means it is hung) for the answer, body included, then throws `jeeves-server did not answer within <ms> ms resolving <path>` (never the URL or key)
+- `slackLink(url, label)` - `<url|label>`, a Slack mrkdwn link
+- `serverAccessFrom(config, keyName)` / `readServerAccess(keyName)` - `{ apiUrl: http://127.0.0.1:<port>, insiderKey }` from jeeves-server's own config (`readComponentConfig('server', ...)`): the insider key is `computeInsiderKey(seed)` from `@karmaniverous/jeeves` (Decision 72) over the named machine key in `keys` (a seed string or `{ key }`). Throws naming a missing config, `port` or key
+- `liveReportLink(title)` and `linkBeforeWorker(...)` - a report's link (`<url|<title> — <YYYY-MM-DD>>`) resolved before a worker runs: a live run fails when it can't be resolved, a preview logs a `[warn]` and shows `(no link)`
+
 ### worker-output.ts
 
 Recovers an LLM worker's full final reply after `dispatchSession`: it takes the session key from spawn-worker's `WORKER_RESULT` line and reads the last assistant message via the gateway `chat.history` RPC with `maxChars: 500000` (the `sessions_history` tool caps text at 4000 characters, which cut long replies). A reply the gateway still marks as truncated fails with `worker reply truncated by gateway`. Job scripts use it to verify structured worker results instead of trusting the exit code.
@@ -174,9 +198,9 @@ Core has no retry module of its own (#24): it imports the platform's from `@karm
 
 Validated JSON file I/O, on the root export: `readJsonFile(file, schema)` parses and Zod-validates (throwing), `readJsonFileIfExists(file, schema, fallback)` returns `fallback` for a missing file, and `writeJsonFile(file, data, indent = 2)` writes atomically (temp file, rename), creating parent directories. (`@karmaniverous/jeeves`'s `readJson` / `writeJsonAtomic` remain for fallback reads and fixed-indent writes.)
 
-### args.ts
+### Arguments (from `@karmaniverous/jeeves`)
 
-The one argument parser for runnables, core's and instances', on the root export (Decision 59): `argFlag(name, description?)`, `argValue(name, fallback?, { alias?, description? })` and `argOptional(name, { alias?, description? })` build the spec a runnable declares as `defineRunnable({ flags })`; `run` checks the arguments against it with `unknownArgs(args, spec, positionals?)` and the job reads `ctx.flags` (`parseRunnableArgs(args, spec)`), plus `positionalArgs(ctx.args, spec?)`. The convention (bare flags, `--name value` and `--name=value`, positionals) and the checks are in [runnables.md](./runnables.md#arguments).
+The one argument parser for runnables, core's and instances', on the root export (Decision 59). Core has no copy of its own (#24, jeeves#151): it imports the platform's from `@karmaniverous/jeeves` (0.8.0 and later) and keeps the same names on its root export, unchanged in behaviour: `argFlag(name, description?)`, `argValue(name, fallback?, { alias?, description? })` and `argOptional(name, { alias?, description? })` build the spec a runnable declares as `defineRunnable({ flags })`; `run` checks the arguments against it with `unknownArgs(args, spec, positionals?)` and the job reads `ctx.flags` (`parseRunnableArgs(args, spec)`), plus `positionalArgs(ctx.args, spec?)`. The convention (bare flags, `--name value` and `--name=value`, positionals) and the checks are in [runnables.md](./runnables.md#arguments).
 
 ### is-record.ts
 

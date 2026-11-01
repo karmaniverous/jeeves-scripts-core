@@ -8,7 +8,8 @@
  * Reads the token-metrics buckets and the rate card; writes nothing.
  */
 
-import { argOptional, type ParsedArgs } from '../lib/args.js';
+import { argOptional, type ParsedArgs } from '@karmaniverous/jeeves';
+
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { getTokenMetrics, type TokenMetricsOptions } from './token-metrics.js';
 

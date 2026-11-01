@@ -9,11 +9,12 @@
  * error), 5 (exists). Without `--live` it reports what it would write
  * and writes no transcript; a response it had to fetch is still cached,
  * so a following `--live` run spends no second credit. Reads `TRANSCRIPT_API_KEY` from the environment
- * (never from `jeeves-scripts.json`).
+ * (never from the instance config).
  */
 
+import { argFlag, argOptional, positionalArgs } from '@karmaniverous/jeeves';
+
 import { transcriptsConfig } from '../config/transcripts.js';
-import { argFlag, argOptional, positionalArgs } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { fileTranscript } from './lib/file-transcript.js';
 

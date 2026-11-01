@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { pointerSchema } from './pointer.js';
 import { configObjectSchema } from './schema.js';
 
-/** The generated JSON Schema for `jeeves-scripts.json`. */
+/** The generated JSON Schema for the instance config. */
 export const generateJsonSchema = (): Record<string, unknown> =>
   z.toJSONSchema(configObjectSchema, { target: 'draft-7' });
 

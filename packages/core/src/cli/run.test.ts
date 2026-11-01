@@ -1,9 +1,9 @@
 import path from 'node:path';
 
+import { argFlag, argValue } from '@karmaniverous/jeeves';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { CONFIG_PATH_ENV, getConfigRoot } from '../config/loader.js';
-import { argFlag, argValue } from '../lib/args.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { definePlugin, override, type Plugin } from '../runnables/plugin.js';
 import type { RegistryEntry } from '../runnables/registry.js';

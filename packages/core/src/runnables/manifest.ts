@@ -5,7 +5,7 @@
  * in the package, each an object keyed by runnable id holding the runner
  * fields for a scheduled core runnable (no `script`: runner jobs run the
  * instance launcher with `run <id>`). Reads and validates them with Zod, and applies an
- * instance's `jobs` deltas from `jeeves-scripts.json`.
+ * instance's `jobs` deltas from the instance config.
  *
  * Delta rules: `enabled`, `timeout_seconds`, `schedule` and `on_failure`
  * replace the manifest's (`on_failure: null` clears it); `env` merges key by key (the delta wins); `args` are
@@ -151,7 +151,7 @@ export const applyDelta = (
 export interface EffectiveManifestsInput {
   /** Core manifests ({@link readCoreManifests}). */
   manifests: readonly JobManifest[];
-  /** The instance's `jobs` block from `jeeves-scripts.json`. */
+  /** The instance's `jobs` block from its config. */
   deltas: Readonly<Record<string, JobDelta>>;
   /** Every id a delta may name: core job ids plus instance job ids. */
   knownIds: ReadonlySet<string>;

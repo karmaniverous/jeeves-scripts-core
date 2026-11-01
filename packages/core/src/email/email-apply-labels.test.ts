@@ -9,11 +9,11 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { parseRunnableArgs } from '@karmaniverous/jeeves';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getGmailAccounts } from '../config/index.js';
 import { resetConfig } from '../config/loader.js';
-import { parseRunnableArgs } from '../lib/args.js';
 import emailApplyLabelsJob, {
   applyLabelsFlags,
   emailApplyLabels,

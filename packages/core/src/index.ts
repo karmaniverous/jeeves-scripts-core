@@ -41,22 +41,9 @@ export {
   digestTimeZone,
 } from './dispatchers/lib/digest-timezone.js';
 export * from './dispatchers/lib/task-file-dispatcher.js';
-export {
-  argFlag,
-  argOptional,
-  type ArgSpec,
-  argValue,
-  type ArgValueOptions,
-  type FlagSpec,
-  type OptionalSpec,
-  type ParsedArgs,
-  parseRunnableArgs,
-  positionalArgs,
-  unknownArgs,
-  type ValueSpec,
-} from './lib/args.js';
 export * from './lib/component-config.js';
 export { type Constants, constants } from './lib/constants.js';
+export { dateInZone, deliverReport, reportPath } from './lib/dated-report.js';
 export {
   dayOfWeek,
   formatDate,
@@ -76,7 +63,19 @@ export {
 } from './lib/json-file.js';
 export * from './lib/meta-config.js';
 export * from './lib/openclaw-config.js';
+export { pruneRuns, runId } from './lib/run-dirs.js';
 export * from './lib/runner-config.js';
+export {
+  type Fetch,
+  type FetchResponse,
+  linkBeforeWorker,
+  type LinkRequest,
+  liveReportLink,
+  type ReportLink,
+  resolvePublicUrl,
+  type ServerAccess,
+  slackLink,
+} from './lib/server-link.js';
 export {
   createSlackClient,
   SlackApiError,
@@ -131,8 +130,20 @@ export {
   pluginDeclarationSchema,
 } from './runnables/plugin.js';
 export {
+  argFlag,
+  argOptional,
+  type ArgSpec,
+  argValue,
+  type ArgValueOptions,
   exponentialBackoff,
+  type FlagSpec,
+  type OptionalSpec,
+  type ParsedArgs,
+  parseRunnableArgs,
+  positionalArgs,
   retryAsync,
   type RetryPolicy,
   retrySync,
+  unknownArgs,
+  type ValueSpec,
 } from '@karmaniverous/jeeves';

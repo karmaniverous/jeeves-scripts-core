@@ -3,7 +3,7 @@
  *
  * What the X runnables read and call (accounts, the OAuth directory, the
  * runner client, an authenticated client per handle, the clock), and the
- * live values resolved from `jeeves-scripts.json` when a runnable runs.
+ * live values resolved from the instance config when a runnable runs.
  */
 
 import {

@@ -3,7 +3,7 @@
  *
  * Code copied from jeeves-scripts-template (Decision 32) reads instance
  * values through `constants()` and the config getters, which need a loaded
- * `jeeves-scripts.json`. This writes a test config that reproduces the
+ * instance config. This writes a test config that reproduces the
  * template's placeholder constants (base dir `/opt/jeeves`, Qdrant on
  * localhost) to a temp file and points `JEEVES_SCRIPTS_CONFIG` at it, so
  * the copied tests see the same values they were written against. Tests

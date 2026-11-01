@@ -1,7 +1,7 @@
 /**
  * @module config/schema
  *
- * The single `jeeves-scripts.json` schema (Decision 3, Decision 19):
+ * The single instance config schema (Decision 3, Decision 19):
  * instance settings (the template's constants), `paths` overrides,
  * `integrations`, `pipeline` (the template's `pipeline-config.json`, same keys),
  * `siloRouting` (silo routing), `jobs` deltas and the instance's own
@@ -25,6 +25,7 @@ import { pipelineSchema } from './pipeline-schema.js';
 import { punchListSchema } from './punch-list-schema.js';
 import { findSecretLiterals } from './secret-guard.js';
 import { siloRoutingSchema } from './silo-schema.js';
+import { reportDirIssue } from './slack-channel-meta-schema.js';
 import { slackConfigSchema } from './slack-schema.js';
 import { transcriptsSchema } from './transcripts-schema.js';
 
@@ -99,9 +100,21 @@ export const configSchema = z
       });
     }
   })
-  .pipe(configObjectSchema);
+  // Cross-key rules run on a refined copy, so the exported object schemas
+  // keep no refinement (`.pick()`/`.omit()` work on them).
+  .pipe(
+    configObjectSchema.superRefine((config, ctx) => {
+      const issue = reportDirIssue(config.slack);
+      if (issue !== undefined)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['slack', ...issue.path],
+          message: issue.message,
+        });
+    }),
+  );
 
-/** A validated `jeeves-scripts.json`. */
+/** A validated instance config. */
 export type Config = z.infer<typeof configSchema>;
 /** Parsed `instance` block. */
 export type InstanceConfig = z.infer<typeof instanceSchema>;

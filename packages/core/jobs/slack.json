@@ -11,5 +11,19 @@
     "timeout_seconds": 300,
     "enabled": true,
     "prerequisite": "Slack bot token: SLACK_BOT_TOKEN in the job environment, else channels.slack.accounts.<name>.botToken (or channels.slack.botToken) in ~/.openclaw/openclaw.json (see guides/slack.md)"
+  },
+  "slack-refresh-channel-meta": {
+    "name": "Slack Refresh Channel Meta",
+    "description": "Sweep Slack channels for home-directory assignments, refresh descriptions and topics from each channel's meta, write a dated report and post a summary with its link.",
+    "schedule": {
+      "freq": "daily",
+      "byhour": 7,
+      "byminute": 0,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 2700,
+    "enabled": false,
+    "prerequisite": null
   }
 }

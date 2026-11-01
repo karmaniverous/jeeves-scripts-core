@@ -11,8 +11,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { argFlag, argOptional, type ParsedArgs } from '@karmaniverous/jeeves';
+
 import { getRef } from '../config/index.js';
-import { argFlag, argOptional, type ParsedArgs } from '../lib/args.js';
 import { constants } from '../lib/constants.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { notionRequest } from './lib/notion-api.js';

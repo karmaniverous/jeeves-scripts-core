@@ -62,7 +62,7 @@ const buildConfigCommand = (root: string) => {
   config
     .command('check')
     .description(
-      "Validate jeeves-scripts.json against the core schema and its silo references, its local block against the plugin's configSchema, and the plugin's runnables, the instance manifests and the jobs deltas as list registers them.",
+      "Validate the instance config against the core schema, its silo references and the gateway Slack accounts slack.channelMeta names, its local block against the plugin's configSchema, and the plugin's runnables, the instance manifests and the jobs deltas as list registers them.",
     )
     .option(
       '--config <file>',
