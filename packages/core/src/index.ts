@@ -8,7 +8,7 @@
  * utilities (the task-file dispatcher and its date helpers,
  * worker dispatch with job-side Slack I/O, the readers for other
  * components' own config, the `gh` helpers, token-metrics queries, the
- * document converters, the runnable argument parser, the Slack Web API
+ * email address-list parser and Gmail DKIM check, the document converters, the runnable argument parser, the Slack Web API
  * client, retry and JSON file helpers). No other built module is exported; the CLI entry
  * point is the separate `@karmaniverous/jeeves-scripts-core/cli` export.
  *
@@ -41,6 +41,23 @@ export {
   digestTimeZone,
 } from './dispatchers/lib/digest-timezone.js';
 export * from './dispatchers/lib/task-file-dispatcher.js';
+export {
+  extractEmailAddress,
+  parseAddressList,
+  type ParsedAddress,
+  parseFirstAddress,
+  splitAddressList,
+} from './email/google-workspace/respond/address.js';
+export {
+  checkDkim,
+  type DkimCheckResult,
+  type DkimClauseResult,
+  isDkimDomainMatch,
+  isGappssmtpAlias,
+  parseAuthenticationResults,
+  type ParsedAuthResults,
+  TRUSTED_AUTHSERV_ID,
+} from './email/google-workspace/respond/dkim.js';
 export * from './lib/component-config.js';
 export { type Constants, constants } from './lib/constants.js';
 export { dateInZone, deliverReport, reportPath } from './lib/dated-report.js';

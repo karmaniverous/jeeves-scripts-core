@@ -20,6 +20,7 @@ const EXPECTED = [
   'OPENCLAW_DEFAULT_GATEWAY_PORT',
   'ROOT_ENV',
   'SlackApiError',
+  'TRUSTED_AUTHSERV_ID',
   'UNSAFE_SECRET_REF_MESSAGE',
   'UnknownSiloError',
   'accountSchema',
@@ -32,6 +33,7 @@ const EXPECTED = [
   'briefingVarsSchema',
   'bucketsSchema',
   'calendarConfigSchema',
+  'checkDkim',
   'componentConfigPath',
   'configCheck',
   'configObjectSchema',
@@ -58,6 +60,7 @@ const EXPECTED = [
   'domainEntrySchema',
   'emailConfigSchema',
   'exponentialBackoff',
+  'extractEmailAddress',
   'fillTaskTemplate',
   'findInOpenclawConfig',
   'formatDate',
@@ -101,6 +104,8 @@ const EXPECTED = [
   'instanceSchema',
   'integrations',
   'integrationsSchema',
+  'isDkimDomainMatch',
+  'isGappssmtpAlias',
   'isJobModule',
   'isJobOverride',
   'isKnownSilo',
@@ -133,6 +138,9 @@ const EXPECTED = [
   'openclawConfigSchema',
   'openclawStateDirs',
   'override',
+  'parseAddressList',
+  'parseAuthenticationResults',
+  'parseFirstAddress',
   'parsePunchList',
   'parseRunnableArgs',
   'parseWorkerSlackConfig',
@@ -192,6 +200,7 @@ const EXPECTED = [
   'slackReadSpecSchema',
   'slackTargetSchema',
   'slackTsSchema',
+  'splitAddressList',
   'taskFileDispatcher',
   'transcriptsSchema',
   'triggerRunnerJob',
@@ -229,5 +238,28 @@ describe('root export', () => {
     expect(root.liveReportLink).toBe(link.liveReportLink);
     expect(root.linkBeforeWorker).toBe(link.linkBeforeWorker);
     expect(typeof root.liveReportLink('Report')).toBe('function');
+  });
+
+  it("exports email-respond's DKIM check and address parser, not copies", async () => {
+    const dkim = await import('../src/email/google-workspace/respond/dkim.js');
+    const address =
+      await import('../src/email/google-workspace/respond/address.js');
+    const fromDkim = [
+      'TRUSTED_AUTHSERV_ID',
+      'checkDkim',
+      'isDkimDomainMatch',
+      'isGappssmtpAlias',
+      'parseAuthenticationResults',
+    ] as const;
+    const fromAddress = [
+      'extractEmailAddress',
+      'parseAddressList',
+      'parseFirstAddress',
+      'splitAddressList',
+    ] as const;
+    expect(fromDkim.filter((name) => root[name] !== dkim[name])).toEqual([]);
+    expect(fromAddress.filter((name) => root[name] !== address[name])).toEqual(
+      [],
+    );
   });
 });

@@ -24,6 +24,9 @@ const EMAIL_PATTERN = /^[^\s<>@"]+@[^\s<>@"]+\.[^\s<>@"]+$/;
  * Split a header value into top-level comma-separated address segments.
  * Commas inside a quoted display name (`"Doe, John" <...>`) or inside
  * angle brackets are not treated as separators.
+ *
+ * @param value - A header value such as `To` or `Cc`.
+ * @returns The trimmed, non-empty segments, in header order.
  */
 export function splitAddressList(value: string): string[] {
   const parts: string[] = [];
@@ -88,6 +91,8 @@ function angleAddr(segment: string): RegExpExecArray | null | 'ambiguous' {
  * is never taken as the address, so `"Alias <a@x.com>" <b@x.com>` is
  * `b@x.com`; a segment with more than one angle address is ambiguous.
  *
+ * @param segment - One address segment, as {@link splitAddressList}
+ *   returns it.
  * @returns The lowercased email address, or null when the segment does
  *   not contain exactly one that looks valid.
  */
@@ -103,6 +108,7 @@ export function extractEmailAddress(segment: string): string | null {
 /**
  * Parse every address out of a header value (`To`/`Cc`-style list).
  *
+ * @param value - The header value (empty gives `[]`).
  * @returns Lowercased email addresses; segments that don't parse are
  *   dropped rather than failing the whole header.
  */
@@ -117,6 +123,7 @@ export function parseAddressList(value: string): string[] {
  * Parse the first address out of a header value (`From`-style single
  * address, with an optional display name).
  *
+ * @param value - The header value.
  * @returns The parsed address, or null when there isn't one.
  */
 export function parseFirstAddress(value: string): ParsedAddress | null {

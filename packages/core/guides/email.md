@@ -130,6 +130,8 @@ Each run searches the mailbox for `in:inbox newer_than:2d`, reads every message'
 | `google-workspace/respond/process.ts` | One message: thread check, dispatch, contract, send, label, record, Slack mirror |
 | `google-workspace/respond/orchestrate.ts` | One run: plan, then process each selected message; summary |
 
+The address parser and the DKIM check are pure, and exported from the package root so an instance job can apply the same sender rules: `parseFirstAddress`, `parseAddressList`, `splitAddressList`, `extractEmailAddress` and the `ParsedAddress` type (`address.ts`); `checkDkim(authResultsValues, senderDomain)` (topmost header first), `parseAuthenticationResults`, `isDkimDomainMatch`, `isGappssmtpAlias`, `TRUSTED_AUTHSERV_ID` and the `DkimCheckResult`, `DkimClauseResult` and `ParsedAuthResults` types (`dkim.ts`).
+
 **Configuration** (`pipeline.emailConfig.respond`, optional; absent means the job logs a skip and exits 0):
 
 ```json
