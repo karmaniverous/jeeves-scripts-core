@@ -14,7 +14,7 @@
   },
   "admin-refresh-sessions": {
     "name": "Session Refresh",
-    "description": "Refresh idle or oversized OpenClaw sessions to manage context window costs.",
+    "description": "Reset idle top-level gateway sessions whose last turn carried a large context (sessions.list/reset through the gateway, usage from the agent DB); busy or recently active sessions are never touched. Ships as a dry run; the enabling delta adds --live.",
     "schedule": {
       "freq": "minutely",
       "interval": 23,
@@ -22,7 +22,7 @@
     },
     "overlap_policy": "skip",
     "timeout_seconds": 300,
-    "enabled": true,
+    "enabled": false,
     "prerequisite": null
   },
   "admin-refresh-token-rates": {

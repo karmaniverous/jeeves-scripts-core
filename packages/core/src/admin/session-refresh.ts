@@ -1,39 +1,83 @@
 /**
  * @module admin/session-refresh
  *
- * Runnable `admin-refresh-sessions`: rotates idle Slack gateway sessions
- * whose context has grown past the cache-read threshold
- * (`admin/lib/session-refresh-run`). Wires the live collaborators: OpenClaw's
- * sessions directory, the gateway, the clock and the environment
- * (`CACHE_READ_THRESHOLD`, `IDLE_MINUTES`, `EXCLUDED_SESSION_KEYS`).
+ * Runnable `admin-refresh-sessions` (spec 2.12, #73): resets idle
+ * top-level gateway sessions whose last turn carried a large context.
+ * Every top-level session of every agent is considered (main sessions,
+ * channels and DMs on any channel; subagent, cron and spawned sessions
+ * are out of scope). Sessions are listed and reset through the gateway
+ * (`sessions.list`, `sessions.describe`, `sessions.reset` fenced with
+ * `expectedSessionId`); last-turn usage comes from the agent DB, read-only.
+ * A busy or recently active session is never touched. After a live reset
+ * of a Slack session, one line is posted in its conversation.
+ *
+ * **Flags.** Without `--live` the run is a dry run: it lists, reads and
+ * logs what it would reset, and writes nothing. `--live` resets.
+ *
+ * **Config.** `contextThreshold`, `idleMinutes` and `excludedKeys` on the
+ * job's delta (`jobs."admin-refresh-sessions"`); no fields means the
+ * defaults. A still-set retired environment variable fails the run.
+ *
+ * **Failure.** A failed or malformed list, or an unreadable agent DB, fails
+ * the run; so does any failed reset, after the other sessions are tried.
+ *
+ * **Manifest.** `jobs/admin.json`, every 23 minutes, shipped disabled with
+ * no arguments (a dry run); the enabling delta adds `--live`.
  */
 
-import crypto from 'node:crypto';
+import { argFlag } from '@karmaniverous/jeeves';
 
-import { constants } from '../lib/constants.js';
-import { gatewayInvoke } from '../lib/gateway-client.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
+import { sessionGateway } from './lib/session-refresh-gateway.js';
 import {
-  sessionRefresh,
-  type SessionRefreshDeps,
-  sessionRefreshSettings,
-} from './lib/session-refresh-run.js';
+  JOB_ID,
+  liveRpc,
+  liveSettings,
+  liveSlack,
+  openUsageReader,
+  sessionRefreshDoctorCheck,
+} from './lib/session-refresh-live.js';
+import { postResetNotice } from './lib/session-refresh-notice.js';
+import { sessionRefresh } from './lib/session-refresh-run.js';
 
-/** The live dependencies, resolved when the job runs. */
-export const sessionRefreshDeps = (): SessionRefreshDeps => ({
-  sessionsDir: constants().SESSIONS_DIR,
-  invoke: gatewayInvoke,
-  now: Date.now,
-  uuid: () => crypto.randomUUID(),
-  settings: sessionRefreshSettings(process.env),
-});
+/** The runnable's flags. */
+export const sessionRefreshFlags = {
+  live: argFlag(
+    '--live',
+    'Reset due sessions and post the Slack notices (default: dry run, writes nothing)',
+  ),
+};
+
+/**
+ * Run the refresh with the live collaborators; a failed reset sets exit
+ * code 1.
+ *
+ * @param live - Reset (`--live`), else a dry run.
+ * @throws When the settings, the list or an agent DB fail.
+ */
+export async function runSessionRefresh(live: boolean): Promise<void> {
+  const settings = liveSettings();
+  const reader = openUsageReader();
+  try {
+    const summary = await sessionRefresh({
+      settings,
+      live,
+      gateway: sessionGateway(liveRpc),
+      usage: reader.usage,
+      notify: (row) => postResetNotice(row, liveSlack),
+      now: Date.now,
+    });
+    if (summary.failed > 0) process.exitCode = 1;
+  } finally {
+    reader.close();
+  }
+}
 
 export default defineRunnable({
-  id: 'admin-refresh-sessions',
+  id: JOB_ID,
   domain: 'admin',
-  flags: {},
+  flags: sessionRefreshFlags,
   name: 'session-refresh',
-  run: async () => {
-    await sessionRefresh(sessionRefreshDeps());
-  },
+  doctorCheck: () => sessionRefreshDoctorCheck(),
+  run: ({ flags }) => runSessionRefresh(flags.live),
 });

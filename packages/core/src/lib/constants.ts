@@ -38,10 +38,36 @@ export const TOKEN_METRICS_CURSOR_KEY = 'cursors';
 export const TOKEN_METRICS_DB_CURSOR_KEY = 'cursors-openclaw-db';
 /** Token metrics Claude Code cursor key. */
 export const TOKEN_METRICS_CC_CURSOR_KEY = 'cursors-claude-code';
-/** Cache-read tokens above which a session is refreshed. */
-export const SESSION_REFRESH_CACHE_READ_THRESHOLD = 150_000;
-/** Idle minutes after which a session is refreshed. */
+/** Last-turn context tokens (`input + cacheRead + cacheWrite`) at or above which an idle session is reset (default `contextThreshold`). */
+export const SESSION_REFRESH_CONTEXT_THRESHOLD = 150_000;
+/** Idle minutes after which a session may be reset (default `idleMinutes`). */
 export const SESSION_REFRESH_IDLE_MINUTES = 60;
+
+/** An OpenClaw agent id as it appears in session keys and agent directories. */
+const AGENT_ID = /^[A-Za-z0-9][A-Za-z0-9_-]*$/;
+
+/**
+ * OpenClaw's agent SQLite database (2026.9+) for one agent:
+ * `{stateDir}/agents/<agentId>/agent/openclaw-agent.sqlite`.
+ *
+ * @param agentId - The agent id (e.g. `main`).
+ * @param stateDir - OpenClaw's state directory (default: the current one).
+ * @throws When `agentId` is not a plain agent id (it names a directory).
+ */
+export function agentDbPath(
+  agentId: string,
+  stateDir: string = openclawStateDirs()[0],
+): string {
+  if (!AGENT_ID.test(agentId))
+    throw new Error(`Invalid OpenClaw agent id: ${JSON.stringify(agentId)}`);
+  return path.join(
+    stateDir,
+    'agents',
+    agentId,
+    'agent',
+    'openclaw-agent.sqlite',
+  );
+}
 
 /**
  * Configuration for entity types processed by meta scripts (sweep-duplicates,
@@ -155,10 +181,7 @@ const derive = () => {
     /** OpenClaw's legacy session transcripts directory. */
     SESSIONS_DIR: path.join(openclawStateDirs()[0], 'agents/main/sessions'),
     /** OpenClaw's agent SQLite database (2026.9+). */
-    OPENCLAW_AGENT_DB_PATH: path.join(
-      openclawStateDirs()[0],
-      'agents/main/agent/openclaw-agent.sqlite',
-    ),
+    OPENCLAW_AGENT_DB_PATH: agentDbPath('main'),
     /** First UTC hour on OpenClaw 2026.9+ (`OPENCLAW_UPGRADE_CUTOFF`); no default. */
     OPENCLAW_UPGRADE_CUTOFF:
       process.env[OPENCLAW_UPGRADE_CUTOFF_ENV] ?? undefined,
