@@ -150,7 +150,7 @@ const longestRow = (d: LongDescription): string =>
 
 /** How exact the measure is (shown in the report). */
 export const BUDGET_MARGIN_NOTE =
-  "The catalog is rebuilt from the gateway's `skills.status` with OpenClaw's own formatter, so the count is exact (0 chars off) when the job and the gateway resolve the same home directory, OpenClaw's config directory is under the OS home and no remote-node note or skill location note is in play; otherwise each affected skill path or note adds or removes a few dozen chars. It measures the catalog new sessions get: a running session keeps the one it started with.";
+  "The catalog is rebuilt from the gateway's `skills.status` with OpenClaw's own formatter, so the count is exact (0 chars off) when the job and the gateway resolve the same home directory, OpenClaw's config directory is under the OS home (other than `/data/.openclaw` with the OS home `/data`, a container layout) and no remote-node note or skill location note is in play; otherwise each affected skill path or note adds or removes a few dozen chars. It measures the catalog new sessions get: a running session keeps the one it started with.";
 
 /**
  * The report section.

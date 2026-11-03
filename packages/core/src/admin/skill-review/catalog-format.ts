@@ -6,12 +6,20 @@
  * it: the full and compact catalogs (`src/skills/loading/skill-contract.ts`)
  * and the prompt-facing skill location, the SKILL.md path with the home
  * directory shown as `~/` (`compactPromptSkills` in
- * `src/skills/loading/skill-paths.ts`). Not ported: OpenClaw keeps a
- * managed skill path (the agent's Workshop skills directory,
- * `<configDir>/skills`, `<configDir>/plugin-skills`) absolute when it lies
- * outside the OS home, e.g. a state directory elsewhere; with the config
- * directory under the OS home (the default) the two agree. Lengths are
- * UTF-16 code units, as OpenClaw counts them. Pure.
+ * `src/skills/loading/skill-paths.ts`). The port shortens every path
+ * under any home it is given (`HOME`, else `USERPROFILE`, else the OS
+ * home; the OS home, `os.homedir()`; and their real paths). Not ported:
+ * OpenClaw shortens a managed skill path (under the agent's Workshop
+ * skills directory, `<configDir>/skills` or `<configDir>/plugin-skills`,
+ * or their real paths) only when it also lies under the OS home or its
+ * real path, and never in a container whose OS home is `/data` with the
+ * config directory at or under `/data/.openclaw`. So the port reads
+ * shorter (the home prefix less the 2 chars of `~/`) for each managed
+ * skill under a home outside the OS home (a `HOME` that differs from
+ * `os.homedir()`), and for each managed skill in that container layout. A
+ * path under no home stays absolute in both; with the config directory
+ * under the OS home and no such container layout (the default) the two
+ * agree. Lengths are UTF-16 code units, as OpenClaw counts them. Pure.
  */
 
 import path from 'node:path';
