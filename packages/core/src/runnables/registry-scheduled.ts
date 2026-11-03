@@ -42,6 +42,12 @@ export const scheduledJobs: readonly RegistryEntry[] = [
     load: () => import('../admin/sweep-orphaned-tmp.js'),
   },
   {
+    id: 'admin-review-skill-proposals',
+    domain: 'admin',
+    module: 'admin/review-skill-proposals',
+    load: () => import('../admin/review-skill-proposals.js'),
+  },
+  {
     id: 'calendar-poll',
     domain: 'calendar',
     module: 'calendar/poll',

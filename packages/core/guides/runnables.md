@@ -14,7 +14,7 @@ A runnable id is the public contract: runner jobs run `node $JEEVES_SCRIPTS_DIR/
 
 | Domain | Scheduled (manifest in core) | Manual or event-driven (no manifest) |
 | --- | --- | --- |
-| `admin` | `admin-check-qdrant-health`, `admin-collect-token-metrics`, `admin-refresh-sessions`, `admin-refresh-token-rates`, `admin-sweep-orphaned-tmp` | `admin-regenerate-token-metrics`, `admin-report-token-metrics` |
+| `admin` | `admin-check-qdrant-health`, `admin-collect-token-metrics`, `admin-refresh-sessions`, `admin-refresh-token-rates`, `admin-review-skill-proposals`, `admin-sweep-orphaned-tmp` | `admin-regenerate-token-metrics`, `admin-report-token-metrics` |
 | `calendar` | `calendar-poll` |  |
 | `convert` |  | `convert-docx-to-md`, `convert-pdf-to-md` ([convert](./convert.md#runnables)) |
 | `email` | `email-poll`, `email-download`, `email-drain-updates`, `email-backfill-historical`, `email-respond` | `email-apply-labels`, `email-inventory` |

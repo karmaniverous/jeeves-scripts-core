@@ -64,5 +64,19 @@
     "timeout_seconds": 60,
     "enabled": true,
     "prerequisite": null
+  },
+  "admin-review-skill-proposals": {
+    "name": "Review Skill Proposals",
+    "description": "Daily review of pending Skill Workshop proposals against the skill inventory: a worker classifies each and flags risks; the script writes the report, posts a numbered summary and watches the skills catalog budget. Applies nothing. Ships as a dry run; the enabling delta adds --live.",
+    "schedule": {
+      "freq": "daily",
+      "byhour": 6,
+      "byminute": 0,
+      "timezone": "UTC"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 2700,
+    "enabled": false,
+    "prerequisite": null
   }
 }
