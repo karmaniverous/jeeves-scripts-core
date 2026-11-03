@@ -25,6 +25,10 @@ import { pipelineSchema } from './pipeline-schema.js';
 import { punchListSchema } from './punch-list-schema.js';
 import { findSecretLiterals } from './secret-guard.js';
 import { siloRoutingSchema } from './silo-schema.js';
+import {
+  skillReviewReportDirIssue,
+  skillReviewSchema,
+} from './skill-review-schema.js';
 import { reportDirIssue } from './slack-channel-meta-schema.js';
 import { slackConfigSchema } from './slack-schema.js';
 import { transcriptsSchema } from './transcripts-schema.js';
@@ -74,6 +78,8 @@ export const configObjectSchema = z.object({
   punchList: punchListSchema.optional(),
   /** Where `transcripts-fetch-video` files and caches transcripts. */
   transcripts: transcriptsSchema.optional(),
+  /** The daily Skill Workshop review (`admin-review-skill-proposals`); absent: it skips. */
+  skillReview: skillReviewSchema.optional(),
   /** Per-job deltas. */
   jobs: jobsSchema,
   /**
@@ -104,11 +110,17 @@ export const configSchema = z
   // keep no refinement (`.pick()`/`.omit()` work on them).
   .pipe(
     configObjectSchema.superRefine((config, ctx) => {
-      const issue = reportDirIssue(config.slack);
-      if (issue !== undefined)
+      const slack = reportDirIssue(config.slack);
+      const issues = [
+        ...(slack === undefined
+          ? []
+          : [{ ...slack, path: ['slack', ...slack.path] }]),
+        ...[skillReviewReportDirIssue(config)].filter((i) => i !== undefined),
+      ];
+      for (const issue of issues)
         ctx.addIssue({
           code: 'custom',
-          path: ['slack', ...issue.path],
+          path: issue.path,
           message: issue.message,
         });
     }),
@@ -143,3 +155,7 @@ export {
   type SiloConfig,
   type SiloRoutingConfig,
 } from './silo-schema.js';
+export {
+  type SkillReviewBlock,
+  skillReviewSchema,
+} from './skill-review-schema.js';

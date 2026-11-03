@@ -5,7 +5,8 @@
  * against the schema, its silo references (`jobs.<id>.silo` and
  * `integrations.x.accounts.<handle>.silo`) and the gateway Slack
  * accounts `slack.channelMeta` names (`reportAccount`,
- * `reportTextAccounts`; Decision 76). It is the root export's
+ * `reportTextAccounts`) and `skillReview` posts with (`reportAccount`;
+ * Decision 76). It is the root export's
  * config check and checks core's schema only; the CLI's `config check`
  * (`cli/config-check.ts`) runs it and then loads the instance plugin, so
  * the plugin's `configSchema` also validates the `local` block.
@@ -21,12 +22,13 @@ import {
   type ResolvedConfig,
 } from './loader.js';
 import { isKnownSilo, siloRouting } from './silo-router.js';
+import { skillReviewAccountProblem } from './skill-review-schema.js';
 import { slackAccountsProblem } from './slack-channel-meta-schema.js';
 
 /** What {@link configCheck} reads besides the config. */
 export interface ConfigCheckDeps {
   /** The gateway Slack accounts, read only when `slack.channelMeta`
-   * names one. Default: OpenClaw's configured bot tokens
+   * names one or a `skillReview` block is present. Default: OpenClaw's configured bot tokens
    * (`slackBotTokens`). */
   slackAccounts?: () => readonly string[];
 }
@@ -76,20 +78,21 @@ const checkSilos = (options: LoadConfigOptions): string[] => {
     );
 };
 
-/** The accounts `slack.channelMeta` names that the gateway lacks. */
+/** The accounts `slack.channelMeta` and `skillReview` name that the gateway lacks. */
 const checkSlackAccounts = (
   options: LoadConfigOptions,
   deps: ConfigCheckDeps,
 ): string[] => {
-  const block = loadConfig(options).slack.channelMeta;
-  const problem =
-    block === undefined
+  const config = loadConfig(options);
+  const accounts = deps.slackAccounts ?? (() => Object.keys(slackBotTokens()));
+  const meta = config.slack.channelMeta;
+  const review = config.skillReview;
+  return [
+    meta === undefined ? undefined : slackAccountsProblem(meta, accounts),
+    review === undefined
       ? undefined
-      : slackAccountsProblem(
-          block,
-          deps.slackAccounts ?? (() => Object.keys(slackBotTokens())),
-        );
-  return problem === undefined ? [] : [problem];
+      : skillReviewAccountProblem(review, accounts),
+  ].filter((p) => p !== undefined);
 };
 
 /** The config file location, or `undefined` when it can't be resolved. */
@@ -141,7 +144,7 @@ export const describeConfigSource = (
 /**
  * Validate the instance config: schema (including the secret-literal
  * guard), silo references and the gateway Slack accounts
- * `slack.channelMeta` names. Never throws; failures are collected in
+ * `slack.channelMeta` and `skillReview` name. Never throws; failures are collected in
  * `errors`.
  *
  * @param options - Where the config is.
