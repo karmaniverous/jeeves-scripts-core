@@ -84,7 +84,7 @@ Gateway HTTP client for OpenClaw tool invocation. Depends on `GATEWAY_HOST` (loo
 
 Gateway RPC caller for methods that are not HTTP tools, or whose tool wrapper limits what the RPC allows. Depends on the global openclaw install (`admin/lib/resolve-openclaw-dist.ts`).
 
-- `gatewayRpc(method, params, cliPath?)`: run `openclaw gateway call <method> --json --params <json>` under the current Node binary (no shell) and resolve the result; gateway errors, CLI failures and non-JSON output reject
+- `gatewayRpc(method, params, cliPath?, options?)`: run `openclaw gateway call <method> --json --params <json>` under the current Node binary (no shell) and resolve the result; gateway errors, CLI failures and non-JSON output reject. `options.waitMs` sets the CLI's `--timeout` (how long it waits for the gateway's answer; unset, the CLI's 10 s default)
 
 ### openclaw-config.ts
 
