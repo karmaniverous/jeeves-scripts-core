@@ -108,8 +108,18 @@ describe('channelFromMeta', () => {
     expect(channelFromMeta(meta)?.key).toBe(key);
   });
 
+  it.each([
+    ['agent:main:main', 'main'],
+    ['agent:ops:main', 'main'],
+  ])("names an agent's main session %s `main`", (sessionKey, key) => {
+    expect(channelFromMeta({ sessionKey })).toEqual({
+      key,
+      name: 'Main session',
+    });
+  });
+
   it.each<[string, SessionMeta]>([
-    ['main session', { sessionKey: 'agent:main:main' }],
+    ['a key with more after main', { sessionKey: 'agent:main:main:extra' }],
     ['recovered session', { sessionKey: 'agent:main:recovered:abc' }],
     ['unlabelled orphan subagent', { sessionKey: 'agent:main:subagent:1' }],
     ['malformed key', { sessionKey: 'nonsense' }],
@@ -160,8 +170,19 @@ describe('resolveChannel', () => {
         'Read HEARTBEAT.md if it exists (workspace context). Follow it strictly.',
       ),
     ];
+    expect(
+      resolveChannel({ sessionKey: 'agent:main:recovered:abc' }, head).key,
+    ).toBe('heartbeat');
+  });
+
+  it("names the main session `main`, not the text rules' guess", () => {
+    const head = [
+      userMessage(
+        'Read HEARTBEAT.md if it exists (workspace context). Follow it strictly.',
+      ),
+    ];
     expect(resolveChannel({ sessionKey: 'agent:main:main' }, head).key).toBe(
-      'heartbeat',
+      'main',
     );
   });
 });

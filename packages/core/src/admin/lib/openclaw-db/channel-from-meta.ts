@@ -13,6 +13,8 @@
  * upper-case channel id when no name is known), slack:dm:<person-slug>,
  * subagent:label:<label>, meta-<phase>.
  * New for 2026.9: cron:<label>, telegram:<kind>:<name> and runner:<job>.
+ * An agent's main session (`agent:<id>:main`) is `main` (#73); its
+ * subagents still roll up by subagent-rollup.ts rule 2 (not to `main`).
  *
  * Subagents roll up to the session that spawned them (subagent-rollup.ts):
  * a subagent's usage is attributed to its root spawner's channel.
@@ -60,6 +62,15 @@ export function labelChannel(meta: SessionMeta): ChannelResult | null {
   return { key: `subagent:label:${value}`, name: `Subagent: label ${value}` };
 }
 
+/** True for an agent's main session key (`agent:<id>:main`, nothing after). */
+export function isMainKey(sessionKey: string): boolean {
+  return /^agent:[^:]+:main$/.test(sessionKey);
+}
+
+/** A subagent root's channel: as {@link channelFromMeta}, but a main session decides nothing (rollup rule 2). */
+const rootChannel = (meta: SessionMeta): ChannelResult | null =>
+  isMainKey(meta.sessionKey) ? null : channelFromMeta(meta);
+
 /**
  * Derive the channel from session metadata alone.
  *
@@ -70,6 +81,7 @@ export function channelFromMeta(meta: SessionMeta): ChannelResult | null {
   const rest = /^agent:[^:]+:(.+)$/.exec(meta.sessionKey)?.[1] ?? '';
   const [kind = '', sub = '', id = ''] = rest.split(':');
 
+  if (isMainKey(meta.sessionKey)) return { key: 'main', name: 'Main session' };
   if (kind === 'slack' && sub === 'channel' && id) {
     if (meta.channelName) {
       const name = meta.channelName.startsWith('#')
@@ -93,7 +105,7 @@ export function channelFromMeta(meta: SessionMeta): ChannelResult | null {
     return { key: `telegram:${sub}:${name}`, name: `Telegram: ${name}` };
   }
   if (kind === 'subagent')
-    return rollupSubagent(meta, channelFromMeta, labelChannel);
+    return rollupSubagent(meta, rootChannel, labelChannel);
   if (kind === 'cron') {
     const label = meta.label
       ? cleanPart(meta.label.replace(/^cron:\s*/i, ''))
