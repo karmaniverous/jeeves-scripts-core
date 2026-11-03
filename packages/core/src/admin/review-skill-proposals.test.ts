@@ -4,7 +4,8 @@
  * with no loadable config or no `skillReview` block (prerequisite and
  * run), `doctor`'s check of what only the run can know, a quiet day and a
  * dry run through the live deps (the snapshot in a temp state directory,
- * the dispatch options and flags), and the live seams: gather, inventory,
+ * the dispatch options and flags), `--live` and `--print-task` reaching the
+ * dispatch as flags, and the live seams: gather, inventory,
  * budget, insider link and the post as `reportAccount`'s bot.
  */
 
@@ -108,6 +109,14 @@ const LABEL = 'admin/review-skill-proposals';
 const UNMEASURED = `[warn] ${LABEL}: skills catalog budget unavailable: not measured`;
 
 const PROPOSAL = proposal('p-1');
+
+/** jeeves-server's resolve-path answers with `publicUrl`. */
+const serverLinks = (publicUrl: string) =>
+  mocks.fetch.mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: () => Promise.resolve({ publicUrl }),
+  });
 
 beforeEach(() => {
   mocks.stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skill-review-'));
@@ -229,13 +238,20 @@ describe('admin-review-skill-proposals runnable', () => {
     );
   });
 
-  it('passes --print-task to the dispatch without --live', async () => {
+  it.each([
+    // The mocked worker writes no report, so a live run fails after dispatch.
+    ['--live', { dryRun: false, printTask: false }, /report/i],
+    ['--print-task', { dryRun: true, printTask: true }, /^done$/],
+  ])('passes %s to the dispatch as %j', async (arg, flags, outcome) => {
     mocks.gatherProposals.mockResolvedValue([PROPOSAL]);
-    await job.run({ args: ['--print-task'] });
-    expect(mocks.dispatchWithSlack.mock.calls[0]?.[3]).toStrictEqual({
-      dryRun: true,
-      printTask: true,
-    });
+    serverLinks('https://jeeves.test/browse/r.md');
+    const [ran] = await Promise.allSettled([job.run({ args: [arg] })]);
+    expect(ran.status === 'rejected' ? String(ran.reason) : 'done').toMatch(
+      outcome,
+    );
+    expect(mocks.dispatchWithSlack).toHaveBeenCalledOnce();
+    expect(mocks.dispatchWithSlack.mock.calls[0]?.[3]).toStrictEqual(flags);
+    expect(mocks.postMessage).not.toHaveBeenCalled();
   });
 });
 
@@ -277,11 +293,7 @@ describe('live wiring', () => {
     'asks jeeves-server (local API, named machine key) for the insider link: %s',
     async (_case, file, browse) => {
       const publicUrl = `https://jeeves.test/browse/${browse}/2026-10-20.md`;
-      mocks.fetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve({ publicUrl }),
-      });
+      serverLinks(publicUrl);
       const link = await liveReviewDeps().reportLink(file, 'scripts');
       expect(link).toBe(
         `<${publicUrl}|Skill Workshop review \u2014 2026-10-20>`,
