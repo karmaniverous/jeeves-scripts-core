@@ -10,6 +10,7 @@
  * channels'. Pure.
  */
 
+import { escapeSlack } from '../../lib/slack-text.js';
 import { homeDirMissing, noHomeDir, skipCount, unseeded } from './coverage.js';
 import type { MetaField } from './plan.js';
 import {
@@ -18,7 +19,6 @@ import {
   FIELDS,
   type ReportInput,
 } from './report-input.js';
-import { escapeSlack } from './slack-text.js';
 import { missingScopes, type Workspace } from './workspaces.js';
 
 /**

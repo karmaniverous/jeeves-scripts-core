@@ -10,7 +10,7 @@
  * "unavailable" in the post and the report. Pure.
  */
 
-import { escapeSlack } from '../../slack/channel-meta/slack-text.js';
+import { escapeSlack } from '../../lib/slack-text.js';
 import type { CatalogBudget, LongDescription } from './catalog-budget.js';
 import { COMPACT_DESCRIPTION_MAX_CHARS } from './catalog-format.js';
 import { DESCRIPTION_MAX_BYTES } from './checks.js';

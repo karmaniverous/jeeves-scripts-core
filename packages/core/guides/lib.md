@@ -214,6 +214,10 @@ The one argument parser for runnables, core's and instances', on the root export
 
 The one Slack Web API client, on the root export (Decision 59): `createSlackClient({ token, fetch?, rateLimitAttempts?, sleep? })`. Core's Slack poller reads through it (`slack/lib/slack-api.ts`, `slack/lib/file-content.ts`). Usage, errors and rate limits are in [slack.md](./slack.md#slack-client).
 
+### slack-text.ts
+
+Slack's three control characters (`&`, `<`, `>`) both ways: `escapeSlack(s)` for text a job posts, so `<!channel>` or `<@U123>` in it is shown, not acted on; `decodeSlack(s)` for text Slack returns. Used by `slack/channel-meta` and `admin/skill-review`.
+
 ### entity-store.ts
 
 Shared entity persistence — upsert, backfill, and delete entity files with reverse-diff history using `fast-json-patch`. Used by any domain that persists structured entities (Jira, Linear, etc.).

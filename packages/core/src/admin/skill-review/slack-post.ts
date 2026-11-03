@@ -13,7 +13,7 @@
  * gathered. Pure.
  */
 
-import { escapeSlack } from '../../slack/channel-meta/slack-text.js';
+import { escapeSlack } from '../../lib/slack-text.js';
 import type { PendingProposal } from './proposals.js';
 import type { Reconciled } from './reconcile.js';
 import {

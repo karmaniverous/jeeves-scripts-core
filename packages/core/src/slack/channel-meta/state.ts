@@ -26,7 +26,7 @@ import path from 'node:path';
 import { atomicWrite } from '@karmaniverous/jeeves';
 import { z } from 'zod';
 
-import { decodeSlack } from './slack-text.js';
+import { decodeSlack } from '../../lib/slack-text.js';
 
 const fieldStateSchema = z.object({
   /** Meta `_generatedAt` the value was generated from. */
