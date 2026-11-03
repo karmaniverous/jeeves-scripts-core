@@ -85,10 +85,35 @@ export interface SchemaContext {
   artifactDir: string;
 }
 
+/**
+ * The token usage of a session's last assistant turn (session refresh,
+ * spec 2.12): the context it carried and when it ran.
+ */
+export interface LastTurnUsage {
+  /** Uncached input tokens. */
+  input: number;
+  /** Tokens read from the prompt cache. */
+  cacheRead: number;
+  /** Tokens written to the prompt cache. */
+  cacheWrite: number;
+  /** The turn's timestamp (ms). */
+  tsMs: number;
+}
+
 /** A pinned OpenClaw agent-DB schema reader. */
 export interface OpenClawDbSchema {
   /** `PRAGMA user_version` this module understands. */
   version: number;
   /** Enumerate every transcript (hot, cold and deleted/reset archives). */
   listTranscripts: (db: DatabaseSync, ctx: SchemaContext) => TranscriptRef[];
+  /**
+   * The newest assistant turn with usage in a session's live transcript,
+   * or `undefined` when it has none. Optional: a schema module without it
+   * can't serve session refresh.
+   */
+  lastTurnUsage?: (
+    db: DatabaseSync,
+    ctx: SchemaContext,
+    sessionId: string,
+  ) => LastTurnUsage | undefined;
 }

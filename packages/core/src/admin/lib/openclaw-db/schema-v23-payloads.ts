@@ -55,6 +55,10 @@ export function decodeEventRow(row: {
   return decoded.toString('utf8');
 }
 
+/** The `session_transcript_cold_archives` columns a {@link ColdRow} holds, for a SELECT. */
+export const COLD_ROW_COLUMNS =
+  'session_id, generation, archive_name, archive_sha256, event_count, archive_bytes, last_seq, storage, archive_blob';
+
 /** One `session_transcript_cold_archives` row. */
 export interface ColdRow {
   session_id: string;
