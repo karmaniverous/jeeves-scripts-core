@@ -8,7 +8,9 @@
  * with core's job manifests (`runnables/manifest`). Like `silo` and `taskFile`,
  * `extraDirs` is read by the runnable itself (`admin-sweep-orphaned-tmp`,
  * Decision 55) and has no runner effect, as are `files`, `owners`,
- * `account` and `ruleset` (`github-sync-files`, spec 2.8).
+ * `account` and `ruleset` (`github-sync-files`, spec 2.8) and
+ * `contextThreshold`, `idleMinutes` and `excludedKeys`
+ * (`admin-refresh-sessions`, spec 2.12).
  */
 
 import { z } from 'zod';
@@ -67,6 +69,16 @@ export const jobDeltaSchema = z.object({
   account: z.string().min(1).optional(),
   /** The ruleset `github-sync-files` ensures on each owner's repos (unless the owner sets `ruleset: false`). */
   ruleset: githubRulesetSchema.optional(),
+  /**
+   * `admin-refresh-sessions`: last-turn context tokens
+   * (`input + cacheRead + cacheWrite`) at or above which an idle session
+   * is reset (default 150000).
+   */
+  contextThreshold: z.number().int().min(1).optional(),
+  /** `admin-refresh-sessions`: minutes a session must be idle before it is reset (default 60). */
+  idleMinutes: z.number().int().min(1).optional(),
+  /** `admin-refresh-sessions`: full session keys never reset. */
+  excludedKeys: z.array(z.string().min(1)).optional(),
 });
 
 /** The `jobs` block: deltas keyed by job id. */
