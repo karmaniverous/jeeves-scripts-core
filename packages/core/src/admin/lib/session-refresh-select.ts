@@ -120,10 +120,11 @@ export function lastActivityOf(
 export const contextOf = (usage: LastTurnUsage): number =>
   usage.input + usage.cacheRead + usage.cacheWrite;
 
-const skip = (
+/** A skip decision: the counted reason, the logged detail and the ownership note. */
+export const skip = (
   reason: string,
   detail: string,
-  ownershipUnknown: boolean,
+  ownershipUnknown = false,
 ): Skip => ({ kind: 'skip', reason, detail, ownershipUnknown });
 
 /**

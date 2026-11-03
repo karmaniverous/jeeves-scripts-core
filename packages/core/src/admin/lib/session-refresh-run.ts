@@ -32,6 +32,7 @@ import {
   type RefreshSettings,
   scopeOf,
   type Skip,
+  skip,
 } from './session-refresh-select.js';
 
 /** The log prefix. */
@@ -75,6 +76,12 @@ interface DueSession {
   due: Due;
 }
 
+/** The re-check found, or the gateway's fence reported, a changed session. */
+const CHANGED = skip('changed', 'changed');
+
+/** The active list (`activeOnly: true`) holds the session. */
+const LISTED_ACTIVE = skip('busy', 'busy (active run, list)');
+
 const bump = <K>(map: Map<K, number>, key: K): void => {
   map.set(key, (map.get(key) ?? 0) + 1);
 };
@@ -103,8 +110,7 @@ function select(
 ): DueSession | undefined {
   const scope = scopeOf(row, deps.settings);
   if (scope === 'excluded') {
-    console.log(`${TAG} skip ${row.key}: excluded`);
-    bump(summary.skipped, 'excluded');
+    logSkip(row.key, skip('excluded', 'excluded'), summary);
     return undefined;
   }
   if (scope !== 'in') {
@@ -112,13 +118,10 @@ function select(
     return undefined;
   }
   summary.inScope++;
+  // Busy before usage: a busy session's agent DB is never read.
   const { busy, ownershipUnknown } = busyOf(row);
   if (busy) {
-    logSkip(
-      row.key,
-      { kind: 'skip', reason: 'busy', detail: busy, ownershipUnknown },
-      summary,
-    );
+    logSkip(row.key, skip('busy', busy, ownershipUnknown), summary);
     return undefined;
   }
   const agentId = agentOf(row);
@@ -142,16 +145,7 @@ async function resetOne(
   try {
     const fresh = await deps.gateway.describe(row.key);
     if (fresh.sessionId !== row.sessionId) {
-      logSkip(
-        row.key,
-        {
-          kind: 'skip',
-          reason: 'changed',
-          detail: 'changed',
-          ownershipUnknown: false,
-        },
-        summary,
-      );
+      logSkip(row.key, CHANGED, summary);
       return;
     }
     const recheck = decide(fresh, usage, deps.settings, deps.now());
@@ -160,30 +154,11 @@ async function resetOne(
       return;
     }
     if ((await deps.gateway.activeKeys()).has(row.key)) {
-      logSkip(
-        row.key,
-        {
-          kind: 'skip',
-          reason: 'busy',
-          detail: 'busy (active run, list)',
-          ownershipUnknown: false,
-        },
-        summary,
-      );
+      logSkip(row.key, LISTED_ACTIVE, summary);
       return;
     }
-    const outcome = await deps.gateway.reset(row.key, row.sessionId);
-    if (outcome === 'changed') {
-      logSkip(
-        row.key,
-        {
-          kind: 'skip',
-          reason: 'changed',
-          detail: 'changed',
-          ownershipUnknown: false,
-        },
-        summary,
-      );
+    if ((await deps.gateway.reset(row.key, row.sessionId)) === 'changed') {
+      logSkip(row.key, CHANGED, summary);
       return;
     }
     summary.reset++;
