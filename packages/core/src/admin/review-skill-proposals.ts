@@ -37,7 +37,8 @@
  * re-gathered (`skill-review/reconcile`) and the script-built summary
  * (`skill-review/slack-post`) is posted to `reportChannel` as
  * `reportAccount`'s bot: nothing applied, the link, every proposal in one
- * numbered list grouped by disposition, then the catalog budget lines.
+ * numbered list grouped by disposition (each line with its proposal id),
+ * then the catalog budget lines.
  *
  * **Catalog budget (script).** The gateway's `skills.status` rebuilt with
  * OpenClaw 2026.9.6's `<available_skills>` formatter and fitted to its

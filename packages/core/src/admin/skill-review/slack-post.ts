@@ -6,7 +6,8 @@
  * then every reviewed proposal in one numbered list grouped by
  * disposition (continuous numbers, so the operator can reply "apply all
  * recommendations except #5"), and proposals discovered after the review
- * ran, grouped as not yet reviewed; then the skills catalog budget lines
+ * ran, grouped as not yet reviewed. Each line names its proposal id
+ * ({@link postId}), so a number maps to an id from the post alone; then the skills catalog budget lines
  * (`skill-review/catalog-budget-render`). Slack mrkdwn (single-asterisk bold,
  * `<url|label>` links). The script builds this, not the model: every
  * field but the report's own prose comes from data the script already
@@ -30,7 +31,29 @@ export type ReviewedProposal = Pick<
 
 const NOT_YET_REVIEWED = 'Not yet reviewed';
 
+/** The shortest id prefix shown: the Workshop shows no shorter form. */
+export const POST_ID_MIN_CHARS = 8;
+
+/**
+ * A proposal id as the post shows it: its first
+ * {@link POST_ID_MIN_CHARS} chars (the whole id when shorter), extended
+ * until no other id in the post starts with it, so each shown id
+ * matches one proposal of the post.
+ *
+ * @param id - The proposal id.
+ * @param ids - Every proposal id in the post.
+ * @returns The shown form.
+ */
+export function postId(id: string, ids: readonly string[]): string {
+  const clashes = (prefix: string): boolean =>
+    ids.some((other) => other !== id && other.startsWith(prefix));
+  let len = Math.min(POST_ID_MIN_CHARS, id.length);
+  while (len < id.length && clashes(id.slice(0, len))) len += 1;
+  return id.slice(0, len);
+}
+
 interface PostLine {
+  id: string;
   skillName: string;
   kind: string;
   shortDescription: string;
@@ -83,6 +106,7 @@ export function buildReviewPost(
         ? NOT_YET_REVIEWED
         : entry.disposition;
     push(section, {
+      id: p.id,
       skillName: p.skillName,
       kind: p.kind,
       shortDescription: entry.shortDescription,
@@ -91,6 +115,7 @@ export function buildReviewPost(
   }
   for (const p of state.revised) {
     push(NOT_YET_REVIEWED, {
+      id: p.id,
       skillName: p.skillName,
       kind: p.kind,
       shortDescription: 'Revised after this review ran.',
@@ -100,6 +125,7 @@ export function buildReviewPost(
   }
   for (const p of state.added) {
     push(NOT_YET_REVIEWED, {
+      id: p.id,
       skillName: p.skillName,
       kind: p.kind,
       shortDescription: 'Proposed after this review ran.',
@@ -112,6 +138,7 @@ export function buildReviewPost(
     NOT_YET_REVIEWED,
   ];
 
+  const ids = [...bySection.values()].flat().map((line) => line.id);
   let n = 0;
   const body: string[] = [];
   for (const section of sections) {
@@ -121,7 +148,7 @@ export function buildReviewPost(
     for (const line of lines) {
       n += 1;
       body.push(
-        `${String(n)}. \`${esc(line.skillName)}\` (${kindLabel(line.kind)}): ${withPeriod(esc(line.shortDescription))} ${withPeriod(esc(line.recommendation))}`,
+        `${String(n)}. \`${esc(line.skillName)}\` (${kindLabel(line.kind)}, id \`${esc(postId(line.id, ids))}\`): ${withPeriod(esc(line.shortDescription))} ${withPeriod(esc(line.recommendation))}`,
       );
     }
     body.push('');

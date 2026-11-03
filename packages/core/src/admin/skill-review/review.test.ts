@@ -127,8 +127,12 @@ describe('reviewWorkshop', () => {
       '_1 reviewed proposal(s) decided since the review ran are omitted._',
     );
     expect(text).not.toContain('`c`');
-    expect(text).toContain('2. `b` (new): Revised after this review ran.');
-    expect(text).toContain('3. `d` (new): Proposed after this review ran.');
+    expect(text).toContain(
+      '2. `b` (new, id `b`): Revised after this review ran.',
+    );
+    expect(text).toContain(
+      '3. `d` (new, id `d`): Proposed after this review ran.',
+    );
     expect(lines.at(-1)).toMatch(/2 not yet reviewed, 1 decided since;/);
   });
 

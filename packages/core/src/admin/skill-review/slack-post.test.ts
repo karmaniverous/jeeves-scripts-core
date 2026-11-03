@@ -2,14 +2,19 @@
  * Tests for the script-built Slack post: the "nothing applied" line, the
  * report link, continuous numbering across disposition sections, the
  * "Not yet reviewed" section (worker-marked, revised and newly created
- * proposals), the decided/snapshot notes, and escaping of report prose.
+ * proposals), the decided/snapshot notes, escaping of report prose, and
+ * the proposal id on each line (shortened, unambiguous within the post).
  */
 
 import { describe, expect, it } from 'vitest';
 
 import type { Reconciled } from './reconcile.js';
 import type { ValidReport } from './report.js';
-import { buildReviewPost, type ReviewedProposal } from './slack-post.js';
+import {
+  buildReviewPost,
+  postId,
+  type ReviewedProposal,
+} from './slack-post.js';
 
 const REPORT: ValidReport = {
   entries: {
@@ -109,16 +114,16 @@ describe('buildReviewPost', () => {
     expect(post).toContain(
       [
         '*Approve as is*',
-        '1. `logging-skill` (new): Adds a logging step. Apply as is.',
+        '1. `logging-skill` (new, id `a-1`): Adds a logging step. Apply as is.',
         '',
         '*Approve with modifications*',
-        '2. `setup-skill` (update): Rewrites the setup section. Apply, but keep the old examples.',
+        '2. `setup-skill` (update, id `b-2`): Rewrites the setup section. Apply, but keep the old examples.',
         '',
         '*Reject or decline*',
-        '3. `dup-skill` (new): Duplicates skill d. Decline; d already covers this.',
+        '3. `dup-skill` (new, id `c-3`): Duplicates skill d. Decline; d already covers this.',
         '',
         '*Not yet reviewed*',
-        '4. `late-skill` (update): Ran out of time. Cover next run.',
+        '4. `late-skill` (update, id `d-4`): Ran out of time. Cover next run.',
       ].join('\n'),
     );
     // One blank line before the hint, even with no budget lines between.
@@ -142,7 +147,7 @@ describe('buildReviewPost', () => {
       },
     };
     expect(buildReviewPost(report, state(), REPORT_LINK, [])).toContain(
-      '1. `logging-skill` (new): Adds a logging step? Apply now!\n',
+      '1. `logging-skill` (new, id `a-1`): Adds a logging step? Apply now!\n',
     );
   });
 
@@ -160,9 +165,9 @@ describe('buildReviewPost', () => {
     expect(post).not.toContain('*Approve with modifications*');
     expect(post).toContain(
       [
-        '3. `late-skill` (update): Ran out of time. Cover next run.',
-        "4. `setup-skill` (update): Revised after this review ran. The report's recommendation is for the earlier draft; it will be re-reviewed next run.",
-        '5. `new-skill` (new): Proposed after this review ran. Not yet reviewed; it will be covered next run.',
+        '3. `late-skill` (update, id `d-4`): Ran out of time. Cover next run.',
+        "4. `setup-skill` (update, id `b-2`): Revised after this review ran. The report's recommendation is for the earlier draft; it will be re-reviewed next run.",
+        '5. `new-skill` (new, id `e-5`): Proposed after this review ran. Not yet reviewed; it will be covered next run.',
       ].join('\n'),
     );
   });
@@ -187,7 +192,9 @@ describe('buildReviewPost', () => {
         },
       };
       const post = buildReviewPost(report, state(), REPORT_LINK, []);
-      expect(post).toContain(`1. \`logging-skill\` (new): ${shown} ${shown}`);
+      expect(post).toContain(
+        `1. \`logging-skill\` (new, id \`a-1\`): ${shown} ${shown}`,
+      );
       expect(post).toContain(`Report: ${REPORT_LINK}`);
     },
   );
@@ -199,7 +206,7 @@ describe('buildReviewPost', () => {
     ]);
     expect(post).toContain(
       [
-        '4. `late-skill` (update): Ran out of time. Cover next run.',
+        '4. `late-skill` (update, id `d-4`): Ran out of time. Cover next run.',
         '',
         '*Skills catalog budget:* b1',
         'b2',
@@ -207,6 +214,66 @@ describe('buildReviewPost', () => {
         'Reply with something like "apply all recommendations except #5" to tell me what to do.',
       ].join('\n'),
     );
+  });
+
+  it('tells two drafts of one skill apart by the id on each line', () => {
+    const ids = [
+      'setup-skill-20261103-7f3a9c01de',
+      'setup-skill-20261103-7f3b',
+    ];
+    const entry = { disposition: 'Approve as is' as const };
+    const report: ValidReport = {
+      ...REPORT,
+      entries: Object.fromEntries(
+        ids.map((id) => [
+          id,
+          { ...entry, shortDescription: 'S', recommendation: 'R' },
+        ]),
+      ),
+    };
+    const current = ids.map((id) => ({
+      id,
+      skillName: 'setup-skill',
+      kind: 'update',
+    }));
+    const post = buildReviewPost(report, state({ current }), REPORT_LINK, []);
+    expect(post).toContain(
+      [
+        '1. `setup-skill` (update, id `setup-skill-20261103-7f3a`): S. R.',
+        '2. `setup-skill` (update, id `setup-skill-20261103-7f3b`): S. R.',
+      ].join('\n'),
+    );
+  });
+
+  it.each([
+    ['a short id whole', 'a-1', ['a-1', 'b-2'], 'a-1'],
+    [
+      'the first 8 chars of a long one',
+      'abcdefghij',
+      ['abcdefghij', 'x'],
+      'abcdefgh',
+    ],
+    ['an id alone in the post', 'abcdefghij', ['abcdefghij'], 'abcdefgh'],
+    [
+      'until no other id shares it',
+      'abcdefghij',
+      ['abcdefghij', 'abcdefgxyz', 'abcdefghiz'],
+      'abcdefghij',
+    ],
+    [
+      'a whole id that starts another',
+      'abcdefgh',
+      ['abcdefgh', 'abcdefghij'],
+      'abcdefgh',
+    ],
+    [
+      'the longer of two such ids',
+      'abcdefghij',
+      ['abcdefgh', 'abcdefghij'],
+      'abcdefghi',
+    ],
+  ])('shows %s', (_case, id, ids, shown) => {
+    expect(postId(id, ids)).toBe(shown);
   });
 
   it('omits empty sections', () => {
