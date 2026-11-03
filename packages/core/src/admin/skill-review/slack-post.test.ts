@@ -10,11 +10,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { Reconciled } from './reconcile.js';
 import type { ValidReport } from './report.js';
-import {
-  buildReviewPost,
-  postId,
-  type ReviewedProposal,
-} from './slack-post.js';
+import { buildReviewPost, type ReviewedProposal } from './slack-post.js';
 
 const REPORT: ValidReport = {
   entries: {
@@ -245,35 +241,30 @@ describe('buildReviewPost', () => {
     );
   });
 
-  it.each([
-    ['a short id whole', 'a-1', ['a-1', 'b-2'], 'a-1'],
-    [
-      'the first 8 chars of a long one',
-      'abcdefghij',
-      ['abcdefghij', 'x'],
-      'abcdefgh',
-    ],
-    ['an id alone in the post', 'abcdefghij', ['abcdefghij'], 'abcdefgh'],
-    [
-      'until no other id shares it',
-      'abcdefghij',
-      ['abcdefghij', 'abcdefgxyz', 'abcdefghiz'],
-      'abcdefghij',
-    ],
-    [
-      'a whole id that starts another',
-      'abcdefgh',
-      ['abcdefgh', 'abcdefghij'],
-      'abcdefgh',
-    ],
-    [
-      'the longer of two such ids',
-      'abcdefghij',
-      ['abcdefgh', 'abcdefghij'],
-      'abcdefghi',
-    ],
-  ])('shows %s', (_case, id, ids, shown) => {
-    expect(postId(id, ids)).toBe(shown);
+  it('tells a revised or new draft apart from a reviewed one of the same skill', () => {
+    const [a, b, c] = ['setup-skill-1a', 'setup-skill-1b', 'setup-skill-1c'];
+    const current = [{ id: a, skillName: 's', kind: 'create' }];
+    const report: ValidReport = {
+      ...REPORT,
+      entries: {
+        [a]: {
+          disposition: 'Approve as is',
+          shortDescription: 'S',
+          recommendation: 'R',
+        },
+      },
+    };
+    const post = buildReviewPost(
+      report,
+      state({
+        current,
+        revised: [{ id: b, skillName: 's', kind: 'create' }],
+        added: [{ id: c, skillName: 's', kind: 'create' }],
+      }),
+      REPORT_LINK,
+      [],
+    );
+    for (const id of [a, b, c]) expect(post).toContain(`id \`${id}\``);
   });
 
   it('omits empty sections', () => {

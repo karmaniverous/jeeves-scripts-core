@@ -114,7 +114,7 @@ describe('writeSnapshot', () => {
     );
     expect(index).toContain('### alpha-1');
     expect(index).toContain('(9 B, MISSING)');
-    expect(index).toContain('over 160: **yes**');
+    expect(index).toContain('Draft description (5 chars, over 160: **yes**)');
     expect(index).toContain('Support files using child_process: scripts/x.cjs');
     expect(index).toContain('Other pending drafts for the same skill: none');
     expect(index).toContain('Live skill: none');

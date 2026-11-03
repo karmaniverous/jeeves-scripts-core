@@ -34,6 +34,7 @@ describe('buildTask', () => {
       'Pending proposals (2):',
       '- `a-1`\n- `b-2`',
       'never post to Slack',
+      'description too long (over 160 chars; the index gives the char count)',
     ])
       expect(task).toContain(text);
   });

@@ -47,7 +47,8 @@ export const POST_ID_MIN_CHARS = 8;
 export function postId(id: string, ids: readonly string[]): string {
   const clashes = (prefix: string): boolean =>
     ids.some((other) => other !== id && other.startsWith(prefix));
-  let len = Math.min(POST_ID_MIN_CHARS, id.length);
+  // A shorter id is shown whole: `slice` stops at its end.
+  let len = POST_ID_MIN_CHARS;
   while (len < id.length && clashes(id.slice(0, len))) len += 1;
   return id.slice(0, len);
 }
