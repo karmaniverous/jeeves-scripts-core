@@ -50,6 +50,12 @@ describe('parseSkillFrontmatter', () => {
     expect(parseSkillFrontmatter(`---\n${fm}\n---\n`)).toEqual({ name });
   });
 
+  it('omits a block description with no text', () => {
+    expect(
+      parseSkillFrontmatter('---\nname: a-skill\ndescription: >\n\n---\n'),
+    ).toEqual({ name: 'a-skill' });
+  });
+
   it('reads an unclosed quote as plain text', () => {
     expect(parseSkillFrontmatter('---\nname: "open\n  still\n---\n').name).toBe(
       '"open still',

@@ -5,8 +5,10 @@
 
 import { describe, expect, it } from 'vitest';
 
+import type { ProposalChecks } from './checks.js';
 import type { InventorySkill } from './inventory.js';
-import { placeInventory } from './snapshot-render.js';
+import type { PendingProposal } from './proposals.js';
+import { placeInventory, renderIndex } from './snapshot-render.js';
 
 const skill = (
   name: string,
@@ -36,5 +38,48 @@ describe('placeInventory', () => {
 
   it('never yields an empty file name', () => {
     expect(paths([skill('', 'local')])).toEqual(['inventory/local/_.md']);
+  });
+});
+
+describe('renderIndex', () => {
+  const proposal: PendingProposal = {
+    id: 'a b',
+    kind: 'update',
+    status: 'pending',
+    title: '',
+    description: '',
+    skillName: 'alpha',
+    createdAt: 'then',
+    updatedAt: '',
+    scanState: 'clean',
+    artifacts: [],
+  };
+  const checks: ProposalChecks = {
+    draftDescription: 'Draft',
+    draftDescriptionBytes: 5,
+    descriptionTooLong: false,
+    childProcessFiles: [],
+    duplicateDrafts: [],
+    liveSkillFile: '/w/alpha/SKILL.md',
+    liveDescription: 'Live one',
+    liveChangedAfterDraft: true,
+    sameNameElsewhere: [],
+    missingArtifacts: [],
+  };
+  const liveLine = (c: ProposalChecks): string | undefined =>
+    renderIndex([{ proposal, checks: c }], [])
+      .split('\n')
+      .find((l) => l.startsWith('- Live skill:'));
+
+  it('names the live skill copy, its source and its description', () => {
+    expect(liveLine(checks)).toBe(
+      '- Live skill: `proposals/a_b/LIVE-SKILL.md` (from /w/alpha/SKILL.md); live description: Live one',
+    );
+  });
+
+  it('leaves the live description empty when the live skill has none', () => {
+    expect(liveLine({ ...checks, liveDescription: undefined })).toBe(
+      '- Live skill: `proposals/a_b/LIVE-SKILL.md` (from /w/alpha/SKILL.md); live description: ',
+    );
   });
 });

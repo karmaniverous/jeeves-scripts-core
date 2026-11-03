@@ -185,6 +185,25 @@ describe('gatherProposals', () => {
     ]);
   });
 
+  it('marks an artifact missing when the included content lacks its marker', async () => {
+    const artifacts = [{ path: 'notes/a.md', sizeBytes: 3 }];
+    const invoke = invoker([listed('a')], () => ({
+      // A content part without text, and none naming the artifact.
+      content: [{ type: 'image' }, { type: 'text', text: 'Proposal: a' }],
+      details: {
+        inspect: { contentIncluded: true, availableArtifacts: artifacts },
+      },
+    }));
+    const [p] = await gatherProposals({
+      invoke,
+      fs: memorySkillFs({}),
+      stateDir: S,
+    });
+    expect(p?.artifacts).toEqual([
+      { path: 'notes/a.md', sizeBytes: 3, source: 'missing' },
+    ]);
+  });
+
   it('uses inline PROPOSAL.md content when the store has no draft', async () => {
     const invoke = invoker([listed('a')], () =>
       inspectResult(

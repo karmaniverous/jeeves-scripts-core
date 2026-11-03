@@ -149,6 +149,19 @@ describe('jeevesToolsSkillNames', () => {
   it('reads names embedded in the built jeeves-tools modules', () => {
     expect([...jeevesToolsSkillNames(env(CONFIG))]).toEqual(['jeeves-admin']);
   });
+
+  it('reads no names from a module that cannot be read', () => {
+    const base = memorySkillFs(files);
+    const unreadable: InventoryEnv = {
+      ...env(CONFIG),
+      fs: {
+        ...base,
+        readText: (file) =>
+          file.endsWith('.js') ? undefined : base.readText(file),
+      },
+    };
+    expect(jeevesToolsSkillNames(unreadable).size).toBe(0);
+  });
 });
 
 describe('without a global modules dir (no openclaw package found)', () => {
@@ -200,5 +213,14 @@ describe('readInventory', () => {
     });
     const inventory = readInventory({ ...env(undefined), fs: dup });
     expect(inventory.map((s) => s.origin)).toEqual(['local', 'plugin']);
+  });
+
+  it('leaves out the modification time when it cannot be read', () => {
+    const inventory = readInventory({
+      ...env(CONFIG),
+      fs: { ...memorySkillFs(files), mtimeMs: () => undefined },
+    });
+    expect(inventory).toHaveLength(10);
+    for (const skill of inventory) expect(skill).not.toHaveProperty('mtimeMs');
   });
 });
