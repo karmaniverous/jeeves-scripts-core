@@ -19,6 +19,11 @@ const mocks = vi.hoisted(() => ({
   usage: vi.fn(),
   settings: vi.fn(),
   doctor: vi.fn(() => Promise.resolve(true as const)),
+  notice: vi.fn(() => Promise.resolve('none' as const)),
+}));
+
+vi.mock('./lib/session-refresh-notice.js', () => ({
+  postResetNotice: mocks.notice,
 }));
 
 vi.mock(
@@ -32,6 +37,7 @@ vi.mock(
   }),
 );
 
+import { liveSlack } from './lib/session-refresh-live.js';
 import job, {
   runSessionRefresh,
   sessionRefreshFlags,
@@ -107,7 +113,7 @@ describe('admin-refresh-sessions', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('leaves exit code 0 after a successful live reset, with no notice for a main session', async () => {
+  it("leaves exit code 0 after a successful live reset and posts the notice with the account's Slack client", async () => {
     mocks.rpc.mockImplementation((method, params) => {
       if (method === 'sessions.list')
         return Promise.resolve({ sessions: params?.activeOnly ? [] : [due] });
@@ -121,6 +127,7 @@ describe('admin-refresh-sessions', () => {
       { key: 'agent:main:main', expectedSessionId: 'm' },
     ]);
     expect(process.exitCode).toBeUndefined();
+    expect(mocks.notice).toHaveBeenCalledWith(due, liveSlack);
     expect(console.log).toHaveBeenCalledWith(
       expect.stringMatching(/1 reset, .*; failed 0; notice failed 0$/),
     );

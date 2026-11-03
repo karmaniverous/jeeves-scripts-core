@@ -138,6 +138,13 @@ describe('lastActivityOf', () => {
       lastActivityOf(row({ lastInteractionAt: undefined }), undefined),
     ).toBeUndefined();
   });
+
+  it('ignores a non-finite turn time', () => {
+    const at = minutesAgo(90);
+    expect(
+      lastActivityOf(row({ lastInteractionAt: at }), turn({}, Number.NaN)),
+    ).toBe(at);
+  });
 });
 
 describe('decide', () => {
@@ -145,7 +152,9 @@ describe('decide', () => {
     decide(r, usage, settings, NOW);
 
   it('skips a busy session before reading anything else', () => {
-    expect(due(row({ hasActiveRun: true }), undefined as never)).toMatchObject({
+    expect(
+      decide(row({ hasActiveRun: true }), undefined, settings, NOW),
+    ).toMatchObject({
       kind: 'skip',
       reason: 'busy',
       detail: 'busy (active run)',
@@ -222,6 +231,11 @@ describe('decide', () => {
     expect(due({ ...unknown, lastInteractionAt: minutesAgo(1) })).toMatchObject(
       { kind: 'skip', ownershipUnknown: true },
     );
+    expect(decide(unknown, undefined, settings, NOW)).toMatchObject({
+      kind: 'skip',
+      reason: 'no usage',
+      ownershipUnknown: true,
+    });
   });
 });
 

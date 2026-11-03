@@ -50,6 +50,27 @@ describe('slackNoticeTarget', () => {
       { accountId: 'other', user: 'U0000000005' },
     ],
     [
+      'a channel delivery target over the key, the delivery account over the origin',
+      row({
+        deliveryContext: {
+          channel: 'slack',
+          to: 'channel:C0000000010',
+          accountId: 'work',
+        },
+        origin: { accountId: 'old' },
+      }),
+      { accountId: 'work', channel: 'C0000000010' },
+    ],
+    [
+      'a non-Slack key whose delivery is Slack',
+      row({
+        key: 'agent:main:main',
+        channel: null,
+        deliveryContext: { channel: 'slack', to: 'user:U0000000011' },
+      }),
+      { accountId: 'default', user: 'U0000000011' },
+    ],
+    [
       'the key only (channel), default account',
       row({ key: 'agent:main:slack:channel:c0000000006' }),
       { accountId: 'default', channel: 'C0000000006' },

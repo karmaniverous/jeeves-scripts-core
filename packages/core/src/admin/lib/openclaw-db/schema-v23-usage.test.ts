@@ -101,11 +101,31 @@ describe.each([23, 24])('lastTurnUsage (schema %i)', (version) => {
     });
   });
 
+  it('prefers a hot assistant turn over the cold archive', () => {
+    const fx = createV23Fixture(root, version);
+    fx.addColdSession('h', [user('a'), turn(T10, 1, 0, 900)]);
+    fx.db
+      .prepare(
+        'INSERT INTO transcript_events (session_id, seq, event_json, created_at, event_utf8_bytes) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('h', 3, turn(T11, 2, 3, 4), Date.now(), 10);
+    fx.close();
+    expect(lastTurn(fx.dbPath, 'h')).toEqual({
+      input: 2,
+      cacheRead: 3,
+      cacheWrite: 4,
+      tsMs: ms(T11),
+    });
+  });
+
   it('reads a cold-only session from its archive', () => {
     const fx = createV23Fixture(root, version);
-    fx.addColdSession('k', [user('a'), usage(T11, 40)]);
+    fx.addColdSession('k', [user('a'), usage(T10, 20), usage(T11, 40)]);
     fx.close();
-    expect(lastTurn(fx.dbPath, 'k')).toMatchObject({ input: 40 });
+    expect(lastTurn(fx.dbPath, 'k')).toMatchObject({
+      input: 40,
+      tsMs: ms(T11),
+    });
   });
 
   it('returns undefined for a session with no usage, or none at all', () => {
@@ -139,5 +159,11 @@ describe('assistantUsage', () => {
       cacheWrite: 0,
       tsMs: ms(T10),
     });
+    // JSON can carry an overflowing number, which parses as Infinity.
+    const huge = line.replace(
+      '"totalTokens":5',
+      '"totalTokens":5,"cacheRead":1e999',
+    );
+    expect(assistantUsage(huge)).toMatchObject({ cacheRead: 0 });
   });
 });

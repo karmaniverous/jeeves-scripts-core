@@ -149,6 +149,8 @@ describe('sessionRefresh (live)', () => {
       '[session-refresh] failed agent:ops:slack:channel:cb: missing scope: operator.admin',
     );
     expect(s).toMatchObject({ reset: 1, failed: 1 });
+    expect(deps.notify).toHaveBeenCalledTimes(1);
+    expect(deps.notify).toHaveBeenCalledWith(dueA);
     expect(out.logs.at(-1)).toMatch(/; failed 1; notice failed 0$/);
   });
 

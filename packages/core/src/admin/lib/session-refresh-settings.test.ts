@@ -36,16 +36,18 @@ describe('refreshSettings', () => {
     });
   });
 
-  it.each(Object.entries(LEGACY_ENV))(
-    'fails while %s is set, naming %s',
-    (name, field) => {
-      expect(() => refreshSettings({}, { [name]: '' })).toThrow(
-        `move ${name} to jobs.admin-refresh-sessions.${field}`,
-      );
-    },
-  );
+  it.each([
+    ['CACHE_READ_THRESHOLD', 'contextThreshold'],
+    ['IDLE_MINUTES', 'idleMinutes'],
+    ['EXCLUDED_SESSION_KEYS', 'excludedKeys'],
+  ])('fails while %s is set, naming %s', (name, field) => {
+    expect(() => refreshSettings({}, { [name]: '' })).toThrow(
+      `move ${name} to jobs.admin-refresh-sessions.${field}`,
+    );
+  });
 
   it('names every retired variable that is set', () => {
+    expect(Object.keys(LEGACY_ENV)).toHaveLength(3);
     expect(() =>
       refreshSettings(undefined, {
         IDLE_MINUTES: '5',
