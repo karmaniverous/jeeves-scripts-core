@@ -50,6 +50,8 @@ What goes into core, and how (for changes to `@karmaniverous/jeeves-scripts-core
 - **Fix shared behaviour in core** (branch, PR, release, bump the pin), never by editing `node_modules` or copying core code into `src/`.
 - **Per-instance values are the operator's call:** accounts, channels, schedules. Ask; don't copy another instance's values.
 - **The docs for the installed core** are under `$JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/`, one per domain.
+- **The Skill Workshop review (`admin-review-skill-proposals`) never applies, rejects or edits a proposal**; it only reports ([admin.md]($JEEVES_SCRIPTS_DIR/node_modules/@karmaniverous/jeeves-scripts-core/guides/admin.md#skill-workshop-review)).
+- **An operator's answer to its post ("apply all except #5") uses the post's numbers:** each number maps to the proposal id shown on its line (the whole id or a prefix); before any `skill_workshop` call, resolve it to exactly one pending proposal, else ask.
 - **`JEEVES_SCRIPTS_DIR`** is set for these skills by `jeeves-scripts skills install`. If it is empty or wrong, run `node <repo>/bin/jeeves-scripts.js skills status` (from the instance repo) and tell the operator.
 
 ## Domain skills

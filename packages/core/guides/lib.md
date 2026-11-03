@@ -84,7 +84,7 @@ Gateway HTTP client for OpenClaw tool invocation. Depends on `GATEWAY_HOST` (loo
 
 Gateway RPC caller for methods that are not HTTP tools, or whose tool wrapper limits what the RPC allows. Depends on the global openclaw install (`admin/lib/resolve-openclaw-dist.ts`).
 
-- `gatewayRpc(method, params, cliPath?)`: run `openclaw gateway call <method> --json --params <json>` under the current Node binary (no shell) and resolve the result; gateway errors, CLI failures and non-JSON output reject
+- `gatewayRpc(method, params, cliPath?, options?)`: run `openclaw gateway call <method> --json --params <json>` under the current Node binary (no shell) and resolve the result; gateway errors, CLI failures and non-JSON output reject. `options.waitMs` sets the CLI's `--timeout` (how long it waits for the gateway's answer; unset, the CLI's 10 s default)
 
 ### openclaw-config.ts
 
@@ -213,6 +213,10 @@ The one argument parser for runnables, core's and instances', on the root export
 ### slack-client.ts
 
 The one Slack Web API client, on the root export (Decision 59): `createSlackClient({ token, fetch?, rateLimitAttempts?, sleep? })`. Core's Slack poller reads through it (`slack/lib/slack-api.ts`, `slack/lib/file-content.ts`). Usage, errors and rate limits are in [slack.md](./slack.md#slack-client).
+
+### slack-text.ts
+
+Slack's three control characters (`&`, `<`, `>`) both ways: `escapeSlack(s)` for text a job posts, so `<!channel>` or `<@U123>` in it is shown, not acted on; `decodeSlack(s)` for text Slack returns. Used by `slack/channel-meta` and `admin/skill-review`.
 
 ### entity-store.ts
 

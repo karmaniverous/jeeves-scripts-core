@@ -27,7 +27,7 @@
 
 import type nodePath from 'node:path';
 
-import { decodeSlack } from './slack-text.js';
+import { decodeSlack } from '../../lib/slack-text.js';
 
 /** A path style: `path.win32` or `path.posix` (live: `node:path`). */
 export type PlatformPath = typeof nodePath.posix;

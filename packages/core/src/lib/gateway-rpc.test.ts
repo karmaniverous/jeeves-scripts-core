@@ -70,6 +70,22 @@ describe('gatewayRpc', () => {
     expect(opts.shell).toBeUndefined();
   });
 
+  it('passes a wait for the answer as the CLI --timeout, only when given', async () => {
+    nextExec(null, '{}');
+    await gatewayRpc('skills.status', {}, '/cli.mjs', { waitMs: 60_000 });
+    expect(mocks.execFile.mock.calls[0]?.[1]).toEqual([
+      '/cli.mjs',
+      'gateway',
+      'call',
+      'skills.status',
+      '--json',
+      '--params',
+      '{}',
+      '--timeout',
+      '60000',
+    ]);
+  });
+
   it('resolves the CLI path when none is given', async () => {
     nextExec(null, '{}');
     await gatewayRpc('status', {});

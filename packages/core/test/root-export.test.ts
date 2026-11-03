@@ -189,6 +189,7 @@ const EXPECTED = [
   'siloRouting',
   'siloRoutingSchema',
   'siloSchema',
+  'skillReviewSchema',
   'slackBotToken',
   'slackBotTokens',
   'slackChannelConfigSchema',

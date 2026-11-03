@@ -55,6 +55,13 @@ function cliErrorMessage(parsed: unknown): string | undefined {
   return 'unknown gateway error';
 }
 
+/** Options for {@link gatewayRpc}. */
+export interface GatewayRpcOptions {
+  /** How long the CLI waits for the gateway's answer (its `--timeout`;
+   * unset: the CLI's own default, 10 s). */
+  waitMs?: number;
+}
+
 /**
  * Call a gateway RPC method.
  *
@@ -62,6 +69,7 @@ function cliErrorMessage(parsed: unknown): string | undefined {
  * @param params - Method params (sent as JSON).
  * @param cliPath - Path to `openclaw.mjs` (resolved from the global install
  *   when omitted).
+ * @param options - The CLI's wait for the answer.
  * @returns The method's result payload.
  * @throws Error when the CLI fails, the gateway rejects the call, or the
  *   output is not JSON.
@@ -70,6 +78,7 @@ export function gatewayRpc(
   method: string,
   params: Record<string, unknown>,
   cliPath: string = resolveOpenClawCli(),
+  options: GatewayRpcOptions = {},
 ): Promise<unknown> {
   const args = [
     cliPath,
@@ -79,6 +88,9 @@ export function gatewayRpc(
     '--json',
     '--params',
     JSON.stringify(params),
+    ...(options.waitMs === undefined
+      ? []
+      : ['--timeout', String(options.waitMs)]),
   ];
   return new Promise((resolve, reject) => {
     execFile(

@@ -14,15 +14,9 @@
 
 import path from 'node:path';
 
-import { getErrorMessage } from '@karmaniverous/jeeves';
-
-import {
-  getLoadedConfigPath,
-  loadConfig,
-  resolveConfig,
-} from '../../config/loader.js';
+import { loadConfig } from '../../config/loader.js';
 import { paths } from '../../config/paths.js';
-import type { Config } from '../../config/schema.js';
+import { readableConfig } from '../../config/readable-config.js';
 import { getEntityDirs } from '../../config/silo-router.js';
 import { deliverReport } from '../../lib/dated-report.js';
 import { slackBotTokens } from '../../lib/openclaw-config.js';
@@ -88,23 +82,6 @@ export const liveSettingsDeps = (): SettingsDeps => ({
 
 /** Why the runnable skips: no `slack.channelMeta` block. */
 export const NO_BLOCK = 'no slack.channelMeta block in the instance config';
-
-/**
- * The instance config, or why there is none to read: no config can be
- * located or read (no pointer, environment or repo file; a pointer to a
- * missing file). A config that is found but invalid throws (Decision 76:
- * an invalid config, the `slack.channelMeta` block included, fails the
- * run).
- */
-const readableConfig = (): Config | { skip: string } => {
-  if (getLoadedConfigPath() === null)
-    try {
-      resolveConfig();
-    } catch (e) {
-      return { skip: `no loadable instance config (${getErrorMessage(e)})` };
-    }
-  return loadConfig();
-};
 
 /**
  * The settings from the instance config, why the runnable skips (no

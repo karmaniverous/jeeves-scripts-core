@@ -75,7 +75,7 @@
     "jsonpath-plus": "^11.2.2",
     "mailparser": "^3.14.1",
     "mammoth": "^1.13.0",
-    "officeparser": "^8.4.1",
+    "officeparser": "^8.5.0",
     "pdf-parse": "^2.4.5",
     "puppeteer-core": "^25.16.0",
     "read-excel-file": "^9.3.14",
@@ -95,9 +95,9 @@
     "cross-env": "^10.1.0",
     "fs-extra": "^11.4.1",
     "release-it": "^21.1.2",
-    "rollup": "^4.67.2",
+    "rollup": "^4.67.4",
     "tslib": "^2.9.1",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "scripts": {
     "build": "rimraf dist && cross-env NO_COLOR=1 rollup --config rollup.config.ts && tsx scripts/write-schema.ts && tsx scripts/copy-template.ts",
