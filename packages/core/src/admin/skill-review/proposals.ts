@@ -33,8 +33,15 @@ export const LIST_LIMIT = 50;
 /** The draft file every proposal has. */
 export const PROPOSAL_FILE = 'PROPOSAL.md';
 
+/**
+ * A proposal id safe as one path segment: letters, digits, `.`, `_` and
+ * `-`, never dots alone (`.` and `..` name directories, not a proposal,
+ * and Windows drops a segment's trailing dots).
+ */
+const PROPOSAL_ID = /^(?!\.+$)[A-Za-z0-9._-]+$/;
+
 const listedSchema = z.looseObject({
-  id: z.string().regex(/^[A-Za-z0-9._-]+$/),
+  id: z.string().regex(PROPOSAL_ID),
   kind: z.string(),
   status: z.string(),
   title: z.string().default(''),

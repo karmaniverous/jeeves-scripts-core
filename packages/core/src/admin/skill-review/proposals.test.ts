@@ -87,9 +87,18 @@ describe('listPendingProposals', () => {
     });
   });
 
+  it('accepts an id with dots among other characters', async () => {
+    const invoke = invoker([listed('a.b_c-20261103-.x')], () => ({}));
+    const out = await listPendingProposals(invoke);
+    expect(out.map((p) => p.id)).toEqual(['a.b_c-20261103-.x']);
+  });
+
   it.each([
     ['a malformed result', { details: {} }],
     ['an unsafe id', { details: { proposals: [listed('../x')] } }],
+    ['the id .', { details: { proposals: [listed('.')] } }],
+    ['the id ..', { details: { proposals: [listed('..')] } }],
+    ['the id ...', { details: { proposals: [listed('...')] } }],
   ])('rejects %s', async (_label, result) => {
     const invoke = vi.fn<GatewayInvoker>(() => Promise.resolve(result));
     await expect(listPendingProposals(invoke)).rejects.toThrow(
