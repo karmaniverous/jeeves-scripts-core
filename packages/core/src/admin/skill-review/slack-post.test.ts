@@ -50,7 +50,7 @@ const PROPOSALS: ReviewedProposal[] = [
 ];
 
 const REPORT_LINK =
-  '<https://jeeves.johngalt.id/browse/j/jgs/jeeves-admin/skill-workshop-review/2026-10-20.md|Skill Workshop review \u2014 2026-10-20>';
+  '<https://server.example/browse/reports/skill-review/2026-10-20.md|Skill Workshop review \u2014 2026-10-20>';
 
 const HEADER =
   '*This job applied nothing. Every proposal below is still pending, awaiting your decision.*';
@@ -121,11 +121,29 @@ describe('buildReviewPost', () => {
         '4. `late-skill` (update): Ran out of time. Cover next run.',
       ].join('\n'),
     );
+    // One blank line before the hint, even with no budget lines between.
     expect(
       post.endsWith(
-        'Reply with something like "apply all recommendations except #5" to tell me what to do.',
+        'Cover next run.\n\nReply with something like "apply all recommendations except #5" to tell me what to do.',
       ),
     ).toBe(true);
+  });
+
+  it('adds no period after a question or an exclamation', () => {
+    const report: ValidReport = {
+      ...REPORT,
+      entries: {
+        ...REPORT.entries,
+        'a-1': {
+          disposition: 'Approve as is',
+          shortDescription: 'Adds a logging step?',
+          recommendation: 'Apply now!',
+        },
+      },
+    };
+    expect(buildReviewPost(report, state(), REPORT_LINK, [])).toContain(
+      '1. `logging-skill` (new): Adds a logging step? Apply now!\n',
+    );
   });
 
   it('lists revised, then newly created proposals under "Not yet reviewed", continuing the numbering', () => {

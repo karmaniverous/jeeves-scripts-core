@@ -58,6 +58,19 @@ describe('budgetSlackLines', () => {
     expect(LONGEST_IN_SLACK).toBe(3);
   });
 
+  it('lists a single long description', () => {
+    const [, second] = budgetSlackLines(
+      catalogBudgetFixture({
+        longCount: 1,
+        longExcess: 221,
+        longest: [{ name: 'jeeves-design', bytes: 381, owner: 'jeeves' }],
+      }),
+    );
+    expect(second).toBe(
+      '1 description(s) over 160 bytes, 221 bytes over in all; longest: `jeeves-design` 381 bytes (jeeves).',
+    );
+  });
+
   it('says when descriptions are omitted and none are long', () => {
     expect(
       budgetSlackLines(

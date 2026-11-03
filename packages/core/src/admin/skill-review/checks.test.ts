@@ -34,7 +34,8 @@ const proposal = (over: Partial<PendingProposal> = {}): PendingProposal => ({
       content: "require('node:child_process')",
       source: 'store',
     },
-    { path: 'scripts/b.cjs', sizeBytes: 1, content: 'ok', source: 'store' },
+    // Read from the gateway, not the store: readable, so not missing.
+    { path: 'scripts/b.cjs', sizeBytes: 1, content: 'ok', source: 'gateway' },
     { path: 'notes.md', sizeBytes: 1, source: 'missing' },
   ],
   ...over,

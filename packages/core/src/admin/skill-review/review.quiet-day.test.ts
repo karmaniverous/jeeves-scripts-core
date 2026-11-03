@@ -79,7 +79,7 @@ describe('reviewWorkshop on a quiet day', () => {
       {
         channel: 'C123',
         text: budgetAlertPost(budget, 90),
-        account: 'default',
+        account: 'review-bot',
       },
     ]);
     expect(posts[0]?.text).toContain('uses 90.0% of its character budget');

@@ -187,6 +187,16 @@ describe('prepareCatalog', () => {
     });
   });
 
+  it('keeps the smallest cap, 4 chars, when it fits exactly', () => {
+    const at4 = `${COMPACT_SHORT}\n${formatCompactCatalog(sorted, 4)}`;
+    expect(
+      prepareCatalog(four, { maxChars: at4.length, maxSkills: 150 }),
+    ).toMatchObject({
+      prompt: at4,
+      format: { kind: 'compact', descriptionMaxChars: 4 },
+    });
+  });
+
   it('omits descriptions when not even 4 chars fit', () => {
     const at0 = `${COMPACT_OMITTED}\n${formatCompactCatalog(sorted, 0)}`;
     expect(

@@ -85,7 +85,7 @@ const reviewDeps = (
   const d: ReviewDeps = {
     settings: () => ({
       reportChannel: 'C123',
-      reportAccount: 'default',
+      reportAccount: 'review-bot',
       outputDir: path.join(root, 'out'),
       outputDirSource: 'homeDir',
       timeZone: 'Asia/Makassar',

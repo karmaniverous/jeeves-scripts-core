@@ -12,7 +12,7 @@ import path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 
 import { LIST_LIMIT } from './proposals.js';
-import { KEEP_RUNS, type ReviewDeps, reviewWorkshop } from './review.js';
+import { type ReviewDeps, reviewWorkshop } from './review.js';
 import {
   DRY_RUN,
   LIVE,
@@ -59,6 +59,18 @@ describe('reviewWorkshop', () => {
     },
   );
 
+  it('prints the TASK on a live --print-task run, delivering and posting nothing', async () => {
+    const flags = { live: true, printTask: true };
+    const { d, posts } = deps([proposal('a')], validReport);
+    await expect(reviewWorkshop(flags, d)).resolves.toBe('previewed');
+    expect(vi.mocked(d.dispatch).mock.calls[0]?.[1]).toStrictEqual({
+      dryRun: false,
+      printTask: true,
+    });
+    expect(fs.existsSync(path.join(root(), 'out'))).toBe(false);
+    expect(posts).toEqual([]);
+  });
+
   it('validates the report, delivers it, and posts the script-built Slack summary', async () => {
     const { d, lines, posts } = deps(
       [proposal('a'), proposal('b')],
@@ -74,7 +86,7 @@ describe('reviewWorkshop', () => {
     ).toBe(true);
     expect(delivered).toContain('| `jeeves-design` | 381 | jeeves |');
     expect(posts).toHaveLength(1);
-    expect(posts[0]).toMatchObject({ channel: 'C123', account: 'default' });
+    expect(posts[0]).toMatchObject({ channel: 'C123', account: 'review-bot' });
     expect(vi.mocked(d.dispatch).mock.calls[0]?.[1]).toStrictEqual({
       dryRun: false,
       printTask: false,
@@ -163,7 +175,7 @@ describe('reviewWorkshop', () => {
   it('prunes old run directories, keeping the newest', async () => {
     const { d } = deps([proposal('a')]);
     const old = Array.from(
-      { length: KEEP_RUNS },
+      { length: 14 },
       (_, i) => `202601${String(i + 10)}-000000`,
     );
     for (const n of old)
