@@ -59,6 +59,10 @@ function extractIdentityDomain(seg: string): string | null {
  * Parse one `Authentication-Results` header value into its authserv-id
  * and `dkim=` clauses (a header can carry more than one signature
  * result, e.g. one per signing domain).
+ *
+ * @param value - One `Authentication-Results` header value.
+ * @returns The authserv-id (the first `;`-separated token, `''` when the
+ *   value is empty) and every `dkim=` clause, in header order.
  */
 export function parseAuthenticationResults(value: string): ParsedAuthResults {
   const segments = value
@@ -82,6 +86,12 @@ export function parseAuthenticationResults(value: string): ParsedAuthResults {
  * Google Workspace's default DKIM signing domain for a mailbox domain
  * that has no DKIM key of its own: dots replaced by dashes, then
  * `.<digits>.gappssmtp.com`.
+ *
+ * @param identityDomain - The signing domain from a `dkim=` clause.
+ * @param senderDomain - The domain of the From address.
+ * @returns Whether `identityDomain` is `senderDomain`'s gappssmtp signing
+ *   domain (case-insensitive); false for a sender domain with characters
+ *   outside `[a-z0-9.-]`.
  */
 export function isGappssmtpAlias(
   identityDomain: string,
@@ -93,7 +103,15 @@ export function isGappssmtpAlias(
   return pattern.test(identityDomain.toLowerCase());
 }
 
-/** Whether a dkim identity domain authenticates `senderDomain`. */
+/**
+ * Whether a dkim identity domain authenticates `senderDomain`.
+ *
+ * @param identityDomain - The signing domain from a `dkim=` clause.
+ * @param senderDomain - The domain of the From address.
+ * @returns True when the two are equal (case-insensitive) or
+ *   `identityDomain` is the sender domain's gappssmtp alias
+ *   ({@link isGappssmtpAlias}).
+ */
 export function isDkimDomainMatch(
   identityDomain: string,
   senderDomain: string,
@@ -105,6 +123,7 @@ export function isDkimDomainMatch(
 
 /** Result of {@link checkDkim}. */
 export interface DkimCheckResult {
+  /** Whether the message is authenticated for the sender's domain. */
   ok: boolean;
   /** Why it failed; absent when ok. */
   reason?: string;

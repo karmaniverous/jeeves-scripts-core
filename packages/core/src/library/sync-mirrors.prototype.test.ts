@@ -48,69 +48,88 @@ const tree = (): Record<string, string> => {
   return files;
 };
 
+/**
+ * Two real rsync passes over 1181 files are slow on Windows (antivirus scans
+ * every file): over two minutes on some hosts. The limits leave headroom.
+ */
+const TEST_TIMEOUT_MS = 600_000;
+const CLEANUP_TIMEOUT_MS = 120_000;
+
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'library-parity-'));
 const url = makeRepo(path.join(root, 'upstream'), tree());
 afterAll(() => {
-  fs.rmSync(root, { recursive: true, force: true });
-});
+  // Retry: Windows can hold a just-written file briefly.
+  fs.rmSync(root, {
+    recursive: true,
+    force: true,
+    maxRetries: 10,
+    retryDelay: 200,
+  });
+}, CLEANUP_TIMEOUT_MS);
 
 describe('library-sync-mirrors matches the prototype on the same input', () => {
-  it('first run creates 1181 files by one rename with 2 links; an unchanged re-run writes nothing', () => {
-    vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    const mirror = libraryMirrorSchema.parse({
-      id: 'skills',
-      repo: 'acme/skills',
-      subdir: 'skills',
-      dest: 'library/skills',
-      exclude: ['.system/'],
-      siteLinks: { pattern: '/skill/{name}', target: '{dir}/SKILL.md' },
-    });
-    const settings = {
-      live: true,
-      stateDir: path.join(root, 'state'),
-      contentDir: path.join(root, 'content'),
-    };
-    const lines: string[] = [];
-    const deps = {
-      run,
-      cloneUrl: () => url,
-      log: (l: string) => lines.push(l),
-    };
+  it(
+    'first run creates 1181 files by one rename with 2 links; an unchanged re-run writes nothing',
+    () => {
+      vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      const mirror = libraryMirrorSchema.parse({
+        id: 'skills',
+        repo: 'acme/skills',
+        subdir: 'skills',
+        dest: 'library/skills',
+        exclude: ['.system/'],
+        siteLinks: { pattern: '/skill/{name}', target: '{dir}/SKILL.md' },
+      });
+      const settings = {
+        live: true,
+        stateDir: path.join(root, 'state'),
+        contentDir: path.join(root, 'content'),
+      };
+      const lines: string[] = [];
+      const deps = {
+        run,
+        cloneUrl: () => url,
+        log: (l: string) => lines.push(l),
+      };
 
-    const first = syncMirrors([mirror], settings, deps);
-    expect(first).toEqual([
-      expect.objectContaining({
-        files: 1181,
-        links: 2,
-        write: 1181,
-        touch: 0,
-        delete: 0,
-        created: true,
-      }),
-    ]);
-    expect(lines.filter((l) => l.includes('(single rename)'))).toHaveLength(1);
-    const dest = path.join(root, 'content', 'library', 'skills');
-    expect(listFiles(dest)).toHaveLength(1181);
-    expect(
-      fs.readFileSync(
-        path.join(dest, author(2), 'skill-2', 'SKILL.md'),
-        'utf8',
-      ),
-    ).toBe(
-      `[a](../skill-32/SKILL.md) [b](../../${author(3)}/skill-3/SKILL.md#use) [c](/skill/shared) [d](/skill/nope)\n`,
-    );
+      const first = syncMirrors([mirror], settings, deps);
+      expect(first).toEqual([
+        expect.objectContaining({
+          files: 1181,
+          links: 2,
+          write: 1181,
+          touch: 0,
+          delete: 0,
+          created: true,
+        }),
+      ]);
+      expect(lines.filter((l) => l.includes('(single rename)'))).toHaveLength(
+        1,
+      );
+      const dest = path.join(root, 'content', 'library', 'skills');
+      expect(listFiles(dest)).toHaveLength(1181);
+      expect(
+        fs.readFileSync(
+          path.join(dest, author(2), 'skill-2', 'SKILL.md'),
+          'utf8',
+        ),
+      ).toBe(
+        `[a](../skill-32/SKILL.md) [b](../../${author(3)}/skill-3/SKILL.md#use) [c](/skill/shared) [d](/skill/nope)\n`,
+      );
 
-    const second = syncMirrors([mirror], settings, deps);
-    expect(second).toEqual([
-      expect.objectContaining({
-        files: 1181,
-        links: 2,
-        write: 0,
-        touch: 0,
-        delete: 0,
-        created: false,
-      }),
-    ]);
-    vi.restoreAllMocks();
-  }, 120_000);
+      const second = syncMirrors([mirror], settings, deps);
+      expect(second).toEqual([
+        expect.objectContaining({
+          files: 1181,
+          links: 2,
+          write: 0,
+          touch: 0,
+          delete: 0,
+          created: false,
+        }),
+      ]);
+      vi.restoreAllMocks();
+    },
+    TEST_TIMEOUT_MS,
+  );
 });
