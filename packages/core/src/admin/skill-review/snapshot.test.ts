@@ -64,7 +64,7 @@ const PROPOSAL: PendingProposal = {
 
 const CHECKS: ProposalChecks = {
   draftDescription: 'Draft',
-  draftDescriptionBytes: 5,
+  draftDescriptionChars: 5,
   descriptionTooLong: true,
   childProcessFiles: ['scripts/x.cjs'],
   duplicateDrafts: [],

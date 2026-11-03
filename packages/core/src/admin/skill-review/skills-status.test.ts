@@ -117,7 +117,7 @@ describe('measureCatalogBudget', () => {
     expect(budget).toMatchObject({
       maxChars: 1000,
       skills: 1,
-      longest: [{ name: 'a', bytes: 200, owner: 'workshop' }],
+      longest: [{ name: 'a', chars: 200, owner: 'workshop' }],
     });
   });
 

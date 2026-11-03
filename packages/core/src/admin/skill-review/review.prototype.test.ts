@@ -6,9 +6,8 @@
  * renames. Scenarios: a live run (all four dispositions, a measured
  * budget), a re-gather that changed or failed, a missing report, a dry
  * run, `--print-task`, and quiet days under and over the alert threshold,
- * dry, and with the budget unmeasurable. On a multibyte description the
- * over-160 line is the one departure (bytes, as OpenClaw limits a
- * description).
+ * dry, and with the budget unmeasurable. A multibyte description counts
+ * in chars, as the prototype counted it.
  */
 
 import fs from 'node:fs';
@@ -257,22 +256,11 @@ describe('the review flow against the prototype', () => {
     expect(await run(s)).toEqual(PROTOTYPE_OUTPUTS[name]);
   });
 
-  it('departs only in the over-160 line on a multibyte description', async () => {
+  it('matches it on a multibyte description, counting chars', async () => {
     const s = SCENARIOS['live, four proposals, measured budget'];
     if (s === undefined) throw new Error('no scenario');
     const [post] = (await run(s, true)).posts;
-    // 120 two-byte chars: under 160 for the prototype, 240 bytes for core.
-    expect(MULTIBYTE.prototypeLine).toMatch(
-      /^1 description\(s\) over 160 chars/,
-    );
-    expect(MULTIBYTE.coreLine).toMatch(
-      /^2 description\(s\) over 160 bytes, 320 bytes over in all; .*`s03` 240 bytes/,
-    );
-    expect(post).toBe(
-      MULTIBYTE.prototypePost.replace(
-        MULTIBYTE.prototypeLine,
-        MULTIBYTE.coreLine,
-      ),
-    );
+    // 120 two-byte chars (240 bytes) are under 160 chars: only `s05` is long.
+    expect(post).toBe(MULTIBYTE.prototypePost);
   });
 });

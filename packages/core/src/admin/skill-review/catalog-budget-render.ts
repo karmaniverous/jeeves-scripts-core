@@ -13,7 +13,7 @@
 import { escapeSlack } from '../../lib/slack-text.js';
 import type { CatalogBudget, LongDescription } from './catalog-budget.js';
 import { COMPACT_DESCRIPTION_MAX_CHARS } from './catalog-format.js';
-import { DESCRIPTION_MAX_BYTES } from './checks.js';
+import { DESCRIPTION_MAX_CHARS } from './checks.js';
 
 /** A measured budget, or why it couldn't be measured. */
 export type BudgetResult = CatalogBudget | { problem: string };
@@ -56,7 +56,7 @@ const truncatedText = (b: CatalogBudget): string =>
     : '';
 
 const longText = (b: CatalogBudget): string =>
-  `${n(b.longCount)} description(s) over ${String(DESCRIPTION_MAX_BYTES)} bytes, ${n(b.longExcess)} bytes over in all`;
+  `${n(b.longCount)} description(s) over ${String(DESCRIPTION_MAX_CHARS)} chars, ${n(b.longExcess)} chars over in all`;
 
 const limitSourceText = (b: CatalogBudget): string =>
   b.maxCharsSource === 'agent'
@@ -78,14 +78,14 @@ export function budgetSlackLines(budget: BudgetResult): string[] {
     .slice(0, LONGEST_IN_SLACK)
     .map(
       (d) =>
-        `\`${escapeSlack(d.name)}\` ${n(d.bytes)} bytes (${escapeSlack(d.owner)})`,
+        `\`${escapeSlack(d.name)}\` ${n(d.chars)} (${escapeSlack(d.owner)})`,
     )
     .join(', ');
   return [
     `*Skills catalog budget:* ${n(budget.chars)} / ${n(budget.maxChars)} chars (${usedText(budget)}), ${formatText(budget)}; ${spareText(budget)}.${truncatedText(budget)}`,
     budget.longCount > 0
       ? `${longText(budget)}; longest: ${longest}.`
-      : `No description over ${String(DESCRIPTION_MAX_BYTES)} bytes.`,
+      : `No description over ${String(DESCRIPTION_MAX_CHARS)} chars.`,
   ];
 }
 
@@ -146,7 +146,7 @@ const fullCatalogText = (b: CatalogBudget): string =>
     : `${n(b.chars)} chars, ${n(b.skills)} model-visible skills`;
 
 const longestRow = (d: LongDescription): string =>
-  `| \`${d.name}\` | ${n(d.bytes)} | ${d.owner} |`;
+  `| \`${d.name}\` | ${n(d.chars)} | ${d.owner} |`;
 
 /** How exact the measure is (shown in the report). */
 export const BUDGET_MARGIN_NOTE =
@@ -192,7 +192,7 @@ export function budgetReportSection(budget: BudgetResult): string {
       '',
       '**Longest descriptions**',
       '',
-      '| Skill | Bytes | Owner |',
+      '| Skill | Chars | Owner |',
       '| --- | --- | --- |',
       ...b.longest.map(longestRow),
     );

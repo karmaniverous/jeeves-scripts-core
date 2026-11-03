@@ -9,9 +9,9 @@
  * and fitted to the limits (`skill-review/catalog-limits`); the result is the full
  * catalog's length as OpenClaw tests it (count cap and truncation note
  * included) against the character budget, whether compact mode is
- * on, descriptions over 160 UTF-8 bytes (OpenClaw's description limit,
- * as `src/skills/workshop/proposal-draft.ts` enforces it) and the
- * longest ones, and the
+ * on, descriptions over 160 chars (`DESCRIPTION_MAX_CHARS`, a Jeeves
+ * convention for catalog size, not an OpenClaw limit) and the longest
+ * ones, and the
  * smallest model context (in tokens) whose one-fifth share still holds the
  * full catalog. Pure.
  */
@@ -25,7 +25,7 @@ import {
   prepareCatalog,
   resolveCatalogLimits,
 } from './catalog-limits.js';
-import { DESCRIPTION_MAX_BYTES } from './checks.js';
+import { DESCRIPTION_MAX_CHARS } from './checks.js';
 
 /** OpenClaw keeps the catalog within one fifth of the context, in tokens. */
 export const CONTEXT_TOKENS_PER_CHAR = 5;
@@ -54,8 +54,8 @@ export type SkillsStatus = z.infer<typeof skillsStatusSchema>;
 export interface LongDescription {
   /** Skill name. */
   name: string;
-  /** Description size (UTF-8 bytes). */
-  bytes: number;
+  /** Description length (chars, UTF-16 code units). */
+  chars: number;
   /** Who owns it: the inventory origin, else OpenClaw's source. */
   owner: string;
 }
@@ -80,9 +80,9 @@ export interface CatalogBudget extends CatalogLimits {
   usedPct: number;
   /** The format OpenClaw picks. */
   format: CatalogFormat;
-  /** Descriptions over `DESCRIPTION_MAX_BYTES` (UTF-8 bytes). */
+  /** Descriptions over `DESCRIPTION_MAX_CHARS` (chars). */
   longCount: number;
-  /** Their bytes over it, summed. */
+  /** Their chars over it, summed. */
   longExcess: number;
   /** The longest descriptions, longest first. */
   longest: LongDescription[];
@@ -123,11 +123,11 @@ export function analyzeCatalogBudget(input: CatalogBudgetInput): CatalogBudget {
   const long = visible
     .map((s) => ({
       name: s.name,
-      bytes: Buffer.byteLength(s.description),
+      chars: s.description.length,
       owner: input.originOf(s.filePath) ?? s.source,
     }))
-    .filter((d) => d.bytes > DESCRIPTION_MAX_BYTES)
-    .sort((a, b) => b.bytes - a.bytes || a.name.localeCompare(b.name));
+    .filter((d) => d.chars > DESCRIPTION_MAX_CHARS)
+    .sort((a, b) => b.chars - a.chars || a.name.localeCompare(b.name));
   return {
     ...limits,
     agentId: status.agentId,
@@ -138,7 +138,7 @@ export function analyzeCatalogBudget(input: CatalogBudgetInput): CatalogBudget {
     usedPct: (chars / Math.max(1, limits.maxChars)) * 100,
     format: fitted.format,
     longCount: long.length,
-    longExcess: long.reduce((n, d) => n + d.bytes - DESCRIPTION_MAX_BYTES, 0),
+    longExcess: long.reduce((n, d) => n + d.chars - DESCRIPTION_MAX_CHARS, 0),
     longest: long.slice(0, LONGEST_SHOWN),
     minContextTokens: chars * CONTEXT_TOKENS_PER_CHAR,
   };

@@ -16,7 +16,8 @@
  * `skills.load.extraDirs`, OpenClaw's managed and plugin skills, the
  * workspace skills and OpenClaw's bundled skills, each labelled with its
  * origin; `skill-review/inventory`), plus the mechanical checks
- * (description over OpenClaw's 160 UTF-8 bytes, support files using
+ * (description over 160 chars, a Jeeves convention for catalog size,
+ * not an OpenClaw limit; support files using
  * `child_process`, duplicate drafts, a live skill changed after the
  * draft; `skill-review/checks`), written to a snapshot in
  * `{stateDir}/admin/skill-review/runs/<YYYYMMDD-HHMMSS>/` (the newest 14

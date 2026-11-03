@@ -10,7 +10,7 @@
  */
 
 import { withDateContext } from '../../lib/dates.js';
-import { DESCRIPTION_MAX_BYTES } from './checks.js';
+import { DESCRIPTION_MAX_CHARS } from './checks.js';
 import { DISPOSITION_LABELS } from './report.js';
 
 /** What the TASK names. */
@@ -40,7 +40,7 @@ export interface TaskInput {
 export function buildTask(input: TaskInput): string {
   const ids = input.proposalIds.map((id) => `- \`${id}\``).join('\n');
   const dispositions = DISPOSITION_LABELS.join(' | ');
-  const maxBytes = String(DESCRIPTION_MAX_BYTES);
+  const maxChars = String(DESCRIPTION_MAX_CHARS);
   const task = `# Daily Skill Workshop proposal review
 
 You review the pending Skill Workshop proposals and report. **You only report.** Never call the \`skill_workshop\` tool, never apply, reject, revise or quarantine a proposal, never post to Slack, and never create, edit or delete any file except the one report file named below.
@@ -66,7 +66,7 @@ ${ids}
    - **Reject or decline**: say why in the recommendation: duplicate (of what), one-off record (belongs in memory or files), superseded (by what), wrong home (where it belongs), or another concrete reason.
    - **Not reviewed**: you ran out of room to judge it this run; say so in the recommendation.
 4. Write a one-line **recommendation**: exactly what the operator should do next. This is the line that goes to Slack next to the short description, so make it stand on its own.
-5. Note any **flags**, when true: revert risk (the draft would revert content or the description that is newer in the live skill — the index says whether the live skill changed after the draft was created), description too long (over ${maxBytes} bytes; the index gives the byte count), \`child_process\` (a support script uses it; the Workshop scanner quarantines it), duplicate drafts (several pending drafts for the same skill; recommend which to keep or how to consolidate).
+5. Note any **flags**, when true: revert risk (the draft would revert content or the description that is newer in the live skill — the index says whether the live skill changed after the draft was created), description too long (over ${maxChars} chars; the index gives the char count), \`child_process\` (a support script uses it; the Workshop scanner quarantines it), duplicate drafts (several pending drafts for the same skill; recommend which to keep or how to consolidate).
 
 ## Report
 

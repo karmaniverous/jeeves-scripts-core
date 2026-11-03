@@ -30,8 +30,8 @@ export const catalogBudgetFixture = (
   longCount: 2,
   longExcess: 250,
   longest: [
-    { name: 'jeeves-design', bytes: 381, owner: 'jeeves' },
-    { name: 'jeeves-email', bytes: 189, owner: 'jeeves-scripts-core' },
+    { name: 'jeeves-design', chars: 381, owner: 'jeeves' },
+    { name: 'jeeves-email', chars: 189, owner: 'jeeves-scripts-core' },
   ],
   minContextTokens: 85_500,
   ...over,

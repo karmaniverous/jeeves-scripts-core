@@ -3,7 +3,7 @@
  *
  * The mechanical checks the script runs on each pending proposal before
  * the worker sees it, so the worker confirms facts instead of hunting for
- * them: description length (OpenClaw's 160-byte limit), support files
+ * them: description length (over {@link DESCRIPTION_MAX_CHARS}), support files
  * that use `child_process` (the Workshop scanner quarantines them), other
  * pending drafts for the same skill, the live skill an update targets
  * and whether it changed after the draft was made (a revert risk), and
@@ -15,16 +15,20 @@ import type { InventorySkill } from './inventory.js';
 import { type PendingProposal, PROPOSAL_FILE } from './proposals.js';
 import { pathKey } from './skill-fs.js';
 
-/** OpenClaw's limit on a skill description, in UTF-8 bytes. */
-export const DESCRIPTION_MAX_BYTES = 160;
+/**
+ * The longest skill description, in chars (UTF-16 code units, as the
+ * catalog budget counts them). A Jeeves convention that keeps the skills
+ * catalog small, not an OpenClaw limit.
+ */
+export const DESCRIPTION_MAX_CHARS = 160;
 
 /** The checks' findings for one proposal. */
 export interface ProposalChecks {
   /** The draft's frontmatter description (else the listed one). */
   draftDescription: string;
-  /** Its size in UTF-8 bytes. */
-  draftDescriptionBytes: number;
-  /** Whether it exceeds {@link DESCRIPTION_MAX_BYTES}. */
+  /** Its length in chars (UTF-16 code units). */
+  draftDescriptionChars: number;
+  /** Whether it exceeds {@link DESCRIPTION_MAX_CHARS}. */
   descriptionTooLong: boolean;
   /** Support files that mention `child_process`. */
   childProcessFiles: string[];
@@ -61,7 +65,7 @@ export function checkProposal(
   const draftDescription =
     parseSkillFrontmatter(draft?.content ?? '').description ??
     proposal.description;
-  const draftDescriptionBytes = Buffer.byteLength(draftDescription);
+  const draftDescriptionChars = draftDescription.length;
   const target = proposal.targetSkillFile;
   // The exact path first; a case-folded match only where paths fold
   // (Windows), never over an exact one.
@@ -73,8 +77,8 @@ export function checkProposal(
   const created = Date.parse(proposal.createdAt);
   return {
     draftDescription,
-    draftDescriptionBytes,
-    descriptionTooLong: draftDescriptionBytes > DESCRIPTION_MAX_BYTES,
+    draftDescriptionChars,
+    descriptionTooLong: draftDescriptionChars > DESCRIPTION_MAX_CHARS,
     childProcessFiles: proposal.artifacts
       .filter((a) => a.path !== PROPOSAL_FILE)
       .filter((a) => a.content?.includes('child_process'))

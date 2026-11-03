@@ -6,7 +6,7 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { checkProposal, DESCRIPTION_MAX_BYTES } from './checks.js';
+import { checkProposal, DESCRIPTION_MAX_CHARS } from './checks.js';
 import type { InventorySkill } from './inventory.js';
 import type { PendingProposal } from './proposals.js';
 
@@ -61,7 +61,7 @@ describe('checkProposal', () => {
     const unrelated = proposal({ id: 'p3', skillName: 'beta' });
     expect(checkProposal(p, [p, dup, unrelated], [LIVE, OTHER])).toEqual({
       draftDescription: 'Draft description',
-      draftDescriptionBytes: 17,
+      draftDescriptionChars: 17,
       descriptionTooLong: false,
       childProcessFiles: ['scripts/a.cjs'],
       duplicateDrafts: ['p2'],
@@ -73,9 +73,8 @@ describe('checkProposal', () => {
     });
   });
 
-  it('flags a description over the byte limit, counting UTF-8 bytes', () => {
-    const description = 'é'.repeat(DESCRIPTION_MAX_BYTES / 2 + 1);
-    const p = proposal({
+  const drafted = (description: string) =>
+    proposal({
       artifacts: [
         {
           path: 'PROPOSAL.md',
@@ -85,8 +84,20 @@ describe('checkProposal', () => {
         },
       ],
     });
+
+  it('counts a description in chars, not UTF-8 bytes', () => {
+    // 100 two-byte chars: 200 bytes, but 100 chars, under the limit.
+    const p = drafted('\u00e9'.repeat(100));
     expect(checkProposal(p, [p], [])).toMatchObject({
-      draftDescriptionBytes: DESCRIPTION_MAX_BYTES + 2,
+      draftDescriptionChars: 100,
+      descriptionTooLong: false,
+    });
+  });
+
+  it('flags a multibyte description one char over the limit', () => {
+    const p = drafted('\u00e9'.repeat(DESCRIPTION_MAX_CHARS + 1));
+    expect(checkProposal(p, [p], [])).toMatchObject({
+      draftDescriptionChars: DESCRIPTION_MAX_CHARS + 1,
       descriptionTooLong: true,
     });
   });
@@ -94,7 +105,7 @@ describe('checkProposal', () => {
   it('accepts a description of exactly the limit', () => {
     const p = proposal({
       artifacts: [],
-      description: 'x'.repeat(DESCRIPTION_MAX_BYTES),
+      description: 'x'.repeat(DESCRIPTION_MAX_CHARS),
     });
     expect(checkProposal(p, [p], []).descriptionTooLong).toBe(false);
   });

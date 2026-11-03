@@ -2,8 +2,8 @@
  * Tests for the catalog budget: only model-visible skills count, the
  * catalog is measured with home paths shown as `~/`, headroom and usage
  * against the resolved budget, the format OpenClaw would pick, long
- * descriptions (count, excess, order, owners; in UTF-8 bytes, as OpenClaw
- * limits a description) and the token share.
+ * descriptions (count, excess, order, owners; in chars, as the budget
+ * counts them) and the token share.
  */
 
 import path from 'node:path';
@@ -18,7 +18,7 @@ import {
   skillsStatusSchema,
 } from './catalog-budget.js';
 import { formatFullCatalog } from './catalog-format.js';
-import { DESCRIPTION_MAX_BYTES } from './checks.js';
+import { DESCRIPTION_MAX_CHARS } from './checks.js';
 
 const HOME = path.resolve('/home/me');
 
@@ -127,7 +127,7 @@ describe('analyzeCatalogBudget', () => {
   });
 
   it('counts descriptions over the target, longest first, ties by name, with owners', () => {
-    const over = DESCRIPTION_MAX_BYTES;
+    const over = DESCRIPTION_MAX_CHARS;
     const budget = analyze(
       status([
         entry('a', over),
@@ -140,28 +140,33 @@ describe('analyzeCatalogBudget', () => {
         entry('h', over + 90, false),
       ]),
     );
-    expect(DESCRIPTION_MAX_BYTES).toBe(160);
+    expect(DESCRIPTION_MAX_CHARS).toBe(160);
     expect(budget.longCount).toBe(6);
     expect(budget.longExcess).toBe(40 + 5 + 5 + 3 + 2 + 1);
     expect(budget.longest).toEqual([
-      { name: 'd', bytes: over + 40, owner: 'openclaw-extra' },
-      { name: 'b', bytes: over + 5, owner: 'jeeves' },
-      { name: 'c', bytes: over + 5, owner: 'openclaw-extra' },
-      { name: 'g', bytes: over + 3, owner: 'openclaw-extra' },
-      { name: 'f', bytes: over + 2, owner: 'openclaw-extra' },
+      { name: 'd', chars: over + 40, owner: 'openclaw-extra' },
+      { name: 'b', chars: over + 5, owner: 'jeeves' },
+      { name: 'c', chars: over + 5, owner: 'openclaw-extra' },
+      { name: 'g', chars: over + 3, owner: 'openclaw-extra' },
+      { name: 'f', chars: over + 2, owner: 'openclaw-extra' },
     ]);
     expect(budget.longest).toHaveLength(LONGEST_SHOWN);
   });
 
-  it('measures a description in UTF-8 bytes, not chars, as OpenClaw limits it', () => {
-    // 81 two-byte chars: 81 chars, 162 bytes; 160 three-byte chars: 480 bytes.
+  it('measures a description in chars, not UTF-8 bytes', () => {
+    // 100 two-byte chars (200 bytes) and 160 three-byte chars (480 bytes)
+    // are within the limit; 161 two-byte chars are 1 over.
     const budget = analyze(
-      status([entry('a', 81, true, '\u00e9'), entry('b', 160, true, '\u20ac')]),
+      status([
+        entry('a', 100, true, '\u00e9'),
+        entry('b', 160, true, '\u20ac'),
+        entry('c', 161, true, '\u00e9'),
+      ]),
     );
     expect(budget.longest).toEqual([
-      { name: 'b', bytes: 480, owner: 'jeeves' },
-      { name: 'a', bytes: 162, owner: 'openclaw-extra' },
+      { name: 'c', chars: 161, owner: 'openclaw-extra' },
     ]);
-    expect(budget.longExcess).toBe(2 + 320);
+    expect(budget.longCount).toBe(1);
+    expect(budget.longExcess).toBe(1);
   });
 });

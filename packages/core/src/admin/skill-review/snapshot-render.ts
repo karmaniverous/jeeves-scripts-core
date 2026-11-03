@@ -8,7 +8,7 @@
  * writes them.
  */
 
-import { DESCRIPTION_MAX_BYTES, type ProposalChecks } from './checks.js';
+import { DESCRIPTION_MAX_CHARS, type ProposalChecks } from './checks.js';
 import type { InventorySkill } from './inventory.js';
 import type { PendingProposal } from './proposals.js';
 
@@ -68,7 +68,7 @@ const proposalSection = ({ proposal: p, checks: c }: CheckedProposal): string =>
     '',
     `- Kind: ${p.kind}; skill: \`${p.skillName}\`; created ${p.createdAt}; scan: ${p.scanState}`,
     `- Files: ${p.artifacts.map((a) => `\`proposals/${safeName(p.id)}/${a.path}\` (${String(a.sizeBytes)} B${a.source === 'missing' ? ', MISSING' : ''})`).join(', ')}`,
-    `- Draft description (${String(c.draftDescriptionBytes)} B, over ${String(DESCRIPTION_MAX_BYTES)}: ${yesNo(c.descriptionTooLong)}): ${c.draftDescription}`,
+    `- Draft description (${String(c.draftDescriptionChars)} chars, over ${String(DESCRIPTION_MAX_CHARS)}: ${yesNo(c.descriptionTooLong)}): ${c.draftDescription}`,
     `- Live skill: ${c.liveSkillFile ? `\`proposals/${safeName(p.id)}/LIVE-SKILL.md\` (from ${c.liveSkillFile}); live description: ${c.liveDescription ?? ''}` : 'none'}`,
     `- Live skill changed after this draft was created: ${yesNo(c.liveChangedAfterDraft)}`,
     `- Support files using child_process: ${list(c.childProcessFiles)}`,

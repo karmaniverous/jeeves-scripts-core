@@ -28,14 +28,14 @@ describe('budgetSlackLines', () => {
   it('gives usage, format, headroom and the longest descriptions', () => {
     expect(budgetSlackLines(catalogBudgetFixture())).toEqual([
       '*Skills catalog budget:* 17,100 / 18,000 chars (95.0%), full format; 900 chars (5.0%) to spare.',
-      '2 description(s) over 160 bytes, 250 bytes over in all; longest: `jeeves-design` 381 bytes (jeeves), `jeeves-email` 189 bytes (jeeves-scripts-core).',
+      '2 description(s) over 160 chars, 250 chars over in all; longest: `jeeves-design` 381 (jeeves), `jeeves-email` 189 (jeeves-scripts-core).',
     ]);
   });
 
   it('flags compact mode, an overrun and a short list; names at most three, escaped', () => {
     const longest = ['a<b>', 'c&d', 'e', 'f'].map((name) => ({
       name,
-      bytes: 200,
+      chars: 200,
       owner: '<!here>',
     }));
     const [first, second] = budgetSlackLines(
@@ -53,7 +53,7 @@ describe('budgetSlackLines', () => {
       '*Skills catalog budget:* 19,000 / 18,000 chars (105.5%), COMPACT format (descriptions cut to 120 chars); 1,000 chars over. Only 90 of 97 skills are listed.',
     );
     expect(second).toContain(
-      'longest: `a&lt;b&gt;` 200 bytes (&lt;!here&gt;), `c&amp;d` 200 bytes (&lt;!here&gt;), `e` 200 bytes (&lt;!here&gt;).',
+      'longest: `a&lt;b&gt;` 200 (&lt;!here&gt;), `c&amp;d` 200 (&lt;!here&gt;), `e` 200 (&lt;!here&gt;).',
     );
     expect(LONGEST_IN_SLACK).toBe(3);
   });
@@ -63,11 +63,11 @@ describe('budgetSlackLines', () => {
       catalogBudgetFixture({
         longCount: 1,
         longExcess: 221,
-        longest: [{ name: 'jeeves-design', bytes: 381, owner: 'jeeves' }],
+        longest: [{ name: 'jeeves-design', chars: 381, owner: 'jeeves' }],
       }),
     );
     expect(second).toBe(
-      '1 description(s) over 160 bytes, 221 bytes over in all; longest: `jeeves-design` 381 bytes (jeeves).',
+      '1 description(s) over 160 chars, 221 chars over in all; longest: `jeeves-design` 381 (jeeves).',
     );
   });
 
@@ -83,7 +83,7 @@ describe('budgetSlackLines', () => {
       ),
     ).toEqual([
       '*Skills catalog budget:* 17,100 / 18,000 chars (95.0%), COMPACT format (descriptions omitted); 900 chars (5.0%) to spare.',
-      'No description over 160 bytes.',
+      'No description over 160 chars.',
     ]);
   });
 
@@ -144,7 +144,7 @@ describe('budgetAlertPost', () => {
       [
         '*Skills catalog alert:* no Workshop proposals are pending today, but the skills catalog uses 90.0% of its character budget (alert at 90%).',
         '*Skills catalog budget:* 16,200 / 18,000 chars (90.0%), full format; 1,800 chars (10.0%) to spare.',
-        '2 description(s) over 160 bytes, 250 bytes over in all; longest: `jeeves-design` 381 bytes (jeeves), `jeeves-email` 189 bytes (jeeves-scripts-core).',
+        '2 description(s) over 160 chars, 250 chars over in all; longest: `jeeves-design` 381 (jeeves), `jeeves-email` 189 (jeeves-scripts-core).',
         'Shorten the longest descriptions or raise the character budget before OpenClaw switches the catalog to the compact format.',
       ].join('\n'),
     );
@@ -245,12 +245,12 @@ describe('budgetReportSection', () => {
         '| Used | 95.0%; 900 chars (5.0%) to spare |',
         '| Format in force | full format |',
         '| Skills listed | 97 of 97 (cap 150) |',
-        '| Long descriptions | 2 description(s) over 160 bytes, 250 bytes over in all |',
+        '| Long descriptions | 2 description(s) over 160 chars, 250 chars over in all |',
         '| Token share | descriptions are also cut when the catalog exceeds a fifth of the model context in tokens: the full catalog fits models with 85,500+ tokens |',
         '',
         '**Longest descriptions**',
         '',
-        '| Skill | Bytes | Owner |',
+        '| Skill | Chars | Owner |',
         '| --- | --- | --- |',
         '| `jeeves-design` | 381 | jeeves |',
         '| `jeeves-email` | 189 | jeeves-scripts-core |',

@@ -56,7 +56,7 @@ describe('renderIndex', () => {
   };
   const checks: ProposalChecks = {
     draftDescription: 'Draft',
-    draftDescriptionBytes: 5,
+    draftDescriptionChars: 5,
     descriptionTooLong: false,
     childProcessFiles: [],
     duplicateDrafts: [],
