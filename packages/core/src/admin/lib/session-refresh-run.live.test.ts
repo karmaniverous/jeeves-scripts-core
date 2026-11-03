@@ -107,6 +107,9 @@ describe('sessionRefresh (live)', () => {
     const s = await sessionRefresh(deps);
     expect(gateway.activeKeys).toHaveBeenCalledTimes(1);
     expect(gateway.reset.mock.calls).toEqual([[dueA.key, 'a']]);
+    expect(out.logs).toContain(
+      '[session-refresh] reset agent:main:slack:channel:ca (context 200000, idle 90 min, old session a)',
+    );
     expect(s).toMatchObject({ reset: 1, failed: 0 });
   });
 

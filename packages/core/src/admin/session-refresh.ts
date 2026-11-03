@@ -6,8 +6,9 @@
  * Every top-level session of every agent is considered (main sessions,
  * channels and DMs on any channel; subagent, cron and spawned sessions
  * are out of scope). Sessions are listed and reset through the gateway
- * (`sessions.list`, `sessions.describe`, `sessions.reset` fenced with
- * `expectedSessionId`); last-turn usage comes from the agent DB, read-only.
+ * (`sessions.list`, then just before each live reset `sessions.describe`
+ * and `sessions.list` with `activeOnly: true`, then `sessions.reset`
+ * fenced with `expectedSessionId`); last-turn usage comes from the agent DB, read-only.
  * A busy or recently active session is never touched. After a live reset
  * of a Slack session, one line is posted in its conversation.
  *

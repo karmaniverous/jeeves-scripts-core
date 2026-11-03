@@ -162,8 +162,10 @@ async function resetOne(
       return;
     }
     summary.reset++;
+    // The active list settled ownership, whatever describe omitted.
+    const due = { ...recheck, ownershipUnknown: false };
     console.log(
-      `${TAG} reset ${describeDue({ row, usage, due: recheck }, 'old session')}`,
+      `${TAG} reset ${describeDue({ row, usage, due }, 'old session')}`,
     );
   } catch (err) {
     summary.failed++;

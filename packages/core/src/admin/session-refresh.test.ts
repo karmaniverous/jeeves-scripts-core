@@ -107,6 +107,25 @@ describe('admin-refresh-sessions', () => {
     expect(process.exitCode).toBe(1);
   });
 
+  it('leaves exit code 0 after a successful live reset, with no notice for a main session', async () => {
+    mocks.rpc.mockImplementation((method, params) => {
+      if (method === 'sessions.list')
+        return Promise.resolve({ sessions: params?.activeOnly ? [] : [due] });
+      if (method === 'sessions.describe')
+        return Promise.resolve({ session: due });
+      return Promise.resolve({ ok: true, key: due.key });
+    });
+    await job.run({ args: ['--live'] });
+    expect(mocks.rpc.mock.calls.at(-1)).toEqual([
+      'sessions.reset',
+      { key: 'agent:main:main', expectedSessionId: 'm' },
+    ]);
+    expect(process.exitCode).toBeUndefined();
+    expect(console.log).toHaveBeenCalledWith(
+      expect.stringMatching(/1 reset, .*; failed 0; notice failed 0$/),
+    );
+  });
+
   it('closes the DBs when the run throws', async () => {
     mocks.rpc.mockRejectedValueOnce(new Error('gateway down'));
     await expect(runSessionRefresh(false)).rejects.toThrow('gateway down');
