@@ -1,6 +1,6 @@
 ---
 name: jeeves-daily-briefings
-description: Set up and manage recurring daily briefings. Use when asked to create a daily intelligence report, action-item briefing, end-of-day follow-up, market intel report or stakeholder digest delivered to a Slack channel, or to run one on demand.
+description: Recurring daily briefings to Slack - intelligence report, action items, end-of-day follow-up, market intel, stakeholder digest; set up or run on demand.
 metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 

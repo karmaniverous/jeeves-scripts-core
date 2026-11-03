@@ -1,6 +1,6 @@
 ---
 name: jeeves-scripts
-description: The jeeves-scripts instance repo and @karmaniverous/jeeves-scripts-core - running runnables and jobs with the launcher, the instance config (config set), jobs/*.json, instance code, and where the core docs live. Use when running, adding or debugging a scripts job, changing the instance config, or looking up how a core domain behaves.
+description: jeeves-scripts instance repo and jeeves-scripts-core - launcher run, jobs/*.json, instance config (config set), instance code, core package rules, core docs.
 metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 

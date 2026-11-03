@@ -1,6 +1,6 @@
 ---
 name: jeeves-transcripts
-description: 'YouTube link or video mentioned in chat: script-fetch its transcript via TranscriptAPI to a file, answer from the file with minimal context, and file it in the library only when filing is intended.'
+description: YouTube link or video in chat - fetch its transcript via TranscriptAPI to a file, answer from the file with minimal context, file it in the library if asked.
 metadata:
   {
     'openclaw':

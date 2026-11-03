@@ -1,6 +1,6 @@
 ---
 name: channel-status-recap
-description: Recap a Slack channel's current state from its archive, with every status checked against Jira or GitHub. Use when someone in a channel asks "where are we", "gather context", "summarize last progress" or similar.
+description: Recap a Slack channel's state from its archive, every status checked against Jira or GitHub ("where are we", "gather context", "summarize progress").
 metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 

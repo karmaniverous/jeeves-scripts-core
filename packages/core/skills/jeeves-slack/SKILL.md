@@ -1,6 +1,6 @@
 ---
 name: jeeves-slack
-description: Slack message polling and archiving, Slack channel config (project, home directory), and Slack from runner LLM workers. Use when working with the Slack polling job or the message archive, or to find a Slack channel's project or home directory.
+description: Slack polling and message archive, a channel's project and home directory (slack.channels), Slack cache, bot tokens, Slack from runner LLM workers.
 metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 
