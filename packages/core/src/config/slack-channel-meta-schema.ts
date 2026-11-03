@@ -11,11 +11,15 @@
  * export.
  */
 
-import { getErrorMessage } from '@karmaniverous/jeeves';
 import { z } from 'zod';
 
 import { isTimeZone } from '../lib/dates.js';
 import { absolutePathSchema } from './absolute-path.js';
+import {
+  defaultReportDir,
+  type NamedAccount,
+  unknownSlackAccounts,
+} from './report-target.js';
 import { slackChannelIdSchema } from './slack-channel-id.js';
 
 /** Slack's own cap on a channel purpose or topic. */
@@ -100,36 +104,10 @@ export const slackChannelMetaSchema = z.strictObject({
 /** The `slack.channelMeta` block (defaults applied). */
 export type SlackChannelMetaBlock = z.infer<typeof slackChannelMetaSchema>;
 
-/** Whether a report target is a channel (`C…`/`G…`), which may have a `homeDir`. */
-export const isChannelTarget = (id: string): boolean => /^[CG]/.test(id);
-
-/**
- * The report directory when `outputDir` is unset, written once for the
- * config check (`config/schema`) and the run (`channel-meta/settings`):
- * the report channel's `homeDir`. A DM target (a `D` id, a user, or
- * `reportChannel` unset, the OpenClaw owner's DM) has none, and neither
- * may a channel; either way `outputDir` is required.
- *
- * @param target - The report target, `undefined` for the owner's DM.
- * @param homeDirOf - A channel's configured `homeDir`.
- * @returns The directory, or why `outputDir` is required.
- */
-export function defaultReportDir(
-  target: string | undefined,
-  homeDirOf: (channelId: string) => string | undefined,
-): { homeDir: string } | { problem: string } {
-  if (target === undefined || !isChannelTarget(target))
-    return {
-      problem:
-        'slack.channelMeta.outputDir is required: the report goes to a DM, which has no homeDir',
-    };
-  const homeDir = homeDirOf(target);
-  return homeDir === undefined
-    ? {
-        problem: `slack.channelMeta.outputDir is required: the report channel ${target} has no slack.channels.${target}.homeDir`,
-      }
-    : { homeDir };
-}
+// The report directory rule (`reportChannel` unset is the OpenClaw
+// owner's DM, which has none) and the account check live in
+// `config/report-target`, shared with the `skillReview` block.
+export { defaultReportDir, isChannelTarget } from './report-target.js';
 
 /**
  * The accounts `reportAccount` and `reportTextAccounts` name that are not
@@ -147,31 +125,16 @@ export function slackAccountsProblem(
   block: Pick<SlackChannelMetaBlock, 'reportAccount' | 'reportTextAccounts'>,
   accounts: () => readonly string[],
 ): string | undefined {
-  const named: [key: string, account: string][] = [
+  const named: NamedAccount[] = [
     ...(block.reportAccount === undefined
       ? []
-      : [['reportAccount', block.reportAccount] as [string, string]]),
-    ...(block.reportTextAccounts ?? []).map((a): [string, string] => [
+      : [['reportAccount', block.reportAccount] as NamedAccount]),
+    ...(block.reportTextAccounts ?? []).map((a): NamedAccount => [
       'reportTextAccounts',
       a,
     ]),
   ];
-  if (named.length === 0) return undefined;
-  let known: readonly string[];
-  try {
-    known = accounts();
-  } catch (e) {
-    return `slack.channelMeta names Slack accounts, but the gateway's could not be read: ${getErrorMessage(e)}`;
-  }
-  const unknown = named.filter(([, a]) => !known.includes(a));
-  if (unknown.length === 0) return undefined;
-  const which = unknown
-    .map(
-      ([key, a]) =>
-        `slack.channelMeta.${key}: "${a}" is not a gateway Slack account`,
-    )
-    .join('; ');
-  return `${which} (gateway Slack accounts: ${known.join(', ') || 'none'})`;
+  return unknownSlackAccounts('slack.channelMeta', named, accounts);
 }
 
 /** The parts of a parsed `slack` block {@link reportDirIssue} reads. */
