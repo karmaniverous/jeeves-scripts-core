@@ -3,13 +3,14 @@
  *
  * The gateway calls session refresh makes (spec 2.12), over `gatewayRpc`
  * (`openclaw gateway call`): `sessions.list` (paged until complete),
- * `sessions.describe` and `sessions.reset` fenced with
+ * `sessions.list` with `activeOnly: true` (the busy re-check just before
+ * each reset), `sessions.describe` and `sessions.reset` fenced with
  * `expectedSessionId`. Each result is parsed with a Zod schema of only
  * the fields the job uses (unknown fields pass through), so a changed
  * shape fails the run instead of reading as "nothing to do". Field
  * presence was pinned against OpenClaw 2026.9.6: list rows carry
  * `hasActiveRun` and (usually) `activeRunIds`; `sessions.describe` may
- * omit both.
+ * omit both, which is why the re-check also reads the active list.
  */
 
 import { z } from 'zod';
@@ -90,6 +91,8 @@ export type ResetOutcome = 'reset' | 'changed';
 export interface SessionGateway {
   /** Every unarchived session (all pages, deduplicated by key). */
   list: () => Promise<SessionRow[]>;
+  /** The keys of every session with an active run now (`activeOnly: true`). */
+  activeKeys: () => Promise<Set<string>>;
   /** One session's current row. */
   describe: (key: string) => Promise<SessionRow>;
   /** Reset a session unless its id has changed since it was read. */
@@ -119,17 +122,21 @@ export function isSessionChanged(err: unknown): boolean {
  * List every session, paging with `offset`/`nextOffset` until `hasMore`
  * is false. Rows are deduplicated by key (pages are a live view).
  *
+ * @param filter - Extra `sessions.list` params (e.g. `activeOnly: true`).
  * @throws When a call fails, a page fails its schema, or the paging is
  *   inconsistent (more pages but no forward `nextOffset`, or too many).
  */
-export async function listSessions(rpc: GatewayRpc): Promise<SessionRow[]> {
+export async function listSessions(
+  rpc: GatewayRpc,
+  filter: Record<string, unknown> = {},
+): Promise<SessionRow[]> {
   const rows = new Map<string, SessionRow>();
   let offset = 0;
   for (let page = 0; page < MAX_LIST_PAGES; page++) {
     const result = parse(
       'sessions.list',
       listPageSchema,
-      await rpc('sessions.list', { limit: LIST_PAGE_SIZE, offset }),
+      await rpc('sessions.list', { ...filter, limit: LIST_PAGE_SIZE, offset }),
     );
     for (const row of result.sessions)
       if (!rows.has(row.key)) rows.set(row.key, row);
@@ -144,6 +151,17 @@ export async function listSessions(rpc: GatewayRpc): Promise<SessionRow[]> {
   throw new Error(
     `gateway sessions.list did not finish within ${String(MAX_LIST_PAGES)} pages`,
   );
+}
+
+/**
+ * The keys of every session with an active run now: `sessions.list` with
+ * `activeOnly: true`, every page, each row schema-checked.
+ *
+ * @throws As {@link listSessions}.
+ */
+export async function activeSessionKeys(rpc: GatewayRpc): Promise<Set<string>> {
+  const rows = await listSessions(rpc, { activeOnly: true });
+  return new Set(rows.map((r) => r.key));
 }
 
 /**
@@ -191,9 +209,10 @@ export async function resetSession(
   }
 }
 
-/** The three calls bound to one RPC caller. */
+/** The calls bound to one RPC caller. */
 export const sessionGateway = (rpc: GatewayRpc): SessionGateway => ({
   list: () => listSessions(rpc),
+  activeKeys: () => activeSessionKeys(rpc),
   describe: (key) => describeSession(rpc, key),
   reset: (key, expectedSessionId) => resetSession(rpc, key, expectedSessionId),
 });

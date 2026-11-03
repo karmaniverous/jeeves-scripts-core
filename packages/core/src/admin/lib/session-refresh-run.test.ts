@@ -30,6 +30,7 @@ describe('sessionRefresh (dry run)', () => {
     });
     const s = await sessionRefresh(deps);
     expect(gateway.describe).not.toHaveBeenCalled();
+    expect(gateway.activeKeys).not.toHaveBeenCalled();
     expect(gateway.reset).not.toHaveBeenCalled();
     expect(deps.notify).not.toHaveBeenCalled();
     expect(out.logs).toContain(

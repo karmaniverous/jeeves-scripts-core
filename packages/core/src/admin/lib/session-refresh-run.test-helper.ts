@@ -37,6 +37,7 @@ export function depsFor(
 ) {
   const gateway = {
     list: vi.fn(() => Promise.resolve(rows)),
+    activeKeys: vi.fn(() => Promise.resolve(new Set<string>())),
     describe: vi.fn((key: string) =>
       Promise.resolve(rows.find((r) => r.key === key) ?? row({ key })),
     ),

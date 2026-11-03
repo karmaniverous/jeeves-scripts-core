@@ -31,7 +31,7 @@ flowchart LR
   card --> collect
 
   agentdb["agent DB\n(last-turn usage, read-only)"] --> refresh["admin-refresh-sessions"]
-  refresh --> gateway["gateway\nsessions.list / describe / reset"]
+  refresh --> gateway["gateway\nsessions.list (all, active) / describe / reset"]
 ```
 
 - **admin-collect-token-metrics** incrementally reads OpenClaw usage (agent DB `~/.openclaw/agents/main/agent/openclaw-agent.sqlite`, read-only, on 2026.9+; legacy JSONL transcripts in `SESSIONS_DIR` otherwise) and Claude Code logs (`~/.claude/projects`), and rolls usage into per-hour bucket files partitioned by channel and model. A fresh instance (no counted OpenClaw usage) starts the DB cursor empty; an upgraded host refuses until `admin-regenerate-token-metrics` bootstraps it.
@@ -73,8 +73,8 @@ node "$JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js" run admin-report-token-metrics 
 4. **Busy.** A session with an active run (`hasActiveRun`, or a non-empty `activeRunIds`) or a placement other than `local` is skipped. When the row carries neither activity field, the idle test decides and the line says `ownership unknown`.
 5. **Idle.** The last activity is the latest of `lastActivityAt`, `lastInteractionAt` and the last turn's own time; less than `idleMinutes` ago is `recently active`.
 6. **Trigger.** The last turn's usage comes from the agent's DB (`{openclawStateDir}/agents/<agentId>/agent/openclaw-agent.sqlite`, opened read-only once per agent): the newest assistant message with usage in the session's live transcript. Its total context, `input + cacheRead + cacheWrite`, at or above `contextThreshold` makes the session due; the total counts a cache-expired turn (large `cacheWrite`, small `cacheRead`).
-7. **Dry run** (default): logs `would reset <key> (context, idle, session)` for each due session and writes nothing.
-8. **`--live`:** oldest activity first, re-reads each due session with `sessions.describe` and repeats the busy and idle tests (a changed session id is `skip changed`), then calls `sessions.reset` with `expectedSessionId`. The gateway's `session-changed` rejection is a skip; any other failure is logged, counted, and the next session is still tried. OpenClaw's reset hooks run as for any `/reset`. Nothing is sent into the session.
+7. **Dry run** (default): logs `would reset <key> (context, idle, session)` for each due session and writes nothing. It makes no re-check: its rows come straight from `sessions.list`, whose `hasActiveRun` is authoritative, so the busy test already applied.
+8. **`--live`:** oldest activity first, re-reads each due session with `sessions.describe` and repeats the busy and idle tests (a changed session id is `skip changed`). Because `sessions.describe` can omit the activity fields, it then reads `sessions.list` with `activeOnly: true` (every page); a session listed there is skipped as `busy (active run, list)`, and a failed active list counts as a failed reset. Then it calls `sessions.reset` with `expectedSessionId`. The gateway's `session-changed` rejection is a skip; any other failure is logged, counted, and the next session is still tried. OpenClaw's reset hooks run as for any `/reset`. Nothing is sent into the session.
 9. **Notice.** After a successful live reset of a Slack session, one line is posted in that session's own conversation (its channel, DM or thread) as the Slack account it belongs to: the session was reset to cut context cost and context will be recovered from the channel history. An app message on Slack does not start a turn. Sessions with no Slack conversation (a main session, other channels) get no notice. A failed notice is logged and counted (`notice failed <n>`) and never fails the run.
 10. **Summary.** One line: listed, in scope, due, reset, skips by reason, failures and failed notices.
 
@@ -197,7 +197,7 @@ All six entries in core's manifest `jobs/admin.json` have `"prerequisite": null`
 | `session-refresh.ts` | admin-refresh-sessions: `--live`, `doctor` check, exit code 1 after a failed reset; [Session refresh](#session-refresh) |
 | `lib/session-refresh-run.ts` | Session refresh orchestration: list, select, dry-run log or re-check → fenced reset → notice, summary |
 | `lib/session-refresh-select.ts` | The pure rules: scope classes, exclusion, busy, idle, the last-turn context trigger |
-| `lib/session-refresh-gateway.ts` | `sessions.list` (paged), `sessions.describe`, `sessions.reset` with `expectedSessionId` over `gatewayRpc`, Zod-parsed; `session-changed` from the CLI's error details |
+| `lib/session-refresh-gateway.ts` | `sessions.list` (paged; all, or `activeOnly` for the busy re-check), `sessions.describe`, `sessions.reset` with `expectedSessionId` over `gatewayRpc`, Zod-parsed; `session-changed` from the CLI's error details |
 | `lib/session-refresh-settings.ts` / `lib/session-refresh-live.ts` | The delta fields with defaults (retired environment variables fail); the live collaborators (agent DBs per agent, Slack client per account, `doctor` check) |
 | `lib/session-refresh-notice.ts` | The post-reset Slack notice: the session's account and conversation (channel, DM or thread) from its row and key |
 | `review-skill-proposals.ts` | admin-review-skill-proposals: flags, prerequisite (no block: skip), `doctor` check; [Skill Workshop review](#skill-workshop-review) |

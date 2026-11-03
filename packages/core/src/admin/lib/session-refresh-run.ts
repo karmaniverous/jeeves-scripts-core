@@ -6,12 +6,16 @@
  * (`session-refresh-select`: scope, exclusion, busy, idle, trigger) with
  * each in-scope session's last-turn usage from the agent DB, then either
  * logs what it would reset (dry run) or, oldest activity first, re-checks
- * each due session with `sessions.describe` and resets it with
- * `sessions.reset` fenced by `expectedSessionId`, posting the Slack notice
+ * each due session with `sessions.describe` and the active list
+ * (`sessions.list` with `activeOnly: true`, since describe can omit the
+ * busy fields) and resets it with `sessions.reset` fenced by
+ * `expectedSessionId`, posting the Slack notice
  * after a successful reset. A failed list, a malformed result or an
  * unreadable agent DB throws (the run fails); a failed reset is counted,
- * the rest are still tried, and the caller fails the run. Every
- * collaborator is a parameter.
+ * the rest are still tried, and the caller fails the run. A dry run makes
+ * neither re-check: its rows come straight from `sessions.list`, whose
+ * `hasActiveRun` is authoritative, so the preview already applies the
+ * busy test. Every collaborator is a parameter.
  */
 
 import { getErrorMessage } from '@karmaniverous/jeeves';
@@ -39,7 +43,7 @@ export interface SessionRefreshDeps {
   settings: RefreshSettings;
   /** Reset (`--live`); otherwise a dry run that writes nothing. */
   live: boolean;
-  /** `sessions.list`, `sessions.describe`, `sessions.reset`. */
+  /** `sessions.list` (all, or active only), `sessions.describe`, `sessions.reset`. */
   gateway: SessionGateway;
   /** A session's last-turn usage from its agent's DB (throws when the DB can't be read). */
   usage: (agentId: string, sessionId: string) => LastTurnUsage | undefined;
@@ -153,6 +157,19 @@ async function resetOne(
     const recheck = decide(fresh, usage, deps.settings, deps.now());
     if (recheck.kind === 'skip') {
       logSkip(row.key, recheck, summary);
+      return;
+    }
+    if ((await deps.gateway.activeKeys()).has(row.key)) {
+      logSkip(
+        row.key,
+        {
+          kind: 'skip',
+          reason: 'busy',
+          detail: 'busy (active run, list)',
+          ownershipUnknown: false,
+        },
+        summary,
+      );
       return;
     }
     const outcome = await deps.gateway.reset(row.key, row.sessionId);

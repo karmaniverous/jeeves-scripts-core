@@ -12,7 +12,9 @@ import { row, turn } from './lib/session-refresh.fixtures.js';
 import type * as LiveModule from './lib/session-refresh-live.js';
 
 const mocks = vi.hoisted(() => ({
-  rpc: vi.fn<(method: string) => Promise<unknown>>(),
+  rpc: vi.fn<
+    (method: string, params?: Record<string, unknown>) => Promise<unknown>
+  >(),
   close: vi.fn(),
   usage: vi.fn(),
   settings: vi.fn(),
@@ -48,8 +50,9 @@ beforeEach(() => {
     excludedKeys: new Set<string>(),
   });
   mocks.usage.mockReturnValue(turn({ cacheRead: 500 }));
-  mocks.rpc.mockImplementation((method: string) => {
-    if (method === 'sessions.list') return Promise.resolve({ sessions: [due] });
+  mocks.rpc.mockImplementation((method, params) => {
+    if (method === 'sessions.list')
+      return Promise.resolve({ sessions: params?.activeOnly ? [] : [due] });
     if (method === 'sessions.describe')
       return Promise.resolve({ session: due });
     return Promise.reject(new Error('reset refused'));
@@ -97,8 +100,10 @@ describe('admin-refresh-sessions', () => {
     expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual([
       'sessions.list',
       'sessions.describe',
+      'sessions.list',
       'sessions.reset',
     ]);
+    expect(mocks.rpc.mock.calls[2]?.[1]).toMatchObject({ activeOnly: true });
     expect(process.exitCode).toBe(1);
   });
 

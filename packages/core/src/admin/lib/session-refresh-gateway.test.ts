@@ -16,6 +16,7 @@ import {
   MAIN_ROW,
 } from './session-refresh.fixtures.js';
 import {
+  activeSessionKeys,
   describeSession,
   isSessionChanged,
   LIST_PAGE_SIZE,
@@ -121,6 +122,30 @@ describe('listSessions', () => {
   });
 });
 
+describe('activeSessionKeys', () => {
+  it('pages sessions.list with activeOnly and returns the keys', async () => {
+    const rpc = rpcOf(
+      { sessions: [MAIN_ROW], hasMore: true, nextOffset: 1 },
+      { sessions: [{ key: 'agent:ops:main', sessionId: 's' }] },
+    );
+    const keys = await activeSessionKeys(rpc);
+    expect([...keys]).toEqual(['agent:main:main', 'agent:ops:main']);
+    expect(rpc.mock.calls).toEqual([
+      ['sessions.list', { activeOnly: true, limit: LIST_PAGE_SIZE, offset: 0 }],
+      ['sessions.list', { activeOnly: true, limit: LIST_PAGE_SIZE, offset: 1 }],
+    ]);
+  });
+
+  it('fails on a malformed active list or a failed call', async () => {
+    await expect(
+      activeSessionKeys(rpcOf({ sessions: [{ key: 'k' }] })),
+    ).rejects.toThrow('gateway sessions.list returned an unexpected shape');
+    await expect(
+      activeSessionKeys(rpcOf(new Error('gateway down'))),
+    ).rejects.toThrow('gateway down');
+  });
+});
+
 describe('describeSession', () => {
   it('returns the row, which may omit the activity fields', async () => {
     const rpc = rpcOf(MAIN_DESCRIBE);
@@ -191,15 +216,24 @@ describe('isSessionChanged', () => {
 });
 
 describe('sessionGateway', () => {
-  it('binds the three calls to one RPC caller', async () => {
-    const rpc = rpcOf({ sessions: [] }, MAIN_DESCRIBE, {});
+  it('binds the four calls to one RPC caller', async () => {
+    const rpc = rpcOf(
+      { sessions: [] },
+      { sessions: [MAIN_ROW] },
+      MAIN_DESCRIBE,
+      {},
+    );
     const gw = sessionGateway(rpc);
     await expect(gw.list()).resolves.toEqual([]);
+    await expect(gw.activeKeys()).resolves.toEqual(
+      new Set(['agent:main:main']),
+    );
     await expect(gw.describe('agent:main:main')).resolves.toMatchObject({
       key: 'agent:main:main',
     });
     await expect(gw.reset('agent:main:main', 'sid')).resolves.toBe('reset');
     expect(rpc.mock.calls.map((c) => c[0])).toEqual([
+      'sessions.list',
       'sessions.list',
       'sessions.describe',
       'sessions.reset',

@@ -78,6 +78,51 @@ describe('sessionRefresh (live)', () => {
     );
   });
 
+  it('skips a session in the active list when describe omits the busy fields, never resetting it', async () => {
+    const { deps, gateway } = depsFor([dueA], { a: BIG }, { live: true });
+    gateway.describe.mockResolvedValueOnce({
+      key: dueA.key,
+      sessionId: 'a',
+      lastInteractionAt: minutesAgo(90),
+    });
+    gateway.activeKeys.mockResolvedValueOnce(new Set([dueA.key]));
+    const s = await sessionRefresh(deps);
+    expect(gateway.reset).not.toHaveBeenCalled();
+    expect(deps.notify).not.toHaveBeenCalled();
+    expect(out.logs).toContain(
+      '[session-refresh] skip agent:main:slack:channel:ca: busy (active run, list)',
+    );
+    expect(s).toMatchObject({ reset: 0, failed: 0 });
+    expect(s.skipped.get('busy')).toBe(1);
+  });
+
+  it('resets when the active list holds other keys but not this one', async () => {
+    const { deps, gateway } = depsFor([dueA], { a: BIG }, { live: true });
+    gateway.describe.mockResolvedValueOnce({
+      key: dueA.key,
+      sessionId: 'a',
+      lastInteractionAt: minutesAgo(90),
+    });
+    gateway.activeKeys.mockResolvedValueOnce(new Set([dueB.key]));
+    const s = await sessionRefresh(deps);
+    expect(gateway.activeKeys).toHaveBeenCalledTimes(1);
+    expect(gateway.reset.mock.calls).toEqual([[dueA.key, 'a']]);
+    expect(s).toMatchObject({ reset: 1, failed: 0 });
+  });
+
+  it('counts a failed active list as a failure and does not reset', async () => {
+    const { deps, gateway } = depsFor([dueA], { a: BIG }, { live: true });
+    gateway.activeKeys.mockRejectedValueOnce(
+      new Error('gateway sessions.list returned an unexpected shape'),
+    );
+    const s = await sessionRefresh(deps);
+    expect(gateway.reset).not.toHaveBeenCalled();
+    expect(out.errors).toContain(
+      '[session-refresh] failed agent:main:slack:channel:ca: gateway sessions.list returned an unexpected shape',
+    );
+    expect(s).toMatchObject({ reset: 0, failed: 1 });
+  });
+
   it('treats a session-changed rejection as a skip', async () => {
     const { deps, gateway } = depsFor([dueA], { a: BIG }, { live: true });
     gateway.reset.mockResolvedValueOnce('changed' as never);
