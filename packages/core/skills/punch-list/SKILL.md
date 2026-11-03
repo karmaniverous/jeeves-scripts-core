@@ -1,6 +1,6 @@
 ---
 name: punch-list
-description: The instance's punch list of platform work. Use when anyone asks for a capability, fix or change to this assistant or its platform, when adding, ticking or reading punch-list items or milestones, or when working with the punch-list runnables.
+description: The instance's punch list of platform work - capability, fix or change requests for the assistant; add, tick, read items and milestones; punch-list runnables.
 metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 

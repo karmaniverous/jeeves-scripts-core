@@ -42,7 +42,12 @@ const EXPECTED = [
 
 /** A thin skill fits on a screen or two. */
 const MAX_LINES = 60;
-const MAX_DESCRIPTION = 400;
+/**
+ * OpenClaw cuts every catalog description to a compact form once the full
+ * catalog exceeds `skills.limits.maxSkillsPromptChars`, so descriptions stay
+ * short: trigger words, no filler.
+ */
+const MAX_DESCRIPTION = 160;
 
 const skills = fs
   .readdirSync(skillsDir, { withFileTypes: true })
@@ -104,12 +109,19 @@ export function parseFrontmatter(text: string): Record<string, string> {
     const kv = /^([a-z][\w-]*):\s*(.*)$/.exec(line);
     if (kv) {
       key = kv[1] ?? '';
-      out[key] = (kv[2] ?? '').replace(/^>\s*$/, '');
+      out[key] = unquote((kv[2] ?? '').replace(/^>\s*$/, ''));
     } else if (key && /^\s+\S/.test(line))
       out[key] = `${out[key] ?? ''} ${line.trim()}`.trim();
   }
   return out;
 }
+
+/** A YAML single- or double-quoted scalar's text (plain values unchanged). */
+const unquote = (value: string): string => {
+  const m = /^(['"])(.*)\1$/.exec(value);
+  if (!m) return value;
+  return m[1] === "'" ? (m[2] ?? '').replace(/''/g, "'") : (m[2] ?? '');
+};
 
 /** Markdown without fenced code blocks. */
 const prose = (text: string) => text.replace(/^(~~~~|```)[\s\S]*?^\1/gm, '');
@@ -164,6 +176,11 @@ describe('shipped skills', () => {
     expect(
       parseFrontmatter('---\nname: a\ndescription: >\n  b c\n  d\n---\nx'),
     ).toEqual({ name: 'a', description: 'b c d' });
+    expect(
+      parseFrontmatter(
+        "---\nname: 'a: b'\ndescription: \"it's\"\nx: 'it''s'\n---\n",
+      ),
+    ).toEqual({ name: 'a: b', description: "it's", x: "it's" });
     expect(parseFrontmatter('no frontmatter')).toEqual({});
   });
 
@@ -184,6 +201,12 @@ describe('shipped skills', () => {
       const fm = frontmatterSchema.parse(parseFrontmatter(text));
       expect(fm.name).toBe(name);
       expect(fm.metadata.openclaw.requires.env).toContain('JEEVES_SCRIPTS_DIR');
+    });
+
+    it('quotes a one-line description that YAML would misread', () => {
+      const raw = /^description: (.*)$/m.exec(text)?.[1] ?? '';
+      const plain = /^['"]/.test(raw) ? '' : raw;
+      expect(plain).not.toMatch(/: | #/);
     });
 
     it(`stays thin (at most ${String(MAX_LINES)} lines, no behaviour sections)`, () => {

@@ -1,7 +1,7 @@
 ---
 name: jeeves-email
-description: Email pipeline (gog Gmail, IMAP): add or backfill a mailbox; polling, download, triage, labels, curation signals; gog auth; email-respond auto-replies.
-metadata: { "openclaw": { "requires": { "env": ["JEEVES_SCRIPTS_DIR"] } } }
+description: 'Email pipeline (gog Gmail, IMAP): add or backfill a mailbox; polling, download, triage, labels, curation signals; gog auth; email-respond auto-replies.'
+metadata: { 'openclaw': { 'requires': { 'env': ['JEEVES_SCRIPTS_DIR'] } } }
 ---
 
 # Email Pipeline
