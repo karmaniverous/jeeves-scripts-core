@@ -45,14 +45,43 @@ function parseJson(text: string): unknown {
   }
 }
 
-/** Pull `error.message` out of a `{ ok: false, error }` CLI response. */
-function cliErrorMessage(parsed: unknown): string | undefined {
-  if (!isRecord(parsed) || parsed.ok !== false) return undefined;
-  const error = parsed.error;
-  if (isRecord(error) && typeof error.message === 'string') {
-    return error.message;
+/**
+ * A gateway call the gateway rejected: the CLI's `{ ok: false, error }`
+ * answer, with the gateway's error `code` (e.g. `INVALID_REQUEST`) and
+ * machine-readable `details` (e.g. `{ reason: 'session-changed' }`) when
+ * it sent them.
+ */
+export class GatewayRpcError extends Error {
+  /**
+   * @param method - The gateway method.
+   * @param detail - The gateway's error message.
+   * @param code - The gateway's error code, when given.
+   * @param details - The gateway's error details, when given.
+   */
+  constructor(
+    readonly method: string,
+    detail: string,
+    readonly code?: string,
+    readonly details?: unknown,
+  ) {
+    super(`gateway ${method} failed: ${detail}`);
+    this.name = 'GatewayRpcError';
   }
-  return 'unknown gateway error';
+}
+
+/** The gateway error in a `{ ok: false, error }` CLI response, if it is one. */
+function cliError(
+  method: string,
+  parsed: unknown,
+): GatewayRpcError | undefined {
+  if (!isRecord(parsed) || parsed.ok !== false) return undefined;
+  const error = isRecord(parsed.error) ? parsed.error : {};
+  return new GatewayRpcError(
+    method,
+    typeof error.message === 'string' ? error.message : 'unknown gateway error',
+    typeof error.code === 'string' ? error.code : undefined,
+    error.details,
+  );
 }
 
 /** Options for {@link gatewayRpc}. */
@@ -71,8 +100,8 @@ export interface GatewayRpcOptions {
  *   when omitted).
  * @param options - The CLI's wait for the answer.
  * @returns The method's result payload.
- * @throws Error when the CLI fails, the gateway rejects the call, or the
- *   output is not JSON.
+ * @throws {@link GatewayRpcError} when the gateway rejects the call; Error
+ *   when the CLI fails or the output is not JSON.
  */
 export function gatewayRpc(
   method: string,
@@ -104,9 +133,9 @@ export function gatewayRpc(
       },
       (err, stdout, stderr) => {
         const parsed = parseJson(stdout);
-        const gatewayError = cliErrorMessage(parsed);
+        const gatewayError = cliError(method, parsed);
         if (gatewayError) {
-          reject(new Error(`gateway ${method} failed: ${gatewayError}`));
+          reject(gatewayError);
           return;
         }
         if (err) {
