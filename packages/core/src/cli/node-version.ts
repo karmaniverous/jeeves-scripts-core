@@ -23,7 +23,15 @@ const parts = (version: string): number[] =>
     .slice(0, 3)
     .map((p) => Number.parseInt(p, 10) || 0);
 
-/** Whether `version` is at or above `floor` (both `x.y.z`, an optional `v`). */
+/** Whether a version carries a prerelease tag (`-...`, before any `+build`). */
+const isPrerelease = (version: string): boolean => /^[^+]*-/.test(version);
+
+/**
+ * Whether `version` is at or above `floor` (both `x.y.z`, an optional
+ * `v`). As in semver, a prerelease of a version (`24.22.2-pre`) sorts
+ * below it, so it does not meet a floor of that version; build metadata
+ * (`+build`) is ignored.
+ */
 export const meetsFloor = (version: string, floor = NODE_FLOOR): boolean => {
   const v = parts(version);
   const f = parts(floor);
@@ -32,7 +40,7 @@ export const meetsFloor = (version: string, floor = NODE_FLOOR): boolean => {
     const b = f[i] ?? 0;
     if (a !== b) return a > b;
   }
-  return true;
+  return isPrerelease(floor) || !isPrerelease(version);
 };
 
 /** The `doctor` Node check: whether it passes, and its report line. */

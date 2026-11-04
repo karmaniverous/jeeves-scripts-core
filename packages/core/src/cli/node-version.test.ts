@@ -42,10 +42,22 @@ describe('meetsFloor', () => {
     ['24.22', false],
     ['25', true],
     ['24.23', true],
-    ['24.22.2-pre', true],
     ['24.22.2+build', true],
   ])('reads the missing parts of %s as 0 => %s', (version, expected) => {
     expect(meetsFloor(version)).toBe(expected);
+  });
+
+  it.each([
+    ['24.22.2-pre', false],
+    ['v24.22.2-rc.1', false],
+    ['24.22.2+build-1', true],
+    ['24.22.3-pre', true],
+  ])('a prerelease sorts below its version: %s => %s', (version, expected) => {
+    expect(meetsFloor(version)).toBe(expected);
+  });
+
+  it('a prerelease meets a prerelease floor of the same version', () => {
+    expect(meetsFloor('24.22.2-pre', '24.22.2-pre')).toBe(true);
   });
 
   it('compares against a given floor, missing parts read as 0', () => {
