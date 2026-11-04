@@ -285,7 +285,9 @@ describe('doctor command', () => {
         ...running,
         value: node,
       });
-      writeConfig({ instance: { name: 't', baseDir: root } });
+      // An invalid config keeps the run short (no manifests are loaded);
+      // only the Node floor may set the exit code.
+      writeConfig({ instance: { name: 't' } });
       const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
       process.exitCode = undefined;
       try {
