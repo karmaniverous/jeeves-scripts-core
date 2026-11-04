@@ -1,7 +1,8 @@
 /**
  * Tests for the post-reset Slack notice: where it goes (account, channel
- * or DM, thread) for each recorded shape, no notice for a non-Slack
- * session, and the post through a fake Slack client.
+ * or DM, thread) for each recorded shape, no notice for a session that is
+ * not Slack-keyed with a Slack origin (an agent's main session never, even
+ * when its delivery is Slack), and the post through a fake Slack client.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -19,6 +20,10 @@ import {
   postResetNotice,
   slackNoticeTarget,
 } from './session-refresh-notice.js';
+
+/** A test row whose origin is Slack (and nothing more). */
+const slackRow = (over: Parameters<typeof row>[0] = {}) =>
+  row({ origin: { provider: 'slack' }, ...over });
 
 const fakeSlack = () => {
   const postMessage = vi.fn(() => Promise.resolve({ channel: 'C', ts: '1.2' }));
@@ -42,7 +47,7 @@ describe('slackNoticeTarget', () => {
     ],
     [
       'a delivery target only',
-      row({
+      slackRow({
         channel: 'slack',
         deliveryContext: { channel: 'slack', to: 'user:U0000000005' },
         lastAccountId: 'other',
@@ -57,34 +62,29 @@ describe('slackNoticeTarget', () => {
           to: 'channel:C0000000010',
           accountId: 'work',
         },
-        origin: { accountId: 'old' },
+        origin: { provider: 'slack', accountId: 'old' },
       }),
       { accountId: 'work', channel: 'C0000000010' },
     ],
     [
-      'a non-Slack key whose delivery is Slack',
-      row({
-        key: 'agent:main:main',
-        channel: null,
-        deliveryContext: { channel: 'slack', to: 'user:U0000000011' },
-      }),
-      { accountId: 'default', user: 'U0000000011' },
-    ],
-    [
       'the key only (channel), default account',
-      row({ key: 'agent:main:slack:channel:c0000000006' }),
+      slackRow({ key: 'agent:main:slack:channel:c0000000006' }),
       { accountId: 'default', channel: 'C0000000006' },
     ],
     [
       'the key only (DM)',
-      row({ key: 'agent:main:slack:direct:u0000000007' }),
+      slackRow({ key: 'agent:main:slack:direct:u0000000007' }),
       { accountId: 'default', user: 'U0000000007' },
     ],
     [
       'a thread-scoped key',
       row({
         key: 'agent:main:slack:channel:c0000000008:thread:1790000000.000100',
-        origin: { nativeChannelId: 'C0000000008', accountId: 'work' },
+        origin: {
+          provider: 'slack',
+          nativeChannelId: 'C0000000008',
+          accountId: 'work',
+        },
       }),
       {
         accountId: 'work',
@@ -94,23 +94,55 @@ describe('slackNoticeTarget', () => {
     ],
     [
       'an unparseable delivery target falls back to the key',
-      row({ deliveryContext: { channel: 'slack', to: 'somewhere' } }),
+      slackRow({ deliveryContext: { channel: 'slack', to: 'somewhere' } }),
+      { accountId: 'default', channel: 'C0000000009' },
+    ],
+    [
+      'a non-Slack delivery target falls back to the key',
+      slackRow({ deliveryContext: { channel: 'telegram', to: 'user:U42' } }),
       { accountId: 'default', channel: 'C0000000009' },
     ],
     [
       'a Slack row that names no conversation',
-      row({ key: 'agent:main:slack:other', channel: 'slack' }),
+      slackRow({ key: 'agent:main:slack:other', channel: 'slack' }),
       { accountId: 'default' },
     ],
   ])('%s', (_name, r, target) => {
     expect(slackNoticeTarget(row(r))).toEqual(target);
   });
 
-  it('is undefined for a non-Slack session', () => {
-    expect(slackNoticeTarget(row(MAIN_ROW))).toBeUndefined();
-    expect(isSlackSession(row({ key: 'agent:main:telegram:direct:42' }))).toBe(
-      false,
-    );
+  it.each([
+    ['the listed main session', row(MAIN_ROW)],
+    [
+      'a main session whose delivery and origin are Slack',
+      row({
+        key: 'agent:main:main',
+        channel: 'slack',
+        deliveryContext: { channel: 'slack', to: 'user:U0000000011' },
+        origin: { provider: 'slack', nativeChannelId: 'D0000000011' },
+      }),
+    ],
+    [
+      'a Slack key with no origin',
+      row({
+        channel: 'slack',
+        deliveryContext: { channel: 'slack', to: 'channel:C0000000009' },
+      }),
+    ],
+    [
+      'a Slack key whose origin is another channel',
+      row({ origin: { provider: 'telegram', nativeChannelId: '42' } }),
+    ],
+    [
+      'a non-Slack key with a Slack origin',
+      row({
+        key: 'agent:main:telegram:direct:42',
+        origin: { provider: 'slack', nativeChannelId: 'D0000000012' },
+      }),
+    ],
+  ])('is undefined for %s', (_name, r) => {
+    expect(isSlackSession(r)).toBe(false);
+    expect(slackNoticeTarget(r)).toBeUndefined();
   });
 });
 
@@ -132,7 +164,7 @@ describe('postResetNotice', () => {
   it('opens the DM when only the user is known, and posts in a thread', async () => {
     const s = fakeSlack();
     await postResetNotice(
-      row({ key: 'agent:main:slack:direct:u0000000007' }),
+      slackRow({ key: 'agent:main:slack:direct:u0000000007' }),
       s.slackFor,
     );
     expect(s.openDm).toHaveBeenCalledWith('U0000000007');
@@ -142,7 +174,7 @@ describe('postResetNotice', () => {
       undefined,
     );
     await postResetNotice(
-      row({ key: 'agent:main:slack:channel:c1:thread:1.2' }),
+      slackRow({ key: 'agent:main:slack:channel:c1:thread:1.2' }),
       s.slackFor,
     );
     expect(s.postMessage).toHaveBeenLastCalledWith('C1', NOTICE_TEXT, {
@@ -162,14 +194,14 @@ describe('postResetNotice', () => {
     const s = fakeSlack();
     await expect(
       postResetNotice(
-        row({ key: 'agent:main:slack:other', channel: 'slack' }),
+        slackRow({ key: 'agent:main:slack:other', channel: 'slack' }),
         s.slackFor,
       ),
     ).rejects.toThrow(
       'no Slack conversation recorded for agent:main:slack:other',
     );
     s.postMessage.mockRejectedValueOnce(new Error('channel_not_found'));
-    await expect(postResetNotice(row(), s.slackFor)).rejects.toThrow(
+    await expect(postResetNotice(slackRow(), s.slackFor)).rejects.toThrow(
       'channel_not_found',
     );
   });

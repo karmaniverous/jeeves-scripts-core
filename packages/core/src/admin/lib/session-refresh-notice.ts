@@ -5,7 +5,9 @@
  * behaviour 9): posted in the session's own conversation (its channel or
  * DM) as the Slack account the session belongs to, through core's Slack
  * client. An OpenClaw app message on Slack does not start a turn, so the
- * notice costs nothing. Sessions with no Slack conversation get none.
+ * notice costs nothing. Only a Slack-keyed session whose origin is Slack
+ * gets one (owner, 2026-11-04): an agent's main session never does, even
+ * when its last delivery went to Slack, since it serves many conversations.
  * Nothing is ever sent into the session itself.
  */
 
@@ -29,10 +31,15 @@ export interface SlackNoticeTarget {
   threadTs?: string;
 }
 
-/** Whether the row is a Slack session. */
+/**
+ * Whether the row is a Slack session that gets the notice: its key is a
+ * Slack key (`agent:<id>:slack:…`) and its origin is Slack. The delivery
+ * context alone never qualifies a row (an agent's main session delivers
+ * wherever it last spoke).
+ */
 export function isSlackSession(row: SessionRow): boolean {
-  if ((row.deliveryContext?.channel ?? row.channel) === 'slack') return true;
-  return parseKey(row.key)?.rest.startsWith('slack:') ?? false;
+  const slackKey = parseKey(row.key)?.rest.startsWith('slack:') ?? false;
+  return slackKey && row.origin?.provider === 'slack';
 }
 
 /** `channel:<id>` / `user:<id>` from a delivery target. */
@@ -59,8 +66,8 @@ function fromKey(rest: string): Partial<SlackNoticeTarget> {
 /**
  * Where a Slack session's notice goes: the account from its delivery
  * context (else its origin, else its last delivery, else `default`); the
- * conversation from `origin.nativeChannelId`, else the delivery target,
- * else the key; the thread from the key.
+ * conversation from the (Slack) origin's `nativeChannelId`, else a Slack
+ * delivery target, else the key; the thread from the key.
  *
  * @returns The target, or undefined when the row is not a Slack session.
  */
@@ -75,7 +82,8 @@ export function slackNoticeTarget(
     'default';
   const keyed = fromKey(parseKey(row.key)?.rest ?? '');
   const native = row.origin?.nativeChannelId;
-  const delivered = pick(fromTo(row.deliveryContext?.to));
+  const dc = row.deliveryContext;
+  const delivered = pick(fromTo(dc?.channel === 'slack' ? dc.to : undefined));
   const where = native
     ? { channel: native }
     : delivered.channel || delivered.user
