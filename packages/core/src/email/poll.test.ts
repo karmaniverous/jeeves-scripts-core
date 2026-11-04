@@ -213,7 +213,8 @@ describe('pollEmail', () => {
       await expect(pollEmail(d)).rejects.toThrow(
         'email/poll: 1 account(s) failed: [gog] a@x.com: gog exited 1',
       );
-      expect(runLines('_runs-a@x.com.jsonl').at(-1)).toMatchObject({
+      const failed = 'a@x.com';
+      expect(runLines(`_runs-${failed}.jsonl`).at(-1)).toMatchObject({
         kind: 'gog-poll',
         error: 'gog exited 1',
       });
