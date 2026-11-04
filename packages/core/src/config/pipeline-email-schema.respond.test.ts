@@ -99,19 +99,19 @@ describe('emailConfig.respond', () => {
         allowedSenders: [
           'Owner@Other.example',
           '*@Example.com',
-          '*@*.example.com',
+          '*@Sub.Example.com',
         ],
       },
     });
     expect(parsed().respond?.allowedSenders).toEqual([
       'owner@other.example',
       '*@example.com',
-      '*@*.example.com',
+      '*@sub.example.com',
     ]);
   });
 
-  it.each(['*', '*@*', '*@', '*@*.', 'j*@example.com', '*@*.*.example.com'])(
-    'rejects the invalid pattern %j, failing the config (#53)',
+  it.each(['*', '*@*', '*@', 'j*@example.com', '*@com', 'a<b>@x.example'])(
+    'rejects the invalid entry %j, failing the config (#53)',
     (entry) => {
       withEmailConfig({
         respond: {
@@ -120,10 +120,37 @@ describe('emailConfig.respond', () => {
         },
       });
       expect(() => parsed()).toThrow(
-        /must be an email address, \*@<domain> or \*@\*\.<domain>/,
+        /must be an email address or \*@<domain> \(an ASCII domain of two or more labels\); no other wildcard is supported/,
       );
     },
   );
+
+  it.each(['*@*.', '*@*.example.com', '*@*.*.example.com'])(
+    'rejects the subdomain pattern %j, failing the config',
+    (entry) => {
+      withEmailConfig({
+        respond: {
+          mailbox: 'aide@example.com',
+          allowedSenders: [entry],
+        },
+      });
+      expect(() => parsed()).toThrow(
+        /subdomain patterns \(\*@\*\.<domain>\) are not supported/,
+      );
+    },
+  );
+
+  it('rejects *@ a consumer mail domain, failing the config', () => {
+    withEmailConfig({
+      respond: {
+        mailbox: 'aide@example.com',
+        allowedSenders: ['*@gmail.com'],
+      },
+    });
+    expect(() => parsed()).toThrow(
+      /\*@gmail\.com would admit anyone with a gmail\.com account/,
+    );
+  });
 
   it('accepts a pattern covering the mailbox: qualification excludes it', () => {
     withEmailConfig({

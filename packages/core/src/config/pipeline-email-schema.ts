@@ -64,8 +64,8 @@ export const respondConfigSchema = z
     /** The mailbox that receives and replies to mail. */
     mailbox: emailAddressSchema,
     /**
-     * Senders allowed to trigger a reply: exact addresses, `*@example.com`
-     * (that domain) or `*@*.example.com` (its subdomains). Must not list
+     * Senders allowed to trigger a reply: exact addresses or
+     * `*@example.com` (that domain; not a consumer provider). Must not list
      * `mailbox` exactly; a pattern covering it never lets it qualify.
      */
     allowedSenders: z.array(allowedSenderSchema).min(1),
