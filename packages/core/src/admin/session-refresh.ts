@@ -65,6 +65,8 @@ export async function runSessionRefresh(live: boolean): Promise<void> {
       live,
       gateway: sessionGateway(liveRpc),
       usage: reader.usage,
+      // Close the DBs once selection is done, before the live resets.
+      doneReading: reader.close,
       notify: (row) => postResetNotice(row, liveSlack),
       now: Date.now,
     });

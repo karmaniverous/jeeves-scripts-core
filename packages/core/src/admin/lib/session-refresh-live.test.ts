@@ -2,7 +2,8 @@
  * Tests for session refresh's live collaborators: the settings from a temp
  * config's job delta, the RPC waits, the per-agent read-only DB reader on
  * schema-23 fixtures (opened once, missing DB and unsupported schema
- * fail), the Slack client per account, and the doctor check over fakes.
+ * fail), the Slack client per account, and the doctor check over fakes
+ * (the listed agents' DBs, never a hardcoded one).
  * Nothing here calls the gateway, Slack or a real agent DB.
  */
 
@@ -138,17 +139,54 @@ describe('sessionRefreshDoctorCheck', () => {
     close: vi.fn(),
   });
 
-  it('passes when the main agent DB reads and the gateway answers', async () => {
-    const rpc = vi.fn(() => Promise.resolve({ sessions: [] }));
-    await expect(sessionRefreshDoctorCheck(rpc, okReader)).resolves.toBe(true);
-    expect(rpc).toHaveBeenCalledWith('sessions.list', { limit: 1 });
+  /** A gateway listing sessions of the given keys (one page). */
+  const listing = (...keys: string[]) =>
+    vi.fn(() =>
+      Promise.resolve({
+        sessions: keys.map((key, i) => ({ key, sessionId: `s${String(i)}` })),
+      }),
+    );
+
+  it('passes when every listed agent DB reads and the gateway answers', async () => {
+    const rpc = listing('agent:ops:main', 'agent:ops:slack:channel:c1');
+    const usageFn = vi.fn(() => undefined);
+    const close = vi.fn();
+    await expect(
+      sessionRefreshDoctorCheck(rpc, () => ({ usage: usageFn, close })),
+    ).resolves.toBe(true);
+    expect(rpc).toHaveBeenCalledWith(
+      'sessions.list',
+      expect.objectContaining({ offset: 0 }),
+    );
+    // Each listed agent once; never a hardcoded `main`.
+    expect(usageFn.mock.calls).toEqual([['ops', '']]);
+    expect(close).toHaveBeenCalledTimes(1);
   });
 
-  it('reports an unreadable agent DB', async () => {
+  it('passes with nothing listed, reading no DB', async () => {
+    const usageFn = vi.fn(() => undefined);
+    await expect(
+      sessionRefreshDoctorCheck(listing(), () => ({
+        usage: usageFn,
+        close: vi.fn(),
+      })),
+    ).resolves.toBe(true);
+    expect(usageFn).not.toHaveBeenCalled();
+  });
+
+  it('reports an unreadable agent DB for a listed agent', async () => {
     const reader = () => openUsageReader(dbPathFor);
     await expect(
-      sessionRefreshDoctorCheck(() => Promise.resolve({}), reader),
-    ).resolves.toMatch(/^agent DB: OpenClaw agent DB for agent main not found/);
+      sessionRefreshDoctorCheck(listing('agent:ops:main'), reader),
+    ).resolves.toMatch(/^agent DB: OpenClaw agent DB for agent ops not found/);
+  });
+
+  it('reports a malformed list as a gateway problem', async () => {
+    await expect(
+      sessionRefreshDoctorCheck(() => Promise.resolve({}), okReader),
+    ).resolves.toMatch(
+      /^gateway: gateway sessions.list returned an unexpected shape/,
+    );
   });
 
   it('reports an unreachable gateway', async () => {
@@ -160,11 +198,14 @@ describe('sessionRefreshDoctorCheck', () => {
     ).resolves.toBe('gateway: ECONNREFUSED');
   });
 
-  it("defaults to the live reader under OpenClaw's state directory", async () => {
+  it("defaults to the live RPC and the reader under OpenClaw's state directory", async () => {
     vi.stubEnv('USERPROFILE', root);
+    mocks.gatewayRpc.mockResolvedValueOnce({
+      sessions: [{ key: 'agent:main:main', sessionId: 's' }],
+    });
     await expect(sessionRefreshDoctorCheck()).resolves.toContain(
       path.join(root, '.openclaw', 'agents', 'main'),
     );
-    expect(mocks.gatewayRpc).not.toHaveBeenCalled();
+    expect(mocks.gatewayRpc).toHaveBeenCalledTimes(1);
   });
 });

@@ -52,6 +52,8 @@ export interface SessionRefreshDeps {
   gateway: SessionGateway;
   /** A session's last-turn usage from its agent's DB (throws when the DB can't be read). */
   usage: (agentId: string, sessionId: string) => LastTurnUsage | undefined;
+  /** Selection is done: release the agent DBs before any live call. */
+  doneReading: () => void;
   /** Post the Slack notice for a reset session (`none` for a non-Slack session). */
   notify: (row: SessionRow) => Promise<'posted' | 'none'>;
   /** Clock (ms). */
@@ -237,6 +239,8 @@ export async function sessionRefresh(
     .filter((d): d is DueSession => d !== undefined)
     .sort((a, b) => a.due.lastActivityMs - b.due.lastActivityMs);
   summary.due = due.length;
+  // The re-check reuses each due session's usage; no DB read follows.
+  deps.doneReading();
   if (summary.outOfScope.size)
     console.log(`${TAG} out of scope: ${counts(summary.outOfScope)}`);
   for (const session of due) {

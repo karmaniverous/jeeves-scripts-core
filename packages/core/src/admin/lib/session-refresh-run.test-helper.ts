@@ -58,6 +58,7 @@ export function depsFor(
     live: false,
     gateway,
     usage: vi.fn((_agent: string, sid: string) => usage[sid]),
+    doneReading: vi.fn(),
     notify: vi.fn(() => Promise.resolve('posted' as const)),
     now: () => NOW,
     ...over,

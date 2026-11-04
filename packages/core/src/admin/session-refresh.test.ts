@@ -98,7 +98,18 @@ describe('admin-refresh-sessions', () => {
     await job.run({ args: [] });
     expect(mocks.rpc.mock.calls.map((c) => c[0])).toEqual(['sessions.list']);
     expect(process.exitCode).toBeUndefined();
-    expect(mocks.close).toHaveBeenCalledTimes(1);
+    expect(mocks.close).toHaveBeenCalled();
+  });
+
+  it('closes the agent DBs after selection, before the first live re-check', async () => {
+    await job.run({ args: ['--live'] });
+    const describeAt = mocks.rpc.mock.calls.findIndex(
+      (c) => c[0] === 'sessions.describe',
+    );
+    expect(mocks.usage).toHaveBeenCalledTimes(1);
+    expect(mocks.close.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.rpc.mock.invocationCallOrder[describeAt]!,
+    );
   });
 
   it('resets with --live, and sets exit code 1 after a failed reset', async () => {

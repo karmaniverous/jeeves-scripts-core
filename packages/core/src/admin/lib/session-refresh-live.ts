@@ -6,7 +6,7 @@
  * gateway calls through `gatewayRpc`, the agent DBs opened read-only once
  * per agent per run (`{openclawStateDir}/agents/<agentId>/agent/openclaw-agent.sqlite`,
  * `agentDbPath`), the Slack client for a gateway account (its bot token
- * from OpenClaw's config) and the doctor check.
+ * from OpenClaw's config) and the doctor check (over the listed agents).
  */
 
 import fs from 'node:fs';
@@ -20,7 +20,8 @@ import { slackBotToken } from '../../lib/openclaw-config.js';
 import { createSlackClient, type SlackClient } from '../../lib/slack-client.js';
 import { type AgentDb, openAgentDb } from './openclaw-db/open-agent-db.js';
 import type { LastTurnUsage, OpenClawDbSchema } from './openclaw-db/types.js';
-import type { RefreshSettings } from './session-refresh-select.js';
+import { listSessions } from './session-refresh-gateway.js';
+import { agentOf, type RefreshSettings } from './session-refresh-select.js';
 import { refreshSettings } from './session-refresh-settings.js';
 
 /** The runnable id; its `jobs.<id>` delta carries the settings. */
@@ -104,8 +105,9 @@ export const liveSlack = (accountId: string): SlackClient =>
   createSlackClient({ token: slackBotToken(accountId) });
 
 /**
- * The doctor check: the main agent's DB opens with a supported schema and
- * the gateway answers `sessions.list`.
+ * The doctor check: the gateway answers `sessions.list`, and the DB of
+ * every agent with a listed session opens with a supported schema (the
+ * agents a run would read, never a hardcoded one).
  *
  * @returns `true`, or why a run would fail now.
  */
@@ -113,20 +115,22 @@ export async function sessionRefreshDoctorCheck(
   rpc: GatewayRpc = liveRpc,
   reader: () => UsageReader = openUsageReader,
 ): Promise<true | string> {
+  let agents: Set<string>;
+  try {
+    const rows = await listSessions(rpc);
+    agents = new Set(rows.map(agentOf).filter((a) => a !== undefined));
+  } catch (err) {
+    return `gateway: ${getErrorMessage(err)}`;
+  }
   try {
     const r = reader();
     try {
-      r.usage('main', '');
+      for (const agentId of agents) r.usage(agentId, '');
     } finally {
       r.close();
     }
   } catch (err) {
     return `agent DB: ${getErrorMessage(err)}`;
-  }
-  try {
-    await rpc('sessions.list', { limit: 1 });
-  } catch (err) {
-    return `gateway: ${getErrorMessage(err)}`;
   }
   return true;
 }

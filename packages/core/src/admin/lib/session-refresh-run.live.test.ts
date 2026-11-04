@@ -9,7 +9,7 @@
  * never fails the run.
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { minutesAgo, row } from './session-refresh.fixtures.js';
 import { sessionRefresh, summaryLine } from './session-refresh-run.js';
@@ -36,6 +36,11 @@ describe('sessionRefresh (live)', () => {
       ['agent:main:slack:channel:ca', 'a'],
     ]);
     expect(gateway.describe).toHaveBeenCalledTimes(2);
+    // The agent DBs are released once, before the first re-check.
+    expect(deps.doneReading).toHaveBeenCalledTimes(1);
+    expect(
+      vi.mocked(deps.doneReading).mock.invocationCallOrder[0],
+    ).toBeLessThan(gateway.describe.mock.invocationCallOrder[0]!);
     expect(deps.notify).toHaveBeenCalledWith(dueA);
     expect(out.logs).toContain(
       '[session-refresh] reset agent:main:slack:channel:ca (context 200000, idle 90 min, old session a)',
