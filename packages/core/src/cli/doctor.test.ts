@@ -107,6 +107,19 @@ describe('doctorReport', () => {
     ]);
   });
 
+  it('reports the Node version it is given against the floor (#75)', async () => {
+    writeConfig({ instance: { name: 't' } });
+
+    const lines = await doctorReport(root, {
+      ...options(),
+      nodeVersion: '24.18.0',
+    });
+
+    expect(lines[1]).toMatch(
+      /^node: 24\.18\.0: FAILED: requires >=24\.22\.2; /,
+    );
+  });
+
   it("runs each manifest runnable's prerequisite check for its state (R29)", async () => {
     writeConfig({ instance: { name: 't', baseDir: root } });
     fs.mkdirSync(path.join(root, 'jobs'));

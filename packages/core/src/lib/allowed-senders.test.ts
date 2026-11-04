@@ -53,6 +53,16 @@ describe('isAllowedSender', () => {
     expect(isAllowedSender('john@example.com', ['jane@example.com'])).toBe(
       false,
     );
+    expect(isAllowedSender(' jane@example.com ', ['jane@example.com'])).toBe(
+      true,
+    );
+  });
+
+  it('an exact entry matches only the whole address', () => {
+    const entries = ['jane@example.com'];
+    expect(isAllowedSender('xjane@example.com', entries)).toBe(false);
+    expect(isAllowedSender('jane@example.com.evil.test', entries)).toBe(false);
+    expect(isAllowedSender('jane@sub.example.com', entries)).toBe(false);
   });
 
   it('*@domain matches exactly that domain, not a subdomain', () => {

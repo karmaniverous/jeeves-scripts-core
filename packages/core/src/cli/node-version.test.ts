@@ -72,6 +72,16 @@ describe('nodeCheck', () => {
   });
 
   it('defaults to the running Node', () => {
-    expect(nodeCheck().line).toContain(process.versions.node);
+    const running = Object.getOwnPropertyDescriptor(process.versions, 'node');
+    Object.defineProperty(process.versions, 'node', {
+      ...running,
+      value: '24.18.0',
+    });
+    try {
+      expect(nodeCheck()).toMatchObject({ ok: false });
+      expect(nodeCheck().line).toMatch(/^node: 24\.18\.0: FAILED/);
+    } finally {
+      if (running) Object.defineProperty(process.versions, 'node', running);
+    }
   });
 });
