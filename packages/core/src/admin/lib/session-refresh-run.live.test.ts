@@ -2,14 +2,16 @@
  * Tests for the live session-refresh run flow over fake collaborators: it
  * re-checks, resets with `expectedSessionId` oldest first and posts the
  * notice; the re-check catches a session that became busy, recently active
- * or changed; a `session-changed` rejection is a skip; another failure is
+ * or changed, or whose spawned child runs; the active list is read fresh
+ * per due session after its describe; a `session-changed` rejection is a
+ * skip; another failure is
  * counted and the next session still tried; a failed notice is counted but
  * never fails the run.
  */
 
 import { describe, expect, it } from 'vitest';
 
-import { minutesAgo } from './session-refresh.fixtures.js';
+import { minutesAgo, row } from './session-refresh.fixtures.js';
 import { sessionRefresh, summaryLine } from './session-refresh-run.js';
 import {
   BIG,
@@ -85,7 +87,7 @@ describe('sessionRefresh (live)', () => {
       sessionId: 'a',
       lastInteractionAt: minutesAgo(90),
     });
-    gateway.activeKeys.mockResolvedValueOnce(new Set([dueA.key]));
+    gateway.active.mockResolvedValueOnce([dueA]);
     const s = await sessionRefresh(deps);
     expect(gateway.reset).not.toHaveBeenCalled();
     expect(deps.notify).not.toHaveBeenCalled();
@@ -103,9 +105,9 @@ describe('sessionRefresh (live)', () => {
       sessionId: 'a',
       lastInteractionAt: minutesAgo(90),
     });
-    gateway.activeKeys.mockResolvedValueOnce(new Set([dueB.key]));
+    gateway.active.mockResolvedValueOnce([dueB]);
     const s = await sessionRefresh(deps);
-    expect(gateway.activeKeys).toHaveBeenCalledTimes(1);
+    expect(gateway.active).toHaveBeenCalledTimes(1);
     expect(gateway.reset.mock.calls).toEqual([[dueA.key, 'a']]);
     expect(out.logs).toContain(
       '[session-refresh] reset agent:main:slack:channel:ca (context 200000, idle 90 min, old session a)',
@@ -113,9 +115,69 @@ describe('sessionRefresh (live)', () => {
     expect(s).toMatchObject({ reset: 1, failed: 0 });
   });
 
+  it.each([
+    ['spawnedBy', { spawnedBy: dueA.key }],
+    ['parentSessionKey', { parentSessionKey: dueA.key }],
+  ])(
+    'skips a session whose spawned child is in the active list (%s)',
+    async (_field, lineage) => {
+      const { deps, gateway } = depsFor([dueA], { a: BIG }, { live: true });
+      gateway.active.mockResolvedValueOnce([
+        row({ key: 'agent:main:subagent:x', sessionId: 'x', ...lineage }),
+      ]);
+      const s = await sessionRefresh(deps);
+      expect(gateway.reset).not.toHaveBeenCalled();
+      expect(out.logs).toContain(
+        '[session-refresh] skip agent:main:slack:channel:ca: busy (child run)',
+      );
+      expect(s.skipped.get('busy')).toBe(1);
+    },
+  );
+
+  it('reads the active list afresh for each due session, after its describe', async () => {
+    const { deps, gateway } = depsFor(
+      [dueA, dueB],
+      { a: BIG, b: BIG },
+      { live: true },
+    );
+    const calls: string[] = [];
+    gateway.describe.mockImplementation((key: string) => {
+      calls.push(`describe ${key}`);
+      return Promise.resolve(key === dueA.key ? dueA : dueB);
+    });
+    // B is reset first (oldest); A's child starts running only after that.
+    gateway.active
+      .mockImplementationOnce(() => {
+        calls.push('active');
+        return Promise.resolve([]);
+      })
+      .mockImplementationOnce(() => {
+        calls.push('active');
+        return Promise.resolve([
+          row({ key: 'agent:main:subagent:y', spawnedBy: dueA.key }),
+        ]);
+      });
+    gateway.reset.mockImplementation((key: string) => {
+      calls.push(`reset ${key}`);
+      return Promise.resolve('reset');
+    });
+    const s = await sessionRefresh(deps);
+    expect(calls).toEqual([
+      `describe ${dueB.key}`,
+      'active',
+      `reset ${dueB.key}`,
+      `describe ${dueA.key}`,
+      'active',
+    ]);
+    expect(s).toMatchObject({ reset: 1, failed: 0 });
+    expect(out.logs).toContain(
+      '[session-refresh] skip agent:main:slack:channel:ca: busy (child run)',
+    );
+  });
+
   it('counts a failed active list as a failure and does not reset', async () => {
     const { deps, gateway } = depsFor([dueA], { a: BIG }, { live: true });
-    gateway.activeKeys.mockRejectedValueOnce(
+    gateway.active.mockRejectedValueOnce(
       new Error('gateway sessions.list returned an unexpected shape'),
     );
     const s = await sessionRefresh(deps);
@@ -128,7 +190,7 @@ describe('sessionRefresh (live)', () => {
 
   it('treats a session-changed rejection as a skip', async () => {
     const { deps, gateway } = depsFor([dueA], { a: BIG }, { live: true });
-    gateway.reset.mockResolvedValueOnce('changed' as never);
+    gateway.reset.mockResolvedValueOnce('changed');
     const s = await sessionRefresh(deps);
     expect(s).toMatchObject({ reset: 0, failed: 0 });
     expect(s.skipped.get('changed')).toBe(1);

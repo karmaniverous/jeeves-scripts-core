@@ -11,6 +11,7 @@ import { minutesAgo, NOW, row, turn } from './session-refresh.fixtures.js';
 import {
   agentOf,
   busyOf,
+  childRunParents,
   decide,
   lastActivityOf,
   parseKey,
@@ -104,6 +105,44 @@ describe('busyOf', () => {
     expect(busyOf(r)).toEqual(
       busy ? { busy, ownershipUnknown } : { ownershipUnknown },
     );
+  });
+
+  it('is busy (child run) when a spawned child runs, own run first', () => {
+    const parents = new Set([row().key]);
+    expect(busyOf(row(), parents)).toEqual({
+      busy: 'busy (child run)',
+      ownershipUnknown: false,
+    });
+    expect(busyOf(row({ hasActiveRun: true }), parents).busy).toBe(
+      'busy (active run)',
+    );
+    expect(busyOf(row({ key: 'agent:main:main' }), parents).busy).toBe(
+      undefined,
+    );
+  });
+});
+
+describe('childRunParents', () => {
+  const child = (over: Parameters<typeof row>[0]) =>
+    row({ key: 'agent:main:subagent:c', ...over });
+
+  it('names the parents of rows with an active run, by either lineage field', () => {
+    const rows = [
+      child({ spawnedBy: 'agent:main:main', hasActiveRun: true }),
+      child({ parentSessionKey: 'p2', activeRunIds: ['r'] }),
+      child({ spawnedBy: 'idle-parent' }),
+      child({ spawnedBy: 'p3', parentSessionKey: 'p4', hasActiveRun: true }),
+      row({ hasActiveRun: true }),
+    ];
+    expect(childRunParents(rows)).toEqual(
+      new Set(['agent:main:main', 'p2', 'p3', 'p4']),
+    );
+  });
+
+  it('takes every row as running when told to (the active list)', () => {
+    expect(
+      childRunParents([child({ spawnedBy: 'idle-parent' })], () => true),
+    ).toEqual(new Set(['idle-parent']));
   });
 });
 

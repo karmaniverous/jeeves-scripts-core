@@ -91,8 +91,8 @@ export type ResetOutcome = 'reset' | 'changed';
 export interface SessionGateway {
   /** Every unarchived session (all pages, deduplicated by key). */
   list: () => Promise<SessionRow[]>;
-  /** The keys of every session with an active run now (`activeOnly: true`). */
-  activeKeys: () => Promise<Set<string>>;
+  /** Every session with an active run now (`activeOnly: true`), its lineage included. */
+  active: () => Promise<SessionRow[]>;
   /** One session's current row. */
   describe: (key: string) => Promise<SessionRow>;
   /** Reset a session unless its id has changed since it was read. */
@@ -154,15 +154,14 @@ export async function listSessions(
 }
 
 /**
- * The keys of every session with an active run now: `sessions.list` with
- * `activeOnly: true`, every page, each row schema-checked.
+ * Every session with an active run now: `sessions.list` with
+ * `activeOnly: true`, every page, each row schema-checked. A row's
+ * `spawnedBy` / `parentSessionKey` names the session that spawned it.
  *
  * @throws As {@link listSessions}.
  */
-export async function activeSessionKeys(rpc: GatewayRpc): Promise<Set<string>> {
-  const rows = await listSessions(rpc, { activeOnly: true });
-  return new Set(rows.map((r) => r.key));
-}
+export const activeSessions = (rpc: GatewayRpc): Promise<SessionRow[]> =>
+  listSessions(rpc, { activeOnly: true });
 
 /**
  * One session's current row.
@@ -212,7 +211,7 @@ export async function resetSession(
 /** The calls bound to one RPC caller. */
 export const sessionGateway = (rpc: GatewayRpc): SessionGateway => ({
   list: () => listSessions(rpc),
-  activeKeys: () => activeSessionKeys(rpc),
+  active: () => activeSessions(rpc),
   describe: (key) => describeSession(rpc, key),
   reset: (key, expectedSessionId) => resetSession(rpc, key, expectedSessionId),
 });

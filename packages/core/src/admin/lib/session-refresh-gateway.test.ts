@@ -16,7 +16,7 @@ import {
   MAIN_ROW,
 } from './session-refresh.fixtures.js';
 import {
-  activeSessionKeys,
+  activeSessions,
   describeSession,
   isSessionChanged,
   LIST_PAGE_SIZE,
@@ -122,14 +122,25 @@ describe('listSessions', () => {
   });
 });
 
-describe('activeSessionKeys', () => {
-  it('pages sessions.list with activeOnly and returns the keys', async () => {
+describe('activeSessions', () => {
+  it('pages sessions.list with activeOnly and returns the rows with their lineage', async () => {
     const rpc = rpcOf(
       { sessions: [MAIN_ROW], hasMore: true, nextOffset: 1 },
-      { sessions: [{ key: 'agent:ops:main', sessionId: 's' }] },
+      {
+        sessions: [
+          {
+            key: 'agent:ops:subagent:x',
+            sessionId: 's',
+            spawnedBy: 'agent:ops:main',
+          },
+        ],
+      },
     );
-    const keys = await activeSessionKeys(rpc);
-    expect([...keys]).toEqual(['agent:main:main', 'agent:ops:main']);
+    const rows = await activeSessions(rpc);
+    expect(rows.map((r) => [r.key, r.spawnedBy])).toEqual([
+      ['agent:main:main', undefined],
+      ['agent:ops:subagent:x', 'agent:ops:main'],
+    ]);
     expect(rpc.mock.calls).toEqual([
       ['sessions.list', { activeOnly: true, limit: LIST_PAGE_SIZE, offset: 0 }],
       ['sessions.list', { activeOnly: true, limit: LIST_PAGE_SIZE, offset: 1 }],
@@ -138,10 +149,10 @@ describe('activeSessionKeys', () => {
 
   it('fails on a malformed active list or a failed call', async () => {
     await expect(
-      activeSessionKeys(rpcOf({ sessions: [{ key: 'k' }] })),
+      activeSessions(rpcOf({ sessions: [{ key: 'k' }] })),
     ).rejects.toThrow('gateway sessions.list returned an unexpected shape');
     await expect(
-      activeSessionKeys(rpcOf(new Error('gateway down'))),
+      activeSessions(rpcOf(new Error('gateway down'))),
     ).rejects.toThrow('gateway down');
   });
 });
@@ -225,9 +236,9 @@ describe('sessionGateway', () => {
     );
     const gw = sessionGateway(rpc);
     await expect(gw.list()).resolves.toEqual([]);
-    await expect(gw.activeKeys()).resolves.toEqual(
-      new Set(['agent:main:main']),
-    );
+    await expect(gw.active()).resolves.toMatchObject([
+      { key: 'agent:main:main' },
+    ]);
     await expect(gw.describe('agent:main:main')).resolves.toMatchObject({
       key: 'agent:main:main',
     });

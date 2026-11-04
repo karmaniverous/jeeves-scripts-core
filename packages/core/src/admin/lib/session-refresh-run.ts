@@ -8,14 +8,16 @@
  * logs what it would reset (dry run) or, oldest activity first, re-checks
  * each due session with `sessions.describe` and the active list
  * (`sessions.list` with `activeOnly: true`, since describe can omit the
- * busy fields) and resets it with `sessions.reset` fenced by
+ * busy fields; the session, or a session it spawned, present there is
+ * busy) and resets it with `sessions.reset` fenced by
  * `expectedSessionId`, posting the Slack notice
  * after a successful reset. A failed list, a malformed result or an
  * unreadable agent DB throws (the run fails); a failed reset is counted,
  * the rest are still tried, and the caller fails the run. A dry run makes
  * neither re-check: its rows come straight from `sessions.list`, whose
  * `hasActiveRun` is authoritative, so the preview already applies the
- * busy test. Every collaborator is a parameter.
+ * busy test, including a spawned child's active run in the same list.
+ * Every collaborator is a parameter.
  */
 
 import { getErrorMessage } from '@karmaniverous/jeeves';
@@ -25,6 +27,8 @@ import type { SessionGateway, SessionRow } from './session-refresh-gateway.js';
 import {
   agentOf,
   busyOf,
+  CHILD_RUN,
+  childRunParents,
   decide,
   type Decision,
   type Due,
@@ -82,6 +86,21 @@ const CHANGED = skip('changed', 'changed');
 /** The active list (`activeOnly: true`) holds the session. */
 const LISTED_ACTIVE = skip('busy', 'busy (active run, list)');
 
+/** The active list holds a session this one spawned. */
+const LISTED_CHILD = skip('busy', CHILD_RUN);
+
+/** The re-check's verdict from the active list: the session or its child there. */
+function activeListSkip(
+  key: string,
+  active: readonly SessionRow[],
+): Skip | undefined {
+  if (active.some((r) => r.key === key)) return LISTED_ACTIVE;
+  // Every row of the active list has a run going.
+  return childRunParents(active, () => true).has(key)
+    ? LISTED_CHILD
+    : undefined;
+}
+
 const bump = <K>(map: Map<K, number>, key: K): void => {
   map.set(key, (map.get(key) ?? 0) + 1);
 };
@@ -105,7 +124,7 @@ function describeDue({ row, due }: DueSession, session = 'session'): string {
 function select(
   row: SessionRow,
   deps: SessionRefreshDeps,
-  now: number,
+  ctx: { now: number; childParents: ReadonlySet<string> },
   summary: RefreshSummary,
 ): DueSession | undefined {
   const scope = scopeOf(row, deps.settings);
@@ -119,7 +138,7 @@ function select(
   }
   summary.inScope++;
   // Busy before usage: a busy session's agent DB is never read.
-  const { busy, ownershipUnknown } = busyOf(row);
+  const { busy, ownershipUnknown } = busyOf(row, ctx.childParents);
   if (busy) {
     logSkip(row.key, skip('busy', busy, ownershipUnknown), summary);
     return undefined;
@@ -127,7 +146,7 @@ function select(
   const agentId = agentOf(row);
   if (!agentId) throw new Error(`${TAG} no agent for session ${row.key}`);
   const usage = deps.usage(agentId, row.sessionId);
-  const decision = decide(row, usage, deps.settings, now);
+  const decision = decide(row, usage, deps.settings, ctx.now);
   if (decision.kind === 'skip') {
     logSkip(row.key, decision, summary);
     return undefined;
@@ -153,8 +172,9 @@ async function resetOne(
       logSkip(row.key, recheck, summary);
       return;
     }
-    if ((await deps.gateway.activeKeys()).has(row.key)) {
-      logSkip(row.key, LISTED_ACTIVE, summary);
+    const listed = activeListSkip(row.key, await deps.gateway.active());
+    if (listed) {
+      logSkip(row.key, listed, summary);
       return;
     }
     if ((await deps.gateway.reset(row.key, row.sessionId)) === 'changed') {
@@ -211,9 +231,9 @@ export async function sessionRefresh(
     failed: 0,
     noticeFailed: 0,
   };
-  const now = deps.now();
+  const ctx = { now: deps.now(), childParents: childRunParents(rows) };
   const due = rows
-    .map((row) => select(row, deps, now, summary))
+    .map((row) => select(row, deps, ctx, summary))
     .filter((d): d is DueSession => d !== undefined)
     .sort((a, b) => a.due.lastActivityMs - b.due.lastActivityMs);
   summary.due = due.length;

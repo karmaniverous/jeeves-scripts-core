@@ -8,7 +8,11 @@ import { afterEach, beforeEach, vi } from 'vitest';
 
 import type { LastTurnUsage } from './openclaw-db/types.js';
 import { minutesAgo, NOW, row, turn } from './session-refresh.fixtures.js';
-import type { SessionGateway, SessionRow } from './session-refresh-gateway.js';
+import type {
+  ResetOutcome,
+  SessionGateway,
+  SessionRow,
+} from './session-refresh-gateway.js';
 import type { SessionRefreshDeps } from './session-refresh-run.js';
 
 /** A last turn over the default threshold. */
@@ -37,11 +41,13 @@ export function depsFor(
 ) {
   const gateway = {
     list: vi.fn(() => Promise.resolve(rows)),
-    activeKeys: vi.fn(() => Promise.resolve(new Set<string>())),
+    active: vi.fn(() => Promise.resolve([] as SessionRow[])),
     describe: vi.fn((key: string) =>
       Promise.resolve(rows.find((r) => r.key === key) ?? row({ key })),
     ),
-    reset: vi.fn(() => Promise.resolve('reset' as const)),
+    reset: vi.fn((_key: string, _expectedSessionId: string) =>
+      Promise.resolve<ResetOutcome>('reset'),
+    ),
   } satisfies SessionGateway;
   const deps: SessionRefreshDeps = {
     settings: {

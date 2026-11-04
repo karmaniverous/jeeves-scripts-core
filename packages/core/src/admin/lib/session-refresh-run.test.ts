@@ -30,7 +30,7 @@ describe('sessionRefresh (dry run)', () => {
     });
     const s = await sessionRefresh(deps);
     expect(gateway.describe).not.toHaveBeenCalled();
-    expect(gateway.activeKeys).not.toHaveBeenCalled();
+    expect(gateway.active).not.toHaveBeenCalled();
     expect(gateway.reset).not.toHaveBeenCalled();
     expect(deps.notify).not.toHaveBeenCalled();
     expect(out.logs).toContain(
@@ -92,6 +92,31 @@ describe('sessionRefresh (dry run)', () => {
     );
     expect(deps.usage).not.toHaveBeenCalledWith('main', 'x');
     expect(s.failed).toBe(0);
+  });
+
+  it('skips a session whose spawned child in the list has an active run', async () => {
+    const childOf = (parent: string, over: Parameters<typeof row>[0]) =>
+      row({ key: `agent:main:subagent:${parent}`, spawnedBy: parent, ...over });
+    const { deps, gateway } = depsFor(
+      [
+        dueA,
+        dueB,
+        childOf(dueA.key, { activeRunIds: ['r1'] }),
+        childOf(dueB.key, { hasActiveRun: false }),
+      ],
+      { a: BIG, b: BIG },
+    );
+    const s = await sessionRefresh(deps);
+    expect(out.logs).toContain(
+      '[session-refresh] skip agent:main:slack:channel:ca: busy (child run)',
+    );
+    expect(out.logs).toContain(
+      '[session-refresh] would reset agent:ops:slack:channel:cb (context 200000, idle 120 min, session b)',
+    );
+    expect(deps.usage).not.toHaveBeenCalledWith('main', 'a');
+    expect(gateway.active).not.toHaveBeenCalled();
+    expect(s).toMatchObject({ due: 1 });
+    expect(s.skipped.get('busy')).toBe(1);
   });
 
   it('logs 0 sessions for an empty list', async () => {

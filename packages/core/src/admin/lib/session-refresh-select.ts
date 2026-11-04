@@ -89,16 +89,45 @@ export function scopeOf(row: SessionRow, settings: RefreshSettings): Scope {
   return settings.excludedKeys.has(row.key) ? 'excluded' : 'in';
 }
 
-/** The busy verdict: a reason when busy, and whether ownership is unknown. */
-export function busyOf(row: SessionRow): {
+/** Whether a row has a run of its own going (`hasActiveRun`, or `activeRunIds`). */
+export const hasActiveRun = (row: SessionRow): boolean =>
+  row.hasActiveRun === true || (row.activeRunIds?.length ?? 0) > 0;
+
+/**
+ * The keys of sessions with a spawned child running: the `spawnedBy` and
+ * `parentSessionKey` of every row in `rows` that `running` holds (default:
+ * its own active run; the `activeOnly` list passes every row).
+ */
+export function childRunParents(
+  rows: readonly SessionRow[],
+  running: (row: SessionRow) => boolean = hasActiveRun,
+): Set<string> {
+  const parents = new Set<string>();
+  for (const r of rows.filter(running))
+    for (const p of [r.spawnedBy, r.parentSessionKey]) if (p) parents.add(p);
+  return parents;
+}
+
+/** The skip detail for a session whose spawned child has an active run. */
+export const CHILD_RUN = 'busy (child run)';
+
+/**
+ * The busy verdict: a reason when busy, and whether ownership is unknown.
+ *
+ * @param row - The session row.
+ * @param childParents - Keys with a running child ({@link childRunParents}).
+ */
+export function busyOf(
+  row: SessionRow,
+  childParents: ReadonlySet<string> = new Set(),
+): {
   busy?: string;
   ownershipUnknown: boolean;
 } {
-  const ids = row.activeRunIds;
   const ownershipUnknown =
-    typeof row.hasActiveRun !== 'boolean' && !Array.isArray(ids);
-  if (row.hasActiveRun === true || (ids && ids.length > 0))
-    return { busy: 'busy (active run)', ownershipUnknown };
+    typeof row.hasActiveRun !== 'boolean' && !Array.isArray(row.activeRunIds);
+  if (hasActiveRun(row)) return { busy: 'busy (active run)', ownershipUnknown };
+  if (childParents.has(row.key)) return { busy: CHILD_RUN, ownershipUnknown };
   const state = row.placement?.state;
   if (state && state !== 'local')
     return { busy: `busy (placement ${state})`, ownershipUnknown };
