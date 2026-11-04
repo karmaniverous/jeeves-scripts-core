@@ -162,7 +162,6 @@ describe('qualifyMessage: domain patterns (#53)', () => {
     mailbox: MAILBOX,
     allowedSenders,
   });
-  const SUB_DKIM = 'mx.google.com; dkim=pass header.d=sub.example.com';
 
   it('qualifies anyone at a domain covered by *@domain', () => {
     const result = qualifyMessage(
@@ -175,16 +174,21 @@ describe('qualifyMessage: domain patterns (#53)', () => {
     });
   });
 
-  it('qualifies a subdomain sender under *@*.domain, not the bare domain', () => {
-    const opts = patterns('*@*.example.com');
-    const sub = headers({
-      from: 'bob@sub.example.com',
-      authenticationResults: [SUB_DKIM],
-    });
-    expect(qualifyMessage(sub, opts).qualifies).toBe(true);
-    expect(qualifyMessage(headers({ from: 'bob@example.com' }), opts)).toEqual({
+  it('*@domain does not cover a subdomain sender', () => {
+    const from = 'bob@sub.example.com';
+    expect(
+      qualifyMessage(
+        headers({
+          from,
+          authenticationResults: [
+            'mx.google.com; dkim=pass header.d=sub.example.com',
+          ],
+        }),
+        patterns('*@example.com'),
+      ),
+    ).toEqual({
       qualifies: false,
-      reason: 'sender bob@example.com is not in allowedSenders',
+      reason: `sender ${from} is not in allowedSenders`,
     });
   });
 
@@ -193,7 +197,7 @@ describe('qualifyMessage: domain patterns (#53)', () => {
   it.each(['eve@example.com.evil.test', 'eve@sub.example.com.invalid'])(
     'rejects the look-alike %s',
     (from) => {
-      const opts = patterns('*@example.com', '*@*.example.com');
+      const opts = patterns('*@example.com');
       expect(qualifyMessage(headers({ from }), opts)).toEqual({
         qualifies: false,
         reason: `sender ${from} is not in allowedSenders`,
@@ -228,9 +232,58 @@ describe('qualifyMessage: domain patterns (#53)', () => {
           'mx.google.com; dkim=pass header.d=example.com',
         ],
       }),
-      patterns('*@*.example.com'),
+      patterns('*@sub.example.com'),
     );
     if (result.qualifies) throw new Error('expected a rejection');
     expect(result.reason).toMatch(/^DKIM check failed/);
+  });
+});
+
+// The gappssmtp alias maps dots to dashes, so foo.acme.test and the
+// separately registrable foo-acme.test share foo-acme-test.<n>.gappssmtp.com.
+describe('qualifyMessage: DKIM for a subdomain sender (review 5767239925)', () => {
+  const MAILBOX_T = 'aide@acme.test';
+  const qualify = (from: string, signer: string, entry = from) =>
+    qualifyMessage(
+      headers({
+        from,
+        to: MAILBOX_T,
+        authenticationResults: [`mx.google.com; dkim=pass header.d=${signer}`],
+      }),
+      { mailbox: MAILBOX_T, allowedSenders: [entry] },
+    );
+
+  it('rejects ceo@foo.acme.test signed by the colliding gappssmtp alias', () => {
+    const result = qualify(
+      'ceo@foo.acme.test',
+      'foo-acme-test.20230601.gappssmtp.com',
+    );
+    if (result.qualifies) throw new Error('expected a rejection');
+    expect(result.reason).toBe(
+      'DKIM check failed: no dkim=pass for domain foo.acme.test (or, for a two-label domain, its gappssmtp alias) in the topmost Authentication-Results header',
+    );
+    // The same under a *@domain entry for the subdomain.
+    expect(
+      qualify(
+        'ceo@foo.acme.test',
+        'foo-acme-test.20230601.gappssmtp.com',
+        '*@foo.acme.test',
+      ).qualifies,
+    ).toBe(false);
+  });
+
+  it('qualifies ceo@foo.acme.test signed by foo.acme.test itself', () => {
+    expect(qualify('ceo@foo.acme.test', 'foo.acme.test').qualifies).toBe(true);
+    expect(qualify('ceo@foo.acme.test', 'FOO.Acme.TEST').qualifies).toBe(true);
+  });
+
+  it('still qualifies a@acme.test signed by its gappssmtp alias', () => {
+    expect(
+      qualify('a@acme.test', 'acme-test.20230601.gappssmtp.com').qualifies,
+    ).toBe(true);
+    expect(
+      qualify('a@acme.test', 'acme-test.20230601.gappssmtp.com', '*@acme.test')
+        .qualifies,
+    ).toBe(true);
   });
 });

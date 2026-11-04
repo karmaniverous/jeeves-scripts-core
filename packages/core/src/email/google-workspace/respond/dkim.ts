@@ -14,6 +14,17 @@
  * (`<domain-with-dots-as-dashes>.<digits>.gappssmtp.com`) — the only
  * signer example.com currently publishes, since it has no DKIM key of its
  * own and relies on Google's.
+ *
+ * The gappssmtp alias is accepted only for a two-label sender domain
+ * (`example.com`). The alias maps dots to dashes, so `foo.acme.test` and
+ * the separately registrable `foo-acme.test` share one; for a sender
+ * domain of three or more labels (any subdomain, and also a registrable
+ * domain under a two-label public suffix such as `example.co.uk`) the
+ * signing domain must equal the sender's domain exactly. A two-label
+ * domain keeps the alias (that is how Google signs for a Workspace domain
+ * without its own key); one with a hyphen (`acme-corp.com`) still shares
+ * its alias with the three-label `acme.corp.com`, so give such a domain
+ * its own DKIM key.
  */
 
 /** The only Authentication-Results authserv-id this check trusts. */
@@ -108,9 +119,10 @@ export function isGappssmtpAlias(
  *
  * @param identityDomain - The signing domain from a `dkim=` clause.
  * @param senderDomain - The domain of the From address.
- * @returns True when the two are equal (case-insensitive) or
- *   `identityDomain` is the sender domain's gappssmtp alias
- *   ({@link isGappssmtpAlias}).
+ * @returns True when the two are equal (case-insensitive), or when the
+ *   sender domain has exactly two labels and `identityDomain` is its
+ *   gappssmtp alias ({@link isGappssmtpAlias}); a sender domain of three
+ *   or more labels needs the exact match (the alias collides there).
  */
 export function isDkimDomainMatch(
   identityDomain: string,
@@ -118,7 +130,8 @@ export function isDkimDomainMatch(
 ): boolean {
   const identity = identityDomain.toLowerCase();
   const sender = senderDomain.toLowerCase();
-  return identity === sender || isGappssmtpAlias(identity, sender);
+  if (identity === sender) return true;
+  return sender.split('.').length === 2 && isGappssmtpAlias(identity, sender);
 }
 
 /** Result of {@link checkDkim}. */
@@ -144,8 +157,8 @@ export interface DkimCheckResult {
  * @param senderDomain - The domain of the From address.
  * @returns ok when the topmost header's authserv-id is `mx.google.com`
  *   and it has a `dkim=pass` clause whose signing domain matches the
- *   sender's domain or its gappssmtp alias; otherwise not ok, with a
- *   reason.
+ *   sender's domain ({@link isDkimDomainMatch}: its gappssmtp alias
+ *   counts only for a two-label domain); otherwise not ok, with a reason.
  */
 export function checkDkim(
   authResultsValues: readonly string[],
@@ -173,6 +186,6 @@ export function checkDkim(
   }
   return {
     ok: false,
-    reason: `no dkim=pass for domain ${senderDomain} (or its gappssmtp alias) in the topmost Authentication-Results header`,
+    reason: `no dkim=pass for domain ${senderDomain} (or, for a two-label domain, its gappssmtp alias) in the topmost Authentication-Results header`,
   };
 }
