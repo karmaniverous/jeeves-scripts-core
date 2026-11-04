@@ -92,6 +92,49 @@ describe('emailConfig.respond', () => {
     );
   });
 
+  it('accepts exact addresses and domain patterns, mixed and lowercased (#53)', () => {
+    withEmailConfig({
+      respond: {
+        mailbox: 'aide@example.com',
+        allowedSenders: [
+          'Owner@Other.example',
+          '*@Example.com',
+          '*@*.example.com',
+        ],
+      },
+    });
+    expect(parsed().respond?.allowedSenders).toEqual([
+      'owner@other.example',
+      '*@example.com',
+      '*@*.example.com',
+    ]);
+  });
+
+  it.each(['*', '*@*', '*@', '*@*.', 'j*@example.com', '*@*.*.example.com'])(
+    'rejects the invalid pattern %j, failing the config (#53)',
+    (entry) => {
+      withEmailConfig({
+        respond: {
+          mailbox: 'aide@example.com',
+          allowedSenders: ['jane@example.com', entry],
+        },
+      });
+      expect(() => parsed()).toThrow(
+        /must be an email address, \*@<domain> or \*@\*\.<domain>/,
+      );
+    },
+  );
+
+  it('accepts a pattern covering the mailbox: qualification excludes it', () => {
+    withEmailConfig({
+      respond: {
+        mailbox: 'aide@example.com',
+        allowedSenders: ['*@example.com'],
+      },
+    });
+    expect(parsed().respond?.allowedSenders).toEqual(['*@example.com']);
+  });
+
   it('rejects an invalid mailbox address', () => {
     withEmailConfig({
       respond: { mailbox: 'not-an-email', allowedSenders: ['a@b.com'] },

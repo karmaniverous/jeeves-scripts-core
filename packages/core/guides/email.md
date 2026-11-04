@@ -91,7 +91,7 @@ node bin/jeeves-scripts.js run email-apply-labels [--since <date>] [--account <i
 
 Each run searches the mailbox for `in:inbox newer_than:2d`, reads every message's headers in those threads (skipping mail the mailbox sent), and replies only when **all** of these hold (`google-workspace/respond/qualify.ts`):
 
-1. **Allowed sender.** The From header holds exactly one address (an address inside a quoted display name never counts, and a header with two angle addresses is rejected as ambiguous), it is in `emailConfig.respond.allowedSenders`, and it is not the mailbox. The list is set by the operator and is deliberately independent of `accounts`: polling a mailbox never lets its owner command the assistant.
+1. **Allowed sender.** The From header holds exactly one address (an address inside a quoted display name never counts, and a header with two angle addresses is rejected as ambiguous), it is covered by `emailConfig.respond.allowedSenders`, and it is not the mailbox. The list is set by the operator and is deliberately independent of `accounts`: polling a mailbox never lets its owner command the assistant. An entry is an exact address, `*@example.com` (any address at exactly that domain) or `*@*.example.com` (any address at any subdomain, not the bare domain); exact addresses and patterns mix in one list, and matching is case-insensitive (`lib/allowed-senders.ts`). Any other `*` (`*`, `*@*`, `*@`, `j*@example.com`, `*@*.*.example.com`) fails the config check and the run. The mailbox never qualifies, even when a pattern covers its domain. A domain pattern means "anyone the domain's mail admin has given an address", and it is only safe because rule 3 blocks forged From headers: use one only for a domain whose mail Google signs with DKIM (its own key, or Google's default `gappssmtp.com` signing). That can't be checked offline, so `config check` doesn't. A pattern widens who can reach the assistant, never what they may see: the worker still applies each sender's own permissions.
 2. **Direct recipient.** The mailbox is in the **To** header (proper address-list parsing). Cc-only, or absent from both To and Cc (BCC), never qualifies.
 3. **Authenticated.** Only the topmost `Authentication-Results` header counts, and only when its authserv-id is `mx.google.com` (lower headers can be forged by the sender). It needs `dkim=pass` from a signing domain (`header.d`, else the domain after the last `@` of `header.i`) equal to the sender's domain or Google's default Workspace signing domain for it, `<domain with dots as dashes>.<digits>.gappssmtp.com`. Domains without their own DKIM key are signed that way by Google.
 4. **Not automated.** No `Auto-Submitted` other than `no`, no `List-Id`, no `Precedence: bulk|list|junk`.
@@ -140,7 +140,7 @@ The address parser and the DKIM check are pure, and exported from the package ro
 {
   "respond": {
     "mailbox": "assistant@example.com",
-    "allowedSenders": ["owner@example.com"],
+    "allowedSenders": ["owner@example.com", "*@example.org", "*@*.example.org"],
     "maxRepliesPerThreadPerHour": 3,
     "maxPerRun": 3,
     "label": "assistant-replied",
@@ -150,7 +150,7 @@ The address parser and the DKIM check are pure, and exported from the package ro
 }
 ```
 
-`mailbox` and `allowedSenders` are required (addresses are lowercased; `allowedSenders` must not include the mailbox); the rest show their defaults. The manifest carries a `prerequisite`, so `sync-jobs` never registers the job on its own: the operator configures `respond` and registers it.
+`mailbox` and `allowedSenders` are required (entries are lowercased; `allowedSenders` must not list the mailbox as an exact entry, and a pattern covering it is allowed but never lets it qualify); the rest show their defaults. The manifest carries a `prerequisite`, so `sync-jobs` never registers the job on its own: the operator configures `respond` and registers it.
 
 ## State, Queues and Logs
 

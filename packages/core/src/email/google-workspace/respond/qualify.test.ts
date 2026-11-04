@@ -156,3 +156,79 @@ describe('qualifyMessage', () => {
     });
   });
 });
+
+describe('qualifyMessage: domain patterns (#53)', () => {
+  const patterns = (...allowedSenders: string[]) => ({
+    mailbox: MAILBOX,
+    allowedSenders,
+  });
+  const SUB_DKIM = 'mx.google.com; dkim=pass header.d=sub.example.com';
+
+  it('qualifies anyone at a domain covered by *@domain', () => {
+    const result = qualifyMessage(
+      headers({ from: 'Bob <Bob@Example.com>' }),
+      patterns('*@example.com'),
+    );
+    expect(result).toEqual({
+      qualifies: true,
+      sender: { name: 'Bob', email: 'bob@example.com' },
+    });
+  });
+
+  it('qualifies a subdomain sender under *@*.domain, not the bare domain', () => {
+    const opts = patterns('*@*.example.com');
+    const sub = headers({
+      from: 'bob@sub.example.com',
+      authenticationResults: [SUB_DKIM],
+    });
+    expect(qualifyMessage(sub, opts).qualifies).toBe(true);
+    expect(qualifyMessage(headers({ from: 'bob@example.com' }), opts)).toEqual({
+      qualifies: false,
+      reason: 'sender bob@example.com is not in allowedSenders',
+    });
+  });
+
+  it.each(['eve@evil-example.com', 'eve@example.com.evil.com'])(
+    'rejects the look-alike %s',
+    (from) => {
+      const opts = patterns('*@example.com', '*@*.example.com');
+      expect(qualifyMessage(headers({ from }), opts)).toEqual({
+        qualifies: false,
+        reason: `sender ${from} is not in allowedSenders`,
+      });
+    },
+  );
+
+  it('never qualifies the mailbox, even under a covering pattern', () => {
+    const from = `Aide <${MAILBOX.toUpperCase()}>`;
+    expect(
+      qualifyMessage(headers({ from }), patterns('*@example.com')),
+    ).toEqual({
+      qualifies: false,
+      reason: 'message sent by the mailbox itself',
+    });
+  });
+
+  it('still requires DKIM for a pattern match', () => {
+    const result = qualifyMessage(
+      headers({ from: 'bob@example.com', authenticationResults: [] }),
+      patterns('*@example.com'),
+    );
+    if (result.qualifies) throw new Error('expected a rejection');
+    expect(result.reason).toMatch(/^DKIM check failed/);
+  });
+
+  it('rejects a subdomain sender whose DKIM signing domain is the parent', () => {
+    const result = qualifyMessage(
+      headers({
+        from: 'bob@sub.example.com',
+        authenticationResults: [
+          'mx.google.com; dkim=pass header.d=example.com',
+        ],
+      }),
+      patterns('*@*.example.com'),
+    );
+    if (result.qualifies) throw new Error('expected a rejection');
+    expect(result.reason).toMatch(/^DKIM check failed/);
+  });
+});
