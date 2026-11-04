@@ -2,8 +2,8 @@
  * @module worker-slack/slack-io
  *
  * Job-side Slack I/O through the gateway's `message` tool
- * (`POST /tools/invoke`, see gateway-client.ts). This is the path
- * session-refresh.ts already uses to post, so no raw bot-token calls. On
+ * (`POST /tools/invoke`, see gateway-client.ts), so no raw bot-token
+ * calls. On
  * OpenClaw 2026.9 runner LLM workers (sub-agent sessions) have no
  * `message` tool, so the job script does all Slack reads and posts.
  *

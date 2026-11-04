@@ -25,3 +25,37 @@ describe('jobs delta on_failure (#36)', () => {
     expect(result.error?.issues[0]?.path).toEqual(['email-poll', 'on_failure']);
   });
 });
+
+describe('admin-refresh-sessions delta fields (spec 2.12)', () => {
+  const refresh = (delta: Record<string, unknown>) =>
+    jobsSchema.safeParse({ 'admin-refresh-sessions': delta });
+
+  it('accepts the fields, and their absence (the defaults apply in the job)', () => {
+    const delta = {
+      contextThreshold: 1,
+      idleMinutes: 90,
+      excludedKeys: ['agent:main:slack:channel:c0123456789'],
+    };
+    expect(refresh(delta).data?.['admin-refresh-sessions']).toEqual(delta);
+    expect(refresh({}).success).toBe(true);
+  });
+
+  it.each([
+    ['contextThreshold', 0],
+    ['contextThreshold', 1.5],
+    ['contextThreshold', '150000'],
+    ['idleMinutes', 0],
+    ['idleMinutes', -5],
+    ['idleMinutes', 2.5],
+    ['excludedKeys', ['']],
+    ['excludedKeys', 'agent:main:main'],
+    ['excludedKeys', [42]],
+  ])('rejects %s: %j', (field, value) => {
+    const result = refresh({ [field]: value });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path.slice(0, 2)).toEqual([
+      'admin-refresh-sessions',
+      field,
+    ]);
+  });
+});

@@ -12,14 +12,14 @@ Shared infrastructure consumed by every domain: config-derived constants, CLI wr
 
 Fixed values plus the template's config-derived names, now read from the instance config (Decision 3). Nothing here is edited per instance: set the value in the config file.
 
-- **Fixed exports** (plain constants): `TOKEN_METRICS_NAMESPACE`, `TOKEN_METRICS_CURSOR_KEY`, `TOKEN_METRICS_DB_CURSOR_KEY`, `TOKEN_METRICS_CC_CURSOR_KEY`, `SESSION_REFRESH_CACHE_READ_THRESHOLD` (150,000), `SESSION_REFRESH_IDLE_MINUTES` (60), `OPENCLAW_UPGRADE_CUTOFF_ENV`, and `ENTITY_TYPES` (`subdir`, `rejectionKeys`, `maxAgeDays` per entity type in the meta lifecycle).
+- **Fixed exports** (plain constants): `TOKEN_METRICS_NAMESPACE`, `TOKEN_METRICS_CURSOR_KEY`, `TOKEN_METRICS_DB_CURSOR_KEY`, `TOKEN_METRICS_CC_CURSOR_KEY`, `SESSION_REFRESH_CONTEXT_THRESHOLD` (150,000; renamed from `SESSION_REFRESH_CACHE_READ_THRESHOLD`, the trigger is the last turn's total context), `SESSION_REFRESH_IDLE_MINUTES` (60), `OPENCLAW_UPGRADE_CUTOFF_ENV`, and `ENTITY_TYPES` (`subdir`, `rejectionKeys`, `maxAgeDays` per entity type in the meta lifecycle).
 - **`constants()`** returns every config-derived value under its template name, computed from the loaded config on first call and cached until the config is reset. Importing the module reads nothing.
   - Paths (from `paths()`): `JEEVES_BASE_DIR`, `CONFIG_DIR`, `CONTENT_DIR`, `SCRIPTS_DIR`, `CREDENTIALS_DIR`, `IMAP_SECRETS_DIR`, `GOG_CONFIG_DIR` (`paths().gogHome`), `TOKEN_METRICS_DIR`. `PIPELINE_CONFIG_PATH` and `SILO_ROUTING_CONFIG_PATH` both name the loaded instance config file.
   - Derived from the content dir: `GITHUB_DIR`, `GITHUB_REGISTRY_PATH`, `DEFAULT_MEETINGS_DIR`, `SLACK_DOMAIN_DIR`; from the state dir: `EMAIL_EVENTS_DIR`; from the credentials dir: `NOTION_API_KEY_PATH`, `X_OAUTH_DIR`; from the gog home: `GOG_CLIENT_PATH`.
   - Integrations (from `integrations()`): `INSTANCE_NAME`, `QDRANT_API_URL`, `QDRANT_SERVICE_NAME`, `GATEWAY_HOST`, `GATEWAY_PORT`, `GH_BIN`, `GH_CONFIG_DIR`, `GH_ACCOUNT`, `GH_BOT_USER`, `GOG_BIN`, `NOTION_VERSION`, `JIRA_SITE_URL`, `JIRA_EMAIL`, `JIRA_API_TOKEN_PATH`, `JIRA_FIELDS_FILENAME`, `JIRA_MAX_HISTORY`, `LINEAR_CONFIG_PATH`, `LINEAR_MAX_HISTORY`.
   - `X_ACCOUNTS`: handle → content directory, each resolved through the account's silo (`integrations.x.accounts.<handle>.silo`, default silo) and `relativePath` (default `x/<handle>`).
   - Token metrics: `TOKEN_RATES_PATH`, `TOKEN_RATES_PENDING_PATH`, `SLACK_DM_NAMES_CACHE_PATH` (under `TOKEN_METRICS_DIR`), `TOKEN_RATES_SEED_PATH` (the seed core ships, `config/token-rates.seed.json` in the package).
-  - OpenClaw: `SESSIONS_DIR`, `OPENCLAW_AGENT_DB_PATH`, `CLAUDE_CODE_PROJECTS_DIR` (under the OS home dir), `OPENCLAW_UPGRADE_CUTOFF` (env), `SPAWN_WORKER_PATH` (core's own `spawn-worker` module).
+  - OpenClaw: `SESSIONS_DIR`, `OPENCLAW_AGENT_DB_PATH` (`agentDbPath('main')`; `agentDbPath(agentId, stateDir?)` names any agent's DB, `{stateDir}/agents/<agentId>/agent/openclaw-agent.sqlite`, and rejects an id that isn't a plain name), `CLAUDE_CODE_PROJECTS_DIR` (under the OS home dir), `OPENCLAW_UPGRADE_CUTOFF` (env), `SPAWN_WORKER_PATH` (core's own `spawn-worker` module).
 
 Content written outside the configured content dir and silos is invisible to the watcher and jeeves-server, so every content path goes through `paths()` / `siloPath()` (Decision 28).
 
@@ -84,7 +84,7 @@ Gateway HTTP client for OpenClaw tool invocation. Depends on `GATEWAY_HOST` (loo
 
 Gateway RPC caller for methods that are not HTTP tools, or whose tool wrapper limits what the RPC allows. Depends on the global openclaw install (`admin/lib/resolve-openclaw-dist.ts`).
 
-- `gatewayRpc(method, params, cliPath?, options?)`: run `openclaw gateway call <method> --json --params <json>` under the current Node binary (no shell) and resolve the result; gateway errors, CLI failures and non-JSON output reject. `options.waitMs` sets the CLI's `--timeout` (how long it waits for the gateway's answer; unset, the CLI's 10 s default)
+- `gatewayRpc(method, params, cliPath?, options?)`: run `openclaw gateway call <method> --json --params <json>` under the current Node binary (no shell) and resolve the result; gateway errors, CLI failures and non-JSON output reject. A gateway rejection (the CLI's `{ ok: false, error }`) rejects with `GatewayRpcError`, which carries the gateway's `code` and `details` (e.g. `{ reason: 'session-changed' }`) when it sent them. `options.waitMs` sets the CLI's `--timeout` (how long it waits for the gateway's answer; unset, the CLI's 10 s default)
 
 ### openclaw-config.ts
 

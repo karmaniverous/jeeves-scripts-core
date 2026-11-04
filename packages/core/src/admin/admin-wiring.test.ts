@@ -1,5 +1,5 @@
 /**
- * Tests of the token-metrics and session-refresh runnables' live wiring
+ * Tests of the token-metrics runnables' live wiring
  * over a temp config (`useTempConfig`): the rate-card and pending-model
  * collaborators read and write the files config names, and argument
  * errors stop a run before it touches any source. (The OpenClaw agent DB
@@ -25,7 +25,6 @@ import {
   regenerate,
   regenFlags,
 } from './regenerate-token-metrics.js';
-import { sessionRefreshDeps } from './session-refresh.js';
 
 const flagsOf = (args: string[]) => parseRunnableArgs(args, regenFlags);
 
@@ -97,16 +96,6 @@ describe('regenerate-token-metrics wiring', () => {
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining('--from ISO is required.'),
     );
-  });
-});
-
-describe('session-refresh wiring', () => {
-  it('reads thresholds from the environment and the sessions dir from config', () => {
-    vi.stubEnv('IDLE_MINUTES', '5');
-    const deps = sessionRefreshDeps();
-    expect(deps.settings.idleMinutes).toBe(5);
-    expect(deps.sessionsDir).toBe(constants().SESSIONS_DIR);
-    expect(deps.uuid()).toMatch(/^[0-9a-f-]{36}$/);
   });
 });
 

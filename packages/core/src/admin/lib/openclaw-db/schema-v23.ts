@@ -21,6 +21,7 @@
  *   events already counted live are not counted again.
  * Archives are listed first so they read the live cursor before a new
  * generation's live scan restamps it.
+ * Session refresh's `lastTurnUsage` lives in schema-v23-usage.ts.
  * A future schema adds schema-vNN.ts beside this file; do not edit this one.
  */
 
@@ -29,10 +30,12 @@ import type { DatabaseSync } from 'node:sqlite';
 import { loadV23Meta } from './schema-v23-meta.js';
 import type { ArchiveRow, ColdRow } from './schema-v23-payloads.js';
 import {
+  COLD_ROW_COLUMNS,
   decodeEventRow,
   readArchiveEvents,
   readColdEvents,
 } from './schema-v23-payloads.js';
+import { lastTurnUsageV23 } from './schema-v23-usage.js';
 import type {
   OpenClawDbSchema,
   SchemaContext,
@@ -71,9 +74,7 @@ function listLive(db: DatabaseSync): Map<string, LiveSession> {
     .all() as { session_id: string; max_seq: number }[];
   for (const r of hot) entry(r.session_id).hotMax = r.max_seq;
   const cold = db
-    .prepare(
-      'SELECT session_id, generation, archive_name, archive_sha256, event_count, archive_bytes, last_seq, storage, archive_blob FROM session_transcript_cold_archives',
-    )
+    .prepare(`SELECT ${COLD_ROW_COLUMNS} FROM session_transcript_cold_archives`)
     .all() as unknown as ColdRow[];
   for (const r of cold) entry(r.session_id).cold = r;
   return live;
@@ -154,4 +155,8 @@ function listTranscripts(
 }
 
 /** OpenClaw agent-DB schema 23 reader. */
-export const schemaV23: OpenClawDbSchema = { version: 23, listTranscripts };
+export const schemaV23: OpenClawDbSchema = {
+  version: 23,
+  listTranscripts,
+  lastTurnUsage: lastTurnUsageV23,
+};

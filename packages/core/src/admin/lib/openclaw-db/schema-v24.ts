@@ -6,7 +6,8 @@
  * and moves three `entry_json` fields into it (`sessionDiffBaseline`,
  * `skillsSnapshot`, `systemPromptReport`). Token metrics reads none of
  * those, and the transcript, conversation and window tables are unchanged,
- * so schema 24 reuses the schema-23 reader (#38).
+ * so schema 24 reuses the schema-23 reader (#38), `lastTurnUsage`
+ * included (#73).
  */
 
 import { schemaV23 } from './schema-v23.js';

@@ -20,7 +20,11 @@ vi.mock('../admin/lib/resolve-openclaw-dist.js', () => ({
   resolveOpenClawDist: mocks.resolveOpenClawDist,
 }));
 
-import { gatewayRpc, resolveOpenClawCli } from './gateway-rpc.js';
+import {
+  gatewayRpc,
+  GatewayRpcError,
+  resolveOpenClawCli,
+} from './gateway-rpc.js';
 
 /** Make the next execFile call complete with these results. */
 function nextExec(err: Error | null, stdout: string, stderr = ''): void {
@@ -111,6 +115,46 @@ describe('gatewayRpc', () => {
     await expect(gatewayRpc('x', {}, '/cli.mjs')).rejects.toThrow(
       'gateway x failed: unknown gateway error',
     );
+  });
+
+  it("carries the gateway's error code and details (the CLI's request-error JSON)", async () => {
+    nextExec(
+      new Error('Command failed'),
+      JSON.stringify({
+        ok: false,
+        error: {
+          type: 'gateway_request_error',
+          code: 'INVALID_REQUEST',
+          message: 'session changed',
+          details: { reason: 'session-changed' },
+          retryable: false,
+        },
+      }),
+    );
+    const err: unknown = await gatewayRpc(
+      'sessions.reset',
+      {},
+      '/cli.mjs',
+    ).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(GatewayRpcError);
+    expect(err).toMatchObject({
+      method: 'sessions.reset',
+      code: 'INVALID_REQUEST',
+      details: { reason: 'session-changed' },
+      message: 'gateway sessions.reset failed: session changed',
+    });
+  });
+
+  it('leaves code and details unset when the gateway sends none', async () => {
+    nextExec(null, '{"ok":false,"error":"flat"}');
+    const err: unknown = await gatewayRpc('x', {}, '/cli.mjs').catch(
+      (e: unknown) => e,
+    );
+    expect(err).toMatchObject({
+      message: 'gateway x failed: unknown gateway error',
+      code: undefined,
+      details: undefined,
+    });
   });
 
   it('rejects CLI failures with stderr, else the exec error', async () => {

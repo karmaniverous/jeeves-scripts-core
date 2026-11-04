@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { CONFIG_PATH_ENV, resetConfig } from '../config/loader.js';
-import { constants } from './constants.js';
+import { agentDbPath, constants } from './constants.js';
 
 let dir: string;
 let savedEnv: string | undefined;
@@ -69,4 +69,22 @@ describe('constants()', () => {
     );
     expect(fs.existsSync(c.TOKEN_RATES_SEED_PATH)).toBe(true);
   });
+});
+
+describe('agentDbPath', () => {
+  it("names one agent's DB under OpenClaw's state directory", () => {
+    expect(agentDbPath('ops', '/state')).toBe(
+      path.join('/state', 'agents', 'ops', 'agent', 'openclaw-agent.sqlite'),
+    );
+    expect(constants().OPENCLAW_AGENT_DB_PATH).toBe(agentDbPath('main'));
+  });
+
+  it.each(['', '../x', 'a/b', 'a\\b', '.hidden'])(
+    'rejects %j, which is not a plain agent id',
+    (id) => {
+      expect(() => agentDbPath(id, '/state')).toThrow(
+        'Invalid OpenClaw agent id',
+      );
+    },
+  );
 });

@@ -11,7 +11,7 @@ Token metrics collection, session cost management, housekeeping (orphaned `.tmp`
 | Runnable (module) | Description |
 | --- | --- |
 | `admin-collect-token-metrics` (`collect-token-metrics.ts`) | Reads OpenClaw usage up to the last closed hour (from the agent SQLite DB on OpenClaw 2026.9+, else the legacy session transcripts), then Claude Code session logs, and writes immutable hourly rollup buckets to disk. Refuses to write when a model is missing from the rate card (records the id in `token-rates.pending.json` and triggers admin-refresh-token-rates, which adds it from OpenRouter) |
-| `admin-refresh-sessions` (`session-refresh.ts`) | Rotates bloated gateway sessions by resetting idle sessions with high cacheRead values |
+| `admin-refresh-sessions` (`session-refresh.ts`) | Resets idle top-level gateway sessions (every agent's main session, channels and DMs on any channel) whose last turn carried a context at or above the threshold, through the gateway's `sessions.reset`; busy or recently active sessions are never touched. Dry run by default, `--live` to reset; shipped disabled ([below](#session-refresh)) |
 | `admin-report-token-metrics` (`report-token-metrics.ts`) | Prints the cost report for `[--from <date>] [--to <date>]` as JSON ([Querying Costs](#querying-costs)); no manifest, run on demand |
 | utility `getTokenMetrics` (`token-metrics.ts`) | Queries pre-rolled hourly buckets and aggregates them into a cost report for a time range; on the root export, never registered |
 | `admin-refresh-token-rates` (`refresh-token-rates.ts`) | Seeds the rate card if missing, then refreshes every provider model's $/MTok rates from the public OpenRouter model endpoint (`openrouter.ai/api/v1/model/<id>`, base tier, no LLM). Also adds models the collector recorded as pending (`token-rates.pending.json`). Fetches 4 at a time (15 s per request, 60 s budget), writes changed rates atomically (advancing `updatedAt`), skips internal `openclaw/`/`clawdbot/` entries and entries marked `"manual": true`, and fails if any model can't be resolved (after applying the rest) or the card is missing or invalid. `--dry-run` reports changes without writing |
@@ -30,7 +30,8 @@ flowchart LR
   rates["admin-refresh-token-rates"] --> card
   card --> collect
 
-  refresh["admin-refresh-sessions"] --> gateway["gateway API\n(refresh idle/oversized sessions)"]
+  agentdb["agent DB\n(last-turn usage, read-only)"] --> refresh["admin-refresh-sessions"]
+  refresh --> gateway["gateway\nsessions.list (all, active) / describe / reset"]
 ```
 
 - **admin-collect-token-metrics** incrementally reads OpenClaw usage (agent DB `~/.openclaw/agents/main/agent/openclaw-agent.sqlite`, read-only, on 2026.9+; legacy JSONL transcripts in `SESSIONS_DIR` otherwise) and Claude Code logs (`~/.claude/projects`), and rolls usage into per-hour bucket files partitioned by channel and model. A fresh instance (no counted OpenClaw usage) starts the DB cursor empty; an upgraded host refuses until `admin-regenerate-token-metrics` bootstraps it.
@@ -62,18 +63,48 @@ node "$JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js" run admin-report-token-metrics 
 
 `--from` / `--to` take ISO 8601 dates or timestamps (`--from <date>` or `--from=<date>`); anything else prints a usage error and exits 1. Without `--from` the report covers everything collected so far, and without `--to` it runs to now, so pass a range when the question is about a period. It prints a JSON `Costs` report (`types/token-metrics.ts`): total `cost`; `models`, keyed `provider/model`, each with `cost`, `costPct` and `tokens`, which holds per category (`input`, `output`, `cacheRead`, `cacheWrite`) `count` / `cost` / `costPct`; `channels` (Slack channels, DMs, heartbeat, subagent, meta-synthesis), each with its name, cost, share and per-model breakdown; and `ref`, the rate card the costs were computed with: per model, the rate for each category in dollars per million tokens, for every model in the card whether or not it was used in the range. `ref` holds prices, not usage; token counts are `models[model].tokens[category].count`. `getTokenMetrics({ from, to })` is the importable form (root export): each bound is a `Date` or an ISO 8601 string, both optional, and the hours containing them are included.
 
-- **admin-refresh-sessions** polls active sessions and refreshes any that exceed the cacheRead threshold after being idle long enough.
+## Session refresh
+
+`admin-refresh-sessions` keeps long-lived gateway sessions from carrying a huge context into every turn. Each run:
+
+1. **Settings.** Reads `contextThreshold` (default 150000), `idleMinutes` (default 60) and `excludedKeys` (default none) from the job's own delta, `jobs.admin-refresh-sessions` ([config](./config.md)); no fields means the defaults. The environment variables earlier versions read (`CACHE_READ_THRESHOLD`, `IDLE_MINUTES`, `EXCLUDED_SESSION_KEYS`) are retired: while one is set the run fails, naming the field that replaces it.
+2. **List.** Lists every unarchived session with the gateway's `sessions.list` (`openclaw gateway call`), paging until the list is complete.
+3. **Scope.** Every top-level session of every agent is in scope: `agent:<id>:main`, Slack channels, DMs on any channel and other channel keys. Out of scope, counted per class in one line: subagent and cron keys, anything with spawn lineage (`spawnedBy`, `parentSessionKey`, `spawnDepth` > 0), the `unknown` sentinel, `global`, and any row marked `archived`. A key in `excludedKeys` is skipped (`excluded`).
+4. **Busy.** A session with an active run (`hasActiveRun`, or a non-empty `activeRunIds`) or a placement other than `local` is skipped, and so is a session while any session it spawned (a listed row whose `spawnedBy` or `parentSessionKey` names it) has an active run: `busy (child run)`, so a subagent's completion never lands in a freshly reset parent. When the row carries neither activity field, the idle test decides and the skip or would-reset line says `ownership unknown` (a live reset line never does: the active list in step 8 settles it).
+5. **Idle.** The last activity is the latest of `lastActivityAt`, `lastInteractionAt` and the last turn's own time; less than `idleMinutes` ago is `recently active`.
+6. **Trigger.** The last turn's usage comes from the agent's DB (`{openclawStateDir}/agents/<agentId>/agent/openclaw-agent.sqlite`, opened read-only once per agent): the newest assistant message with non-zero usage in the session's live transcript (OpenClaw's transcript-only copies, such as `delivery-mirror` messages with all-zero usage, are skipped). Its total context, `input + cacheRead + cacheWrite`, at or above `contextThreshold` makes the session due; the total counts a cache-expired turn (large `cacheWrite`, small `cacheRead`). A manual `/compact` writes no assistant turn, so it is not reflected until the session's next turn: until then the trigger still reads the pre-compaction total.
+7. **Dry run** (default): logs `would reset <key> (context, idle, session)` for each due session and writes nothing. It makes no re-check: its rows come straight from `sessions.list`, whose `hasActiveRun` is authoritative, so the busy test already applied.
+8. **`--live`:** oldest activity first, re-reads each due session with `sessions.describe` and repeats the busy and idle tests (a changed session id is `skip changed`). Because `sessions.describe` can omit the activity fields, it then reads `sessions.list` with `activeOnly: true` (every page); it is read afresh for each due session, after its `sessions.describe`. A session listed there is skipped as `busy (active run, list)`, a session with a child listed there (by `spawnedBy` or `parentSessionKey`) as `busy (child run)`, and a failed active list counts as a failed reset. Then it calls `sessions.reset` with `expectedSessionId`. The gateway's `session-changed` rejection is a skip; any other failure is logged, counted, and the next session is still tried. OpenClaw's reset hooks run as for any `/reset`. Nothing is sent into the session.
+9. **Notice.** After a successful live reset of a Slack session (its key is a Slack key, `agent:<id>:slack:…`, and its origin is Slack), one line is posted in that session's own conversation (its channel, DM or thread) as the Slack account it belongs to: the session was reset to cut context cost and context will be recovered from the channel history. An app message on Slack does not start a turn. Other sessions get no notice: an agent's main session never does, even when its last delivery went to Slack (it serves many conversations), nor do other channels. A failed notice is logged and counted (`notice failed <n>`) and never fails the run.
+10. **Summary.** One line: listed, in scope, due, reset, skips by reason, failures and failed notices.
+
+A failed or malformed `sessions.list`, a missing or unreadable agent DB (OpenClaw 2026.9 or later is required) or an unsupported DB schema fails the run (exit 1), never "nothing to do"; so does any failed reset, after the other sessions are tried. A run with nothing due exits 0.
+
+The job ships disabled and dry. To run it, check a dry run's would-reset list first, then enable it with `--live`:
+
+```json
+{
+  "jobs": {
+    "admin-refresh-sessions": {
+      "enabled": true,
+      "args": ["--live"],
+      "idleMinutes": 90,
+      "excludedKeys": ["agent:main:slack:channel:c0123456789"]
+    }
+  }
+}
+```
 
 ## Prerequisites
 
 Most jobs need only the local filesystem and the gateway. `admin-check-qdrant-health` needs the Qdrant service (`integrations.qdrant`); `admin-refresh-token-rates` (and the refresh `admin-collect-token-metrics` triggers for unknown models) reaches OpenRouter over HTTPS.
 
-`admin-refresh-sessions` reads three environment variables, all optional: `CACHE_READ_THRESHOLD` (last-turn cache-read tokens before a session counts as large; default 150000), `IDLE_MINUTES` (minutes since the last message; default 60) and `EXCLUDED_SESSION_KEYS` (comma-separated session keys never refreshed). Set them in the runner job's `env` (a `jobs.admin-refresh-sessions.env` delta). It writes `sessions.json` once per run; when that write fails it renames every rotated transcript back and fails the run, and it notifies the sessions only after the write.
+`admin-refresh-sessions` needs OpenClaw 2026.9 or later (the agent DB and the gateway's `sessions.reset` with `expectedSessionId`); `--live` needs the CLI's gateway token to hold `operator.admin` (as the local CLI's does) and, for the Slack notice, the session account's bot token in OpenClaw's config. `doctor` checks that the gateway answers `sessions.list` and that the DB of every agent it lists opens with a supported schema.
 
 | Runnable                       | Schedule                           |
 | ------------------------------ | ---------------------------------- |
 | `admin-collect-token-metrics`  | Every 97 min                       |
-| `admin-refresh-sessions`       | Every 23 min                       |
+| `admin-refresh-sessions`       | Every 23 min (shipped disabled)    |
 | `admin-refresh-token-rates`    | Daily 05:37 UTC                    |
 | `admin-sweep-orphaned-tmp`     | Every 59 min                       |
 | `admin-check-qdrant-health`    | Every 4 h                          |
@@ -85,7 +116,7 @@ The sweep reads `paths().contentDir`, `paths().scriptsDir` and `jobs.admin-sweep
 { "jobs": { "admin-sweep-orphaned-tmp": { "extraDirs": ["D:/workspace"] } } }
 ```
 
-All six entries in core's manifest `jobs/admin.json` have `"prerequisite": null`; `admin-review-skill-proposals` is the one shipped with `"enabled": false`. `admin-regenerate-token-metrics` is registered without a manifest (run it by hand, see the [runbook](./token-metrics-runbook.md)). `admin-refresh-token-rates` uses the RRStack schedule `{"freq":"daily","byhour":5,"byminute":37,"timezone":"UTC"}`.
+All six entries in core's manifest `jobs/admin.json` have `"prerequisite": null`; `admin-refresh-sessions` and `admin-review-skill-proposals` are shipped with `"enabled": false` and no arguments (dry runs). `admin-regenerate-token-metrics` is registered without a manifest (run it by hand, see the [runbook](./token-metrics-runbook.md)). `admin-refresh-token-rates` uses the RRStack schedule `{"freq":"daily","byhour":5,"byminute":37,"timezone":"UTC"}`.
 
 ## Qdrant restart privileges
 
@@ -138,8 +169,9 @@ All six entries in core's manifest `jobs/admin.json` have `"prerequisite": null`
 | `lib/channel-names.ts` | `ChannelResult`, Slack channel-name registry, Slack channel extraction, `slugify` |
 | `lib/subagent-label.ts` | Meta-synthesis phase and granular subagent label detection |
 | `lib/transcript-text.ts` | Extracts text chunks from session JSONL lines |
-| `lib/openclaw-db/channel-from-meta.ts` | 2026.9+ channel keys from recorded session metadata; text rules only as fallback; sanitized |
-| `lib/openclaw-db/schema-v24.ts` | Schema 24 (OpenClaw 2026.9.33): the schema-23 reader under version 24; 24 adds `session_nodes.snapshot_revision` and `session_entry_snapshots`, which token metrics doesn't read |
+| `lib/openclaw-db/channel-from-meta.ts` | 2026.9+ channel keys from recorded session metadata (an agent's main session is `main`; its subagents still roll up by rule 2); text rules only as fallback; sanitized |
+| `lib/openclaw-db/schema-v24.ts` | Schema 24 (OpenClaw 2026.9.33): the schema-23 reader (and `lastTurnUsage`) under version 24; 24 adds `session_nodes.snapshot_revision` and `session_entry_snapshots`, which token metrics doesn't read |
+| `lib/openclaw-db/schema-v23-usage.ts` | `lastTurnUsage`: the newest assistant turn with non-zero usage in a session's live transcript (all-zero delivery-mirror copies skipped) (hot rows newest first, the cold archive only when they hold none); session refresh's trigger |
 | `lib/openclaw-db/schema-v23-meta.ts` | Loads schema-23 session keys and channel/peer/label names (read-only) |
 | `lib/regen-guard.ts` | Live regenerate guard: refuses when `OPENCLAW_UPGRADE_CUTOFF` is unset or invalid, and a `--from` before it without `--allow-pre-upgrade` |
 | `lib/regen-run.ts` | admin-regenerate-token-metrics orchestration: scratch / live / bounded (`--to`, counted-only, cursors untouched), backup → delete → flush → cursor replace; refuses a scratch `--out` that is the live store |
@@ -162,6 +194,12 @@ All six entries in core's manifest `jobs/admin.json` have `"prerequisite": null`
 | `lib/openrouter-pricing.ts` | OpenRouter single-model price fetch and per-token → $/MTok conversion |
 | `lib/rate-card-pending.ts` | Pending-models file (`token-rates.pending.json`): ids the collector found missing from the card, handed to admin-refresh-token-rates to add |
 | `lib/hour-range.ts` | Hour enumeration and cursor reset for a regeneration range (regen-run) |
+| `session-refresh.ts` | admin-refresh-sessions: `--live`, `doctor` check, exit code 1 after a failed reset; [Session refresh](#session-refresh) |
+| `lib/session-refresh-run.ts` | Session refresh orchestration: list, select, dry-run log or re-check → fenced reset → notice, summary |
+| `lib/session-refresh-select.ts` | The pure rules: scope classes, exclusion, busy (an own or a spawned child's active run), idle, the last-turn context trigger |
+| `lib/session-refresh-gateway.ts` | `sessions.list` (paged; all, or `activeOnly` for the busy re-check), `sessions.describe`, `sessions.reset` with `expectedSessionId` over `gatewayRpc`, Zod-parsed; `session-changed` from the CLI's error details |
+| `lib/session-refresh-settings.ts` / `lib/session-refresh-live.ts` | The delta fields with defaults (retired environment variables fail); the live collaborators (agent DBs per agent, Slack client per account, `doctor` check) |
+| `lib/session-refresh-notice.ts` | The post-reset Slack notice (Slack-keyed sessions with a Slack origin only): the session's account and conversation (channel, DM or thread) from its row and key |
 | `review-skill-proposals.ts` | admin-review-skill-proposals: flags, prerequisite (no block: skip), `doctor` check; [Skill Workshop review](#skill-workshop-review) |
 | `skill-review/settings.ts` / `skill-review/live.ts` | The settings from the `skillReview` block (report directory, posting account, host paths) and the live side effects (gateway, skill roots, run directories, worker, link, post) |
 | `skill-review/proposals.ts` | Pending proposals through `skill_workshop` (`list`, `inspect`); artifact texts from the Workshop store, hash- and size-checked, contained |
