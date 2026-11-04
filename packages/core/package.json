@@ -59,7 +59,7 @@
   },
   "homepage": "https://github.com/karmaniverous/jeeves-scripts-core#readme",
   "engines": {
-    "node": ">=22.18"
+    "node": ">=24.22.2"
   },
   "dependencies": {
     "@commander-js/extra-typings": "^15.0.0",

@@ -25,6 +25,8 @@ Package documentation ships inside the npm package, so skills and the watcher re
 
 ## Development
 
+Node `>=24.22.2` is required, for development and on every instance: Node 24.16-24.18's built-in SQLite can stop write-ahead-log checkpoints, so every Jeeves component sets this floor.
+
 ```bash
 npm install
 npm run build        # builds packages/core, writes its JSON Schema, copies packages/template into it

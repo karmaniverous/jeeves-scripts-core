@@ -68,7 +68,7 @@ Core ships its own OpenClaw skills, one per domain or pattern whose behaviour li
 npm install --save-exact @karmaniverous/jeeves-scripts-core
 ```
 
-Node `>=22.18`. Instances pin an exact version; upgrading core is a commit to the instance repo's `package.json`.
+Node `>=24.22.2` (Node 24.16-24.18 has a built-in SQLite bug that stops write-ahead-log checkpoints; every Jeeves component requires 24.22.2 or later). Instances pin an exact version; upgrading core is a commit to the instance repo's `package.json`.
 
 To start a new instance repo:
 
