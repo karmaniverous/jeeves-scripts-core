@@ -2,8 +2,9 @@
  * Tests for `lastTurnUsage` (session refresh, spec 2.12) on schema-23
  * fixtures and through the schema-24 module: the newest hot assistant
  * turn wins over later non-assistant events, the cold archive is the
- * fallback only when the hot rows hold no usage, zstd rows decode, and a
- * session without usage reads as none.
+ * fallback only when the hot rows hold no usage, zstd rows decode, a
+ * session without usage reads as none, and OpenClaw's all-zero
+ * delivery-mirror copies never count as the last turn.
  */
 
 import fs from 'node:fs';
@@ -36,6 +37,35 @@ const turn = (
         cacheWrite,
         totalTokens: input + cacheRead + cacheWrite + 10,
       },
+    },
+  });
+
+/**
+ * A delivery-mirror copy as OpenClaw 2026.9.6 writes it
+ * (`createAssistantMirrorMessage`, src/plugin-sdk/session-transcript-runtime.ts
+ * at eb377ac): an assistant message with all-zero usage and a zero `cost`.
+ */
+const mirror = (tsIso: string) =>
+  JSON.stringify({
+    type: 'message',
+    timestamp: tsIso,
+    message: {
+      role: 'assistant',
+      content: [{ type: 'text', text: 'Posted in the channel.' }],
+      api: 'openai-responses',
+      provider: 'openclaw',
+      model: 'delivery-mirror',
+      usage: {
+        input: 0,
+        output: 0,
+        cacheRead: 0,
+        cacheWrite: 0,
+        totalTokens: 0,
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+      },
+      stopReason: 'stop',
+      timestamp: ms(tsIso),
+      openclawDeliveryMirror: { kind: 'channel-final' },
     },
   });
 
@@ -74,6 +104,38 @@ describe.each([23, 24])('lastTurnUsage (schema %i)', (version) => {
       cacheRead: 100,
       cacheWrite: 7,
       tsMs: ms(T11),
+    });
+  });
+
+  it('skips newer all-zero delivery-mirror copies for the newest real turn', () => {
+    const fx = createV23Fixture(root, version);
+    fx.addHotSession('m', [
+      user('hi'),
+      turn(T10, 4, 180_000, 6),
+      mirror(T11),
+      mirror(T11),
+    ]);
+    fx.close();
+    expect(lastTurn(fx.dbPath, 'm')).toEqual({
+      input: 4,
+      cacheRead: 180_000,
+      cacheWrite: 6,
+      tsMs: ms(T10),
+    });
+  });
+
+  it('falls back to the cold archive when the hot rows hold only mirror copies', () => {
+    const fx = createV23Fixture(root, version);
+    fx.addColdSession('cm', [user('a'), turn(T10, 1, 0, 900)]);
+    fx.db
+      .prepare(
+        'INSERT INTO transcript_events (session_id, seq, event_json, created_at, event_utf8_bytes) VALUES (?, ?, ?, ?, ?)',
+      )
+      .run('cm', 3, mirror(T11), Date.now(), 10);
+    fx.close();
+    expect(lastTurn(fx.dbPath, 'cm')).toMatchObject({
+      cacheWrite: 900,
+      tsMs: ms(T10),
     });
   });
 
@@ -145,6 +207,26 @@ describe('assistantUsage', () => {
       message: { role: 'user', usage: { input: 5, totalTokens: 5 } },
     });
     expect(assistantUsage(line)).toBeUndefined();
+  });
+
+  it('ignores an assistant turn whose usage is all zero', () => {
+    expect(assistantUsage(mirror(T10))).toBeUndefined();
+  });
+
+  it('counts a turn with only output or only a total as usage', () => {
+    const line = (usage: Record<string, number>) =>
+      JSON.stringify({
+        type: 'message',
+        timestamp: T10,
+        message: { role: 'assistant', usage: { ...usage, cost: {} } },
+      });
+    expect(assistantUsage(line({ output: 3 }))).toMatchObject({ input: 0 });
+    expect(assistantUsage(line({ totalTokens: 3 }))).toMatchObject({
+      input: 0,
+    });
+    expect(assistantUsage(line({ cacheWrite: 3 }))).toMatchObject({
+      cacheWrite: 3,
+    });
   });
 
   it('counts missing or non-numeric usage fields as zero', () => {

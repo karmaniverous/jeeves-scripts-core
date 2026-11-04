@@ -5,7 +5,10 @@
  * assistant turn with usage in a session's live transcript. Hot
  * `transcript_events` rows are read newest first (seq descending) and the
  * read stops at the first assistant message whose usage parses
- * (`parseUsageLine`); the session's cold archive is read only when the hot
+ * (`parseUsageLine`) and is not all zero: OpenClaw writes transcript-only
+ * assistant copies (`provider: openclaw`, `model: delivery-mirror`) with
+ * all-zero usage and a zero `cost` object, and those say nothing about the
+ * context, so they are skipped. The session's cold archive is read only when the hot
  * rows hold none (OpenClaw's cold storage moves a whole inactive transcript
  * out of the hot table, so hot rows, when present, are the newest).
  * Read-only.
@@ -27,7 +30,10 @@ type HotRow = Parameters<typeof decodeEventRow>[0];
 const count = (n: number | undefined): number =>
   typeof n === 'number' && Number.isFinite(n) ? n : 0;
 
-/** The usage of one transcript event, when it is an assistant turn with usage. */
+/**
+ * The usage of one transcript event, when it is an assistant turn with
+ * non-zero usage (an all-zero copy, e.g. a delivery mirror, has none).
+ */
 export function assistantUsage(json: string): LastTurnUsage | undefined {
   const parsed = parseUsageLine(json);
   if (!parsed) return undefined;
@@ -35,12 +41,19 @@ export function assistantUsage(json: string): LastTurnUsage | undefined {
     ?.role;
   if (role !== 'assistant') return undefined;
   const { rawUsage, tsMs } = parsed;
-  return {
+  const usage = {
     input: count(rawUsage.input),
     cacheRead: count(rawUsage.cacheRead),
     cacheWrite: count(rawUsage.cacheWrite),
     tsMs,
   };
+  const tokens =
+    usage.input +
+    usage.cacheRead +
+    usage.cacheWrite +
+    count(rawUsage.output) +
+    count(rawUsage.totalTokens);
+  return tokens > 0 ? usage : undefined;
 }
 
 /** The newest assistant usage among events given newest first. */
