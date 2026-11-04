@@ -15,7 +15,10 @@
  * One failing account never stops the others (#66): each account's error
  * is logged and recorded (kind `imap-poll` or `gog-poll`, account, error)
  * in its `_runs-*.jsonl`, the remaining accounts are polled, and the run
- * then fails with one error naming every failed account.
+ * then fails with one error naming every failed account. A missing gog
+ * credential is one such failure (account `gog`); a run line that can't
+ * be written, or a failed trim, is logged and never hides an account
+ * error.
  *
  * Depends on EMAIL_EVENTS_DIR, the report-only flags (`reportOnlyFor`), and
  * bucket domain config from the `pipeline` block. Missing config causes
@@ -25,7 +28,8 @@
  * curation-signal) are enqueued. Search output is schema-validated by
  * google-workspace/gmail-search.ts. gog
  * accounts work with an OAuth client or service-account mailboxes; if
- * gog accounts are configured and neither exists, the run fails.
+ * gog accounts are configured and neither exists, the run fails (with
+ * any IMAP failures in the same error).
  */
 
 import path from 'node:path';
@@ -64,6 +68,8 @@ export interface EmailPollDeps {
   pollGog: typeof pollGogAccount;
   /** Whether gog has a credential; throws when Gmail accounts exist and it has none. */
   requireGog: (gogAccounts: number) => boolean;
+  /** Trim the old JSONL logs in the events directory (trim-jsonl.ts). */
+  trim: (eventsDir: string) => void;
   /** ISO timestamp. */
   now: () => string;
 }
@@ -76,6 +82,9 @@ export const emailPollDeps = (): EmailPollDeps => ({
   pollImap: pollImapAccount,
   pollGog: pollGogAccount,
   requireGog: (n) => requireGogCredentials('email/poll', n),
+  trim: (dir) => {
+    trimJsonlFiles(dir, 7);
+  },
   now: nowIso,
 });
 
@@ -93,6 +102,24 @@ const errorMessage = (e: unknown): string =>
 const kindTag = (kind: AccountFailure['kind']): string =>
   kind === 'imap-poll' ? 'imap' : 'gog';
 
+/**
+ * Append one run line; a failed write is logged, never thrown, so it
+ * can't stop the remaining accounts or mark a good poll as failed.
+ */
+const writeRunLine = (
+  deps: EmailPollDeps,
+  runsFile: string,
+  line: Record<string, unknown>,
+): void => {
+  try {
+    appendJsonl(path.join(deps.eventsDir, runsFile), line);
+  } catch (e) {
+    console.error(
+      `email/poll: could not write ${runsFile}: ${errorMessage(e)}`,
+    );
+  }
+};
+
 /** Log a failed account and record it in its run log; returns the failure. */
 const recordFailure = (
   deps: EmailPollDeps,
@@ -103,12 +130,7 @@ const recordFailure = (
 ): AccountFailure => {
   const error = errorMessage(e);
   console.error(`[${kindTag(kind)}] ${account} error: ${error}`);
-  appendJsonl(path.join(deps.eventsDir, runsFile), {
-    at: deps.now(),
-    kind,
-    account,
-    error,
-  });
+  writeRunLine(deps, runsFile, { at: deps.now(), kind, account, error });
   return { kind, account, error };
 };
 
@@ -132,18 +154,9 @@ async function pollImapAccounts(
   const failures: AccountFailure[] = [];
   for (const account of accounts) {
     console.log(`[imap] Polling ${account.email}`);
+    let s: Awaited<ReturnType<EmailPollDeps['pollImap']>>;
     try {
-      const s = await deps.pollImap(account, client);
-      appendJsonl(path.join(deps.eventsDir, '_runs-imap-poll.jsonl'), {
-        at: deps.now(),
-        kind: 'imap-poll',
-        account: account.email,
-        fetched: s.fetched,
-        written: s.written,
-        skipped: s.skipped,
-        failed: s.failed,
-        folders: s.folders,
-      });
+      s = await deps.pollImap(account, client);
     } catch (e) {
       failures.push(
         recordFailure(
@@ -154,7 +167,18 @@ async function pollImapAccounts(
           e,
         ),
       );
+      continue;
     }
+    writeRunLine(deps, '_runs-imap-poll.jsonl', {
+      at: deps.now(),
+      kind: 'imap-poll',
+      account: account.email,
+      fetched: s.fetched,
+      written: s.written,
+      skipped: s.skipped,
+      failed: s.failed,
+      folders: s.folders,
+    });
   }
   return failures;
 }
@@ -207,26 +231,48 @@ export async function pollEmail(deps: EmailPollDeps): Promise<void> {
   const reportOnly = reportOnlyFor(config);
   const client = deps.runner();
   const failures: AccountFailure[] = [];
+  let trimError: Error | undefined;
 
   try {
     ensureDir(deps.eventsDir);
     failures.push(...(await pollImapAccounts(imapAccounts, client, deps)));
-
-    // Throws (failed run) when Gmail accounts exist but gog has neither
-    // an OAuth client nor service-account mailboxes.
-    const hasGog = deps.requireGog(gogAccounts.length);
-
-    failures.push(
-      ...pollGogAccounts(hasGog ? gogAccounts : [], client, reportOnly, deps),
-    );
+    failures.push(...pollGog(gogAccounts, client, reportOnly, deps));
   } finally {
     try {
-      trimJsonlFiles(deps.eventsDir, 7);
+      deps.trim(deps.eventsDir);
+    } catch (e) {
+      // Never replace the run's own error with a trim failure: log it, and
+      // fail the run with it only when nothing else failed.
+      console.error(`email/poll: trimming logs failed: ${errorMessage(e)}`);
+      trimError = e instanceof Error ? e : new Error(String(e));
     } finally {
       client.close();
     }
   }
   if (failures.length > 0) throw accountsFailedError(failures);
+  if (trimError !== undefined) throw trimError;
+}
+
+/**
+ * Poll the gog accounts, or, when Gmail accounts exist but gog has neither
+ * an OAuth client nor service-account mailboxes, one `gog-poll` failure
+ * (account `gog`) so it joins the run error with any IMAP failures.
+ */
+function pollGog(
+  accounts: readonly AccountConfig[],
+  client: RunnerClient,
+  reportOnly: ReportOnlyPolicy,
+  deps: EmailPollDeps,
+): AccountFailure[] {
+  let hasGog: boolean;
+  try {
+    hasGog = deps.requireGog(accounts.length);
+  } catch (e) {
+    const error = errorMessage(e);
+    console.error(`[gog] credentials error: ${error}`);
+    return [{ kind: 'gog-poll', account: 'gog', error }];
+  }
+  return pollGogAccounts(hasGog ? accounts : [], client, reportOnly, deps);
 }
 
 export default defineRunnable({

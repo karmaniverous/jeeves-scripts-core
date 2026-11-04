@@ -7,43 +7,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { AccountConfig } from '../config/index.js';
 import { fakeRunnerClient } from '../lib/fake-runner-client.test-helper.js';
 import { type EmailPollDeps, emailPollDeps, pollEmail } from './poll.js';
+import { gmail, imap, pollDeps, stats } from './poll.test-helper.js';
 
 let dir: string;
 let runner: ReturnType<typeof fakeRunnerClient>;
 
-const gmail = (email: string, emailPolling = true): AccountConfig => ({
-  email,
-  type: 'gmail',
-  emailPolling,
-});
-const imap = (email: string): AccountConfig => ({
-  email,
-  type: 'imap',
-  emailPolling: true,
-  imap: {
-    host: 'h',
-    port: 993,
-    tls: true,
-    user: email,
-    password: { secretRef: 'x' },
-  },
-});
-
-const stats = { fetched: 3, written: 2, skipped: 1, failed: 0, folders: 1 };
-
-const deps = (over: Partial<EmailPollDeps> = {}): EmailPollDeps => ({
-  config: () => ({
-    accounts: [gmail('a@x.com'), gmail('off@x.com', false), imap('i@x.com')],
-    emailConfig: { reportOnly: true, digest: { slackChannelId: '' } },
-  }),
-  eventsDir: path.join(dir, 'events'),
-  runner: () => runner.client,
-  pollImap: vi.fn(() => Promise.resolve(stats)),
-  pollGog: vi.fn(),
-  requireGog: () => true,
-  now: () => '2026-06-01T00:00:00.000Z',
-  ...over,
-});
+const deps = (over: Partial<EmailPollDeps> = {}): EmailPollDeps =>
+  pollDeps(dir, runner.client, over);
 
 beforeEach(() => {
   dir = fs.mkdtempSync(path.join(os.tmpdir(), 'email-poll-'));
@@ -240,7 +210,9 @@ describe('pollEmail', () => {
           throw new Error('no gog credentials');
         },
       });
-      await expect(pollEmail(d)).rejects.toThrow('no gog credentials');
+      await expect(pollEmail(d)).rejects.toThrow(
+        'email/poll: 1 account(s) failed: [gog] gog: no gog credentials',
+      );
       expect(fs.readFileSync(events, 'utf8')).toBe('');
       expect(runner.closed()).toBe(true);
     });
