@@ -36,6 +36,23 @@ describe('meetsFloor', () => {
   ])('%s => %s', (version, expected) => {
     expect(meetsFloor(version)).toBe(expected);
   });
+
+  it.each([
+    ['24', false],
+    ['24.22', false],
+    ['25', true],
+    ['24.23', true],
+    ['24.22.2-pre', true],
+    ['24.22.2+build', true],
+  ])('reads the missing parts of %s as 0 => %s', (version, expected) => {
+    expect(meetsFloor(version)).toBe(expected);
+  });
+
+  it('compares against a given floor, missing parts read as 0', () => {
+    expect(meetsFloor('24.0.0', '24')).toBe(true);
+    expect(meetsFloor('23.9.9', '24')).toBe(false);
+    expect(meetsFloor('24.1.0', '24.1')).toBe(true);
+  });
 });
 
 describe('nodeCheck', () => {

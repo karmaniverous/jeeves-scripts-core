@@ -188,12 +188,34 @@ describe('pollEmail', () => {
       expect(console.error).toHaveBeenCalledWith(
         '[imap] i@x.com error: auth failed',
       );
+      expect(runLines('_runs-imap-poll.jsonl')[0]).toEqual({
+        at: '2026-06-01T00:00:00.000Z',
+        kind: 'imap-poll',
+        account: 'i@x.com',
+        error: 'auth failed',
+      });
       expect(
         runLines('_runs-imap-poll.jsonl').map((l) => [l.account, l.error]),
       ).toEqual([
         ['i@x.com', 'auth failed'],
         ['j@x.com', undefined],
       ]);
+    });
+
+    it('records a thrown non-Error as its string', async () => {
+      const d = deps({
+        pollGog: vi.fn(() => {
+          // A dependency may throw a plain string.
+          throw 'gog exited 1' as unknown as Error;
+        }),
+      });
+      await expect(pollEmail(d)).rejects.toThrow(
+        'email/poll: 1 account(s) failed: [gog] a@x.com: gog exited 1',
+      );
+      expect(runLines('_runs-a@x.com.jsonl').at(-1)).toMatchObject({
+        kind: 'gog-poll',
+        error: 'gog exited 1',
+      });
     });
 
     it('names every failed account in one error, polling each once', async () => {
@@ -218,6 +240,7 @@ describe('pollEmail', () => {
       });
       await expect(pollEmail(d)).rejects.toThrow('no gog credentials');
       expect(fs.readFileSync(events, 'utf8')).toBe('');
+      expect(runner.closed()).toBe(true);
     });
 
     it('resolves when every account succeeds', async () => {
