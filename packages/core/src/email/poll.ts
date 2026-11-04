@@ -89,10 +89,11 @@ interface AccountFailure {
 const errorMessage = (e: unknown): string =>
   e instanceof Error ? e.message : String(e);
 
-/** Log a failed account and record it in its run log; returns the failure. */
+/** The log tag for a failure kind: `imap` or `gog`. */
 const kindTag = (kind: AccountFailure['kind']): string =>
   kind === 'imap-poll' ? 'imap' : 'gog';
 
+/** Log a failed account and record it in its run log; returns the failure. */
 const recordFailure = (
   deps: EmailPollDeps,
   runsFile: string,
