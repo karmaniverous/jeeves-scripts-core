@@ -24,6 +24,7 @@ import { configEdit } from './config-edit.js';
 import { doctorReport } from './doctor.js';
 import { describeError, formatInit, initRepo } from './init.js';
 import { formatList, jobHelp, listRunnables } from './list.js';
+import { NODE_FLOOR, nodeCheck } from './node-version.js';
 import { openclawPresent } from './openclaw.js';
 import { coreVersion } from './package-info.js';
 import { runJob } from './run.js';
@@ -178,10 +179,11 @@ const buildListCommand = (root: string) =>
 const buildDoctorCommand = (root: string) =>
   new Command('doctor')
     .description(
-      'Report the core version, config, plugin load, manifest prerequisites and override drift. Informational: always exits 0.',
+      `Report the core version, the Node version against core's floor (>=${NODE_FLOOR}), config, plugin load, manifest prerequisites and override drift. Exits 0 unless Node is below the floor.`,
     )
     .action(async () => {
       for (const line of await doctorReport(root)) console.log(line);
+      if (!nodeCheck().ok) process.exitCode = 1;
     });
 
 const buildInitCommand = (root: string) =>

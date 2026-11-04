@@ -1,12 +1,13 @@
 /**
  * @module cli/doctor
  *
- * `jeeves-scripts doctor` (R29, Decisions 27, 49; design §6): an
- * informational report on an instance repo. Lines for the installed core
- * version, the config location and whether it validates, the plugin load,
- * each effective manifest's prerequisite state, and override drift (an
- * override's `writtenFor` differing from the installed core). It reports
- * problems as lines and never throws, so the command always exits 0.
+ * `jeeves-scripts doctor` (R29, Decisions 27, 49; design §6): a report on
+ * an instance repo. Lines for the installed core version, the running Node
+ * against core's floor (#75), the config location and whether it validates,
+ * the plugin load, each effective manifest's prerequisite state, and
+ * override drift (an override's `writtenFor` differing from the installed
+ * core). It reports problems as lines and never throws; the command exits
+ * 0 unless Node is below the floor (see cli/node-version).
  *
  * A prerequisite's state (Decision 57): `met` or `not met: <reason>` from
  * the runnable's `defineRunnable` prerequisite check when it declares one
@@ -35,12 +36,15 @@ import {
 } from '../runnables/runnables.js';
 import type { ListOptions } from './list.js';
 import { loadPlugin, PLUGIN_FILE } from './load-plugin.js';
+import { nodeCheck } from './node-version.js';
 import { CORE_PACKAGE, coreVersion } from './package-info.js';
 
 /** Seams for tests. */
 export interface DoctorOptions extends ListOptions {
   /** The installed core version. Default: the running core's. */
   version?: string;
+  /** The running Node version. Default: `process.versions.node`. */
+  nodeVersion?: string;
 }
 
 const message = (e: unknown): string =>
@@ -128,6 +132,7 @@ export const doctorReport = async (
   } catch (e) {
     lines.push(`core: version unreadable: ${message(e)}`);
   }
+  lines.push(nodeCheck(options.nodeVersion).line);
 
   setConfigRoot(root);
   const check = configCheck({ root });
