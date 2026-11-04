@@ -112,11 +112,119 @@ describe('pollEmail', () => {
     );
   });
 
-  it('logs an IMAP failure and still polls gog', async () => {
-    const d = deps({ pollImap: () => Promise.reject(new Error('timeout')) });
-    await pollEmail(d);
-    expect(console.error).toHaveBeenCalledWith('[imap] i@x.com error: timeout');
-    expect(d.pollGog).toHaveBeenCalledTimes(1);
+  describe('one failing account (#66)', () => {
+    const runLines = (file: string) =>
+      fs
+        .readFileSync(path.join(dir, 'events', file), 'utf8')
+        .trim()
+        .split('\n')
+        .map((l) => JSON.parse(l) as Record<string, unknown>);
+    const oldEvents = () => {
+      fs.mkdirSync(path.join(dir, 'events'), { recursive: true });
+      const file = path.join(dir, 'events', 'a@x.com.jsonl');
+      fs.writeFileSync(file, '{"at":"2000-01-01T00:00:00.000Z"}\n');
+      return file;
+    };
+
+    it('gog: polls every other account, trims, then fails naming the account', async () => {
+      const events = oldEvents();
+      const pollGog = vi.fn((ctx: { account: string }) => {
+        if (ctx.account === 'b@x.com')
+          throw new Error(
+            'invalid_grant: Token has been expired or revoked.\nmore',
+          );
+      });
+      const d = deps({
+        config: () => ({
+          accounts: [gmail('a@x.com'), gmail('b@x.com'), gmail('c@x.com')],
+          emailConfig: { reportOnly: false, digest: { slackChannelId: '' } },
+        }),
+        pollGog,
+      });
+
+      await expect(pollEmail(d)).rejects.toThrow(
+        'email/poll: 1 account(s) failed: [gog] b@x.com: invalid_grant: Token has been expired or revoked.',
+      );
+      expect(pollGog.mock.calls.map(([c]) => c.account)).toEqual([
+        'a@x.com',
+        'b@x.com',
+        'c@x.com',
+      ]);
+      expect(console.error).toHaveBeenCalledWith(
+        '[gog] b@x.com error: invalid_grant: Token has been expired or revoked.\nmore',
+      );
+      expect(runLines('_runs-b@x.com.jsonl')).toEqual([
+        {
+          at: '2026-06-01T00:00:00.000Z',
+          kind: 'gog-poll',
+          account: 'b@x.com',
+          error: 'invalid_grant: Token has been expired or revoked.\nmore',
+        },
+      ]);
+      expect(fs.readFileSync(events, 'utf8')).toBe('');
+      expect(runner.closed()).toBe(true);
+    });
+
+    it('IMAP: a failure now fails the run, after every account is polled', async () => {
+      const pollImap = vi.fn((a: AccountConfig) =>
+        a.email === 'i@x.com'
+          ? Promise.reject(new Error('auth failed'))
+          : Promise.resolve(stats),
+      );
+      const d = deps({
+        config: () => ({
+          accounts: [imap('i@x.com'), imap('j@x.com'), gmail('a@x.com')],
+          emailConfig: { reportOnly: false, digest: { slackChannelId: '' } },
+        }),
+        pollImap,
+      });
+
+      await expect(pollEmail(d)).rejects.toThrow(
+        'email/poll: 1 account(s) failed: [imap] i@x.com: auth failed',
+      );
+      expect(pollImap).toHaveBeenCalledTimes(2);
+      expect(d.pollGog).toHaveBeenCalledTimes(1);
+      expect(console.error).toHaveBeenCalledWith(
+        '[imap] i@x.com error: auth failed',
+      );
+      expect(
+        runLines('_runs-imap-poll.jsonl').map((l) => [l.account, l.error]),
+      ).toEqual([
+        ['i@x.com', 'auth failed'],
+        ['j@x.com', undefined],
+      ]);
+    });
+
+    it('names every failed account in one error, polling each once', async () => {
+      const d = deps({
+        pollImap: () => Promise.reject(new Error('timeout')),
+        pollGog: vi.fn(() => {
+          throw new Error('invalid_grant');
+        }),
+      });
+      await expect(pollEmail(d)).rejects.toThrow(
+        'email/poll: 2 account(s) failed: [imap] i@x.com: timeout; [gog] a@x.com: invalid_grant',
+      );
+      expect(d.pollGog).toHaveBeenCalledTimes(1);
+    });
+
+    it('trims the logs even when the run fails before polling gog', async () => {
+      const events = oldEvents();
+      const d = deps({
+        requireGog: () => {
+          throw new Error('no gog credentials');
+        },
+      });
+      await expect(pollEmail(d)).rejects.toThrow('no gog credentials');
+      expect(fs.readFileSync(events, 'utf8')).toBe('');
+    });
+
+    it('resolves when every account succeeds', async () => {
+      const events = oldEvents();
+      await expect(pollEmail(deps())).resolves.toBeUndefined();
+      expect(console.error).not.toHaveBeenCalled();
+      expect(fs.readFileSync(events, 'utf8')).toBe('');
+    });
   });
 
   it('skips gog accounts without a gog credential, and fails when gog requires one', async () => {

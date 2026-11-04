@@ -33,14 +33,30 @@ export type GogRunner = (
 ) => string;
 
 /**
- * Run a gog command with retry logic for transient network errors.
+ * Whether a gog error is an auth failure that only a person can fix by
+ * re-authorizing (`gog auth add`): an expired or revoked refresh token
+ * (`invalid_grant`). Never worth a retry (#66).
+ */
+const isGogAuthError = (msg: string): boolean =>
+  /invalid_grant|expired or revoked|run 'gog auth add'/i.test(msg);
+
+/**
+ * Whether a gog error is worth retrying: a transient timeout, unless it is
+ * also an auth failure ({@link isGogAuthError}), which fails fast.
+ */
+const isGogRetryable = (e: unknown): boolean => {
+  const msg = e instanceof Error ? e.message : String(e);
+  if (isGogAuthError(msg)) return false;
+  return /context deadline exceeded|timed out|timeout/i.test(msg);
+};
+
+/**
+ * Run a gog command with retry logic for transient network errors; auth
+ * failures are never retried.
  */
 export const gogWithRetry: GogRunner = (args, opts = {}) =>
   runWithRetry(gogBin(), args, {
     retries: opts.retries ?? 2,
     backoffMs: opts.backoffMs ?? 5000,
-    isRetryable: (e: unknown) => {
-      const msg = e instanceof Error ? e.message : String(e);
-      return /context deadline exceeded|timed out|timeout/i.test(msg);
-    },
+    isRetryable: isGogRetryable,
   });
