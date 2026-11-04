@@ -278,19 +278,6 @@ describe('doctorReport', () => {
 });
 
 describe('doctor command', () => {
-  it('prints the report and exits 0 even when the config is invalid', async () => {
-    writeConfig({ instance: { name: 't' } });
-    const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
-    process.exitCode = undefined;
-
-    await buildProgram({ root }).parseAsync(['doctor'], { from: 'user' });
-
-    expect(log).toHaveBeenCalledWith(
-      expect.stringMatching(/^core: @karmaniverous\/jeeves-scripts-core /),
-    );
-    expect(process.exitCode).toBeUndefined();
-  });
-
   describe('Node floor (#75)', () => {
     const running = Object.getOwnPropertyDescriptor(process.versions, 'node');
     const runAs = async (node: string) => {
@@ -312,6 +299,16 @@ describe('doctor command', () => {
       process.exitCode = undefined;
       return { code, lines: log.mock.calls.map(([l]) => String(l)) };
     };
+
+    // Runs at the floor, not the host's Node: on a host below it the exit
+    // code would come from the Node check, not from the invalid config.
+    it('prints the report and exits 0 even when the config is invalid', async () => {
+      const { code, lines } = await runAs('24.22.2');
+      expect(lines).toContainEqual(
+        expect.stringMatching(/^core: @karmaniverous\/jeeves-scripts-core /),
+      );
+      expect(code).toBeUndefined();
+    });
 
     it('fails below 24.22.2, naming the running and required versions', async () => {
       const { code, lines } = await runAs('24.18.0');
