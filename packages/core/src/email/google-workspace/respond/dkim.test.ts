@@ -109,6 +109,33 @@ describe('isDkimDomainMatch', () => {
   it('rejects an unrelated domain', () => {
     expect(isDkimDomainMatch('evil.com', 'example.com')).toBe(false);
   });
+
+  // Dots become dashes in the alias, so a 3+-label domain collides with a
+  // separately registrable one (foo.acme.test / foo-acme.test).
+  it.each([
+    ['foo-acme-test.20230601.gappssmtp.com', 'foo.acme.test'],
+    ['sub-example-com.1.gappssmtp.com', 'sub.example.com'],
+    ['example-co-uk.1.gappssmtp.com', 'example.co.uk'],
+    ['a-b-c-d.1.gappssmtp.com', 'A.b.c.d'],
+  ])('rejects the alias %s for the 3+-label sender %s', (identity, sender) => {
+    expect(isGappssmtpAlias(identity, sender)).toBe(true);
+    expect(isDkimDomainMatch(identity, sender)).toBe(false);
+  });
+
+  it('matches a 3+-label sender signed by exactly its own domain', () => {
+    expect(isDkimDomainMatch('foo.acme.test', 'foo.acme.test')).toBe(true);
+    expect(isDkimDomainMatch('Foo.Acme.Test', 'foo.ACME.test')).toBe(true);
+    expect(isDkimDomainMatch('acme.test', 'foo.acme.test')).toBe(false);
+  });
+
+  it('keeps the alias for a two-label sender, case-insensitively', () => {
+    expect(
+      isDkimDomainMatch('acme-test.20230601.gappssmtp.com', 'Acme.Test'),
+    ).toBe(true);
+    // A single label is no mail domain: no alias either.
+    expect(isGappssmtpAlias('acme.1.gappssmtp.com', 'acme')).toBe(true);
+    expect(isDkimDomainMatch('acme.1.gappssmtp.com', 'acme')).toBe(false);
+  });
 });
 
 describe('checkDkim', () => {

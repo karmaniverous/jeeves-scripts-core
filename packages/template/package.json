@@ -5,7 +5,7 @@
   "description": "A Jeeves scripts instance repo: configuration, overrides and instance runnables on @karmaniverous/jeeves-scripts-core.",
   "type": "module",
   "engines": {
-    "node": ">=22.18"
+    "node": ">=24.22.2"
   },
   "scripts": {
     "check": "node bin/jeeves-scripts.js config check",

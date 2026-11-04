@@ -8,12 +8,15 @@
  * email/respond/orchestrate.ts.
  *
  * Conditions (all must hold):
- * 1. The From address is in `allowedSenders` and is not the mailbox.
+ * 1. The From address is covered by `allowedSenders` (an exact address or
+ *    a domain pattern, lib/allowed-senders) and is not the mailbox, even
+ *    when a pattern covers it.
  * 2. The mailbox is in To (Cc-only or absent from both is a skip).
  * 3. DKIM authenticates the sender (dkim.ts).
  * 4. The message does not look automated/bulk (automated.ts).
  */
 
+import { isAllowedSender } from '../../../lib/allowed-senders.js';
 import {
   parseAddressList,
   type ParsedAddress,
@@ -54,7 +57,7 @@ export type QualifyResult = QualifyOk | QualifyFail;
 export interface QualifyOptions {
   /** The mailbox being checked (lowercased). */
   mailbox: string;
-  /** Allowed senders (lowercased). */
+  /** Allowed senders: exact addresses and domain patterns (lowercased). */
   allowedSenders: readonly string[];
 }
 
@@ -79,7 +82,7 @@ export function qualifyMessage(
   if (sender.email === opts.mailbox) {
     return { qualifies: false, reason: 'message sent by the mailbox itself' };
   }
-  if (!opts.allowedSenders.includes(sender.email)) {
+  if (!isAllowedSender(sender.email, opts.allowedSenders)) {
     return {
       qualifies: false,
       reason: `sender ${sender.email} is not in allowedSenders`,

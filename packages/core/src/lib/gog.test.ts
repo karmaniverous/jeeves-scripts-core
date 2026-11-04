@@ -92,6 +92,25 @@ describe('gog', () => {
       expect(isRetryable({ code: 1 })).toBe(false);
     });
 
+    it('never retries an auth failure, even one that mentions a timeout (#66)', () => {
+      vi.mocked(runWithRetry).mockReturnValue('');
+
+      gogWithRetry(['test']);
+      const callArgs = vi.mocked(runWithRetry).mock.calls[0]![2]!;
+      const isRetryable = callArgs.isRetryable as (e: unknown) => boolean;
+
+      for (const msg of [
+        'oauth2: "invalid_grant" "Token has been expired or revoked." (after timeout)',
+        'Token has been expired or revoked: context deadline exceeded',
+        "auth failed, run 'gog auth add' (timed out waiting)",
+        'INVALID_GRANT: request timed out',
+      ]) {
+        expect(isRetryable(new Error(msg))).toBe(false);
+        expect(isRetryable(msg)).toBe(false);
+      }
+      expect(isRetryable(new Error('502 Bad Gateway: timeout'))).toBe(true);
+    });
+
     it('propagates errors from runWithRetry', () => {
       vi.mocked(runWithRetry).mockImplementation(() => {
         throw new Error('all retries exhausted');

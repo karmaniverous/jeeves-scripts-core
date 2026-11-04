@@ -92,6 +92,76 @@ describe('emailConfig.respond', () => {
     );
   });
 
+  it('accepts exact addresses and domain patterns, mixed and lowercased (#53)', () => {
+    withEmailConfig({
+      respond: {
+        mailbox: 'aide@example.com',
+        allowedSenders: [
+          'Owner@Other.example',
+          '*@Example.com',
+          '*@Sub.Example.com',
+        ],
+      },
+    });
+    expect(parsed().respond?.allowedSenders).toEqual([
+      'owner@other.example',
+      '*@example.com',
+      '*@sub.example.com',
+    ]);
+  });
+
+  it.each(['*', '*@*', '*@', 'j*@example.com', '*@com', 'a<b>@x.example'])(
+    'rejects the invalid entry %j, failing the config (#53)',
+    (entry) => {
+      withEmailConfig({
+        respond: {
+          mailbox: 'aide@example.com',
+          allowedSenders: ['jane@example.com', entry],
+        },
+      });
+      expect(() => parsed()).toThrow(
+        /must be an email address or \*@<domain> \(an ASCII domain of two or more labels\); no other wildcard is supported/,
+      );
+    },
+  );
+
+  it.each(['*@*.', '*@*.example.com', '*@*.*.example.com'])(
+    'rejects the subdomain pattern %j, failing the config',
+    (entry) => {
+      withEmailConfig({
+        respond: {
+          mailbox: 'aide@example.com',
+          allowedSenders: [entry],
+        },
+      });
+      expect(() => parsed()).toThrow(
+        /subdomain patterns \(\*@\*\.<domain>\) are not supported/,
+      );
+    },
+  );
+
+  it('rejects *@ a consumer mail domain, failing the config', () => {
+    withEmailConfig({
+      respond: {
+        mailbox: 'aide@example.com',
+        allowedSenders: ['*@gmail.com'],
+      },
+    });
+    expect(() => parsed()).toThrow(
+      /\*@gmail\.com would admit anyone with a gmail\.com account/,
+    );
+  });
+
+  it('accepts a pattern covering the mailbox: qualification excludes it', () => {
+    withEmailConfig({
+      respond: {
+        mailbox: 'aide@example.com',
+        allowedSenders: ['*@example.com'],
+      },
+    });
+    expect(parsed().respond?.allowedSenders).toEqual(['*@example.com']);
+  });
+
   it('rejects an invalid mailbox address', () => {
     withEmailConfig({
       respond: { mailbox: 'not-an-email', allowedSenders: ['a@b.com'] },

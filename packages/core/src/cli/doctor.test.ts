@@ -49,6 +49,7 @@ const writeConfig = (config: unknown) => {
 
 const options = (plugin?: Plugin | Error) => ({
   version: '0.2.0',
+  nodeVersion: '24.22.2',
   registry,
   coreManifests,
   loadPlugin: () =>
@@ -95,6 +96,7 @@ describe('doctorReport', () => {
 
     expect(lines).toEqual([
       'core: @karmaniverous/jeeves-scripts-core 0.2.0',
+      'node: 24.22.2 (requires >=24.22.2): OK',
       `config: ${path.join(root, 'jeeves-scripts.json')} (from legacy repo file): OK`,
       'plugin: jeeves-scripts.plugin.ts: 1 runnables, 1 overrides',
       'manifests: 2 (prerequisites: 1 met, 0 not met, 1 manual)',
@@ -103,6 +105,19 @@ describe('doctorReport', () => {
       'overrides: 1 (1 written for another core version)',
       '  email-poll: written for 0.1.0, installed 0.2.0: DRIFT (recheck karmaniverous/jeeves-scripts-core#1)',
     ]);
+  });
+
+  it('reports the Node version it is given against the floor (#75)', async () => {
+    writeConfig({ instance: { name: 't' } });
+
+    const lines = await doctorReport(root, {
+      ...options(),
+      nodeVersion: '24.18.0',
+    });
+
+    expect(lines[1]).toMatch(
+      /^node: 24\.18\.0: FAILED: requires >=24\.22\.2; /,
+    );
   });
 
   it("runs each manifest runnable's prerequisite check for its state (R29)", async () => {
@@ -232,7 +247,7 @@ describe('doctorReport', () => {
 
     const lines = await doctorReport(root, options(new Error('boom')));
 
-    expect(lines[1]).toMatch(/: FAILED$/);
+    expect(lines[2]).toMatch(/: FAILED$/);
     expect(lines).toContain('plugin: FAILED');
     expect(lines).toContain('  boom');
     expect(lines).toContain('overrides: none');
@@ -274,5 +289,42 @@ describe('doctor command', () => {
       expect.stringMatching(/^core: @karmaniverous\/jeeves-scripts-core /),
     );
     expect(process.exitCode).toBeUndefined();
+  });
+
+  describe('Node floor (#75)', () => {
+    const running = Object.getOwnPropertyDescriptor(process.versions, 'node');
+    const runAs = async (node: string) => {
+      Object.defineProperty(process.versions, 'node', {
+        ...running,
+        value: node,
+      });
+      // An invalid config keeps the run short (no manifests are loaded);
+      // only the Node floor may set the exit code.
+      writeConfig({ instance: { name: 't' } });
+      const log = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+      process.exitCode = undefined;
+      try {
+        await buildProgram({ root }).parseAsync(['doctor'], { from: 'user' });
+      } finally {
+        if (running) Object.defineProperty(process.versions, 'node', running);
+      }
+      const code = process.exitCode;
+      process.exitCode = undefined;
+      return { code, lines: log.mock.calls.map(([l]) => String(l)) };
+    };
+
+    it('fails below 24.22.2, naming the running and required versions', async () => {
+      const { code, lines } = await runAs('24.18.0');
+      expect(code).toBe(1);
+      expect(lines).toContain(
+        'node: 24.18.0: FAILED: requires >=24.22.2; Node 24.16-24.18 have a SQLite WAL checkpoint bug (the WAL grows without bound). Upgrade Node.',
+      );
+    });
+
+    it('passes at the floor (above it: node-version.test.ts)', async () => {
+      const { code, lines } = await runAs('24.22.2');
+      expect(code).toBeUndefined();
+      expect(lines).toContain('node: 24.22.2 (requires >=24.22.2): OK');
+    });
   });
 });

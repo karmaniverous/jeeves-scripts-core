@@ -11,6 +11,8 @@
 
 import { z } from 'zod';
 
+import { allowedSenderSchema } from '../lib/allowed-senders.js';
+
 /** Email digest settings (`emailConfig.digest`). */
 export const digestConfigSchema = z.object({
   /** Slack channel the email digest posts to. */
@@ -55,13 +57,18 @@ const emailAddressSchema = z
  * go out through gog. `allowedSenders` is deliberately independent of
  * `accounts`: being allowed to trigger a reply is a narrower,
  * explicitly-configured permission, not a side effect of email ingestion.
+ * Its entries are exact addresses or domain patterns (lib/allowed-senders).
  */
 export const respondConfigSchema = z
   .object({
     /** The mailbox that receives and replies to mail. */
     mailbox: emailAddressSchema,
-    /** Senders allowed to trigger a reply. Must not include `mailbox`. */
-    allowedSenders: z.array(emailAddressSchema).min(1),
+    /**
+     * Senders allowed to trigger a reply: exact addresses or
+     * `*@example.com` (that domain; not a consumer provider). Must not list
+     * `mailbox` exactly; a pattern covering it never lets it qualify.
+     */
+    allowedSenders: z.array(allowedSenderSchema).min(1),
     /** Per-thread reply rate limit (default 3/hour). */
     maxRepliesPerThreadPerHour: z.number().int().min(1).default(3),
     /** Messages processed per run, oldest first (default 3). */

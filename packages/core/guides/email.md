@@ -47,8 +47,11 @@ flowchart TD
 | IMAP | `imap` block present | Connect → Fetch (UID watermark) → Parse MIME → Write, in one step | `imap/` (`imapflow` + `mailparser`; no external binary) |
 
 - **gog poll:** each run searches `in:anywhere` (so spam and trash are included and human actions there are visible) and takes the newest 100 threads per account. Every thread is classified and its thread state updated; a thread that is new or updated (more messages or a newer date) **and** looks important (labelled `INBOX` or `UNREAD`, a receipt candidate, or in a bucket listed in `buckets.priority`) is deep-fetched (`email-fetch.ts`): full metadata into the thread cache, label-change provenance, curation signals, and new messages enqueued on `email-pending` for `download`.
-- **IMAP poll:** per folder, fetches messages above the stored UID, parses them and writes the files directly (see [imap/](#imap)). An error on one IMAP account is logged and the other accounts are still polled.
+- **IMAP poll:** per folder, fetches messages above the stored UID, parses them and writes the files directly (see [imap/](#imap)).
 - Both transports write the same layout (see [Output Format](#output-format)).
+- **A failing account never stops the others.** Each account (IMAP and gog alike) is polled on its own: an error is logged as `[imap|gog] <account> error: <message>` and recorded as a `{ at, kind: 'imap-poll' | 'gog-poll', account, error }` line in the run log (`_runs-imap-poll.jsonl`, or the gog account's `_runs-<account>.jsonl`), and the remaining accounts are still polled. Gmail accounts with no gog credential at all (no OAuth client, no service-account mailboxes) count as one failure, `[gog] gog: <message>`, joined with any IMAP failures. A run log that can't be written is logged (`email/poll: could not write <file>: ...`) and never stops the run or marks a good poll as failed. The log trim runs whatever happens; a trim failure is logged and fails the run only when no account failed. Once every account has been tried, the run fails (exit 1, so the job's failure alert fires) with one error naming each failed account and its error's first line: `email/poll: 2 account(s) failed: [imap] a@example.com: ...; [gog] b@example.com: ...`. An IMAP failure used to be logged with the run still `ok`; it now fails the run too.
+- **Auth failures are not retried.** `gogWithRetry` retries only timeouts; an expired or revoked OAuth refresh token (`invalid_grant`, `Token has been expired or revoked`, `run 'gog auth add'`) fails at once, even when the message also mentions a timeout. Only a person can fix it: re-authorize the account (`gog auth add`). A consumer Gmail account whose OAuth consent screen is in _Testing_ has its refresh token expired by Google after 7 days. This holds in every job that calls gog through `gogWithRetry` (poll, download, drain, backfill, respond, the Drive jobs), not only the poller.
+- **5xx and network errors are not retried (departure from #66).** #66 asked that a transient error (5xx, network) still be retried; `gogWithRetry` retries only errors whose message mentions a timeout, as before, so a `502 Bad Gateway` or a connection reset without timeout text fails the account at once (the next run polls it again). Retrying them is a follow-up.
 
 ## Runner Jobs
 
@@ -89,9 +92,9 @@ node bin/jeeves-scripts.js run email-apply-labels [--since <date>] [--account <i
 
 Each run searches the mailbox for `in:inbox newer_than:2d`, reads every message's headers in those threads (skipping mail the mailbox sent), and replies only when **all** of these hold (`google-workspace/respond/qualify.ts`):
 
-1. **Allowed sender.** The From header holds exactly one address (an address inside a quoted display name never counts, and a header with two angle addresses is rejected as ambiguous), it is in `emailConfig.respond.allowedSenders`, and it is not the mailbox. The list is set by the operator and is deliberately independent of `accounts`: polling a mailbox never lets its owner command the assistant.
+1. **Allowed sender.** The From header holds exactly one address (an address inside a quoted display name never counts, and a header with two angle addresses is rejected as ambiguous), it is covered by `emailConfig.respond.allowedSenders`, and it is not the mailbox. The list is set by the operator and is deliberately independent of `accounts`: polling a mailbox never lets its owner command the assistant. An entry is an exact address (a plain `local@domain`: no display name, angle brackets, quotes or commas) or `*@example.com` (any address at exactly that domain, not its subdomains); exact addresses and patterns mix in one list, and matching is case-insensitive (`lib/allowed-senders.ts`). Domains are ASCII: write an internationalized domain in punycode (`*@xn--bcher-kva.example`), since a Unicode domain fails the check. Everything else fails the config check and the run: subdomain patterns (`*@*.example.com`, with a message saying they are not supported: list `*@<domain>` for each subdomain), every other `*` (`*`, `*@*`, `*@`, `j*@example.com`), a single-label domain (`*@com`), and `*@<domain>` for a consumer mail provider anyone can sign up at (`CONSUMER_MAIL_DOMAINS` in `lib/allowed-senders.ts`: gmail.com, googlemail.com, outlook.com, hotmail.com, live.com, msn.com, yahoo.com, ymail.com, icloud.com, me.com, mac.com, aol.com, proton.me, protonmail.com, pm.me, gmx.com, gmx.net, mail.com, yandex.com, yandex.ru, zoho.com, fastmail.com, hey.com, qq.com, 163.com, 126.com; an exact address there is fine). A sender whose domain is malformed (an empty or doubled label, a `*`) never matches. The mailbox never qualifies, even when a pattern covers its domain. A domain pattern means "anyone the domain's mail admin has given an address": use one only when the operator wants the whole domain. DKIM (rule 3) blocks forged From headers, but it can't make a pattern safer than the domain's own admin. A pattern widens who can reach the assistant, never what they may see: the worker still applies each sender's own permissions.
 2. **Direct recipient.** The mailbox is in the **To** header (proper address-list parsing). Cc-only, or absent from both To and Cc (BCC), never qualifies.
-3. **Authenticated.** Only the topmost `Authentication-Results` header counts, and only when its authserv-id is `mx.google.com` (lower headers can be forged by the sender). It needs `dkim=pass` from a signing domain (`header.d`, else the domain after the last `@` of `header.i`) equal to the sender's domain or Google's default Workspace signing domain for it, `<domain with dots as dashes>.<digits>.gappssmtp.com`. Domains without their own DKIM key are signed that way by Google.
+3. **Authenticated.** Only the topmost `Authentication-Results` header counts, and only when its authserv-id is `mx.google.com` (lower headers can be forged by the sender). It needs `dkim=pass` from a signing domain (`header.d`, else the domain after the last `@` of `header.i`) equal to the sender's domain or, for a two-label sender domain only, Google's default Workspace signing domain for it, `<domain with dots as dashes>.<digits>.gappssmtp.com`. Domains without their own DKIM key are signed that way by Google. The dashed name collides for longer domains (`foo.acme.example` and the separately registrable `foo-acme.example` share `foo-acme-example.<n>.gappssmtp.com`), so a sender domain of three or more labels must be signed by exactly its own domain. The rule counts labels, not registrable domains (no public-suffix list): a domain under a two-label public suffix (`example.co.uk`) counts as three labels and needs its own DKIM key too. A two-label domain with a hyphen (`acme-corp.example`) still shares its alias with `acme.corp.example`; give it its own key to close that.
 4. **Not automated.** No `Auto-Submitted` other than `no`, no `List-Id`, no `Precedence: bulk|list|junk`.
 5. **Not already handled, under the cap.** No recorded outcome that is final, and the thread is under `maxRepliesPerThreadPerHour` (default 3). At most `maxPerRun` (default 3) messages per run, oldest first, and at most one per thread per run.
 
@@ -138,7 +141,11 @@ The address parser and the DKIM check are pure, and exported from the package ro
 {
   "respond": {
     "mailbox": "assistant@example.com",
-    "allowedSenders": ["owner@example.com"],
+    "allowedSenders": [
+      "owner@example.com",
+      "*@example.org",
+      "*@mail.example.org"
+    ],
     "maxRepliesPerThreadPerHour": 3,
     "maxPerRun": 3,
     "label": "assistant-replied",
@@ -148,7 +155,7 @@ The address parser and the DKIM check are pure, and exported from the package ro
 }
 ```
 
-`mailbox` and `allowedSenders` are required (addresses are lowercased; `allowedSenders` must not include the mailbox); the rest show their defaults. The manifest carries a `prerequisite`, so `sync-jobs` never registers the job on its own: the operator configures `respond` and registers it.
+`mailbox` and `allowedSenders` are required (entries are lowercased; `allowedSenders` must not list the mailbox as an exact entry, and a pattern covering it is allowed but never lets it qualify); the rest show their defaults. The manifest carries a `prerequisite`, so `sync-jobs` never registers the job on its own: the operator configures `respond` and registers it.
 
 ## State, Queues and Logs
 

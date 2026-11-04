@@ -45,7 +45,7 @@ jeeves-scripts --dir ./new-instance init        # no repo yet
 | `list [glob] [--json]` | Every registered runnable whose id matches the glob ([below](#listing-runnables)). Exit 1 on an invalid manifest, delta or registration. |
 | `config check [--config <file>]` | Validate the instance config ([config.md](./config.md#where-the-file-is)) against the schema, its silo references and the gateway Slack accounts `slack.channelMeta` and `skillReview` name, then load and register the instance plugin as `list` does: its `configSchema` validates the `local` block ([runnables](./runnables.md#instance-runnables-and-overrides)), and registration checks unique ids, the naming rule and core domains, the instance manifests and the `jobs` deltas (an unknown id fails). A plugin that fails to load or register, an invalid manifest or delta, or a rejected `local` is a problem like any other. Silo references are `jobs.<id>.silo` and `integrations.x.accounts.<handle>.silo`. Prints `config check: OK (<path>, from <source>)` (`pointer <file>`, `JEEVES_SCRIPTS_CONFIG`, `--config` or `legacy repo file`), or `config check: FAILED (...)` and one line per problem with exit code 1. |
 | `config set <path> <value> [--live] [--config <file>]`, `config unset <path> [--live] [--config <file>]` | Change the instance config: dry run unless `--live`; the result is validated as `config check` validates it; `--live` writes a dated backup (newest 20 kept) and replaces the file atomically. Refused on a legacy config in the repo. Exit 1 on a bad path or an invalid result. See [config.md](./config.md#editing-the-config). |
-| `doctor` | Report on the instance ([below](#doctor)). Informational: always exits 0. |
+| `doctor` | Report on the instance ([below](#doctor)). Exits 0, unless the running Node is below core's floor (exit 1). |
 | `--version`, `--help` | The core version; usage (there is no `help` verb; `<verb> --help` gives a verb's usage). |
 | `init --config-dir <dir> [--name <pkg>] [--core <version>]` | Write an instance repo into the root from the template bundled in core, and its `config.json` into `--config-dir` ([below](#init)). Exit 1 on an invalid name or version; `--config-dir` is required. |
 | `skills install \| uninstall [-y \| --yes]`, `skills status` | Wire core's shipped skills into OpenClaw through `openclaw config set` ([below](#skills)). Exit 1, with `skills <action>: FAILED: <reason>` on stderr, when `openclaw` fails. |
@@ -121,11 +121,12 @@ Core ships its skills in the package (`skills/<name>/SKILL.md`); they are wired 
 
 ## Doctor
 
-`jeeves-scripts doctor` prints one report and always exits 0; a problem is a line, never a failure:
+`jeeves-scripts doctor` prints one report; a problem is a line. It exits 0, except when the running Node is below core's floor: then it exits 1.
 
 | Line | Content |
 | --- | --- |
 | `core:` | The installed core version |
+| `node:` | The running Node (`process.versions.node`) against core's floor, `engines.node` `>=24.22.2`: `OK`, or `FAILED: requires >=24.22.2` and why: Node 24.16-24.18 have a SQLite WAL checkpoint bug that lets the WAL grow without bound (fixed in 24.22.2). The only line that fails the command (exit 1) |
 | `config:` | The config file location and `OK` or `FAILED`, with one indented line per problem (as `config check`) |
 | `plugin:` | `jeeves-scripts.plugin.ts` with its runnable and override counts, `none`, or `FAILED` with the load or registration error |
 | `manifests:` | A count of met, not met and manual prerequisites, then every effective manifest (core's and the instance's, deltas applied): enabled or disabled, and its prerequisite state: `met` or `not met: <reason>` from the runnable's `defineRunnable` prerequisite check when it has one, then, once that is met, from its `doctorCheck` (a condition that fails the run rather than skipping it, [runnables](./runnables.md#failures-skips-and-exit-codes)); else `met` when the manifest's `prerequisite` is `null` (deploy registers it), or `manual: <text>` |
@@ -157,6 +158,7 @@ The CLI is also importable from `@karmaniverous/jeeves-scripts-core/cli`: `main(
 | `src/cli/index.ts` | `main`, `buildProgram`, `resolveRoot`, the `config` command |
 | `src/cli/list.ts` | `listRunnables`, `formatList` |
 | `src/cli/doctor.ts` | `doctorReport` |
+| `src/cli/node-version.ts` | `NODE_FLOOR` (kept equal to `engines.node` by a test), `nodeCheck` |
 | `src/cli/init.ts` | `initRepo`, `formatInit` |
 | `src/cli/skills.ts` | `skills install \| uninstall \| status`: the status report, the confirmation, applying a change |
 | `src/cli/skills-change.ts` | What `skills install` and `skills uninstall` change (OpenClaw's `skills` block, the sets and unsets) |

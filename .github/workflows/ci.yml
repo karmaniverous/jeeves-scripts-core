@@ -23,7 +23,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Owner floor (#75): Node >=24.22.2. check-latest so a stale runner
+          # cache never resolves an older 24.x.
+          node-version: 24
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
@@ -52,6 +55,29 @@ jobs:
       - name: Knip
         run: npm run knip
 
+  # The floor itself (#75): build and test on exactly the oldest supported
+  # Node, so a newer-24.x-only API can't slip in behind the latest-24 legs.
+  floor:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24.22.2'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npm test
+
   # R33, design section 11: pack core, init an instance from the tarball in a
   # directory outside the repo, install the tarball there, and run doctor,
   # the sample runnable and the instance's own gates.
@@ -71,7 +97,10 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Owner floor (#75): Node >=24.22.2. check-latest so a stale runner
+          # cache never resolves an older 24.x.
+          node-version: 24
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
