@@ -121,7 +121,7 @@ describe('pollEmail', () => {
         .map((l) => JSON.parse(l) as Record<string, unknown>);
     const oldEvents = () => {
       fs.mkdirSync(path.join(dir, 'events'), { recursive: true });
-      const file = path.join(dir, 'events', 'a@x.com.jsonl');
+      const file = path.join(dir, 'events', 'thread-events.jsonl');
       fs.writeFileSync(file, '{"at":"2000-01-01T00:00:00.000Z"}\n');
       return file;
     };
@@ -153,7 +153,8 @@ describe('pollEmail', () => {
       expect(console.error).toHaveBeenCalledWith(
         '[gog] b@x.com error: invalid_grant: Token has been expired or revoked.\nmore',
       );
-      expect(runLines('_runs-b@x.com.jsonl')).toEqual([
+      const failed = 'b@x.com';
+      expect(runLines(`_runs-${failed}.jsonl`)).toEqual([
         {
           at: '2026-06-01T00:00:00.000Z',
           kind: 'gog-poll',

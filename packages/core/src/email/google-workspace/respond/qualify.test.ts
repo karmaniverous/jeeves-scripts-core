@@ -188,7 +188,9 @@ describe('qualifyMessage: domain patterns (#53)', () => {
     });
   });
 
-  it.each(['eve@evil-example.com', 'eve@example.com.evil.com'])(
+  // Look-alikes kept to reserved names (no-instance-data); more in
+  // lib/allowed-senders.test.ts.
+  it.each(['eve@example.com.evil.test', 'eve@sub.example.com.invalid'])(
     'rejects the look-alike %s',
     (from) => {
       const opts = patterns('*@example.com', '*@*.example.com');

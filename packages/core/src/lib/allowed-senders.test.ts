@@ -70,19 +70,25 @@ describe('isAllowedSender', () => {
     expect(isAllowedSender('a@example.com', entries)).toBe(false);
   });
 
+  // Look-alikes of corp.example, kept to reserved names (no-instance-data).
   it.each([
-    'a@evil-example.com',
-    'a@notexample.com',
-    'a@example.com.evil.com',
-    'a@example.com.evil.net',
-    'a@example.co',
-    'a@example.comm',
-    'example.com@evil.com',
-    'a@sub-example.com',
+    'a@evil-corp.example',
+    'a@notcorp.example',
+    'a@sub-corp.example',
+    'a@corp.example.evil.test',
+    'a@sub.corp.example.invalid',
+    'a@corp.example.test',
+    'corp.example@evil.test',
   ])('does not match the look-alike %j', (sender) => {
-    expect(isAllowedSender(sender, ['*@example.com', '*@*.example.com'])).toBe(
-      false,
-    );
+    expect(
+      isAllowedSender(sender, ['*@corp.example', '*@*.corp.example']),
+    ).toBe(false);
+  });
+
+  it('matches the real domain those look-alikes imitate', () => {
+    const entries = ['*@corp.example', '*@*.corp.example'];
+    expect(isAllowedSender('a@corp.example', entries)).toBe(true);
+    expect(isAllowedSender('a@sub.corp.example', entries)).toBe(true);
   });
 
   it('mixes exact addresses and patterns in one list', () => {
