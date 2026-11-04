@@ -141,7 +141,11 @@ The address parser and the DKIM check are pure, and exported from the package ro
 {
   "respond": {
     "mailbox": "assistant@example.com",
-    "allowedSenders": ["owner@example.com", "*@example.org", "*@mail.example.org"],
+    "allowedSenders": [
+      "owner@example.com",
+      "*@example.org",
+      "*@mail.example.org"
+    ],
     "maxRepliesPerThreadPerHour": 3,
     "maxPerRun": 3,
     "label": "assistant-replied",

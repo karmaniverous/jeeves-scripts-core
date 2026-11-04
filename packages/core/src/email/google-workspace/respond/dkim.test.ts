@@ -117,13 +117,10 @@ describe('isDkimDomainMatch', () => {
     ['sub-example-com.1.gappssmtp.com', 'sub.example.com'],
     ['example-co-uk.1.gappssmtp.com', 'example.co.uk'],
     ['a-b-c-d.1.gappssmtp.com', 'A.b.c.d'],
-  ])(
-    'rejects the alias %s for the 3+-label sender %s',
-    (identity, sender) => {
-      expect(isGappssmtpAlias(identity, sender)).toBe(true);
-      expect(isDkimDomainMatch(identity, sender)).toBe(false);
-    },
-  );
+  ])('rejects the alias %s for the 3+-label sender %s', (identity, sender) => {
+    expect(isGappssmtpAlias(identity, sender)).toBe(true);
+    expect(isDkimDomainMatch(identity, sender)).toBe(false);
+  });
 
   it('matches a 3+-label sender signed by exactly its own domain', () => {
     expect(isDkimDomainMatch('foo.acme.test', 'foo.acme.test')).toBe(true);

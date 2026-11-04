@@ -20,7 +20,8 @@ describe('allowedSenderSchema', () => {
     ['*@Example.CO.uk', '*@example.co.uk'],
     ['*@mail.my-corp.example', '*@mail.my-corp.example'],
     ['*@xn--bcher-kva.example', '*@xn--bcher-kva.example'],
-    ['someone@gmail.com', 'someone@gmail.com'],
+    // An exact address at a consumer provider stays allowed (every one).
+    ...CONSUMER_MAIL_DOMAINS.map((d) => [`someone@${d}`, `someone@${d}`]),
   ])('accepts %j as %j', (input, output) => {
     expect(allowedSenderSchema.parse(input)).toBe(output);
   });

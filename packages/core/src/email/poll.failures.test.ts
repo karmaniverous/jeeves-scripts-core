@@ -21,7 +21,7 @@ let runner: ReturnType<typeof fakeRunnerClient>;
 const deps = (over: Partial<EmailPollDeps> = {}): EmailPollDeps =>
   pollDeps(dir, runner.client, over);
 
-/** IMAP i@x.com fails, IMAP j@x.com succeeds, gmail a@x.com. */
+/** Two IMAP accounts (the first fails, the second succeeds) and one gmail account. */
 const mixed = (over: Partial<EmailPollDeps> = {}): EmailPollDeps =>
   deps({
     config: () => ({
