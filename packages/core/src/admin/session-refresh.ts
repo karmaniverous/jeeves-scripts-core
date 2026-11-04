@@ -9,8 +9,10 @@
  * (`sessions.list`, then just before each live reset `sessions.describe`
  * and `sessions.list` with `activeOnly: true`, then `sessions.reset`
  * fenced with `expectedSessionId`); last-turn usage comes from the agent DB, read-only.
- * A busy or recently active session is never touched. After a live reset
- * of a Slack session, one line is posted in its conversation.
+ * A busy session (its own active run, or one of a session it spawned) or a
+ * recently active one is never touched. After a live reset of a
+ * Slack-keyed session whose origin is Slack, one line is posted in its
+ * conversation; an agent's main session never gets one.
  *
  * **Flags.** Without `--live` the run is a dry run: it lists, reads and
  * logs what it would reset, and writes nothing. `--live` resets.
