@@ -52,6 +52,12 @@ describe('meetsFloor', () => {
     expect(meetsFloor('24.0.0', '24')).toBe(true);
     expect(meetsFloor('23.9.9', '24')).toBe(false);
     expect(meetsFloor('24.1.0', '24.1')).toBe(true);
+    expect(meetsFloor('24.22.0', '24.22.1')).toBe(false);
+  });
+
+  it('reads a non-numeric part as 0', () => {
+    expect(meetsFloor('24.22.x')).toBe(false);
+    expect(meetsFloor('24.x.0', '24.0.0')).toBe(true);
   });
 });
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { allowedSenderSchema, isAllowedSender } from './allowed-senders.js';
 
@@ -34,8 +35,25 @@ describe('allowedSenderSchema', () => {
     '*@-example.com',
     'not-an-email',
     'jane@example',
+    'jane@example.com x',
+    '*@example.com!',
   ])('rejects %j', (input) => {
     expect(allowedSenderSchema.safeParse(input).success).toBe(false);
+  });
+
+  it('carries a JSON Schema pattern that accepts entries in either case', () => {
+    const { pattern } = z
+      .object({ pattern: z.string() })
+      .parse(z.toJSONSchema(allowedSenderSchema, { target: 'draft-7' }));
+    const re = new RegExp(pattern);
+    for (const entry of [
+      'Jane@Example.com',
+      '*@Example.COM',
+      '*@*.Sub.Example.com',
+    ])
+      expect(re.test(entry)).toBe(true);
+    for (const entry of ['*', '*@*', '*@*.*.example.com'])
+      expect(re.test(entry)).toBe(false);
   });
 });
 

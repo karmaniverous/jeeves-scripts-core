@@ -103,7 +103,7 @@ describe('gog', () => {
         'oauth2: "invalid_grant" "Token has been expired or revoked." (after timeout)',
         'Token has been expired or revoked: context deadline exceeded',
         "auth failed, run 'gog auth add' (timed out waiting)",
-        'INVALID_GRANT',
+        'INVALID_GRANT: request timed out',
       ]) {
         expect(isRetryable(new Error(msg))).toBe(false);
         expect(isRetryable(msg)).toBe(false);

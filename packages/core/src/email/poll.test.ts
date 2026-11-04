@@ -142,7 +142,8 @@ describe('pollEmail', () => {
         pollGog,
       });
 
-      await expect(pollEmail(d)).rejects.toThrow(
+      await expect(pollEmail(d)).rejects.toHaveProperty(
+        'message',
         'email/poll: 1 account(s) failed: [gog] b@x.com: invalid_grant: Token has been expired or revoked.',
       );
       expect(pollGog.mock.calls.map(([c]) => c.account)).toEqual([
