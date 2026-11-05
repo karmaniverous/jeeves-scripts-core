@@ -72,7 +72,17 @@ export {
   type DispatcherFlags,
   dispatcherFlags,
 } from './lib/dispatcher-flags.js';
-export { gh, ghApi, ghJson, type GhResult, setupGhConfig } from './lib/gh.js';
+export { readStdinJson } from './lib/entity-store.js';
+export {
+  gh,
+  ghApi,
+  ghJson,
+  type GhJsonOptions,
+  type GhOptions,
+  type GhResult,
+  setupGhConfig,
+} from './lib/gh.js';
+export { isRecord } from './lib/is-record.js';
 export {
   readJsonFile,
   readJsonFileIfExists,
@@ -88,9 +98,12 @@ export {
   linkBeforeWorker,
   type LinkRequest,
   liveReportLink,
+  readServerAccess,
   type ReportLink,
   resolvePublicUrl,
   type ServerAccess,
+  serverAccessFrom,
+  type ServerLinkConfig,
   slackLink,
 } from './lib/server-link.js';
 export {
@@ -103,6 +116,7 @@ export {
   type SlackPostMessageOptions,
   type SlackResponse,
 } from './lib/slack-client.js';
+export { decodeSlack, escapeSlack } from './lib/slack-text.js';
 export * from './lib/task-template.js';
 export { dispatchWithSlack } from './lib/worker-slack/run.js';
 export { normalizeSlackTarget } from './lib/worker-slack/slack-target.js';

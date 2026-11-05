@@ -53,9 +53,9 @@ Gmail parsing utilities for raw Gmail API payloads. No config dependencies.
 GitHub CLI wrappers with typed invocation. Depends on `GH_BIN`, `GH_CONFIG_DIR`.
 
 - `setupGhConfig()` — sets `GH_CONFIG_DIR` env var so `gh` finds correct auth tokens
-- `gh(args, options?)` — run `gh` CLI command, return structured `GhResult` (`ok`, `status`, `out`, `err`)
-- `ghJson(args)` — run `gh` and parse stdout as JSON
-- `ghApi(endpoint)` — call GitHub REST API via `gh api`
+- `gh(args, options?)` — run `gh` CLI command, return structured `GhResult` (`ok`, `status`, `out`, `err`). `options`: `allowFail` (return the failed result instead of throwing) and `timeoutMs` (kill `gh` after that long and throw `gh <args> timed out after <n>ms`; no limit by default)
+- `ghJson(args, options?)` — run `gh` and parse stdout as JSON
+- `ghApi(endpoint, options?)` — call GitHub REST API via `gh api`. Both take `{ timeoutMs }` and pass it to `gh`
 
 ### gog.ts
 
@@ -148,7 +148,7 @@ A file's jeeves-server insider link, resolved by the server itself, so it works 
 
 - `resolvePublicUrl(fetch, access, fsPath, timeoutMs?)` - `GET <apiUrl>/api/resolve-path?fsPath=<path>&k=<insiderKey>`; resolves the server's `publicUrl`. Throws `jeeves-server could not resolve <path> (HTTP <status>[: <error>])` on a non-OK answer (e.g. a path under no root) and `jeeves-server publicUrl is not configured; refusing to post a filesystem path to Slack` when the server has no `publicUrl`. It waits at most `timeoutMs` (default `SERVER_LINK_TIMEOUT_MS`, 10 s; the server is local, so a longer wait means it is hung) for the answer, body included, then throws `jeeves-server did not answer within <ms> ms resolving <path>` (never the URL or key)
 - `slackLink(url, label)` - `<url|label>`, a Slack mrkdwn link
-- `serverAccessFrom(config, keyName)` / `readServerAccess(keyName)` - `{ apiUrl: http://127.0.0.1:<port>, insiderKey }` from jeeves-server's own config (`readComponentConfig('server', ...)`): the insider key is `computeInsiderKey(seed)` from `@karmaniverous/jeeves` (Decision 72) over the named machine key in `keys` (a seed string or `{ key }`). Throws naming a missing config, `port` or key
+- `serverAccessFrom(config, keyName)` / `readServerAccess(keyName)` (on the root export, with the `ServerLinkConfig` type) - `{ apiUrl: http://127.0.0.1:<port>, insiderKey }` from jeeves-server's own config (`readComponentConfig('server', ...)`): the insider key is `computeInsiderKey(seed)` from `@karmaniverous/jeeves` (Decision 72) over the named machine key in `keys` (a seed string or `{ key }`). Throws naming a missing config, `port` or key
 - `liveReportLink(title)` and `linkBeforeWorker(...)` - a report's link (`<url|<title> — <YYYY-MM-DD>>`) resolved before a worker runs: a live run fails when it can't be resolved, a preview logs a `[warn]` and shows `(no link)`
 
 ### worker-output.ts
@@ -204,7 +204,7 @@ The one argument parser for runnables, core's and instances', on the root export
 
 ### is-record.ts
 
-`isRecord(v)`: the one type guard for a non-null object read from unknown JSON (arrays pass; `admin/lib/openrouter-pricing.ts` keeps its own, which rejects arrays).
+`isRecord(v)`: the one type guard for a non-null object read from unknown JSON, on the root export (arrays pass; `admin/lib/openrouter-pricing.ts` keeps its own, which rejects arrays).
 
 ### dispatcher-flags.ts
 
@@ -216,7 +216,7 @@ The one Slack Web API client, on the root export (Decision 59): `createSlackClie
 
 ### slack-text.ts
 
-Slack's three control characters (`&`, `<`, `>`) both ways: `escapeSlack(s)` for text a job posts, so `<!channel>` or `<@U123>` in it is shown, not acted on; `decodeSlack(s)` for text Slack returns. Used by `slack/channel-meta` and `admin/skill-review`.
+Slack's three control characters (`&`, `<`, `>`) both ways: `escapeSlack(s)` for text a job posts, so `<!channel>` or `<@U123>` in it is shown, not acted on; `decodeSlack(s)` for text Slack returns. Both are on the root export. Used by `slack/channel-meta` and `admin/skill-review`.
 
 ### entity-store.ts
 
@@ -226,7 +226,7 @@ Shared entity persistence — upsert, backfill, and delete entity files with rev
 - `backfillEntity(domainDir, type, key, current, now)` — write entity file only if it doesn't exist (historical import); returns path or null
 - `deleteEntity(domainDir, type, key)` — delete entity file; returns boolean
 - `writeUnmatched(domainDir, label, body)` — write unrecognised webhook payload to `_unmatched/` subdirectory
-- `readStdinJson()` — read stdin to completion and parse as JSON; used by Event Gateway drain scripts
+- `readStdinJson()` — read stdin to completion and parse as JSON; used by Event Gateway drain scripts (on the root export)
 
 Entity file structure:
 

@@ -85,6 +85,13 @@ describe('package entry point', () => {
       'readJsonFile',
       'readJsonFileIfExists',
       'writeJsonFile',
+      // #82: helpers instance scripts were copying.
+      'isRecord',
+      'escapeSlack',
+      'decodeSlack',
+      'readStdinJson',
+      'serverAccessFrom',
+      'readServerAccess',
     ];
     expect(
       utilities.filter((name) => typeof core[name] !== 'function'),
