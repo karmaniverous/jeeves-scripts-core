@@ -5,7 +5,8 @@
  * with an invalid block, `config check` (the library check and the CLI's
  * instance check), its prerequisite and its run all fail; a
  * `reportAccount` the gateway lacks fails `config check`, `doctor` and
- * the run.
+ * the run; gateway accounts that can't be read are a `config check`
+ * warning, not a failure.
  */
 
 import fs from 'node:fs';
@@ -162,5 +163,124 @@ describe('admin-review-skill-proposals and the instance config', () => {
     expect(configCheck(file, { slackAccounts: () => ['default'] }).ok).toBe(
       false,
     );
+  });
+
+  // A host without OpenClaw (CI) can't read the gateway accounts: config
+  // check warns and passes; the run still refuses.
+  describe('when the gateway accounts cannot be read', () => {
+    const unreadable = {
+      slackAccounts: (): readonly string[] => {
+        throw new Error('No Slack bot token found in OpenClaw config');
+      },
+    };
+    const warning =
+      "skillReview names Slack accounts, but the gateway's could not be read (No Slack bot token found in OpenClaw config); not checked here, the job checks them when it runs";
+
+    it('config check passes with a warning, even for the default account', () => {
+      const file = write({ skillReview: { ...REQUIRED, outputDir: outDir } });
+      expect(configCheck(file, unreadable)).toMatchObject({
+        ok: true,
+        errors: [],
+        warnings: [warning],
+      });
+    });
+
+    it('a warning never hides a real problem', () => {
+      const file = write({
+        jobs: { 'email-poll': { silo: 'nowhere' } },
+        skillReview: { ...REQUIRED, outputDir: outDir },
+      });
+      const result = configCheck(file, unreadable);
+      expect(result.ok).toBe(false);
+      expect(result.warnings).toEqual([warning]);
+    });
+
+    it('reads the accounts once and warns for nothing with no block naming one', () => {
+      let reads = 0;
+      const counting = {
+        slackAccounts: () => {
+          reads += 1;
+          return ['default'];
+        },
+      };
+      expect(
+        configCheck(
+          write({ skillReview: { ...REQUIRED, outputDir: outDir } }),
+          counting,
+        ),
+      ).toMatchObject({ ok: true, warnings: [] });
+      expect(reads).toBe(1);
+      resetConfig();
+      expect(
+        configCheck(
+          write({
+            slack: {
+              channelMeta: {
+                ...REQUIRED,
+                outputDir: outDir,
+                reportTextAccounts: [],
+              },
+            },
+          }),
+          unreadable,
+        ),
+      ).toMatchObject({ ok: true, errors: [], warnings: [] });
+    });
+
+    it('warns for slack.channelMeta when it names an account', () => {
+      const file = write({
+        slack: {
+          channelMeta: {
+            ...REQUIRED,
+            outputDir: outDir,
+            reportAccount: 'work',
+          },
+        },
+      });
+      expect(configCheck(file, unreadable)).toMatchObject({
+        ok: true,
+        warnings: [
+          "slack.channelMeta names Slack accounts, but the gateway's could not be read (No Slack bot token found in OpenClaw config); not checked here, the job checks them when it runs",
+        ],
+      });
+    });
+
+    it('the CLI prints the warning and OK, exit 0', async () => {
+      const file = write({ skillReview: { ...REQUIRED, outputDir: outDir } });
+      const { buildProgram } = await import('../cli/index.js');
+      const openclaw = await import('../lib/openclaw-config.js');
+      vi.spyOn(openclaw, 'slackBotTokens').mockImplementation(() => {
+        throw new Error('No Slack bot token found in OpenClaw config');
+      });
+      const err = vi
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      process.exitCode = undefined;
+      await buildProgram({ root: path.dirname(file.configPath) }).parseAsync(
+        ['config', 'check', '--config', file.configPath],
+        { from: 'user' },
+      );
+      expect(err).toHaveBeenCalledWith(`warning: ${warning}`);
+      expect(console.log).toHaveBeenCalledWith(
+        expect.stringMatching(/^config check: OK/),
+      );
+      expect(process.exitCode).toBeUndefined();
+    });
+
+    it('doctor shows the warning under an OK config line', async () => {
+      const file = write({ skillReview: { ...REQUIRED, outputDir: outDir } });
+      const { doctorReport } = await import('../cli/doctor.js');
+      const openclaw = await import('../lib/openclaw-config.js');
+      vi.spyOn(openclaw, 'slackBotTokens').mockImplementation(() => {
+        throw new Error('No Slack bot token found in OpenClaw config');
+      });
+      const lines = await doctorReport(path.dirname(file.configPath), {
+        nodeVersion: '24.22.2',
+      });
+      expect(lines).toContainEqual(expect.stringMatching(/^config: .*: OK$/));
+      expect(lines).toContainEqual(
+        expect.stringContaining(`warning: ${warning}`),
+      );
+    });
   });
 });

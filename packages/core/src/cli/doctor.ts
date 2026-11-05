@@ -142,6 +142,8 @@ export const doctorReport = async (
     `config: ${where}${from ? ` (from ${from})` : ''}: ${check.ok ? 'OK' : 'FAILED'}`,
   );
   for (const error of check.errors) lines.push(...indent(error));
+  for (const warning of check.warnings)
+    lines.push(...indent(`warning: ${warning}`));
 
   let plugin: Plugin | undefined;
   let runnables;

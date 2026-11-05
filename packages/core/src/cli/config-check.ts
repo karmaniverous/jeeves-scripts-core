@@ -53,6 +53,7 @@ export const instanceConfigCheck = async (
       configPath: result.configPath,
       source: result.source,
       errors: [e instanceof Error ? e.message : String(e)],
+      warnings: result.warnings,
     };
   }
   return result;
