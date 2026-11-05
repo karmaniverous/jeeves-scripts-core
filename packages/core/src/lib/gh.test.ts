@@ -118,6 +118,62 @@ describe('gh', () => {
       expect(result.error).toContain('ENOENT');
     });
 
+    const timedOut = () =>
+      vi.mocked(cp.spawnSync).mockReturnValue({
+        stdout: '',
+        stderr: '',
+        status: null,
+        signal: 'SIGTERM',
+        pid: 1,
+        output: [],
+        error: Object.assign(new Error('spawnSync gh ETIMEDOUT'), {
+          code: 'ETIMEDOUT',
+        }),
+      });
+
+    it('passes timeoutMs to spawnSync and names the timeout when it fires', () => {
+      timedOut();
+      expect(() => gh(['repo', 'list'], { timeoutMs: 500 })).toThrow(
+        'gh repo list timed out after 500ms',
+      );
+      expect(vi.mocked(cp.spawnSync)).toHaveBeenCalledWith(
+        expect.anything(),
+        ['repo', 'list'],
+        { encoding: 'utf8', timeout: 500 },
+      );
+    });
+
+    it('returns the timeout as the error when allowFail is true', () => {
+      timedOut();
+      expect(gh(['repo', 'list'], { allowFail: true, timeoutMs: 500 })).toEqual(
+        {
+          ok: false,
+          status: null,
+          out: '',
+          err: '',
+          error: 'gh repo list timed out after 500ms',
+        },
+      );
+    });
+
+    it('sets no spawn timeout by default', () => {
+      vi.mocked(cp.spawnSync).mockReturnValue({
+        stdout: '',
+        stderr: '',
+        status: 0,
+        signal: null,
+        pid: 1,
+        output: [],
+        error: undefined,
+      });
+      gh(['version']);
+      expect(vi.mocked(cp.spawnSync)).toHaveBeenCalledWith(
+        expect.anything(),
+        ['version'],
+        { encoding: 'utf8' },
+      );
+    });
+
     it('trims stdout and stderr', () => {
       vi.mocked(cp.spawnSync).mockReturnValue({
         stdout: '\n  hello \n',
@@ -200,6 +256,25 @@ describe('gh', () => {
         expect.anything(),
         ['api', 'repos/owner/repo'],
         expect.anything(),
+      );
+    });
+
+    it('passes timeoutMs through ghJson to gh', () => {
+      vi.mocked(cp.spawnSync).mockReturnValue({
+        stdout: '{"id":1}',
+        stderr: '',
+        status: 0,
+        signal: null,
+        pid: 1,
+        output: [],
+        error: undefined,
+      });
+
+      expect(ghApi('repos/owner/repo', { timeoutMs: 2000 })).toEqual({ id: 1 });
+      expect(vi.mocked(cp.spawnSync)).toHaveBeenCalledWith(
+        expect.anything(),
+        ['api', 'repos/owner/repo'],
+        { encoding: 'utf8', timeout: 2000 },
       );
     });
   });
