@@ -43,6 +43,12 @@ export interface ConfigCheckResult {
   source?: Pick<ResolvedConfig, 'source' | 'pointer'>;
   /** One message per problem; empty when `ok`. */
   errors: string[];
+  /**
+   * What could not be checked here and does not fail the check: the
+   * gateway Slack accounts when they can't be read (a host without
+   * OpenClaw, such as CI). The job checks them again when it runs.
+   */
+  warnings: string[];
 }
 
 /**
@@ -78,21 +84,53 @@ const checkSilos = (options: LoadConfigOptions): string[] => {
     );
 };
 
-/** The accounts `slack.channelMeta` and `skillReview` name that the gateway lacks. */
+/**
+ * The accounts `slack.channelMeta` and `skillReview` name that the gateway
+ * lacks (errors). When the gateway's accounts can't be read at all, the
+ * blocks that name one are reported as warnings instead: the check can't
+ * tell, and the job checks again when it runs.
+ */
 const checkSlackAccounts = (
   options: LoadConfigOptions,
   deps: ConfigCheckDeps,
-): string[] => {
+): Pick<ConfigCheckResult, 'errors' | 'warnings'> => {
   const config = loadConfig(options);
-  const accounts = deps.slackAccounts ?? (() => Object.keys(slackBotTokens()));
+  const read = deps.slackAccounts ?? (() => Object.keys(slackBotTokens()));
   const meta = config.slack.channelMeta;
   const review = config.skillReview;
-  return [
-    meta === undefined ? undefined : slackAccountsProblem(meta, accounts),
-    review === undefined
-      ? undefined
-      : skillReviewAccountProblem(review, accounts),
-  ].filter((p) => p !== undefined);
+  const naming = [
+    // as slackAccountsProblem: a block names accounts by reportAccount or
+    // a non-empty reportTextAccounts
+    meta?.reportAccount !== undefined ||
+    (meta?.reportTextAccounts?.length ?? 0) > 0
+      ? 'slack.channelMeta'
+      : undefined,
+    review === undefined ? undefined : 'skillReview',
+  ].filter((b) => b !== undefined);
+  if (naming.length === 0) return { errors: [], warnings: [] };
+  let known: readonly string[];
+  try {
+    known = read();
+  } catch (e) {
+    const reason = e instanceof Error ? e.message : String(e);
+    return {
+      errors: [],
+      warnings: naming.map(
+        (block) =>
+          `${block} names Slack accounts, but the gateway's could not be read (${reason}); not checked here, the job checks them when it runs`,
+      ),
+    };
+  }
+  const accounts = () => known;
+  return {
+    errors: [
+      meta === undefined ? undefined : slackAccountsProblem(meta, accounts),
+      review === undefined
+        ? undefined
+        : skillReviewAccountProblem(review, accounts),
+    ].filter((p) => p !== undefined),
+    warnings: [],
+  };
 };
 
 /** The config file location, or `undefined` when it can't be resolved. */
@@ -162,13 +200,16 @@ export const configCheck = (
       ok: false,
       ...located(locate(options)),
       errors: [e instanceof Error ? e.message : String(e)],
+      warnings: [],
     };
   }
-  const errors = [...checkSilos(options), ...checkSlackAccounts(options, deps)];
+  const slack = checkSlackAccounts(options, deps);
+  const errors = [...checkSilos(options), ...slack.errors];
   return {
     ok: errors.length === 0,
     ...located(locate(options)),
     configPath: getLoadedConfigPath() ?? undefined,
     errors,
+    warnings: slack.warnings,
   };
 };

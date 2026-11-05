@@ -76,6 +76,8 @@ const buildConfigCommand = (root: string) => {
         result.configPath === undefined
           ? ''
           : ` (${result.configPath}${from ? `, from ${from}` : ''})`;
+      for (const warning of result.warnings)
+        console.error(`warning: ${warning}`);
       if (result.ok) {
         console.log(`config check: OK${where}`);
         return;

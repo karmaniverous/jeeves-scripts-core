@@ -58,6 +58,7 @@ describe('instanceConfigCheck', () => {
       configPath: path.join(root, 'jeeves-scripts.json'),
       source: { source: 'legacy' },
       errors: [],
+      warnings: [],
     });
   });
 
