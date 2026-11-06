@@ -25,14 +25,16 @@ Package documentation ships inside the npm package, so skills and the watcher re
 
 ## Development
 
-Node `>=24.22.2` is required, for development and on every instance: Node 24.16-24.18's built-in SQLite can stop write-ahead-log checkpoints, so every Jeeves component sets this floor.
+Node `>=24.22.2` is required, for development and on every instance: Node 24.16-24.18's built-in SQLite can stop write-ahead-log checkpoints, so every Jeeves component sets this floor. The root `.nvmrc` pins it for nvm, and `packages/template/nvmrc` becomes each new instance's `.nvmrc`; a test keeps both equal to `engines`.
+
+The tests need `git` and `rsync` on `PATH` (the mirror tests run both for real; on Windows, the Cygwin `rsync` from `choco install rsync`, as CI uses). `bash` and PowerShell are optional: the tests that use them skip without them.
 
 ```bash
 npm install
 npm run build        # builds packages/core, writes its JSON Schema, copies packages/template into it
 npm run lint         # after build: the template lints against core's built types
 npm run typecheck
-npm test
+npm test             # builds core first (pretest): the template tests run against core's built output (CI builds once, then runs npm test --ignore-scripts)
 npm run knip
 npm run docs         # TypeDoc; warnings are errors
 ```

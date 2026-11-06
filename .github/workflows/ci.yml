@@ -50,8 +50,7 @@ jobs:
         run: npm run typecheck
 
       - name: Test
-        run: npm test
-
+        run: npm test --ignore-scripts # Build above; skip the pretest rebuild
       - name: Knip
         run: npm run knip
 
@@ -76,8 +75,7 @@ jobs:
         run: npm run build
 
       - name: Test
-        run: npm test
-
+        run: npm test --ignore-scripts # Build above; skip the pretest rebuild
   # R33, design section 11: pack core, init an instance from the tarball in a
   # directory outside the repo, install the tarball there, and run doctor,
   # the sample runnable and the instance's own gates.

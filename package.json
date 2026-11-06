@@ -15,6 +15,7 @@
     "knip": "knip",
     "lint": "eslint .",
     "lint:fix": "eslint --fix .",
+    "pretest": "npm run build -w @karmaniverous/jeeves-scripts-core",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "tsc -p tsconfig.json && npm run typecheck --workspaces --if-present"
   },
