@@ -11,6 +11,12 @@
  * context, so they are skipped. The session's cold archive is read only when the hot
  * rows hold none (OpenClaw's cold storage moves a whole inactive transcript
  * out of the hot table, so hot rows, when present, are the newest).
+ *
+ * A `reset` event ends the read: OpenClaw 2026.9.6 resets a session in
+ * place, keeping its session id and appending `{ "type": "reset" }` to the
+ * same transcript, so every turn before it belongs to a context that no
+ * longer exists. A session reset since its last turn therefore has no
+ * last-turn usage, and session refresh does not reset it again.
  * Read-only.
  */
 
@@ -56,13 +62,32 @@ export function assistantUsage(json: string): LastTurnUsage | undefined {
   return tokens > 0 ? usage : undefined;
 }
 
-/** The newest assistant usage among events given newest first. */
-function firstUsage(jsons: Iterable<string>): LastTurnUsage | undefined {
-  for (const json of jsons) {
-    const usage = assistantUsage(json);
-    if (usage) return usage;
+/** Whether a transcript event is OpenClaw's in-place reset marker. */
+export function isResetEvent(json: string): boolean {
+  try {
+    return (JSON.parse(json) as { type?: unknown }).type === 'reset';
+  } catch {
+    return false;
   }
-  return undefined;
+}
+
+/** Why {@link firstUsage} stopped. */
+type Scan =
+  | { kind: 'usage'; usage: LastTurnUsage }
+  | { kind: 'reset' }
+  | { kind: 'none' };
+
+/**
+ * The newest assistant usage among events given newest first, stopping at
+ * a reset marker (nothing before it is the current context).
+ */
+function firstUsage(jsons: Iterable<string>): Scan {
+  for (const json of jsons) {
+    if (isResetEvent(json)) return { kind: 'reset' };
+    const usage = assistantUsage(json);
+    if (usage) return { kind: 'usage', usage };
+  }
+  return { kind: 'none' };
 }
 
 function* hotNewestFirst(
@@ -106,8 +131,10 @@ export function lastTurnUsageV23(
   ctx: SchemaContext,
   sessionId: string,
 ): LastTurnUsage | undefined {
-  return (
-    firstUsage(hotNewestFirst(db, sessionId)) ??
-    firstUsage(coldNewestFirst(db, ctx, sessionId))
-  );
+  const hot = firstUsage(hotNewestFirst(db, sessionId));
+  if (hot.kind === 'usage') return hot.usage;
+  // A reset in the hot rows ends the context: the cold archive is older.
+  if (hot.kind === 'reset') return undefined;
+  const cold = firstUsage(coldNewestFirst(db, ctx, sessionId));
+  return cold.kind === 'usage' ? cold.usage : undefined;
 }

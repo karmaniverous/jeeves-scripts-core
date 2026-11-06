@@ -10,12 +10,13 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import type { DatabaseSync } from 'node:sqlite';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import { openAgentDb } from './open-agent-db.js';
 import { ms, T10, T11, usage, user } from './openclaw-db.fixtures.js';
-import { assistantUsage } from './schema-v23-usage.js';
+import { assistantUsage, isResetEvent } from './schema-v23-usage.js';
 import { createV23Fixture } from './v23.fixtures.js';
 
 /** An assistant turn with a given context split. */
@@ -68,6 +69,31 @@ const mirror = (tsIso: string) =>
       openclawDeliveryMirror: { kind: 'channel-final' },
     },
   });
+
+/**
+ * OpenClaw 2026.9.6's in-place reset marker, as `sessions.reset` appends
+ * it (copied from a managed instance's agent DB, 2026-11-06).
+ */
+const reset = (tsIso: string) =>
+  JSON.stringify({
+    type: 'reset',
+    id: '278a674e',
+    parentId: 'adb0b100',
+    timestamp: tsIso,
+    reason: 'reset',
+  });
+
+const insertHot = (
+  db: DatabaseSync,
+  sessionId: string,
+  seq: number,
+  json: string,
+) =>
+  db
+    .prepare(
+      'INSERT INTO transcript_events (session_id, seq, event_json, created_at, event_utf8_bytes) VALUES (?, ?, ?, ?, ?)',
+    )
+    .run(sessionId, seq, json, Date.now(), json.length);
 
 let root: string;
 
@@ -190,12 +216,68 @@ describe.each([23, 24])('lastTurnUsage (schema %i)', (version) => {
     });
   });
 
+  it('has no last turn once the session was reset in place after it', () => {
+    const fx = createV23Fixture(root, version);
+    fx.addHotSession('r', [
+      user('hi'),
+      turn(T10, 2, 171_831, 299),
+      JSON.stringify({ type: 'custom', customType: 'openclaw.cache-ttl' }),
+      reset(T11),
+      reset(T11),
+    ]);
+    fx.close();
+    expect(lastTurn(fx.dbPath, 'r')).toBeUndefined();
+  });
+
+  it('reads the turn after a reset, not the one before it', () => {
+    const fx = createV23Fixture(root, version);
+    fx.addHotSession('ra', [
+      turn(T10, 2, 171_831, 299),
+      reset(T10),
+      user('new question'),
+      turn(T11, 3, 0, 4_000),
+    ]);
+    fx.close();
+    expect(lastTurn(fx.dbPath, 'ra')).toEqual({
+      input: 3,
+      cacheRead: 0,
+      cacheWrite: 4_000,
+      tsMs: ms(T11),
+    });
+  });
+
+  it('does not fall back to the cold archive past a hot reset', () => {
+    const fx = createV23Fixture(root, version);
+    fx.addColdSession('rc', [user('a'), turn(T10, 1, 0, 900_000)]);
+    insertHot(fx.db, 'rc', 3, reset(T11));
+    fx.close();
+    expect(lastTurn(fx.dbPath, 'rc')).toBeUndefined();
+  });
+
+  it('stops at a reset inside the cold archive', () => {
+    const fx = createV23Fixture(root, version);
+    fx.addColdSession('rk', [turn(T10, 1, 0, 900_000), reset(T11)]);
+    fx.close();
+    expect(lastTurn(fx.dbPath, 'rk')).toBeUndefined();
+  });
+
   it('returns undefined for a session with no usage, or none at all', () => {
     const fx = createV23Fixture(root, version);
     fx.addHotSession('empty', [user('only a question')]);
     fx.close();
     expect(lastTurn(fx.dbPath, 'empty')).toBeUndefined();
     expect(lastTurn(fx.dbPath, 'missing')).toBeUndefined();
+  });
+});
+
+describe('isResetEvent', () => {
+  it('recognises only a reset marker', () => {
+    expect(isResetEvent(reset(T10))).toBe(true);
+    expect(isResetEvent(user('reset'))).toBe(false);
+    expect(
+      isResetEvent(JSON.stringify({ type: 'custom', reason: 'reset' })),
+    ).toBe(false);
+    expect(isResetEvent('not json')).toBe(false);
   });
 });
 
