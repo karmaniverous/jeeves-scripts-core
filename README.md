@@ -34,7 +34,7 @@ npm install
 npm run build        # builds packages/core, writes its JSON Schema, copies packages/template into it
 npm run lint         # after build: the template lints against core's built types
 npm run typecheck
-npm test             # builds core first (pretest): the template tests run against core's built output
+npm test             # builds core first (pretest): the template tests run against core's built output (CI builds once, then runs npm test --ignore-scripts)
 npm run knip
 npm run docs         # TypeDoc; warnings are errors
 ```
