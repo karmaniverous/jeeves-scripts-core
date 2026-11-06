@@ -2,11 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.3] - 2026-11-06
+
+### 🚀 Features
+
+- Export the helpers instances copy; add timeoutMs to gh()
+
+### ⚙️ Miscellaneous Tasks
+
+- Pin nvmrc to the engines floor; build core before tests
 ## [0.3.1] - 2026-11-05
 
 ### 🐛 Bug Fixes
 
 - *(config)* Warn, not fail, when config check can't read the gateway Slack accounts
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-scripts-core v0.3.1
 ## [0.3.0] - 2026-11-04
 
 ### 🚀 Features
