@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.4] - 2026-11-06
+
+### 🐛 Bug Fixes
+
+- *(admin)* Session refresh stops at an in-place reset
 ## [0.3.3] - 2026-11-06
 
 ### 🚀 Features
@@ -11,6 +16,7 @@ All notable changes to this project will be documented in this file.
 ### ⚙️ Miscellaneous Tasks
 
 - Pin nvmrc to the engines floor; build core before tests
+- Release @karmaniverous/jeeves-scripts-core v0.3.3
 ## [0.3.1] - 2026-11-05
 
 ### 🐛 Bug Fixes
