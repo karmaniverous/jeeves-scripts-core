@@ -41,7 +41,10 @@ const config: Options = {
     'yaml',
     'yml',
   ],
-  intentionallyNotExported: ['src/lib/constants.ts:derive'],
+  intentionallyNotExported: [
+    'src/lib/constants.ts:derive',
+    'src/lib/server-link.ts:serverConfigSchema',
+  ],
   hostedBaseUrl: 'https://docs.karmanivero.us/jeeves-scripts-core',
   navigationLinks: {
     GitHub: 'https://github.com/karmaniverous/jeeves-scripts-core',
