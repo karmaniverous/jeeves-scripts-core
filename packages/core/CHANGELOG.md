@@ -2,11 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.3.5] - 2026-11-07
+
+### 📚 Documentation
+
+- Name the jeeves-watcher-openclaw 0.18.0 tools (watcher_list_issues, watcher_exclude_vcs_path, watcher_list_vcs_history) in the harvest template and Google Drive guides
 ## [0.3.4] - 2026-11-06
 
 ### 🐛 Bug Fixes
 
 - *(admin)* Session refresh stops at an in-place reset
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-scripts-core v0.3.4
 ## [0.3.3] - 2026-11-06
 
 ### 🚀 Features
