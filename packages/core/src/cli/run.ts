@@ -25,9 +25,9 @@
  */
 
 import { setConfigRoot } from '../config/loader.js';
-import { runJobModule } from '../runnables/define-runnable.js';
 import { argsError, flagsDeprecation } from '../runnables/job-help.js';
 import type { RegistryEntry } from '../runnables/registry.js';
+import { runJobModule } from '../runnables/run-job.js';
 import { buildRunnables, type Runnable } from '../runnables/runnables.js';
 import { loadPlugin } from './load-plugin.js';
 
@@ -94,6 +94,6 @@ export const runJob = async (
   }
   const deprecation = flagsDeprecation(job, args);
   if (deprecation) console.warn(deprecation);
-  await runJobModule(job, args);
+  await runJobModule(job, args, undefined, { jobId: id });
   return 0;
 };

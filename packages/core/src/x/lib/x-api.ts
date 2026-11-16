@@ -12,7 +12,7 @@ import fs from 'node:fs';
 
 import { ApiError, Client } from '@xdevplatform/xdk';
 
-import type { JobContext } from '../../runnables/define-runnable.js';
+import type { JobCallContext } from '../../runnables/define-runnable.js';
 import type { XClient, XUserLookupClient } from './x-client.js';
 import {
   getOAuthPath,
@@ -44,7 +44,7 @@ export interface XHandleCheck {
  */
 export const xHandlePrerequisite =
   (check: XHandleCheck) =>
-  ({ args }: JobContext): true | string => {
+  ({ args }: JobCallContext): true | string => {
     const handle = args[0];
     if (!handle)
       return `No X account handle provided. Usage: jeeves-scripts run <job-id> <handle> (${check.scriptName})`;

@@ -25,8 +25,8 @@ const ALLOWED = new Set(
   [
     'lib/dispatcher-flags.ts',
     'lib/spawn-worker.ts',
-    'runnables/define-runnable.ts',
     'runnables/job-help.ts',
+    'runnables/run-job.ts',
   ].map((p) => path.join(src, p)),
 );
 

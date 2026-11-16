@@ -25,9 +25,10 @@ import path from 'node:path';
 
 import { configCheck, describeConfigSource } from '../config/check.js';
 import { loadConfig, setConfigRoot } from '../config/loader.js';
-import { jobContext, type JobModule } from '../runnables/define-runnable.js';
+import type { JobModule } from '../runnables/define-runnable.js';
 import { type JobManifest, readCoreManifests } from '../runnables/manifest.js';
 import type { Plugin } from '../runnables/plugin.js';
+import { jobContext } from '../runnables/run-job.js';
 import {
   buildRunnables,
   readInstanceManifests,
@@ -83,7 +84,7 @@ const prerequisiteState = async (
   }
   if (job && (job.prerequisite ?? job.doctorCheck)) {
     try {
-      const ctx = jobContext(job, manifest.args ?? []);
+      const ctx = jobContext(job, manifest.args ?? [], { jobId: manifest.id });
       let ready = job.prerequisite ? await job.prerequisite(ctx) : true;
       if (ready === true && job.doctorCheck) ready = await job.doctorCheck(ctx);
       return ready === true ? 'met' : `not met: ${ready}`;

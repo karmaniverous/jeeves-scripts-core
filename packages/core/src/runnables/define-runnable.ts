@@ -1,33 +1,23 @@
 /**
  * @module runnables/define-runnable
  *
- * `defineRunnable` (Decisions 4, 40, 49): declares a runnable (a job module)
- * without running it, and `runJobModule`, which runs one the way every
- * entry point used to run itself. Importing a job module has no side
- * effects; the CLI's `run`
- * resolves the id through the registry and calls {@link runJobModule}.
- *
- * Running a job sets `process.argv` to `[node, <id>, ...args]` (job code
- * reads its arguments from `process.argv.slice(2)`, as before), checks the
- * optional prerequisite (`[skip] <reason>`, exit 0), and runs the job
- * inside `runScript(name ?? id, ..., crashDir)` from `@karmaniverous/jeeves`:
- * a crash is appended to `_crash.log` in `crashDir` (default: the working
- * directory), logged, and exits 1, exactly as each module did when it
- * called `runScript` itself.
+ * `defineRunnable` (Decisions 4, 40, 49, 79): declares a runnable (a job
+ * module) without running it. Importing a job module has no side effects;
+ * the CLI's `run` resolves the id through the registry and runs it with
+ * `runJobModule` (`runnables/run-job`).
  */
 
-import {
-  type ArgSpec,
-  type ParsedArgs,
-  parseRunnableArgs,
-  runScript,
-} from '@karmaniverous/jeeves';
+import { type ArgSpec, type ParsedArgs } from '@karmaniverous/jeeves';
 import { z } from 'zod';
+
+import { jobContext } from './run-job.js';
 
 /** What a running job receives. */
 export const jobContextSchema = z.object({
   /** The job's command-line arguments (also in `process.argv.slice(2)`). */
   args: z.array(z.string()).readonly(),
+  /** The runner job id the run executes as (Decision 79). */
+  jobId: z.string().min(1),
 });
 
 /** No declared flags. */
@@ -39,6 +29,13 @@ export interface JobContext<S extends ArgSpec = ArgSpec> {
   args: readonly string[];
   /** The declared flags, parsed (`defineRunnable({ flags })`); `{}` when none are declared. */
   flags: ParsedArgs<S>;
+  /**
+   * The runner job id the run executes as (Decision 79): the runnable id
+   * for an ordinary job, the manifest entry's id for a job that runs this
+   * runnable under its own id. Key anything the run owns (state, worker
+   * job ids) by it.
+   */
+  jobId: string;
 }
 
 /** The job body. */
@@ -145,6 +142,8 @@ export interface JobCallContext {
   args: readonly string[];
   /** The parsed flags; default: parsed from `args`. */
   flags?: ParsedArgs<ArgSpec>;
+  /** The job id the run executes as; default: the runnable id. */
+  jobId?: string;
 }
 
 /** A declared job, as `defineRunnable` returns it. */
@@ -203,6 +202,7 @@ export const defineRunnable = <S extends ArgSpec = NoFlags>(
   const withFlags = (ctx: JobCallContext): JobContext => ({
     args: ctx.args,
     flags: ctx.flags ?? jobContext(declaration, ctx.args).flags,
+    jobId: ctx.jobId ?? declaration.id,
   });
   return Object.freeze({
     ...(declaration as unknown as Omit<
@@ -225,58 +225,3 @@ export const isJobModule = (value: unknown): value is JobModule =>
   typeof value === 'object' &&
   value !== null &&
   (value as Record<symbol, unknown>)[JOB] === true;
-
-/**
- * The context a job runs with: its arguments, and its declared flags parsed
- * from them (`{}` when it declares none).
- *
- * @throws Error `<name> requires a value` when a declared valued option has none.
- */
-export const jobContext = (
-  job: { flags?: ArgSpec | undefined },
-  args: readonly string[],
-): JobContext => ({
-  args: [...args],
-  flags: job.flags ? parseRunnableArgs(args, job.flags) : {},
-});
-
-/** Seams for tests. */
-export interface RunJobDeps {
-  /** `runScript` from `@karmaniverous/jeeves`. */
-  runScript: typeof runScript;
-  /** Skip-line logger. */
-  log: (line: string) => void;
-}
-
-const defaultDeps: RunJobDeps = {
-  runScript,
-  log: (line) => {
-    console.log(line);
-  },
-};
-
-/**
- * Run a job: set `process.argv`, check the prerequisite, run the body
- * inside `runScript`. Resolves when the body has finished (or the job was
- * skipped). A crash never resolves: `runScript` logs it and exits 1.
- */
-export const runJobModule = (
-  job: JobModule,
-  args: readonly string[],
-  deps: RunJobDeps = defaultDeps,
-): Promise<void> => {
-  process.argv = [process.argv[0] ?? process.execPath, job.id, ...args];
-  const ctx = jobContext(job, args);
-  return new Promise<void>((resolve) => {
-    deps.runScript(
-      job.name ?? job.id,
-      async () => {
-        const ready = job.prerequisite ? await job.prerequisite(ctx) : true;
-        if (ready === true) await job.run(ctx);
-        else deps.log(`[skip] ${ready}`);
-        resolve();
-      },
-      job.crashDir?.(),
-    );
-  });
-};

@@ -243,4 +243,41 @@ describe('taskFileDispatcher', () => {
       expect.stringMatching(/^\[skip\] acme\/digest: no task file at /),
     );
   });
+
+  it('dispatches as ctx.jobId when no jobId is given, reading that job task-file override (Decision 79)', async () => {
+    writeTask('content/digest/TASK.md', 'Default.');
+    writeTask('content/clinical/TASK.md', 'Clinical.');
+    writeConfig({ 'acme-brief-clinical': { taskFile: 'clinical/TASK.md' } });
+    const deps = makeDeps();
+    const run = taskFileDispatcher(
+      { scriptName: 'acme/brief', taskFile: 'digest/TASK.md' },
+      deps,
+    );
+    await run({ args: [], jobId: 'acme-brief-clinical' });
+    await run({ args: [], jobId: 'acme-brief-industry' });
+    expect(deps.runDispatcher.mock.calls).toEqual([
+      ['Clinical.', { jobId: 'acme-brief-clinical' }],
+      ['Default.', { jobId: 'acme-brief-industry' }],
+    ]);
+  });
+
+  it('lets a jobId option win over ctx.jobId', async () => {
+    writeTask('content/digest/TASK.md');
+    const deps = makeDeps();
+    await taskFileDispatcher(
+      { scriptName: 's', jobId: 'acme-fixed', taskFile: 'digest/TASK.md' },
+      deps,
+    )({ args: [], jobId: 'acme-other' });
+    expect(deps.runDispatcher).toHaveBeenCalledWith('Do the thing.', {
+      jobId: 'acme-fixed',
+    });
+  });
+
+  it('fails the run when neither the options nor the context give a job id', async () => {
+    const deps = makeDeps();
+    await expect(
+      taskFileDispatcher({ scriptName: 's', taskFile: 'TASK.md' }, deps)(),
+    ).rejects.toThrow('s: no job id (set jobId, or run it as a job)');
+    expect(deps.runDispatcher).not.toHaveBeenCalled();
+  });
 });
