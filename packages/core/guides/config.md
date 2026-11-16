@@ -100,7 +100,7 @@ The JSON Schema ships at `schema/jeeves-scripts.schema.json` in the package (gen
 }
 ```
 
-This example passes `config check` as it stands. A `jobs` key must be the id of a registered runnable (core's, or one the instance plugin registers), so a task-file dispatcher's delta such as `"acme-generate-digest": { "silo": "client", "taskFile": "digest/TASK.md" }` belongs in an instance whose plugin registers `acme-generate-digest`.
+This example passes `config check` as it stands. A `jobs` key must be the id of a registered runnable (core's, or one the instance plugin registers) or of a job in the instance's manifests ([runnables](./runnables.md#jobs-that-run-another-runnable)), so a task-file dispatcher's delta such as `"acme-generate-digest": { "silo": "client", "taskFile": "digest/TASK.md" }` belongs in an instance whose plugin registers `acme-generate-digest`.
 
 | Block | Schema | Contents |
 | --- | --- | --- |
@@ -115,10 +115,44 @@ This example passes `config check` as it stands. A `jobs` key must be the id of 
 | `punchList` | `punchListSchema` | `dir`, `timeZone`, `slack.channel` and `scriptsRepo` (`repo`, `clone`) required; `retentionDays` (default 30), `slack.account` (default `default`), `slack.pinnedTs`, `specPath`, `installMap` (default none: `owner/name` → `[{ component, packageJson }]`), `lockFile`, `pendingFile`, `cursorFile`, `inboxDir` (default under `{stateDir}/punch-list/`), `inputRoots` (default the default silo's archive directories and the watcher's issues file; absolute, or starting with `{home}` / `{npmGlobal}`). No block: both `punch-list-*` runnables skip; see [punch list](./punch-list.md#configuration). |
 | `transcripts` | `transcriptsSchema` | `libraryDir` (default `<default silo>/library/video-transcripts`), `scratchDir` (default `{stateDir}/transcripts`), `userAgent` (default `jeeves-scripts/<instance.name>`), all optional. Read by `transcripts-fetch-video`; the API key is the `TRANSCRIPT_API_KEY` environment variable, never a config value; see [transcripts](./transcripts.md#configuration). |
 | `skillReview` | `skillReviewSchema` | `reportChannel` (a Slack conversation id, `C…`, `G…` or `D…`), `timezone` (IANA) and `serverKey` (a jeeves-server machine key name) required; `reportAccount` (default `default`; must be a gateway Slack account, checked by `config check` where the gateway config is readable, otherwise a warning, and always by the run), `outputDir` (absolute; default `slack.channels.<reportChannel>.homeDir`, so required for a DM or a channel without one), `budgetAlertPercent` (integer 1-100, default 90). Unknown keys are refused. No block: `admin-review-skill-proposals` skips; see [admin](./admin.md#skill-workshop-review). |
-| `jobs` | `jobsSchema` | Per-runnable deltas by runnable id: `enabled`, `schedule`, `env`, `args`, `timeout_seconds`, `on_failure`, `silo`, `taskFile`, `extraDirs`, `files`, `owners`, `account`, `ruleset`, `contextThreshold`, `idleMinutes`, `excludedKeys`. `on_failure` is validated by `onFailureSchema`, which manifests share. `silo` and `taskFile` are read by the task-file dispatcher (see [dispatchers](./dispatchers.md)) and `silo` is checked by `config check`; `extraDirs` (absolute paths) is read by `admin-sweep-orphaned-tmp`, which sweeps those directories with the same rules as the content and scripts directories ([admin](./admin.md#prerequisites)); `files` (`githubSyncFileSchema`: `source` a relative path under `paths.scriptsDir` with no `..` segment, `target` with no leading `/`), `owners` (`githubSyncOwnerSchema`: `owner`, `type` `user` or `org`, `ruleset`, `include`, `exclude`), `account` (non-empty; default `integrations.gh.botUser`) and `ruleset` (`githubRulesetSchema`) are read by `github-sync-files` ([github](./github.md#configuration)); `contextThreshold` and `idleMinutes` (positive integers; defaults 150000 and 60) and `excludedKeys` (full session keys) are read by `admin-refresh-sessions` ([admin](./admin.md#session-refresh)); the rest shape the effective manifest `list --json` prints ([runnables](./runnables.md#instance-deltas)). |
+| `jobs` | `jobsSchema` | Per-runnable deltas by runnable id (or by the id of a job that runs another runnable): `enabled`, `schedule`, `env`, `args`, `timeout_seconds`, `on_failure`, `config`, `silo`, `taskFile`, `extraDirs`, `files`, `owners`, `account`, `ruleset`, `contextThreshold`, `idleMinutes`, `excludedKeys`. `on_failure` is validated by `onFailureSchema`, which manifests share. `config` (a JSON object) is the job's settings, merged and parsed with its runnable's `configSchema` ([Job config](#job-config)). `silo` and `taskFile` are read by the task-file dispatcher (see [dispatchers](./dispatchers.md)) and `silo` is checked by `config check`; `extraDirs` (absolute paths) is read by `admin-sweep-orphaned-tmp`, which sweeps those directories with the same rules as the content and scripts directories ([admin](./admin.md#prerequisites)); `files` (`githubSyncFileSchema`: `source` a relative path under `paths.scriptsDir` with no `..` segment, `target` with no leading `/`), `owners` (`githubSyncOwnerSchema`: `owner`, `type` `user` or `org`, `ruleset`, `include`, `exclude`), `account` (non-empty; default `integrations.gh.botUser`) and `ruleset` (`githubRulesetSchema`) are read by `github-sync-files` ([github](./github.md#configuration)); `contextThreshold` and `idleMinutes` (positive integers; defaults 150000 and 60) and `excludedKeys` (full session keys) are read by `admin-refresh-sessions` ([admin](./admin.md#session-refresh)); the rest shape the effective manifest `list --json` prints ([runnables](./runnables.md#instance-deltas)). |
 | `local` | none (any JSON) | The instance's own block. Core never reads it; the instance plugin's `configSchema` validates it at plugin load and runnables read it with `localConfig` ([runnables](./runnables.md#instance-runnables-and-overrides)). |
 
 Every schema is exported (Zod 4), with its `z.infer` type (`Config`, `PathsConfigInput`, `IntegrationsConfig`, `PipelineConfig`, `SiloRoutingConfig`, `JobDelta`, ...).
+
+### Job config
+
+A runnable that declares a `configSchema` ([runnables](./runnables.md#job-id-and-config)) reads its settings from `jobs.<id>.config`, a JSON object (Decision 81). A job's config is `jobs.<runnableId>.config` with `jobs.<jobId>.config` deep-merged over it, the job winning; for an ordinary job the two are the same entry. So settings every job of a runnable shares are written once, under the runnable's id, and each job adds or replaces only its own:
+
+```json
+{
+  "jobs": {
+    "acme-report": {
+      "config": {
+        "timeZone": "America/Chicago",
+        "recipients": ["C000EXAMPLE1"],
+        "format": { "bullets": 5, "links": true }
+      }
+    },
+    "acme-report-sales": {
+      "config": {
+        "topic": "sales",
+        "recipients": ["C000EXAMPLE2", "C000EXAMPLE3"],
+        "format": { "bullets": 3 }
+      }
+    }
+  }
+}
+```
+
+`acme-report-sales` runs with `{ timeZone: "America/Chicago", recipients: ["C000EXAMPLE2", "C000EXAMPLE3"], format: { bullets: 3, links: true }, topic: "sales" }`. The merge rules:
+
+- **Objects merge key by key**, recursively: `format.links` survives because the job only set `format.bullets`.
+- **Arrays and scalars replace**: the job's `recipients` is the whole list, not the base's with the job's appended. A list such as recipients or allowed senders is a whole value, and appending would hide a removal.
+
+This is unlike a manifest's `args`, which a `jobs.<id>.args` delta **appends** to ([runnables](./runnables.md#instance-deltas)): `args` adjust a command line, `config` describes settings.
+
+The merged object is parsed with the runnable's `configSchema` (so the schema's defaults fill gaps and its output is what `ctx.config` holds). Registration resolves the config of every job (every runnable with a manifest, and every job that runs another runnable), so `config check`, `list`, `doctor` and `run` reject an invalid one with one message naming the job id and where its config came from: `job "acme-report-sales": invalid config (jobs.acme-report.config merged with jobs.acme-report-sales.config): ...`. A runnable without a manifest has its config parsed when it runs, so a partial base under `jobs.<runnableId>.config`, completed by each job, is valid. A `jobs.<id>.config` for a runnable with no `configSchema` has no effect and fails registration, like any other inert delta (Decision 58). Existing per-job keys (`silo`, `taskFile`, `contextThreshold`, ...) stay where they are, beside `config`.
 
 ### Slack channels
 
@@ -248,7 +282,7 @@ Instance and plugin code never joins absolute content roots itself; it calls `si
 
 ## Validation: `config check`
 
-`configCheck({ root?, configPath? })` (and `jeeves-scripts config check`) loads the file fresh, validates it, and checks that every `jobs.<id>.silo` and every `integrations.x.accounts.<handle>.silo` names a configured silo, and that `slack.channelMeta.reportAccount`, every `reportTextAccounts` entry and `skillReview.reportAccount` (default `default`) name a gateway Slack account (OpenClaw's configured bot tokens, read only when a block names one; `configCheck(options, { slackAccounts })` takes another reader). It returns `{ ok, configPath, errors, warnings }`; the CLI prints one line per error and exits 1 on failure. When the gateway accounts can't be read at all (no OpenClaw config, as in CI), each block that names one adds a warning instead of an error, so the check still passes: the check can't tell, and the job (and `doctor`'s prerequisite check) refuses an unknown account when it runs. The CLI prints warnings as `warning: ...` on stderr; `doctor` lists them under its `config` line. When those checks pass, `jeeves-scripts config check` also loads the instance plugin, as `list` and `run` do, so the plugin's `configSchema` validates the `local` block; a plugin that fails to load or rejects `local` adds its message to `errors` (`instanceConfigCheck` in `src/cli/config-check.ts`). Registration then checks the manifests and the `jobs` deltas as `list` does: a delta for an id no runnable has fails, and so does a delta that sets `enabled`, `schedule`, `timeout_seconds`, `env` or `args` on a runnable with no manifest, where those fields would have no effect (Decision 58).
+`configCheck({ root?, configPath? })` (and `jeeves-scripts config check`) loads the file fresh, validates it, and checks that every `jobs.<id>.silo` and every `integrations.x.accounts.<handle>.silo` names a configured silo, and that `slack.channelMeta.reportAccount`, every `reportTextAccounts` entry and `skillReview.reportAccount` (default `default`) name a gateway Slack account (OpenClaw's configured bot tokens, read only when a block names one; `configCheck(options, { slackAccounts })` takes another reader). It returns `{ ok, configPath, errors, warnings }`; the CLI prints one line per error and exits 1 on failure. When the gateway accounts can't be read at all (no OpenClaw config, as in CI), each block that names one adds a warning instead of an error, so the check still passes: the check can't tell, and the job (and `doctor`'s prerequisite check) refuses an unknown account when it runs. The CLI prints warnings as `warning: ...` on stderr; `doctor` lists them under its `config` line. When those checks pass, `jeeves-scripts config check` also loads the instance plugin, as `list` and `run` do, so the plugin's `configSchema` validates the `local` block; a plugin that fails to load or rejects `local` adds its message to `errors` (`instanceConfigCheck` in `src/cli/config-check.ts`). Registration then checks the manifests and the `jobs` deltas as `list` does: a delta for an id no runnable has fails, and so does a delta that sets `enabled`, `schedule`, `timeout_seconds`, `env` or `args` on a runnable with no manifest, where those fields would have no effect (Decision 58). It also resolves every job's config, failing by job id on an invalid one, and checks every instance manifest entry that sets `runnable` ([Job config](#job-config), [runnables](./runnables.md#jobs-that-run-another-runnable)).
 
 ## Key files
 

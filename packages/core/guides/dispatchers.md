@@ -230,6 +230,149 @@ export default defineRunnable({
 
 `briefingVars` validates the values (every field non-empty, `timeZone` an IANA zone, every directory absolute) and fails the run naming each bad field. `eodDir` and `marketIntelDir` are optional. The morning briefing reads them as `eodSource` / `marketIntelSource`: the directory, or `not enabled` ("this report is off") when unset. The end-of-day and market-intel templates write into their own directory, so running either without it fails the run (`task template needs a value for {{eodDir}}`, or `{{marketIntelDir}}`) instead of writing somewhere made up. Placeholders: `org`, `principal`, `delegates`, `timeZone`, `deliveryChannel`, `briefingDir`, `eodDir`, `marketIntelDir`, `eodSource`, `marketIntelSource` (from `briefingVars`) and `runMode` (from the dispatcher; a `runMode` in `templateVars` wins). The `jeeves-daily-briefings` skill has the setup steps.
 
+### One dispatcher, several jobs
+
+When two reports differ only in settings (an industry brief and a clinical brief, each with its own directory, channel and schedule), write one dispatcher runnable with a `configSchema` and run it as two jobs ([runnables](./runnables.md#jobs-that-run-another-runnable)), instead of one runnable per report. The runnable keys everything by `ctx.jobId` and takes every setting from `ctx.config`:
+
+```typescript
+import {
+  BRIEFING_TEMPLATES,
+  briefingSummaryPurpose,
+  briefingVars,
+  defineRunnable,
+  dispatcherFlags,
+  taskFileDispatcher,
+} from '@karmaniverous/jeeves-scripts-core';
+import { z } from 'zod';
+
+const configSchema = z.object({
+  org: z.string(),
+  principal: z.string(),
+  delegates: z.string(),
+  timeZone: z.string(),
+  title: z.string(),
+  channel: z.string(), // the delivery channel id, e.g. C000EXAMPLE1
+  channelLabel: z.string(), // e.g. #industry-brief
+  briefingDir: z.string(), // absolute
+});
+
+export default defineRunnable({
+  id: 'acme-brief',
+  domain: 'acme',
+  description: 'Dispatch a daily brief (run as one job per brief).',
+  flags: dispatcherFlags,
+  configSchema,
+  run: (ctx) =>
+    taskFileDispatcher({
+      // No jobId: the worker's job id and the jobs.<id> task-file override are ctx.jobId.
+      scriptName: ctx.jobId,
+      thinking: 'low',
+      taskFile: `briefings/${ctx.jobId}/TASK.md`, // one file per job
+      template: BRIEFING_TEMPLATES.morning,
+      templateVars: () =>
+        briefingVars({
+          org: ctx.config.org,
+          principal: ctx.config.principal,
+          delegates: ctx.config.delegates,
+          timeZone: ctx.config.timeZone,
+          deliveryChannel: ctx.config.channelLabel,
+          briefingDir: ctx.config.briefingDir,
+        }),
+      dateTimeZone: ctx.config.timeZone,
+      slack: {
+        reads: [
+          {
+            target: ctx.config.channel,
+            label: ctx.config.channelLabel,
+            limit: 50,
+          },
+        ],
+        posts: [
+          {
+            target: ctx.config.channel,
+            purpose: briefingSummaryPurpose({
+              emoji: '📋',
+              title: ctx.config.title,
+            }),
+          },
+        ],
+      },
+    })(ctx),
+});
+```
+
+The instance plugin registers `acme-brief`, and the instance's `jobs/acme.json` declares the two jobs, each with its own schedule:
+
+```json
+{
+  "acme-brief-industry": {
+    "runnable": "acme-brief",
+    "name": "Acme Industry Brief",
+    "description": "The daily industry brief.",
+    "schedule": {
+      "freq": "daily",
+      "byhour": 6,
+      "byminute": 0,
+      "timezone": "America/Chicago"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 900,
+    "enabled": true,
+    "prerequisite": null
+  },
+  "acme-brief-clinical": {
+    "runnable": "acme-brief",
+    "name": "Acme Clinical Brief",
+    "description": "The daily clinical brief.",
+    "schedule": {
+      "freq": "daily",
+      "byhour": 6,
+      "byminute": 30,
+      "timezone": "America/Chicago"
+    },
+    "overlap_policy": "skip",
+    "timeout_seconds": 900,
+    "enabled": true,
+    "prerequisite": null
+  }
+}
+```
+
+The instance config holds the shared settings once, under the runnable's id, and each job's own ([config](./config.md#job-config)):
+
+```json
+{
+  "jobs": {
+    "acme-brief": {
+      "config": {
+        "org": "Acme",
+        "principal": "Ana",
+        "delegates": "Bo (operations), Cy (research)",
+        "timeZone": "America/Chicago"
+      }
+    },
+    "acme-brief-industry": {
+      "config": {
+        "title": "Acme Industry Brief",
+        "channel": "C000EXAMPLE1",
+        "channelLabel": "#industry-brief",
+        "briefingDir": "/base/content/briefings/industry"
+      }
+    },
+    "acme-brief-clinical": {
+      "config": {
+        "title": "Acme Clinical Brief",
+        "channel": "C000EXAMPLE2",
+        "channelLabel": "#clinical-brief",
+        "briefingDir": "/base/content/briefings/clinical"
+      }
+    }
+  }
+}
+```
+
+`run acme-brief-industry --dry-run` previews one job; the runner runs each on its own schedule, with its own crash label, worker job id and task file. A third brief is a new manifest entry and a `jobs.<id>.config`, no code. The same pattern fits a family of reports whose templates differ: make the template a config field.
+
 ## TASK File Anatomy
 
 A TASK file is a Markdown document containing standing orders for an LLM session. It defines:

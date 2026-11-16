@@ -64,7 +64,10 @@ Before resolving, `run` registers the instance root with the config loader (`JEE
 1. **A plugin override** for `<id>` runs instead of core's runnable.
 2. Else **a core id** runs core's runnable, its module loaded through the registry.
 3. Else **a plugin runnable** id runs the instance runnable.
-4. Else `run` fails: unknown id.
+4. Else **a job in the instance's manifests** that sets `runnable` runs that runnable under the job's id, checked as registration checks it ([runnables](./runnables.md#jobs-that-run-another-runnable)).
+5. Else `run` fails: unknown id.
+
+The run gets the id it was given as `ctx.jobId`, and, when the runnable declares a `configSchema`, its parsed job config as `ctx.config`; an invalid config fails `run` before anything runs ([config](./config.md#job-config)).
 
 Every runnable runs in the CLI's process ([`defineRunnable`](./runnables.md#declaring-a-runnable): `process.argv` is `[node, <id>, ...args]`, a crash exits 1 through `runScript`). `run` resolves when the body has finished. A plugin that fails to load, or breaks a registration rule (a core id or core domain reused, an override of an unknown id), fails `run` before anything runs.
 
@@ -80,13 +83,13 @@ Running a core module by path (`node dist/<domain>/<module>.js`) runs nothing: r
 
 | Column | Content |
 | --- | --- |
-| `id` | The runnable id |
+| `id` | The runnable id; for a job that runs another runnable, `<jobId> → <runnable>` |
 | `source` | `core`, `instance`, or `override` (a plugin override of a core id) |
 | `schedule` | The effective schedule after instance deltas, as the runner stores it (a cron string as written, an RRStack object as compact JSON), when it has a manifest; blank otherwise |
 | `enabled` | The effective `enabled` after deltas, when it has a manifest; blank otherwise |
 | `description` | The manifest's `description`, else the `defineRunnable` one |
 
-`--json` prints an array with one object per runnable: the same fields (`schedule` and `enabled` are `null` without a manifest) plus `domain` and `manifest` (the effective manifest after deltas, or `null`). `schedule` is as written: a string (cron, or RRStack JSON) or an RRStack object ([runnables](./runnables.md#manifests)); the runner job's `schedule` is the string, or the object's JSON. A manifest without `timeout_seconds` registers a job with no timeout. `on_failure: null` clears a job's failure-alert target; a manifest without the key leaves an existing job's target unchanged ([runnables](./runnables.md#manifests)). jeeves-tools registers runner jobs from it: every entry with a manifest whose `prerequisite` is `null`. `list` reads the instance config (for deltas), loads the plugin, reads core's and the instance's manifests, and imports the modules of runnables without a manifest to read their descriptions.
+`--json` prints an array with one object per runnable: the same fields (`schedule` and `enabled` are `null` without a manifest) plus `domain` and `manifest` (the effective manifest after deltas, or `null`); a job that runs another runnable also has `runnable`. `schedule` is as written: a string (cron, or RRStack JSON) or an RRStack object ([runnables](./runnables.md#manifests)); the runner job's `schedule` is the string, or the object's JSON. A manifest without `timeout_seconds` registers a job with no timeout. `on_failure: null` clears a job's failure-alert target; a manifest without the key leaves an existing job's target unchanged ([runnables](./runnables.md#manifests)). jeeves-tools registers runner jobs from it: every entry with a manifest whose `prerequisite` is `null`. `list` reads the instance config (for deltas), loads the plugin, reads core's and the instance's manifests, and imports the modules of runnables without a manifest to read their descriptions.
 
 ## Init
 
@@ -129,7 +132,7 @@ Core ships its skills in the package (`skills/<name>/SKILL.md`); they are wired 
 | `node:` | The running Node (`process.versions.node`) against core's floor, `engines.node` `>=24.22.2`: `OK`, or `FAILED: requires >=24.22.2` and why: Node 24.16-24.18 have a SQLite WAL checkpoint bug that lets the WAL grow without bound (fixed in 24.22.2). The only line that fails the command (exit 1) |
 | `config:` | The config file location and `OK` or `FAILED`, with one indented line per problem (as `config check`) |
 | `plugin:` | `jeeves-scripts.plugin.ts` with its runnable and override counts, `none`, or `FAILED` with the load or registration error |
-| `manifests:` | A count of met, not met and manual prerequisites, then every effective manifest (core's and the instance's, deltas applied): enabled or disabled, and its prerequisite state: `met` or `not met: <reason>` from the runnable's `defineRunnable` prerequisite check when it has one, then, once that is met, from its `doctorCheck` (a condition that fails the run rather than skipping it, [runnables](./runnables.md#failures-skips-and-exit-codes)); else `met` when the manifest's `prerequisite` is `null` (deploy registers it), or `manual: <text>` |
+| `manifests:` | A count of met, not met and manual prerequisites, then every effective manifest (core's and the instance's, deltas applied; a job that runs another runnable as `<jobId> → <runnable>`): enabled or disabled, and its prerequisite state: `met` or `not met: <reason>` from the runnable's `defineRunnable` prerequisite check when it has one, then, once that is met, from its `doctorCheck` (a condition that fails the run rather than skipping it, [runnables](./runnables.md#failures-skips-and-exit-codes)); else `met` when the manifest's `prerequisite` is `null` (deploy registers it), or `manual: <text>` |
 | `overrides:` | Every declared override with the core version it was written for; one whose `writtenFor` differs from the installed core is marked `DRIFT` with its issue to recheck |
 
 Use it after an upgrade (override drift) and when a runnable won't register.

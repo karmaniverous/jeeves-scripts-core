@@ -31,6 +31,7 @@ const EXPECTED = [
   'jeeves-github',
   'jeeves-jira',
   'jeeves-linear',
+  'jeeves-pdf',
   'jeeves-scripts',
   'jeeves-slack',
   'jeeves-standing-meetings',
