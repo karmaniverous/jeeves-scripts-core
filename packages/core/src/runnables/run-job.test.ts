@@ -112,20 +112,22 @@ describe('runJobModule', () => {
     expect(seen).toEqual([{ channel: 'C1' }, { channel: 'C1' }]);
   });
 
-  it('keeps a declared name as the crash label whatever the job id', async () => {
+  it('labels a named runnable run under another job id as <name> (<jobId>)', async () => {
     const { calls, deps } = fakeDeps();
-    await runJobModule(
-      defineRunnable({
-        id: 'acme-brief',
-        domain: 'acme',
-        name: 'acme/brief',
-        run: () => undefined,
-      }),
-      [],
-      deps,
-      { jobId: 'acme-brief-clinical' },
-    );
-    expect(calls.map((c) => c.name)).toEqual(['acme/brief']);
+    const brief = defineRunnable({
+      id: 'acme-brief',
+      domain: 'acme',
+      name: 'acme/brief',
+      run: () => undefined,
+    });
+    await runJobModule(brief, [], deps, { jobId: 'acme-brief-clinical' });
+    await runJobModule(brief, [], deps, { jobId: 'acme-brief-industry' });
+    await runJobModule(brief, [], deps);
+    expect(calls.map((c) => c.name)).toEqual([
+      'acme/brief (acme-brief-clinical)',
+      'acme/brief (acme-brief-industry)',
+      'acme/brief',
+    ]);
   });
 
   it('passes a caller-given job id through to run, prerequisite and doctorCheck', async () => {

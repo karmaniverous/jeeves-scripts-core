@@ -65,7 +65,7 @@ Core's runnables keep the crash labels and crash directories they had before the
 
 ### Job id and config
 
-Every run gets `ctx.jobId`, the runner job id it runs as (Decision 79): the runnable id for an ordinary job, the manifest entry's id for a [job that runs another runnable](#jobs-that-run-another-runnable). `run` also uses it for `process.argv[1]` and, when the runnable has no `name`, as the crash label, and `taskFileDispatcher` uses it as the worker's job id unless given a `jobId`.
+Every run gets `ctx.jobId`, the runner job id it runs as (Decision 79): the runnable id for an ordinary job, the manifest entry's id for a [job that runs another runnable](#jobs-that-run-another-runnable). `run` also uses it for `process.argv[1]` and in the crash label (the job id when the runnable has no `name`; its `name` for its own job; `<name> (<jobId>)` for a job that runs it under another id, so two jobs never share a label), and `taskFileDispatcher` uses it as the worker's job id unless given a `jobId`.
 
 A runnable that has settings declares them with a Zod `configSchema` and reads them, parsed and typed, from `ctx.config` (Decisions 80, 81); without a `configSchema`, `ctx.config` is `undefined`:
 

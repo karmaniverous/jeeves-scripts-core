@@ -9,7 +9,7 @@
  * Running a job sets `process.argv` to `[node, <jobId>, ...args]` (job code
  * reads its arguments from `process.argv.slice(2)`, as before), checks the
  * optional prerequisite (`[skip] <reason>`, exit 0), and runs the job
- * inside `runScript(name ?? jobId, ..., crashDir)` from `@karmaniverous/jeeves`:
+ * inside `runScript(crashLabel(job, jobId), ..., crashDir)` from `@karmaniverous/jeeves`:
  * a crash is appended to `_crash.log` in `crashDir` (default: the working
  * directory), logged, and exits 1, exactly as each module did when it
  * called `runScript` itself.
@@ -65,14 +65,24 @@ const defaultDeps: RunJobDeps = {
 };
 
 /**
+ * The crash label a run logs under (Decision 79): the job id when the
+ * runnable has no `name`; its `name` for its own job; `<name> (<jobId>)`
+ * for a job that runs it under another id, so two jobs of one runnable
+ * never share a label.
+ */
+export const crashLabel = (job: JobModule, jobId: string): string => {
+  if (job.name === undefined) return jobId;
+  return jobId === job.id ? job.name : `${job.name} (${jobId})`;
+};
+
+/**
  * Run a job: set `process.argv`, check the prerequisite, run the body
  * inside `runScript`. Resolves when the body has finished (or the job was
  * skipped). A crash never resolves: `runScript` logs it and exits 1.
  *
  * @param as - The job the run executes as (`ctx.jobId`; default: the
  *   runnable id) and its parsed config (`ctx.config`). The job id is
- *   `process.argv[1]` and, when the runnable has no `name`, the crash
- *   label (Decision 79).
+ *   `process.argv[1]` and part of the crash label ({@link crashLabel}).
  */
 export const runJobModule = (
   job: JobModule,
@@ -85,7 +95,7 @@ export const runJobModule = (
   const ctx = jobContext(job, args, { ...as, jobId });
   return new Promise<void>((resolve) => {
     deps.runScript(
-      job.name ?? jobId,
+      crashLabel(job, jobId),
       async () => {
         const ready = job.prerequisite ? await job.prerequisite(ctx) : true;
         if (ready === true) await job.run(ctx);
