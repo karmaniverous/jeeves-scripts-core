@@ -74,20 +74,24 @@ const describeSpec = (spec: ArgSpec): string[] =>
 
 /**
  * The `run <id> --help` text: usage, description, declared flags and the
- * effective manifest (`undefined`: the runnable has none).
+ * effective manifest (`undefined`: the runnable has none). For a job that
+ * runs another runnable (Decision 80), `jobId` is the job's id: the usage
+ * runs it, and a `<jobId> → <runnable>` line comes first.
  */
 export const formatJobHelp = (
   job: Pick<JobModule, 'id' | 'description' | 'name' | 'flags' | 'positionals'>,
   manifest: JobManifest | undefined,
+  jobId?: string,
 ): string => {
   const usage = [
-    `Usage: jeeves-scripts run ${job.id}`,
+    `Usage: jeeves-scripts run ${jobId ?? job.id}`,
     job.flags && Object.keys(job.flags).length > 0 ? '[options]' : undefined,
     job.positionals,
   ]
     .filter((p) => p !== undefined)
     .join(' ');
   const lines = [usage, ''];
+  if (jobId !== undefined) lines.push(`${jobId} → ${job.id}`, '');
   const description = job.description ?? job.name;
   if (description) lines.push(description, '');
   lines.push('Options:');

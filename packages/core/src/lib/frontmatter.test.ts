@@ -13,6 +13,12 @@ describe('frontmatterBlock', () => {
     ).toBe('---\ntitle: "a: b # c"\npages: 3\nresolved: false\n---\n\n');
   });
 
+  it('writes a list of numbers as a one-line flow sequence', () => {
+    expect(frontmatterBlock([['textlessPages', [2, 5]]])).toBe(
+      '---\ntextlessPages: [2,5]\n---\n\n',
+    );
+  });
+
   it('escapes newlines and quotes so each field stays on one line', () => {
     expect(frontmatterBlock([['name', 'x\n"y"']])).toBe(
       '---\nname: "x\\n\\"y\\""\n---\n\n',

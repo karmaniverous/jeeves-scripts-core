@@ -53,7 +53,11 @@ describe('conversion utilities', () => {
 
   it('convertPdfToMd writes .pdf.md with the page count', async () => {
     fs.writeFileSync(path.join(dir, 'b.pdf'), 'x');
-    mocks.extractPdfText.mockResolvedValue({ text: 'pdf text', total: 3 });
+    mocks.extractPdfText.mockResolvedValue({
+      text: 'pdf text',
+      total: 1,
+      pages: [{ num: 1, text: 'a page with plenty of text on it' }],
+    });
 
     expect(await convertPdfToMd([dir])).toEqual({
       converted: 1,
@@ -61,7 +65,8 @@ describe('conversion utilities', () => {
       failed: 0,
     });
     const md = fs.readFileSync(path.join(dir, 'b.pdf.md'), 'utf8');
-    expect(md).toContain('pages: 3');
+    expect(md).toContain('pages: 1');
+    expect(md).not.toContain('textlessPages');
     expect(md).toContain('pdf text');
   });
 });
@@ -83,7 +88,11 @@ describe('convert runnables', () => {
     const input = path.join(dir, 'in.pdf');
     const output = path.join(dir, 'out.md');
     fs.writeFileSync(input, 'x');
-    mocks.extractPdfText.mockResolvedValue({ text: 'one pdf', total: 1 });
+    mocks.extractPdfText.mockResolvedValue({
+      text: 'one pdf',
+      total: 1,
+      pages: [{ num: 1, text: 'one pdf, and enough text to count' }],
+    });
 
     await convertPdfJob.run({ args: [input, output], flags: {} });
 

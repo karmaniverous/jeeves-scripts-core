@@ -116,4 +116,16 @@ describe('formatJobHelp', () => {
     expect(text).toContain('(no flags declared)');
     expect(text).toContain('(none: not scheduled)');
   });
+
+  it('runs a job that runs this runnable by its own id, naming both (Decision 80)', () => {
+    const lines = formatJobHelp(job, undefined, 'acme-report-weekly').split(
+      '\n',
+    );
+    expect(lines.slice(0, 4)).toEqual([
+      'Usage: jeeves-scripts run acme-report-weekly [options] <handle>',
+      '',
+      'acme-report-weekly \u2192 acme-report',
+      '',
+    ]);
+  });
 });

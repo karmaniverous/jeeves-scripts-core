@@ -45,6 +45,14 @@ export const jobDeltaSchema = z.object({
   timeout_seconds: z.number().int().positive().optional(),
   /** Failure alert target (replaces the manifest's; `null` clears it). */
   on_failure: onFailureSchema,
+  /**
+   * The job's config (Decision 81), a JSON object: a job running another
+   * runnable gets `jobs.<runnableId>.config` with this merged over it
+   * (objects by key; arrays and scalars replace), parsed with the
+   * runnable's `configSchema`. Without a `configSchema` it has no effect,
+   * and registration fails.
+   */
+  config: z.record(z.string(), z.unknown()).optional(),
   /** Data silo this job's dispatcher reads and writes under (Decision 28). */
   silo: z.string().optional(),
   /** Task file path, relative to the job's silo (Decisions 23, 28). */

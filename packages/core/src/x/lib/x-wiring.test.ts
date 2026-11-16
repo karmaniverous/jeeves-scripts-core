@@ -88,6 +88,8 @@ describe('xQueueAction', () => {
       job.prerequisite({
         args: [],
         flags: { maxItems: '50', queue: undefined },
+        jobId: 'x-like',
+        config: undefined,
       }),
     ).toMatch(/^No X account handle provided/);
     expect(typeof job.run).toBe('function');

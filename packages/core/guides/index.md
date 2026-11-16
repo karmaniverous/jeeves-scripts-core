@@ -34,14 +34,14 @@ Hand-written references for `@karmaniverous/jeeves-scripts-core`: the framework 
 
 - [CLI](./cli.md): The `jeeves-scripts` CLI and the instance launcher
 - [Configuration](./config.md): the instance config and its pointer: schema, resolution, editing, moving, getters, silos
-- [Runnables](./runnables.md): The runnable registry: ids, `defineRunnable`, manifests, instance deltas, the instance plugin
+- [Runnables](./runnables.md): The runnable registry: ids, `defineRunnable`, job id and config, manifests (and jobs that run another runnable), instance deltas, the instance plugin
 - [Shared Library](./lib.md): Shared infrastructure: constants, gateway, workers, gh, gog, entity store
 
 ## Domains
 
 - [Admin](./admin.md): Token metrics, rate card, session refresh, housekeeping (`.tmp` sweep, Qdrant health)
 - [Calendar](./calendar.md): Google Calendar polling
-- [Convert](./convert.md): DOCX and PDF to Markdown
+- [Convert](./convert.md): DOCX and PDF to Markdown, PDF pages to PNG, reading PDFs from a session
 - [Dispatchers](./dispatchers.md): Task-file dispatchers and job-side Slack I/O
 - [Email](./email.md): Gmail (gog) and IMAP polling, download, backfills
 - [GitHub](./github.md): Repo and issue sync, notifications, collaborators, cross-repo file and ruleset sync

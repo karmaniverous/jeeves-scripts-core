@@ -4,19 +4,25 @@
  * `jeeves-scripts list [glob] [--json]` (Decision 49, R43; design §6):
  * every registered runnable, core and instance, whose id matches `glob`
  * (shell-style `*`, `?` and `[...]` against the id; default `*`), sorted by
- * id. Each shows its source (`core`, `instance` or `override`), its
+ * id, with every job that runs another runnable (Decision 80), shown as
+ * `<jobId> → <runnable>` (`--json`: `runnable`). Each shows its source
+ * (`core`, `instance` or `override`; a job, its runnable's), its
  * effective schedule and `enabled` after the instance's deltas when it has
  * a manifest, and one line of description: the manifest's, else the one
  * in `defineRunnable`. `--json` adds `domain` and the effective `manifest`
  * (or `null`); jeeves-tools registers runner jobs from it.
  *
  * Reads the instance config, its plugin and its `jobs/*.json`; loads the
- * modules of runnables without a manifest to read their descriptions.
+ * module of every runnable with a manifest (a job's: its runnable's) to
+ * read its `configSchema` and parse its job config, and the modules of
+ * runnables without a manifest to read their descriptions.
  */
 
 import { loadConfig } from '../config/loader.js';
 import { scheduleText } from '../config/schedule-schema.js';
+import { jobConfigs } from '../runnables/job-config.js';
 import { formatJobHelp } from '../runnables/job-help.js';
+import { withJobs } from '../runnables/job-instances.js';
 import { type JobManifest, readCoreManifests } from '../runnables/manifest.js';
 import { loadJob } from '../runnables/registry.js';
 import {
@@ -25,11 +31,7 @@ import {
   type Runnable,
   type RunnableSource,
 } from '../runnables/runnables.js';
-import {
-  registerInstance,
-  type RegisterOptions,
-  resolveRunnable,
-} from './run.js';
+import { registerInstance, type RegisterOptions, resolveJob } from './run.js';
 
 /** One `list` entry (a `--json` element). */
 export interface ListEntry {
@@ -47,6 +49,8 @@ export interface ListEntry {
   description: string;
   /** The effective manifest after deltas, or `null`. */
   manifest: JobManifest | null;
+  /** Set on a job that runs another runnable (Decision 80): that runnable's id. */
+  runnable?: string;
 }
 
 /** Seams for tests. */
@@ -55,35 +59,59 @@ export interface ListOptions extends RegisterOptions {
   coreManifests?: readonly JobManifest[];
 }
 
+/** An instance's registered runnables and jobs. */
+export interface Registered {
+  /** Every registered runnable, and every job that runs another runnable. */
+  runnables: Runnable[];
+  /** Every job's effective manifest, by job id. */
+  manifests: Map<string, JobManifest>;
+  /** Every job's parsed config, by job id (`undefined` without a `configSchema`). */
+  configs: Map<string, unknown>;
+}
+
 /**
- * Register an instance (plugin load and registration, {@link registerInstance})
- * and resolve every runnable's effective manifest: what `list` and
- * `config check` validate.
+ * Register an instance (plugin load and registration, {@link registerInstance}),
+ * resolve every runnable's effective manifest and parse every job's config:
+ * what `list`, `doctor` and `config check` validate.
  *
- * @throws On a plugin load or registration error, an invalid manifest or
- *   an invalid delta.
+ * @throws On a plugin load or registration error, an invalid manifest,
+ *   an invalid delta or an invalid job config.
  */
 export const registerWithManifests = async (
   root: string,
   options: ListOptions = {},
-): Promise<{ runnables: Runnable[]; manifests: Map<string, JobManifest> }> => {
+): Promise<Registered> => {
   const runnables = await registerInstance(root, options);
+  const deltas = loadConfig().jobs;
+  const instanceManifests = readInstanceManifests(root);
   const manifests = registeredManifests({
     runnables,
     coreManifests: options.coreManifests ?? readCoreManifests(),
-    instanceManifests: readInstanceManifests(root),
-    deltas: loadConfig().jobs,
+    instanceManifests,
+    deltas,
   });
-  return { runnables, manifests };
+  const configs = await jobConfigs({
+    runnables,
+    manifests: manifests.values(),
+    deltas,
+    instanceManifests,
+  });
+  return {
+    runnables: withJobs(runnables, manifests.values()),
+    manifests,
+    configs,
+  };
 };
 
 /**
  * The `run <id> --help` text: usage, description, declared flags and the
  * effective manifest. Loads the runnable's module but runs nothing. When
  * the manifests cannot be resolved (e.g. no instance config), the help
- * still prints, without the manifest.
+ * still prints, without the manifest: the id resolves as `run` resolves
+ * it, a job in the instance's manifests included.
  *
- * @throws On a plugin load or registration error, or an unknown id.
+ * @throws On a plugin load or registration error, or an id `run` would
+ *   not run.
  */
 export const jobHelp = async (
   root: string,
@@ -99,8 +127,8 @@ export const jobHelp = async (
   } catch {
     runnables = await registerInstance(root, options);
   }
-  const job = await resolveRunnable(runnables, id).load();
-  return formatJobHelp(job, manifest);
+  const { job, runnableId } = await resolveJob(root, runnables, id);
+  return formatJobHelp(job, manifest, runnableId === id ? undefined : id);
 };
 
 /** A shell-style glob (`*`, `?`, `[...]`) as an anchored RegExp. */
@@ -149,6 +177,7 @@ export const listRunnables = async (
       enabled: manifest?.enabled ?? null,
       description: manifest?.description ?? (await describe(r)),
       manifest,
+      ...(r.runnable === undefined ? {} : { runnable: r.runnable }),
     });
   }
   return entries;
@@ -159,7 +188,7 @@ export const formatList = (entries: readonly ListEntry[]): string[] => {
   const rows = [
     ['id', 'source', 'schedule', 'enabled', 'description'],
     ...entries.map((e) => [
-      e.id,
+      e.runnable === undefined ? e.id : `${e.id} → ${e.runnable}`,
       e.source,
       e.schedule === null ? '' : scheduleText(e.schedule),
       e.enabled === null ? '' : String(e.enabled),

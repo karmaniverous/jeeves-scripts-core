@@ -1,32 +1,8 @@
-import { argFlag, argValue } from '@karmaniverous/jeeves';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import { z } from 'zod';
 
-import {
-  defineRunnable,
-  isJobModule,
-  type RunJobDeps,
-  runJobModule,
-} from './define-runnable.js';
+import { defineRunnable, isJobModule } from './define-runnable.js';
 import * as deprecated from './deprecated.js';
-
-const savedArgv = process.argv;
-afterEach(() => {
-  process.argv = savedArgv;
-});
-
-/** Deps that run the body synchronously and record the runScript call. */
-const fakeDeps = () => {
-  const calls: { name: string; crashDir: string | undefined }[] = [];
-  const log = vi.fn<(line: string) => void>();
-  const deps: RunJobDeps = {
-    runScript: (name, fn, crashDir) => {
-      calls.push({ name, crashDir });
-      void fn();
-    },
-    log,
-  };
-  return { calls, log, deps };
-};
 
 describe('defineJob (deprecated alias)', () => {
   it('is defineRunnable, so instance plugins written against 0.2 keep working', () => {
@@ -84,6 +60,48 @@ describe('defineRunnable', () => {
     );
   });
 
+  it('rejects a configSchema that is not a Zod schema', () => {
+    expect(() =>
+      defineRunnable({
+        id: 'acme-report',
+        domain: 'acme',
+        configSchema: { parse: () => 1 },
+        run: () => undefined,
+      } as never),
+    ).toThrow(/configSchema must be a Zod schema/);
+  });
+
+  it('keeps a configSchema and types ctx.config from it (Decisions 79, 81)', async () => {
+    const configSchema = z.object({ channel: z.string() });
+    const seen: unknown[] = [];
+    const job = defineRunnable({
+      id: 'acme-brief',
+      domain: 'acme',
+      configSchema,
+      run: ({ config }) => {
+        expectTypeOf(config).toEqualTypeOf<{ channel: string }>();
+        seen.push(config.channel);
+      },
+    });
+    expect(job.configSchema).toBe(configSchema);
+    await job.run({ args: [], config: { channel: 'C1' } });
+    expect(seen).toEqual(['C1']);
+  });
+
+  it('types ctx.config as undefined without a configSchema', async () => {
+    const run = vi.fn<(config: undefined) => void>();
+    const job = defineRunnable({
+      id: 'acme-plain',
+      domain: 'acme',
+      run: ({ config }) => {
+        run(config);
+      },
+    });
+    expect(job.configSchema).toBeUndefined();
+    await job.run({ args: [] });
+    expect(run).toHaveBeenCalledWith(undefined);
+  });
+
   it('rejects a declaration without a run function', () => {
     expect(() =>
       defineRunnable({ id: 'acme', domain: 'acme', run: 'nope' } as never),
@@ -96,156 +114,5 @@ describe('defineRunnable', () => {
     );
     expect(isJobModule(null)).toBe(false);
     expect(isJobModule('acme')).toBe(false);
-  });
-});
-
-describe('runJobModule', () => {
-  it('parses flags itself when a caller passes only args', async () => {
-    const run = vi.fn();
-    const job = defineRunnable({
-      id: 'acme-direct',
-      domain: 'acme',
-      flags: { live: argFlag('--live') },
-      run,
-    });
-    await job.run({ args: ['--live'] });
-    expect(run).toHaveBeenCalledWith({
-      args: ['--live'],
-      flags: { live: true },
-    });
-  });
-
-  it('parses declared flags into ctx.flags (#14)', async () => {
-    const run = vi.fn();
-    const job = defineRunnable({
-      id: 'acme-flags',
-      domain: 'acme',
-      flags: { live: argFlag('--live'), max: argValue('--max', '5') },
-      run,
-    });
-    await runJobModule(job, ['--live', '--max=3'], fakeDeps().deps);
-    expect(run).toHaveBeenCalledWith({
-      args: ['--live', '--max=3'],
-      flags: { live: true, max: '3' },
-    });
-  });
-
-  it('sets argv to [node, id, ...args] and passes the args to run', async () => {
-    const run = vi.fn();
-    const { deps } = fakeDeps();
-    await runJobModule(
-      defineRunnable({ id: 'acme-report', domain: 'acme', run }),
-      ['--live', 'x'],
-      deps,
-    );
-    expect(process.argv.slice(1)).toEqual(['acme-report', '--live', 'x']);
-    expect(run).toHaveBeenCalledWith({ args: ['--live', 'x'], flags: {} });
-  });
-
-  it('wraps the run in runScript under the job name, or the id, with its crash dir', async () => {
-    const { calls, deps } = fakeDeps();
-    await runJobModule(
-      defineRunnable({
-        id: 'acme-report',
-        domain: 'acme',
-        name: 'acme/report',
-        crashDir: () => '/base/acme',
-        run: () => undefined,
-      }),
-      [],
-      deps,
-    );
-    await runJobModule(
-      defineRunnable({
-        id: 'acme-other',
-        domain: 'acme',
-        run: () => undefined,
-      }),
-      [],
-      deps,
-    );
-    expect(calls).toEqual([
-      { name: 'acme/report', crashDir: '/base/acme' },
-      { name: 'acme-other', crashDir: undefined },
-    ]);
-  });
-
-  it('resolves only after an async run has finished', async () => {
-    const order: string[] = [];
-    const { deps } = fakeDeps();
-    await runJobModule(
-      defineRunnable({
-        id: 'acme-slow',
-        domain: 'acme',
-        run: async () => {
-          await new Promise((r) => setTimeout(r, 5));
-          order.push('ran');
-        },
-      }),
-      [],
-      deps,
-    );
-    order.push('resolved');
-    expect(order).toEqual(['ran', 'resolved']);
-  });
-
-  it('skips the run with a [skip] line when the prerequisite is not met', async () => {
-    const run = vi.fn();
-    const { deps, log } = fakeDeps();
-    await runJobModule(
-      defineRunnable({
-        id: 'acme-report',
-        domain: 'acme',
-        prerequisite: () => 'no acme block in the instance config',
-        run,
-      }),
-      [],
-      deps,
-    );
-    expect(run).not.toHaveBeenCalled();
-    expect(log).toHaveBeenCalledWith(
-      '[skip] no acme block in the instance config',
-    );
-  });
-
-  it('runs when an async prerequisite is met', async () => {
-    const run = vi.fn();
-    const { deps, log } = fakeDeps();
-    await runJobModule(
-      defineRunnable({
-        id: 'acme-report',
-        domain: 'acme',
-        prerequisite: () => Promise.resolve(true as const),
-        run,
-      }),
-      [],
-      deps,
-    );
-    expect(run).toHaveBeenCalled();
-    expect(log).not.toHaveBeenCalled();
-  });
-
-  it('never runs doctorCheck: that is for doctor, with the parsed flags', async () => {
-    const run = vi.fn();
-    const doctorCheck = vi.fn(() => 'rsync not found' as const);
-    const { deps, log } = fakeDeps();
-    const job = defineRunnable({
-      id: 'acme-report',
-      domain: 'acme',
-      flags: { live: argFlag('--live') },
-      doctorCheck,
-      run,
-    });
-    await runJobModule(job, [], deps);
-    expect(run).toHaveBeenCalled();
-    expect(log).not.toHaveBeenCalled();
-    expect(doctorCheck).not.toHaveBeenCalled();
-    expect(await job.doctorCheck?.({ args: ['--live'] })).toBe(
-      'rsync not found',
-    );
-    expect(doctorCheck).toHaveBeenCalledWith({
-      args: ['--live'],
-      flags: { live: true },
-    });
   });
 });

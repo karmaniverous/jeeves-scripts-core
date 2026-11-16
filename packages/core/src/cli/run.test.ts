@@ -7,7 +7,7 @@ import { CONFIG_PATH_ENV, getConfigRoot } from '../config/loader.js';
 import { defineRunnable } from '../runnables/define-runnable.js';
 import { definePlugin, override, type Plugin } from '../runnables/plugin.js';
 import type { RegistryEntry } from '../runnables/registry.js';
-import { registerInstance, resolveRunnable, runJob } from './run.js';
+import { registerInstance, resolveJob, runJob } from './run.js';
 
 const root = path.resolve('/instance');
 const ran: {
@@ -100,10 +100,20 @@ describe('registerInstance', () => {
   });
 });
 
-describe('resolveRunnable', () => {
+describe('resolveJob', () => {
+  it('resolves a registered runnable to itself', async () => {
+    const runnables = await registerInstance(root, withPlugin());
+    const { job: resolved, runnableId } = await resolveJob(
+      root,
+      runnables,
+      'email-poll',
+    );
+    expect([resolved.id, runnableId]).toEqual(['email-poll', 'email-poll']);
+  });
+
   it('throws on an unknown id', async () => {
     const runnables = await registerInstance(root, withPlugin());
-    expect(() => resolveRunnable(runnables, 'nope-job')).toThrow(
+    await expect(resolveJob(root, runnables, 'nope-job')).rejects.toThrow(
       /Unknown runnable "nope-job"/,
     );
   });

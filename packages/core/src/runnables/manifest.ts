@@ -28,6 +28,12 @@ export const manifestEntrySchema = z.strictObject({
   name: z.string().min(1),
   /** What the job does. */
   description: z.string().min(1),
+  /**
+   * Instance manifests only (Decision 80): the runnable (core or
+   * instance) this job runs under the entry's id, with the entry's
+   * runner fields. Unset: the entry's id is its runnable's.
+   */
+  runnable: z.string().min(1).optional(),
   /** Default schedule, in any form the runner accepts (`config/schedule-schema`). */
   schedule: scheduleSchema,
   /** Default arguments after `run <id>`. */

@@ -79,6 +79,7 @@ describe('package entry point', () => {
       'getTokenMetrics',
       'convertDocxToMd',
       'convertPdfToMd',
+      'renderPdfPages',
       'retryAsync',
       'retrySync',
       'exponentialBackoff',

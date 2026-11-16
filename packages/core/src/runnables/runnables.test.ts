@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 
 import { defineRunnable } from './define-runnable.js';
 import type { JobManifest } from './manifest.js';
@@ -261,6 +262,29 @@ describe('overrides', () => {
       description: 'Poll mail.',
     });
     expect(job?.crashDir?.()).toBe('/crash');
+  });
+
+  it("keep the core runnable's configSchema, so its jobs keep their config (Decision 81)", async () => {
+    const configSchema = z.object({ channel: z.string() });
+    const [runnable] = buildRunnables({
+      registry: [
+        {
+          ...labelled,
+          load: () =>
+            Promise.resolve({
+              default: defineRunnable({
+                id: 'email-poll',
+                domain: 'email',
+                configSchema,
+                run: () => undefined,
+              }),
+            }),
+        },
+      ],
+      domains,
+      plugin: definePlugin({ overrides: [ov('email-poll')] }),
+    });
+    expect((await runnable?.load())?.configSchema).toBe(configSchema);
   });
 
   it('run under their id when the core module fails to load', async () => {

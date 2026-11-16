@@ -14,7 +14,10 @@
  * 1. a plugin override for `<id>` runs instead of core's runnable;
  * 2. else a core id runs core's runnable from the registry;
  * 3. else a plugin runnable id runs the instance runnable;
- * 4. else `run` fails: unknown id.
+ * 4. else an instance manifest entry with that id that sets `runnable` runs
+ *    that runnable under the entry's id (Decision 80), checked as
+ *    registration checks it;
+ * 5. else `run` fails: unknown id.
  *
  * Every runnable runs in this process through `runJobModule`, with the
  * arguments after the id. A runnable that declares `flags` gets them
@@ -24,11 +27,22 @@
  * ({@link jobHelp}).
  */
 
-import { setConfigRoot } from '../config/loader.js';
-import { runJobModule } from '../runnables/define-runnable.js';
+import { loadConfig, setConfigRoot } from '../config/loader.js';
+import type { JobModule } from '../runnables/define-runnable.js';
+import { jobConfigError, jobConfigOrThrow } from '../runnables/job-config.js';
 import { argsError, flagsDeprecation } from '../runnables/job-help.js';
+import {
+  checkJobEntry,
+  manifestFile,
+  noConfigSchemaProblem,
+} from '../runnables/job-instances.js';
 import type { RegistryEntry } from '../runnables/registry.js';
-import { buildRunnables, type Runnable } from '../runnables/runnables.js';
+import { type RunJobDeps, runJobModule } from '../runnables/run-job.js';
+import {
+  buildRunnables,
+  readInstanceManifests,
+  type Runnable,
+} from '../runnables/runnables.js';
 import { loadPlugin } from './load-plugin.js';
 
 /** Seams for tests. */
@@ -54,46 +68,88 @@ export const registerInstance = async (
   return buildRunnables({ plugin, registry: options.registry });
 };
 
+const unknownRunnable = (id: string): Error =>
+  new Error(
+    `Unknown runnable "${id}": not a core runnable, not registered by jeeves-scripts.plugin.ts and not a job in jobs/*.json (see jeeves-scripts list).`,
+  );
+
+/** Seams for {@link runJob} tests. */
+export interface RunOptions extends RegisterOptions {
+  /** How the job runs. Default: `runJobModule`'s (`runScript`, the console). */
+  runDeps?: RunJobDeps;
+}
+
 /**
- * The registered runnable with this id.
+ * The runnable `id` runs and the id of that runnable: a registered
+ * runnable runs itself (a listed job, its `runnable`); a job in the
+ * instance's manifests that sets `runnable` runs that one (Decision 80),
+ * checked by registration's rules. `run` and `run <id> --help` resolve
+ * through it.
  *
- * @throws When no runnable has it.
+ * @throws On an unknown id, an invalid job entry or a job whose runnable
+ *   declares no `configSchema`.
  */
-export const resolveRunnable = (
+export const resolveJob = async (
+  root: string,
   runnables: readonly Runnable[],
   id: string,
-): Runnable => {
-  const runnable = runnables.find((r) => r.id === id);
-  if (!runnable)
-    throw new Error(
-      `Unknown runnable "${id}": not a core runnable and not registered by jeeves-scripts.plugin.ts (see jeeves-scripts list).`,
-    );
-  return runnable;
+): Promise<{ job: JobModule; runnableId: string }> => {
+  const direct = runnables.find((r) => r.id === id);
+  if (direct)
+    return { job: await direct.load(), runnableId: direct.runnable ?? id };
+  const entry = readInstanceManifests(root).find((m) => m.id === id);
+  if (entry?.runnable === undefined) throw unknownRunnable(id);
+  const file = manifestFile(entry);
+  const check = checkJobEntry(
+    id,
+    entry.runnable,
+    file,
+    new Map(runnables.map((r) => [r.id, r])),
+  );
+  if ('problem' in check)
+    throw new Error(`Invalid instance manifests:\n- ${check.problem}`);
+  const job = await check.runnable.load();
+  if (!job.configSchema)
+    throw jobConfigError([noConfigSchemaProblem(file, id, entry.runnable)]);
+  return { job, runnableId: entry.runnable };
 };
 
 /**
- * Run a runnable in this process. Resolves to 0 when its body has finished
- * or it skipped (a crash exits 1 through `runScript`; a runnable may set
- * `process.exitCode`), and to 1, without running it, when it declares
- * `flags` and `args` holds anything else.
+ * Run a runnable, or a job that runs one, in this process. Resolves to 0
+ * when its body has finished or it skipped (a crash exits 1 through
+ * `runScript`; a runnable may set `process.exitCode`), and to 1, without
+ * running it, when it declares `flags` and `args` holds anything else.
+ * The run gets `id` as `ctx.jobId` and the job's parsed config as
+ * `ctx.config` (Decisions 79, 81).
  *
- * @throws On a registration error or an unknown id, before anything runs.
+ * @throws On a registration error, an unknown id or an invalid job config
+ *   (the runnable declares a `configSchema`), before anything runs.
  */
 export const runJob = async (
   root: string,
   id: string,
   args: readonly string[],
-  options: RegisterOptions = {},
+  options: RunOptions = {},
 ): Promise<number> => {
-  const runnable = resolveRunnable(await registerInstance(root, options), id);
-  const job = await runnable.load();
-  const error = argsError(job, args);
+  const runnables = await registerInstance(root, options);
+  const { job, runnableId } = await resolveJob(root, runnables, id);
+  const config = job.configSchema
+    ? jobConfigOrThrow({
+        jobId: id,
+        runnableId,
+        schema: job.configSchema,
+        deltas: loadConfig().jobs,
+      })
+    : undefined;
+  // Messages name the id that was run (`run <jobId> --help`).
+  const named = { ...job, id };
+  const error = argsError(named, args);
   if (error) {
     console.error(error);
     return 1;
   }
-  const deprecation = flagsDeprecation(job, args);
+  const deprecation = flagsDeprecation(named, args);
   if (deprecation) console.warn(deprecation);
-  await runJobModule(job, args);
+  await runJobModule(job, args, options.runDeps, { jobId: id, config });
   return 0;
 };

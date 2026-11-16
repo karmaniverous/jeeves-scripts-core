@@ -208,9 +208,31 @@ export const dispatchTaskFile = async (
 };
 
 /**
+ * {@link taskFileDispatcher}'s options: {@link TaskFileDispatcherOptions}
+ * with `jobId` optional.
+ */
+export type TaskFileRunOptions = Omit<TaskFileDispatcherOptions, 'jobId'> & {
+  /** The runner job id; default: the run's `ctx.jobId` (Decision 79). */
+  jobId?: string;
+};
+
+/** What {@link taskFileDispatcher}'s run function reads from its context. */
+export interface TaskFileRunContext {
+  /** The runnable's arguments. */
+  args: readonly string[];
+  /** The parsed flags. */
+  flags?: object;
+  /** The job id the run executes as. */
+  jobId?: string;
+}
+
+/**
  * A runnable's `run` that dispatches the task file: {@link dispatchTaskFile}
  * with these options. Pass it to `defineRunnable`, which runs it under the
- * crash handler (Decision 57); nothing runs until the job does.
+ * crash handler (Decision 57); nothing runs until the job does. Without a
+ * `jobId` option the worker's job id (and the `jobs.<id>` task-file
+ * override) is the run's `ctx.jobId`, so every job running the runnable
+ * dispatches as itself.
  *
  * @example
  * ```ts
@@ -220,20 +242,31 @@ export const dispatchTaskFile = async (
  *   flags: dispatcherFlags,
  *   run: taskFileDispatcher({
  *     scriptName: 'acme/daily-briefing',
- *     jobId: 'acme-daily-briefing',
  *     taskFile: 'tasks/daily-briefing.md',
  *   }),
  * });
  * ```
+ * @throws From the run function, when neither the options nor the context
+ *   give a job id.
  */
 export const taskFileDispatcher =
   (
-    options: TaskFileDispatcherOptions,
-  ): ((ctx?: { args: readonly string[]; flags?: object }) => Promise<void>) =>
+    options: TaskFileRunOptions,
+    deps: TaskFileDispatcherDeps = defaultDeps,
+  ): ((ctx?: TaskFileRunContext) => Promise<void>) =>
   async (ctx) => {
-    await dispatchTaskFile({
-      args: ctx?.args,
-      flags: declaredDispatcherFlags(ctx?.flags),
-      ...options,
-    });
+    const jobId = options.jobId ?? ctx?.jobId;
+    if (jobId === undefined)
+      throw new Error(
+        `${options.scriptName}: no job id (set jobId, or run it as a job)`,
+      );
+    await dispatchTaskFile(
+      {
+        args: ctx?.args,
+        flags: declaredDispatcherFlags(ctx?.flags),
+        ...options,
+        jobId,
+      },
+      deps,
+    );
   };
