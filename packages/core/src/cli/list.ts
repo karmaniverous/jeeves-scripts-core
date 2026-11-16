@@ -13,7 +13,9 @@
  * (or `null`); jeeves-tools registers runner jobs from it.
  *
  * Reads the instance config, its plugin and its `jobs/*.json`; loads the
- * modules of runnables without a manifest to read their descriptions.
+ * module of every runnable with a manifest (a job's: its runnable's) to
+ * read its `configSchema` and parse its job config, and the modules of
+ * runnables without a manifest to read their descriptions.
  */
 
 import { loadConfig } from '../config/loader.js';
@@ -29,11 +31,7 @@ import {
   type Runnable,
   type RunnableSource,
 } from '../runnables/runnables.js';
-import {
-  registerInstance,
-  type RegisterOptions,
-  resolveRunnable,
-} from './run.js';
+import { registerInstance, type RegisterOptions, resolveJob } from './run.js';
 
 /** One `list` entry (a `--json` element). */
 export interface ListEntry {
@@ -109,9 +107,11 @@ export const registerWithManifests = async (
  * The `run <id> --help` text: usage, description, declared flags and the
  * effective manifest. Loads the runnable's module but runs nothing. When
  * the manifests cannot be resolved (e.g. no instance config), the help
- * still prints, without the manifest.
+ * still prints, without the manifest: the id resolves as `run` resolves
+ * it, a job in the instance's manifests included.
  *
- * @throws On a plugin load or registration error, or an unknown id.
+ * @throws On a plugin load or registration error, or an id `run` would
+ *   not run.
  */
 export const jobHelp = async (
   root: string,
@@ -127,12 +127,8 @@ export const jobHelp = async (
   } catch {
     runnables = await registerInstance(root, options);
   }
-  const runnable = resolveRunnable(runnables, id);
-  return formatJobHelp(
-    await runnable.load(),
-    manifest,
-    runnable.runnable === undefined ? undefined : id,
-  );
+  const { job, runnableId } = await resolveJob(root, runnables, id);
+  return formatJobHelp(job, manifest, runnableId === id ? undefined : id);
 };
 
 /** A shell-style glob (`*`, `?`, `[...]`) as an anchored RegExp. */

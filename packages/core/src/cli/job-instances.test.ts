@@ -126,6 +126,22 @@ describe('two jobs running one runnable', () => {
     expect(lines).toContain('  acme-brief: enabled; prerequisite: met');
   });
 
+  it('resolve in job help as run resolves them when the manifests cannot be resolved', async () => {
+    // An invalid config on another job fails registerWithManifests.
+    writeConfig({ ...baseJobs, 'acme-brief': { config: { channel: 5 } } });
+    const help = await jobHelp(root(), 'acme-brief-clinical', options);
+    expect(help).toMatch(
+      /^Usage: jeeves-scripts run acme-brief-clinical \[options\]\n\nacme-brief-clinical \u2192 acme-brief\n/,
+    );
+    expect(help).not.toContain('"runnable"');
+    expect(await jobHelp(root(), 'acme-brief', options)).toMatch(
+      /^Usage: jeeves-scripts run acme-brief \[options\]\n\nOptions:/,
+    );
+    await expect(jobHelp(root(), 'acme-nope', options)).rejects.toThrow(
+      /^Unknown runnable "acme-nope"/,
+    );
+  });
+
   it('may run a manifest-less core runnable, with its config', async () => {
     writeManifests({
       acme: acmeManifest(),

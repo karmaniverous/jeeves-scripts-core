@@ -190,12 +190,18 @@ describe('convert-pdf-to-png', () => {
     },
   );
 
-  it.each(['0', 'big', ' '])('rejects --scale %j', async (scale) => {
-    await expect(
+  it.each([
+    ['0', 'Invalid scale 0: use a positive number'],
+    ['big', 'Invalid scale NaN: use a positive number'],
+    [' ', 'Invalid scale 0: use a positive number'],
+    // The flag parser rejects an empty value before the body runs.
+    ['', '--scale requires a value'],
+  ])('rejects --scale %j: %s', async (scale, message) => {
+    // async: the flag parser throws before run returns a promise.
+    await expect(async () =>
       convertPdfToPngJob.run({ args: [FIXTURE, dir, '--scale', scale] }),
-    ).rejects.toThrow(
-      `Invalid --scale ${scale}: use a positive number\n${USAGE}`,
-    );
+    ).rejects.toThrow(message);
+    expect(fs.readdirSync(dir)).toEqual([]);
   });
 
   it('fails on a page list outside the document', async () => {

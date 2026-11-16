@@ -137,9 +137,9 @@ const buildConfigCommand = (root: string) => {
 const buildRunCommand = (root: string) =>
   new Command('run')
     .description(
-      'Run a runnable by id: a plugin override, else the core runnable, else the instance runnable.',
+      'Run a runnable or job by id: a plugin override, else the core runnable, else the instance runnable, else a job in jobs/*.json that runs another runnable.',
     )
-    .argument('<id>', 'runnable id (see list)')
+    .argument('<id>', 'runnable or job id (see list)')
     .argument(
       '[args...]',
       'arguments for the runnable, checked against the flags it declares (run <id> --help)',
@@ -162,7 +162,7 @@ const buildRunCommand = (root: string) =>
 const buildListCommand = (root: string) =>
   new Command('list')
     .description(
-      'List registered runnables (core and instance) whose id matches the glob, with source, effective schedule, enabled and description.',
+      'List registered runnables (core and instance) and jobs that run another runnable (<jobId> → <runnable>) whose id matches the glob, with source, effective schedule, enabled and description.',
     )
     .argument('[glob]', 'shell-style glob matched against the id', '*')
     .option('--json', 'print JSON, adding domain and the effective manifest')

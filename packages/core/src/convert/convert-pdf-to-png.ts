@@ -27,17 +27,6 @@ const flags = {
   }),
 };
 
-/** A `--scale` value as a number, or a usage error. */
-const parseScale = (value: string | undefined): number | undefined => {
-  if (value === undefined) return undefined;
-  const scale = Number(value);
-  if (value.trim() === '' || !Number.isFinite(scale) || scale <= 0)
-    throw new Error(
-      `Invalid --scale ${value}: use a positive number\n${USAGE}`,
-    );
-  return scale;
-};
-
 export default defineRunnable({
   id: 'convert-pdf-to-png',
   domain: 'convert',
@@ -51,7 +40,9 @@ export default defineRunnable({
     if (positionals.length !== 2 || !input || !outDir) throw new Error(USAGE);
     const rendered = await renderPdfPages(input, outDir, {
       pages,
-      scale: parseScale(scale),
+      // renderPdfPages rejects a scale that is not a positive number
+      // (`' '` is 0, a non-number NaN); the flag parser rejects `''`.
+      scale: scale === undefined ? undefined : Number(scale),
     });
     for (const { page, file, width, height } of rendered)
       console.log(

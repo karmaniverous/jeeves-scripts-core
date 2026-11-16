@@ -73,20 +73,6 @@ const unknownRunnable = (id: string): Error =>
     `Unknown runnable "${id}": not a core runnable, not registered by jeeves-scripts.plugin.ts and not a job in jobs/*.json (see jeeves-scripts list).`,
   );
 
-/**
- * The registered runnable with this id.
- *
- * @throws When no runnable has it.
- */
-export const resolveRunnable = (
-  runnables: readonly Runnable[],
-  id: string,
-): Runnable => {
-  const runnable = runnables.find((r) => r.id === id);
-  if (!runnable) throw unknownRunnable(id);
-  return runnable;
-};
-
 /** Seams for {@link runJob} tests. */
 export interface RunOptions extends RegisterOptions {
   /** How the job runs. Default: `runJobModule`'s (`runScript`, the console). */
@@ -95,16 +81,22 @@ export interface RunOptions extends RegisterOptions {
 
 /**
  * The runnable `id` runs and the id of that runnable: a registered
- * runnable runs itself; a job in the instance's manifests that sets
- * `runnable` runs that one (Decision 80), checked by registration's rules.
+ * runnable runs itself (a listed job, its `runnable`); a job in the
+ * instance's manifests that sets `runnable` runs that one (Decision 80),
+ * checked by registration's rules. `run` and `run <id> --help` resolve
+ * through it.
+ *
+ * @throws On an unknown id, an invalid job entry or a job whose runnable
+ *   declares no `configSchema`.
  */
-const resolveJob = async (
+export const resolveJob = async (
   root: string,
   runnables: readonly Runnable[],
   id: string,
 ): Promise<{ job: JobModule; runnableId: string }> => {
   const direct = runnables.find((r) => r.id === id);
-  if (direct) return { job: await direct.load(), runnableId: id };
+  if (direct)
+    return { job: await direct.load(), runnableId: direct.runnable ?? id };
   const entry = readInstanceManifests(root).find((m) => m.id === id);
   if (entry?.runnable === undefined) throw unknownRunnable(id);
   const file = manifestFile(entry);

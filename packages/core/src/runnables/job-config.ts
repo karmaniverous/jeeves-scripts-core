@@ -26,16 +26,27 @@ import type { Runnable } from './runnables.js';
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
+/** Keys a merge never copies: they would reach an object's prototype. */
+const UNSAFE_KEYS: ReadonlySet<string> = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+]);
+
+const safeEntries = (o: Record<string, unknown>): [string, unknown][] =>
+  Object.entries(o).filter(([key]) => !UNSAFE_KEYS.has(key));
+
 /**
  * Deep-merge `over` onto `base`: plain objects merge key by key
  * (recursively); arrays and scalars in `over` replace `base`'s; an
- * `undefined` `over` keeps `base`. Neither input is changed.
+ * `undefined` `over` keeps `base`. Merged objects drop `__proto__`,
+ * `constructor` and `prototype` keys. Neither input is changed.
  */
 export const mergeJobConfig = (base: unknown, over: unknown): unknown => {
   if (over === undefined) return base;
   if (!isPlainObject(base) || !isPlainObject(over)) return over;
-  const merged: Record<string, unknown> = { ...base };
-  for (const [key, value] of Object.entries(over))
+  const merged: Record<string, unknown> = Object.fromEntries(safeEntries(base));
+  for (const [key, value] of safeEntries(over))
     merged[key] = mergeJobConfig(base[key], value);
   return merged;
 };

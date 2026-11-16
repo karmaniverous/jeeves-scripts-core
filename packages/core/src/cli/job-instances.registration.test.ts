@@ -46,6 +46,11 @@ describe('registration of a job entry', () => {
       '- jobs/extra.json: job "acme-brief-x" must start with "email-", the domain of runnable "email-inventory"',
     ],
     [
+      'a job id that starts with the domain but not the dash',
+      bad({ runnable: 'acme-brief' }, 'acmebrief-x'),
+      '- jobs/extra.json: job "acmebrief-x" must start with "acme-", the domain of runnable "acme-brief"',
+    ],
+    [
       'a runnable without a configSchema',
       bad({ runnable: 'acme-plain' }, 'acme-plain-x'),
       '- jobs/extra.json: job "acme-plain-x" runs "acme-plain", which declares no configSchema',

@@ -71,6 +71,23 @@ describe('mergeJobConfig', () => {
     expect(base).toEqual({ limits: { max: 5 } });
     expect(over).toEqual({ limits: { min: 2 } });
   });
+
+  it('skips __proto__, constructor and prototype keys at every level', () => {
+    // JSON.parse makes these own keys, as a config file would.
+    const base: unknown = JSON.parse(
+      '{"a":1,"constructor":{"x":1},"nested":{"prototype":{"y":1},"b":1}}',
+    );
+    const over: unknown = JSON.parse(
+      '{"__proto__":{"polluted":true},"nested":{"__proto__":{"polluted":true},"c":2},"prototype":{"z":1}}',
+    );
+    const merged = mergeJobConfig(base, over) as Record<string, unknown>;
+    expect(merged).toEqual({ a: 1, nested: { b: 1, c: 2 } });
+    expect(Object.getPrototypeOf(merged)).toBe(Object.prototype);
+    expect(Object.getPrototypeOf(merged.nested)).toBe(Object.prototype);
+    expect(Object.keys(merged)).toEqual(['a', 'nested']);
+    expect('polluted' in merged).toBe(false);
+    expect('polluted' in {}).toBe(false);
+  });
 });
 
 describe('parseJobConfig', () => {

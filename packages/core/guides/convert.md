@@ -63,7 +63,7 @@ node $JEEVES_SCRIPTS_DIR/bin/jeeves-scripts.js run convert-pdf-to-png /base/cont
 
 `convert-pdf-to-md` and `convert-docx-to-md` each take exactly `<in> <out>` (anything else fails the run: a `CRASH` line with the usage error on stderr, exit 1), write `<out>` with the same frontmatter as the utilities (`source`, `converted`, and `pages` and `textlessPages` for a PDF), overwriting it, and exit 1 when the input can't be read or converted. A PDF with text-less pages still exits 0, with the warning on stderr.
 
-`convert-pdf-to-png <in> <outDir> [--pages <list>] [--scale <n>]` renders with `renderPdfPages` and prints one line per page: `RENDER <in> page <N> -> <file> (<width>x<height>)`. A usage error (not exactly `<in> <outDir>`, an invalid `--pages` or `--scale`), an unreadable input or a page list outside the document fails the run (exit 1).
+`convert-pdf-to-png <in> <outDir> [--pages <list>] [--scale <n>]` renders with `renderPdfPages` and prints one line per page: `RENDER <in> page <N> -> <file> (<width>x<height>)`. A usage error (not exactly `<in> <outDir>`, an invalid `--pages`, or a `--scale` that is not a positive number: `Invalid scale <n>: use a positive number`, a blank value read as 0), an unreadable input or a page list outside the document fails the run (exit 1).
 
 None of them has a manifest; an instance that wants one scheduled adds a manifest in its own `jobs/*.json` ([runnables.md](runnables.md)).
 
