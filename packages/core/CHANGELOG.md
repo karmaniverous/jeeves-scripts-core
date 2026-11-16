@@ -2,11 +2,58 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-11-16
+
+### 💼 Other
+
+- [91] feat(runnables): ctx.jobId on every run (#91)
+
+Decision 79: JobContext carries the runner job id the run executes as.
+runJobModule takes it for process.argv[1] and, when the runnable has no
+name, the crash label; taskFileDispatcher defaults its jobId to it.
+runJobModule and jobContext move to runnables/run-job.
+- [91] feat(runnables): configSchema and per-job config (#91)
+
+Decisions 79 and 81: defineRunnable takes an optional Zod configSchema
+that types ctx.config. jobs.<id>.config is the job's config:
+jobs.<runnableId>.config deep-merged with jobs.<jobId>.config (objects by
+key, arrays and scalars replace), parsed at registration for every job,
+so config check, list, doctor and run fail the same way, naming the job
+id. A config delta on a runnable without a configSchema fails as inert
+(Decision 58). Overrides keep the core runnable's configSchema.
+- [91] feat(runnables): manifest entries that run another runnable (#91)
+
+Decision 80: an instance manifest entry may set runnable to run that
+runnable (core or instance) under the entry's id, with the entry's
+runner fields; jobs.<jobId> deltas apply under Decision 58 and its config
+is the runnable's merged with its own. Registration fails, naming job id
+and file, on an unknown runnable, a runnable without configSchema, a job
+id outside the runnable's domain or one that collides with a runnable
+id; core manifests may not set runnable. run <jobId> runs it; list,
+doctor and job-help show <jobId> -> <runnable>.
+- [91] fix(runnables): export JobConfigOf and RunnableConfigSchema types (#91)
+- [91] feat(convert): convert-pdf-to-png and renderPdfPages (Decision 83.1)
+
+Renders selected PDF pages to <outDir>/<basename>-p<N>.png with pdf-parse getScreenshot; 1-based page lists, --scale (default 1.5), usage/unreadable/out-of-range errors. Deterministic fixture PDFs from a test-helper builder.
+- [91] feat(convert): flag text-less PDF pages in textlessPages (Decision 83.2)
+
+extractPdfText returns per-page text; a page with fewer than 20 non-whitespace characters is listed in textlessPages frontmatter (omitted when none) and warned on stderr naming the file, in convertPdfToMd and convert-pdf-to-md; the run still succeeds.
+- [91] docs: job instances and PDF reading (0.4.0 row 6)
+
+Guides: runnables (ctx.jobId/ctx.config, configSchema promise, jobs that run another runnable, run-job.ts), config (job config merge: objects by key, arrays and scalars replace, unlike args), dispatchers (one dispatcher, several jobs), convert (convert-pdf-to-png, textlessPages, OpenClaw tool directory limit), cli, index. New core skill jeeves-pdf. README runnable list.
+- [91] fix(cli): review fixes - job id help fallback via resolveJob, help text, domain dash test, scale, merge key guard, docs
+- [91] fix(runnables): crash label <name> (<jobId>) for jobs of a named runnable (#91)
+
+Decision 79 as amended 2026-11-16 (Jason: option a): a job that runs a named runnable under another id logs crashes as '<name> (<jobId>)', so two jobs of one runnable never share a label. crashLabel() is exported from run-job.ts for the rule; guides/runnables.md says so.
 ## [0.3.5] - 2026-11-07
 
 ### 📚 Documentation
 
 - Name the jeeves-watcher-openclaw 0.18.0 tools (watcher_list_issues, watcher_exclude_vcs_path, watcher_list_vcs_history) in the harvest template and Google Drive guides
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-scripts-core v0.3.5
 ## [0.3.4] - 2026-11-06
 
 ### 🐛 Bug Fixes
