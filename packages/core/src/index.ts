@@ -136,6 +136,7 @@ export {
   defineRunnable,
   isJobModule,
   type JobCallContext,
+  type JobConfigOf,
   type JobContext,
   jobContextSchema,
   type JobDeclaration,
@@ -144,6 +145,7 @@ export {
   type JobPrerequisite,
   type JobRun,
   type NoFlags,
+  type RunnableConfigSchema,
 } from './runnables/define-runnable.js';
 export * from './runnables/deprecated.js';
 export {
