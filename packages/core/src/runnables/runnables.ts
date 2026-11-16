@@ -25,11 +25,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import type { JobDelta } from '../config/jobs-schema.js';
-import {
-  defineRunnable,
-  type JobDeclaration,
-  type JobModule,
-} from './define-runnable.js';
+import { defineRunnable, type JobModule } from './define-runnable.js';
 import {
   effectiveManifests,
   type JobManifest,
@@ -63,14 +59,16 @@ export interface Runnable {
 }
 
 /**
- * The core runnable's crash label, crash directory and description, which
- * its override keeps (Decision 57). When the core module fails to load
+ * The core runnable's crash label, crash directory, description and config
+ * schema, which its override keeps (Decisions 57, 81). When the core module fails to load
  * (perhaps why it is overridden), the override runs with its id as the
  * label and the working directory as the crash directory.
  */
 const coreLabels = async (
   entry: RegistryEntry,
-): Promise<Pick<JobDeclaration, 'name' | 'crashDir' | 'description'>> => {
+): Promise<
+  Pick<JobModule, 'name' | 'crashDir' | 'description' | 'configSchema'>
+> => {
   let job: JobModule;
   try {
     job = await loadJob(entry);
@@ -81,6 +79,9 @@ const coreLabels = async (
     ...(job.name === undefined ? {} : { name: job.name }),
     ...(job.crashDir === undefined ? {} : { crashDir: job.crashDir }),
     ...(job.description === undefined ? {} : { description: job.description }),
+    ...(job.configSchema === undefined
+      ? {}
+      : { configSchema: job.configSchema }),
   };
 };
 

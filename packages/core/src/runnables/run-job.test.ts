@@ -90,6 +90,28 @@ describe('runJobModule', () => {
     ]);
   });
 
+  it('passes the given config to the prerequisite and the run as ctx.config', async () => {
+    const seen: unknown[] = [];
+    const { deps } = fakeDeps();
+    await runJobModule(
+      defineRunnable({
+        id: 'acme-brief',
+        domain: 'acme',
+        prerequisite: ({ config }) => {
+          seen.push(config);
+          return true;
+        },
+        run: ({ config }) => {
+          seen.push(config);
+        },
+      }),
+      [],
+      deps,
+      { config: { channel: 'C1' } },
+    );
+    expect(seen).toEqual([{ channel: 'C1' }, { channel: 'C1' }]);
+  });
+
   it('keeps a declared name as the crash label whatever the job id', async () => {
     const { calls, deps } = fakeDeps();
     await runJobModule(

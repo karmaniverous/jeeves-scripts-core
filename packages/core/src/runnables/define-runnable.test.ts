@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, expectTypeOf, it, vi } from 'vitest';
+import { z } from 'zod';
 
 import { defineRunnable, isJobModule } from './define-runnable.js';
 import * as deprecated from './deprecated.js';
@@ -57,6 +58,48 @@ describe('defineRunnable', () => {
     expect(() => defineRunnable({ ...fields, run: () => undefined })).toThrow(
       message,
     );
+  });
+
+  it('rejects a configSchema that is not a Zod schema', () => {
+    expect(() =>
+      defineRunnable({
+        id: 'acme-report',
+        domain: 'acme',
+        configSchema: { parse: () => 1 },
+        run: () => undefined,
+      } as never),
+    ).toThrow(/configSchema must be a Zod schema/);
+  });
+
+  it('keeps a configSchema and types ctx.config from it (Decisions 79, 81)', async () => {
+    const configSchema = z.object({ channel: z.string() });
+    const seen: unknown[] = [];
+    const job = defineRunnable({
+      id: 'acme-brief',
+      domain: 'acme',
+      configSchema,
+      run: ({ config }) => {
+        expectTypeOf(config).toEqualTypeOf<{ channel: string }>();
+        seen.push(config.channel);
+      },
+    });
+    expect(job.configSchema).toBe(configSchema);
+    await job.run({ args: [], config: { channel: 'C1' } });
+    expect(seen).toEqual(['C1']);
+  });
+
+  it('types ctx.config as undefined without a configSchema', async () => {
+    const run = vi.fn<(config: undefined) => void>();
+    const job = defineRunnable({
+      id: 'acme-plain',
+      domain: 'acme',
+      run: ({ config }) => {
+        run(config);
+      },
+    });
+    expect(job.configSchema).toBeUndefined();
+    await job.run({ args: [] });
+    expect(run).toHaveBeenCalledWith(undefined);
   });
 
   it('rejects a declaration without a run function', () => {

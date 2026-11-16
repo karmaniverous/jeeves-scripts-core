@@ -16,6 +16,7 @@
 
 import { loadConfig } from '../config/loader.js';
 import { scheduleText } from '../config/schedule-schema.js';
+import { jobConfigs } from '../runnables/job-config.js';
 import { formatJobHelp } from '../runnables/job-help.js';
 import { type JobManifest, readCoreManifests } from '../runnables/manifest.js';
 import { loadJob } from '../runnables/registry.js';
@@ -55,26 +56,42 @@ export interface ListOptions extends RegisterOptions {
   coreManifests?: readonly JobManifest[];
 }
 
+/** An instance's registered runnables and jobs. */
+export interface Registered {
+  /** Every registered runnable. */
+  runnables: Runnable[];
+  /** Every job's effective manifest, by job id. */
+  manifests: Map<string, JobManifest>;
+  /** Every job's parsed config, by job id (`undefined` without a `configSchema`). */
+  configs: Map<string, unknown>;
+}
+
 /**
- * Register an instance (plugin load and registration, {@link registerInstance})
- * and resolve every runnable's effective manifest: what `list` and
- * `config check` validate.
+ * Register an instance (plugin load and registration, {@link registerInstance}),
+ * resolve every runnable's effective manifest and parse every job's config:
+ * what `list`, `doctor` and `config check` validate.
  *
- * @throws On a plugin load or registration error, an invalid manifest or
- *   an invalid delta.
+ * @throws On a plugin load or registration error, an invalid manifest,
+ *   an invalid delta or an invalid job config.
  */
 export const registerWithManifests = async (
   root: string,
   options: ListOptions = {},
-): Promise<{ runnables: Runnable[]; manifests: Map<string, JobManifest> }> => {
+): Promise<Registered> => {
   const runnables = await registerInstance(root, options);
+  const deltas = loadConfig().jobs;
   const manifests = registeredManifests({
     runnables,
     coreManifests: options.coreManifests ?? readCoreManifests(),
     instanceManifests: readInstanceManifests(root),
-    deltas: loadConfig().jobs,
+    deltas,
   });
-  return { runnables, manifests };
+  const configs = await jobConfigs({
+    runnables,
+    manifests: manifests.values(),
+    deltas,
+  });
+  return { runnables, manifests, configs };
 };
 
 /**

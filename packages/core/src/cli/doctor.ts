@@ -17,8 +17,9 @@
  * up by a person; no check can tell).
  *
  * Reads the instance config, loads its plugin (as `run` does), reads
- * core's and the instance's manifests, loads each manifest's module and
- * runs its prerequisite check. Runs no job body.
+ * core's and the instance's manifests, parses every job's config, loads
+ * each manifest's module and runs its prerequisite check with the job's
+ * id and config. Runs no job body.
  */
 
 import path from 'node:path';
@@ -26,6 +27,7 @@ import path from 'node:path';
 import { configCheck, describeConfigSource } from '../config/check.js';
 import { loadConfig, setConfigRoot } from '../config/loader.js';
 import type { JobModule } from '../runnables/define-runnable.js';
+import { jobConfigs } from '../runnables/job-config.js';
 import { type JobManifest, readCoreManifests } from '../runnables/manifest.js';
 import type { Plugin } from '../runnables/plugin.js';
 import { jobContext } from '../runnables/run-job.js';
@@ -75,6 +77,7 @@ const overrideLines = (plugin: Plugin | undefined, version: string) => {
 const prerequisiteState = async (
   manifest: JobManifest,
   runnable: Runnable | undefined,
+  config: unknown,
 ): Promise<string> => {
   let job: JobModule | undefined;
   try {
@@ -84,7 +87,10 @@ const prerequisiteState = async (
   }
   if (job && (job.prerequisite ?? job.doctorCheck)) {
     try {
-      const ctx = jobContext(job, manifest.args ?? [], { jobId: manifest.id });
+      const ctx = jobContext(job, manifest.args ?? [], {
+        jobId: manifest.id,
+        config,
+      });
       let ready = job.prerequisite ? await job.prerequisite(ctx) : true;
       if (ready === true && job.doctorCheck) ready = await job.doctorCheck(ctx);
       return ready === true ? 'met' : `not met: ${ready}`;
@@ -101,10 +107,13 @@ const prerequisiteState = async (
 const manifestLines = async (
   manifests: JobManifest[],
   runnables: Runnable[],
+  configs: ReadonlyMap<string, unknown>,
 ): Promise<string[]> => {
   const byId = new Map(runnables.map((r) => [r.id, r]));
   const states = await Promise.all(
-    manifests.map((m) => prerequisiteState(m, byId.get(m.id))),
+    manifests.map((m) =>
+      prerequisiteState(m, byId.get(m.id), configs.get(m.id)),
+    ),
   );
   const count = (prefix: string) =>
     String(states.filter((s) => s.startsWith(prefix)).length);
@@ -162,15 +171,21 @@ export const doctorReport = async (
 
   if (runnables) {
     try {
-      const manifests = [
-        ...registeredManifests({
-          runnables,
-          coreManifests: options.coreManifests ?? readCoreManifests(),
-          instanceManifests: readInstanceManifests(root),
-          deltas: loadConfig().jobs,
-        }).values(),
-      ];
-      lines.push(...(await manifestLines(manifests, runnables)));
+      const deltas = loadConfig().jobs;
+      const effective = registeredManifests({
+        runnables,
+        coreManifests: options.coreManifests ?? readCoreManifests(),
+        instanceManifests: readInstanceManifests(root),
+        deltas,
+      });
+      const configs = await jobConfigs({
+        runnables,
+        manifests: effective.values(),
+        deltas,
+      });
+      lines.push(
+        ...(await manifestLines([...effective.values()], runnables, configs)),
+      );
     } catch (e) {
       lines.push('manifests: FAILED', ...indent(message(e)));
     }

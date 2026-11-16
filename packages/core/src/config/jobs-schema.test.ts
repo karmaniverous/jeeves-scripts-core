@@ -59,3 +59,20 @@ describe('admin-refresh-sessions delta fields (spec 2.12)', () => {
     ]);
   });
 });
+
+describe('jobs delta config (Decision 81)', () => {
+  it('accepts a JSON object, nested values included', () => {
+    const delta = { config: { channel: 'C1', recipients: ['a'], n: { x: 1 } } };
+    expect(parse(delta).data?.['email-poll']).toEqual(delta);
+  });
+
+  it.each([
+    ['an array', ['a']],
+    ['a string', 'x'],
+    ['null', null],
+  ])('rejects %s', (_name, value) => {
+    const result = parse({ config: value });
+    expect(result.success).toBe(false);
+    expect(result.error?.issues[0]?.path).toEqual(['email-poll', 'config']);
+  });
+});

@@ -27,11 +27,14 @@ import type { JobContext, JobModule } from './define-runnable.js';
 export interface JobRunAs {
   /** The runner job id; default: the runnable id. */
   jobId?: string;
+  /** The job's parsed config (`ctx.config`); default: `undefined`. */
+  config?: unknown;
 }
 
 /**
  * The context a job runs with: its arguments, its declared flags parsed
- * from them (`{}` when it declares none), and the job id it runs as.
+ * from them (`{}` when it declares none), the job id it runs as and its
+ * config.
  *
  * @throws Error `<name> requires a value` when a declared valued option has none.
  */
@@ -43,6 +46,7 @@ export const jobContext = (
   args: [...args],
   flags: job.flags ? parseRunnableArgs(args, job.flags) : {},
   jobId: as.jobId ?? job.id,
+  config: as.config,
 });
 
 /** Seams for tests. */
@@ -66,8 +70,9 @@ const defaultDeps: RunJobDeps = {
  * skipped). A crash never resolves: `runScript` logs it and exits 1.
  *
  * @param as - The job the run executes as (`ctx.jobId`; default: the
- *   runnable id). It is `process.argv[1]` and, when the runnable has no
- *   `name`, the crash label (Decision 79).
+ *   runnable id) and its parsed config (`ctx.config`). The job id is
+ *   `process.argv[1]` and, when the runnable has no `name`, the crash
+ *   label (Decision 79).
  */
 export const runJobModule = (
   job: JobModule,

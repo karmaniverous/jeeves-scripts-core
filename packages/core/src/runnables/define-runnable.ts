@@ -18,13 +18,28 @@ export const jobContextSchema = z.object({
   args: z.array(z.string()).readonly(),
   /** The runner job id the run executes as (Decision 79). */
   jobId: z.string().min(1),
+  /** The job's config, parsed with the runnable's `configSchema` (Decision 81). */
+  config: z.unknown(),
 });
 
 /** No declared flags. */
 export type NoFlags = Record<string, never>;
 
-/** What a running job receives. */
-export interface JobContext<S extends ArgSpec = ArgSpec> {
+/** A runnable's config schema: any Zod 4 schema (Decision 80). */
+export type RunnableConfigSchema = z.ZodType;
+
+/** `ctx.config` for a config schema: its output, or `undefined` without one. */
+export type JobConfigOf<C extends RunnableConfigSchema | undefined> =
+  C extends RunnableConfigSchema ? z.output<C> : undefined;
+
+/**
+ * What a running job receives. `S` is its flag spec, which types
+ * `ctx.flags`; `C` its config schema, which types `ctx.config`.
+ */
+export interface JobContext<
+  S extends ArgSpec = ArgSpec,
+  C extends RunnableConfigSchema | undefined = RunnableConfigSchema | undefined,
+> {
   /** The job's command-line arguments (also in `process.argv.slice(2)`). */
   args: readonly string[];
   /** The declared flags, parsed (`defineRunnable({ flags })`); `{}` when none are declared. */
@@ -36,20 +51,28 @@ export interface JobContext<S extends ArgSpec = ArgSpec> {
    * job ids) by it.
    */
   jobId: string;
+  /**
+   * The job's config (Decision 81): `jobs.<runnableId>.config` with
+   * `jobs.<jobId>.config` merged over it, parsed with the runnable's
+   * `configSchema`; `undefined` for a runnable without one.
+   */
+  config: JobConfigOf<C>;
 }
 
 /** The job body. */
-export type JobRun<S extends ArgSpec = ArgSpec> = (
-  ctx: JobContext<S>,
-) => void | Promise<void>;
+export type JobRun<
+  S extends ArgSpec = ArgSpec,
+  C extends RunnableConfigSchema | undefined = RunnableConfigSchema | undefined,
+> = (ctx: JobContext<S, C>) => void | Promise<void>;
 
 /**
  * A prerequisite check: `true` when the job can run, else the reason it
  * can't (logged as `[skip] <reason>`; the run exits 0).
  */
-export type JobPrerequisite<S extends ArgSpec = ArgSpec> = (
-  ctx: JobContext<S>,
-) => true | string | Promise<true | string>;
+export type JobPrerequisite<
+  S extends ArgSpec = ArgSpec,
+  C extends RunnableConfigSchema | undefined = RunnableConfigSchema | undefined,
+> = (ctx: JobContext<S, C>) => true | string | Promise<true | string>;
 
 /** A Zod schema for a function-valued declaration field (internal). */
 export const fn = <T>(what: string) =>
@@ -99,6 +122,21 @@ export const jobDeclarationSchema = z
       .optional(),
     /** Usage text for accepted positional arguments, e.g. `<handle>`; unset = none accepted. */
     positionals: z.string().min(1).optional(),
+    /**
+     * Validates the job's config (Decisions 80, 81), which the run reads
+     * as `ctx.config`. Declaring one states that the runnable keys
+     * everything it owns by `ctx.jobId` and reads its settings from
+     * `ctx.config`, so a manifest entry may run it under another job id.
+     */
+    configSchema: z
+      .custom<RunnableConfigSchema>(
+        (v) =>
+          typeof v === 'object' &&
+          v !== null &&
+          typeof (v as { safeParse?: unknown }).safeParse === 'function',
+        { message: 'configSchema must be a Zod schema' },
+      )
+      .optional(),
     /** Checked before `run`; anything but `true` skips the run. */
     prerequisite: fn<JobPrerequisite>('prerequisite').optional(),
     /**
@@ -115,19 +153,27 @@ export const jobDeclarationSchema = z
     path: ['id'],
   });
 
-/** A runnable declaration; `S` is its flag spec, which types `ctx.flags`. */
-export type JobDeclaration<S extends ArgSpec = NoFlags> = Omit<
+/**
+ * A runnable declaration; `S` is its flag spec, which types `ctx.flags`,
+ * and `C` its config schema, which types `ctx.config`.
+ */
+export type JobDeclaration<
+  S extends ArgSpec = NoFlags,
+  C extends RunnableConfigSchema | undefined = undefined,
+> = Omit<
   z.infer<typeof jobDeclarationSchema>,
-  'flags' | 'prerequisite' | 'doctorCheck' | 'run'
+  'flags' | 'configSchema' | 'prerequisite' | 'doctorCheck' | 'run'
 > & {
   /** See {@link jobDeclarationSchema}. */
   flags?: S;
+  /** See {@link jobDeclarationSchema}. */
+  configSchema?: C;
   /** Checked before `run`; anything but `true` skips the run. */
-  prerequisite?: JobPrerequisite<S>;
+  prerequisite?: JobPrerequisite<S, C>;
   /** Checked by `doctor` only, once `prerequisite` is met (see {@link jobDeclarationSchema}). */
-  doctorCheck?: JobPrerequisite<S>;
+  doctorCheck?: JobPrerequisite<S, C>;
   /** The job body. */
-  run: JobRun<S>;
+  run: JobRun<S, C>;
 };
 
 const JOB = Symbol.for('@karmaniverous/jeeves-scripts-core/job');
@@ -144,6 +190,8 @@ export interface JobCallContext {
   flags?: ParsedArgs<ArgSpec>;
   /** The job id the run executes as; default: the runnable id. */
   jobId?: string;
+  /** The job's parsed config (see {@link JobContext}); default: `undefined`. */
+  config?: unknown;
 }
 
 /** A declared job, as `defineRunnable` returns it. */
@@ -178,13 +226,17 @@ export type JobModule = Readonly<
  *   domain: 'acme',
  *   prerequisite: () => hasAcmeConfig() || 'no acme block in the instance config',
  *   flags: { live: argFlag('--live', 'Write changes (default: dry run)') },
- *   run: async ({ flags }) => { await report(flags.live); },
+ *   configSchema: z.object({ channel: z.string() }),
+ *   run: async ({ flags, config }) => { await report(flags.live, config.channel); },
  * });
  * ```
  * @throws When the declaration is invalid (bad id, missing `run`, ...).
  */
-export const defineRunnable = <S extends ArgSpec = NoFlags>(
-  declaration: JobDeclaration<S>,
+export const defineRunnable = <
+  S extends ArgSpec = NoFlags,
+  C extends RunnableConfigSchema | undefined = undefined,
+>(
+  declaration: JobDeclaration<S, C>,
 ): JobModule => {
   const result = jobDeclarationSchema.safeParse(declaration);
   if (!result.success)
@@ -203,6 +255,7 @@ export const defineRunnable = <S extends ArgSpec = NoFlags>(
     args: ctx.args,
     flags: ctx.flags ?? jobContext(declaration, ctx.args).flags,
     jobId: ctx.jobId ?? declaration.id,
+    config: ctx.config,
   });
   return Object.freeze({
     ...(declaration as unknown as Omit<

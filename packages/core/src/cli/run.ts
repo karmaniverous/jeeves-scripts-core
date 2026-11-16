@@ -24,7 +24,8 @@
  * ({@link jobHelp}).
  */
 
-import { setConfigRoot } from '../config/loader.js';
+import { loadConfig, setConfigRoot } from '../config/loader.js';
+import { jobConfigOrThrow } from '../runnables/job-config.js';
 import { argsError, flagsDeprecation } from '../runnables/job-help.js';
 import type { RegistryEntry } from '../runnables/registry.js';
 import { runJobModule } from '../runnables/run-job.js';
@@ -77,7 +78,8 @@ export const resolveRunnable = (
  * `process.exitCode`), and to 1, without running it, when it declares
  * `flags` and `args` holds anything else.
  *
- * @throws On a registration error or an unknown id, before anything runs.
+ * @throws On a registration error, an unknown id or an invalid job config
+ *   (the runnable declares a `configSchema`), before anything runs.
  */
 export const runJob = async (
   root: string,
@@ -87,6 +89,14 @@ export const runJob = async (
 ): Promise<number> => {
   const runnable = resolveRunnable(await registerInstance(root, options), id);
   const job = await runnable.load();
+  const config = job.configSchema
+    ? jobConfigOrThrow({
+        jobId: id,
+        runnableId: id,
+        schema: job.configSchema,
+        deltas: loadConfig().jobs,
+      })
+    : undefined;
   const error = argsError(job, args);
   if (error) {
     console.error(error);
@@ -94,6 +104,6 @@ export const runJob = async (
   }
   const deprecation = flagsDeprecation(job, args);
   if (deprecation) console.warn(deprecation);
-  await runJobModule(job, args, undefined, { jobId: id });
+  await runJobModule(job, args, undefined, { jobId: id, config });
   return 0;
 };
