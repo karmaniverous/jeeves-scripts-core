@@ -38,6 +38,12 @@ export const onDemandJobs: readonly RegistryEntry[] = [
     load: () => import('../convert/convert-pdf-to-md.js'),
   },
   {
+    id: 'convert-pdf-to-png',
+    domain: 'convert',
+    module: 'convert/convert-pdf-to-png',
+    load: () => import('../convert/convert-pdf-to-png.js'),
+  },
+  {
     id: 'email-inventory',
     domain: 'email',
     module: 'email/google-workspace/inventory',

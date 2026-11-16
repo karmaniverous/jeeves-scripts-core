@@ -4,3 +4,7 @@
 # Optional: allow CRLF where required on Windows scripts
 *.bat text eol=crlf
 *.cmd text eol=crlf
+
+# Binary fixtures: never normalize line endings
+*.pdf binary
+*.png binary

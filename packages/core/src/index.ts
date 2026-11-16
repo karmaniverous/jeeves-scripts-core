@@ -35,6 +35,11 @@ export * from './config/index.js';
 export { convertDocxToMd } from './convert/docx-to-md.js';
 export type { ConvertResult } from './convert/lib/convert-files.js';
 export { convertPdfToMd } from './convert/pdf-to-md.js';
+export {
+  type RenderedPdfPage,
+  renderPdfPages,
+  type RenderPdfPagesOptions,
+} from './convert/pdf-to-png.js';
 export * from './dispatchers/lib/briefing.js';
 export {
   DIGEST_TIMEZONE_REF,

@@ -169,6 +169,7 @@ const EXPECTED = [
   'readServerAccess',
   'readStdinJson',
   'relativeDays',
+  'renderPdfPages',
   'renderPunchList',
   'reportOnlyFor',
   'reportPath',
