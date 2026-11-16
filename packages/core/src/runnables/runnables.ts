@@ -14,6 +14,9 @@
  * - an instance manifest names a registered runnable that has no core
  *   manifest: an instance runnable, or a manifest-less core runnable
  *   (Decision 50); a core manifest changes only through deltas;
+ * - an instance manifest entry that sets `runnable` is a job running that
+ *   runnable under its own id (Decision 80; rules in
+ *   `runnables/job-instances`); a core manifest never sets it;
  * - an instance runnable without a manifest has a `defineRunnable` description
  *   (`list` shows it; Decision 57).
  *
@@ -26,6 +29,7 @@ import path from 'node:path';
 
 import type { JobDelta } from '../config/jobs-schema.js';
 import { defineRunnable, type JobModule } from './define-runnable.js';
+import { checkJobEntry, manifestFile } from './job-instances.js';
 import {
   effectiveManifests,
   type JobManifest,
@@ -56,6 +60,11 @@ export interface Runnable {
   description?: string;
   /** The runnable to run. */
   load: () => Promise<JobModule>;
+  /**
+   * Set on a job that runs another runnable (Decision 80): that runnable's
+   * id (`load` loads it). See `runnables/job-instances`.
+   */
+  runnable?: string;
 }
 
 /**
@@ -201,8 +210,9 @@ export interface RegisteredManifestsInput {
 }
 
 /**
- * Every runnable's effective manifest (deltas applied), keyed by id;
- * runnables without one are absent.
+ * Every job's effective manifest (deltas applied), keyed by job id: each
+ * runnable's own, if it has one, and each job that runs another runnable
+ * (its `domain` set to the runnable's).
  *
  * @throws When an instance manifest breaks a rule in the module doc, a
  *   delta names an unregistered id, or an instance runnable has neither a
@@ -216,11 +226,26 @@ export const registeredManifests = ({
 }: RegisteredManifestsInput): Map<string, JobManifest> => {
   const byId = new Map(runnables.map((r) => [r.id, r]));
   const coreIds = new Set(coreManifests.map((m) => m.id));
-  const problems: string[] = [];
+  const problems: string[] = coreManifests
+    .filter((m) => m.runnable !== undefined)
+    .map(
+      (m) =>
+        `core manifest "${m.id}" sets runnable; only instance manifests may`,
+    );
   const instance: JobManifest[] = [];
+  const jobIds: string[] = [];
   for (const m of instanceManifests) {
+    const file = manifestFile(m);
+    if (m.runnable !== undefined) {
+      const check = checkJobEntry(m.id, m.runnable, file, byId);
+      if ('problem' in check) problems.push(check.problem);
+      else {
+        instance.push({ ...m, domain: check.runnable.domain });
+        jobIds.push(m.id);
+      }
+      continue;
+    }
     const runnable = byId.get(m.id);
-    const file = `jobs/${m.domain}.json`;
     if (!runnable)
       problems.push(`${file}: "${m.id}" is not a registered runnable`);
     else if (coreIds.has(m.id))
@@ -237,7 +262,7 @@ export const registeredManifests = ({
     effectiveManifests({
       manifests: [...coreManifests, ...instance],
       deltas,
-      knownIds: new Set(byId.keys()),
+      knownIds: new Set([...byId.keys(), ...jobIds]),
     }).map((m) => [m.id, m]),
   );
   const undescribed = runnables.filter(

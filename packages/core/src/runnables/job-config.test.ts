@@ -241,6 +241,43 @@ describe('jobConfigs', () => {
     expect(configs.size).toBe(0);
   });
 
+  it('merges the config of a job running another runnable, and reports one whose runnable has no schema by its file', async () => {
+    const job = (id: string, runnable: string): JobManifest => ({
+      ...manifest(id),
+      runnable,
+    });
+    const input = {
+      runnables: [runnable('acme-brief', schema), runnable('acme-plain')],
+      deltas: {
+        'acme-brief': { config: { channel: 'C1' } },
+        'acme-brief-x': { config: { recipients: ['b'] } },
+      },
+    };
+    const configs = await jobConfigs({
+      ...input,
+      manifests: [job('acme-brief-x', 'acme-brief')],
+    });
+    expect(configs.get('acme-brief-x')).toEqual({
+      channel: 'C1',
+      recipients: ['b'],
+      limits: { max: 10, min: 0 },
+    });
+    const plainJob = job('acme-plain-x', 'acme-plain');
+    await expect(
+      jobConfigs({
+        ...input,
+        manifests: [plainJob],
+        deltas: { 'acme-plain-x': { config: { a: 1 } } },
+        instanceManifests: [{ ...plainJob, domain: 'local' }],
+      }),
+    ).rejects.toThrow(
+      /^Invalid job config:\n- jobs\/local\.json: job "acme-plain-x" runs "acme-plain", which declares no configSchema$/,
+    );
+    await expect(
+      jobConfigs({ ...input, manifests: [plainJob], deltas: {} }),
+    ).rejects.toThrow('- jobs/acme.json: job "acme-plain-x" runs "acme-plain"');
+  });
+
   it('skips a module that fails to load: run and doctor report that', async () => {
     const configs = await jobConfigs({
       runnables: [

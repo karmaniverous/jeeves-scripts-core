@@ -8,7 +8,8 @@
  * without one has no config (`ctx.config` is `undefined`).
  *
  * Registration ({@link jobConfigs}) resolves the config of every job (every
- * effective manifest), so `config check`, `list` and `run` fail the same
+ * effective manifest, a job running another runnable included, whose
+ * runnable must declare a `configSchema`; Decision 80), so `config check`, `list` and `run` fail the same
  * way, naming the job id, on an invalid one. A `jobs.<id>.config` delta
  * whose runnable declares no `configSchema` has no effect, and fails
  * registration like any other inert delta (Decision 58).
@@ -18,6 +19,7 @@ import { z } from 'zod';
 
 import type { JobDelta } from '../config/jobs-schema.js';
 import type { JobModule, RunnableConfigSchema } from './define-runnable.js';
+import { manifestFile, noConfigSchemaProblem } from './job-instances.js';
 import type { JobManifest } from './manifest.js';
 import type { Runnable } from './runnables.js';
 
@@ -104,6 +106,12 @@ export interface JobConfigsInput {
   manifests: Iterable<JobManifest>;
   /** The `jobs` block of the instance config (ids already checked). */
   deltas: Readonly<Record<string, JobDelta>>;
+  /**
+   * The instance's manifests as read, whose files the problems of a job
+   * running another runnable name. Default: none (the file is then named
+   * by the runnable's domain).
+   */
+  instanceManifests?: readonly JobManifest[];
 }
 
 /**
@@ -120,6 +128,7 @@ export const jobConfigs = async ({
   runnables,
   manifests,
   deltas,
+  instanceManifests = [],
 }: JobConfigsInput): Promise<Map<string, unknown>> => {
   const byId = new Map(runnables.map((r) => [r.id, r]));
   // null: the module failed to load.
@@ -133,19 +142,38 @@ export const jobConfigs = async ({
     return job;
   };
   const jobs = [...manifests];
+  const instanceJobs = new Set(
+    jobs.filter((m) => m.runnable !== undefined).map((m) => m.id),
+  );
+  const files = new Map(instanceManifests.map((m) => [m.id, manifestFile(m)]));
+  // A job running another runnable has its config read (or its missing
+  // configSchema reported) with the job itself.
   const configured = Object.entries(deltas)
-    .filter(([, delta]) => delta.config !== undefined)
+    .filter(
+      ([id, delta]) => delta.config !== undefined && !instanceJobs.has(id),
+    )
     .map(([id]) => id);
   const [results, schemaless] = await Promise.all([
     Promise.all(
-      jobs.map(async (m) =>
-        parseJobConfig({
+      jobs.map(async (m): Promise<JobConfigResult> => {
+        const runnableId = m.runnable ?? m.id;
+        const job = await load(runnableId);
+        if (m.runnable !== undefined && job !== null && !job?.configSchema)
+          return {
+            ok: false,
+            problem: noConfigSchemaProblem(
+              files.get(m.id) ?? manifestFile(m),
+              m.id,
+              runnableId,
+            ),
+          };
+        return parseJobConfig({
           jobId: m.id,
-          runnableId: m.id,
-          schema: (await load(m.id))?.configSchema,
+          runnableId,
+          schema: job?.configSchema,
           deltas,
-        }),
-      ),
+        });
+      }),
     ),
     Promise.all(
       configured.map(async (id) => {

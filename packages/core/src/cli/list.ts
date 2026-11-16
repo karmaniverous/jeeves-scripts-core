@@ -4,7 +4,9 @@
  * `jeeves-scripts list [glob] [--json]` (Decision 49, R43; design §6):
  * every registered runnable, core and instance, whose id matches `glob`
  * (shell-style `*`, `?` and `[...]` against the id; default `*`), sorted by
- * id. Each shows its source (`core`, `instance` or `override`), its
+ * id, with every job that runs another runnable (Decision 80), shown as
+ * `<jobId> → <runnable>` (`--json`: `runnable`). Each shows its source
+ * (`core`, `instance` or `override`; a job, its runnable's), its
  * effective schedule and `enabled` after the instance's deltas when it has
  * a manifest, and one line of description: the manifest's, else the one
  * in `defineRunnable`. `--json` adds `domain` and the effective `manifest`
@@ -18,6 +20,7 @@ import { loadConfig } from '../config/loader.js';
 import { scheduleText } from '../config/schedule-schema.js';
 import { jobConfigs } from '../runnables/job-config.js';
 import { formatJobHelp } from '../runnables/job-help.js';
+import { withJobs } from '../runnables/job-instances.js';
 import { type JobManifest, readCoreManifests } from '../runnables/manifest.js';
 import { loadJob } from '../runnables/registry.js';
 import {
@@ -48,6 +51,8 @@ export interface ListEntry {
   description: string;
   /** The effective manifest after deltas, or `null`. */
   manifest: JobManifest | null;
+  /** Set on a job that runs another runnable (Decision 80): that runnable's id. */
+  runnable?: string;
 }
 
 /** Seams for tests. */
@@ -58,7 +63,7 @@ export interface ListOptions extends RegisterOptions {
 
 /** An instance's registered runnables and jobs. */
 export interface Registered {
-  /** Every registered runnable. */
+  /** Every registered runnable, and every job that runs another runnable. */
   runnables: Runnable[];
   /** Every job's effective manifest, by job id. */
   manifests: Map<string, JobManifest>;
@@ -80,18 +85,24 @@ export const registerWithManifests = async (
 ): Promise<Registered> => {
   const runnables = await registerInstance(root, options);
   const deltas = loadConfig().jobs;
+  const instanceManifests = readInstanceManifests(root);
   const manifests = registeredManifests({
     runnables,
     coreManifests: options.coreManifests ?? readCoreManifests(),
-    instanceManifests: readInstanceManifests(root),
+    instanceManifests,
     deltas,
   });
   const configs = await jobConfigs({
     runnables,
     manifests: manifests.values(),
     deltas,
+    instanceManifests,
   });
-  return { runnables, manifests, configs };
+  return {
+    runnables: withJobs(runnables, manifests.values()),
+    manifests,
+    configs,
+  };
 };
 
 /**
@@ -116,8 +127,12 @@ export const jobHelp = async (
   } catch {
     runnables = await registerInstance(root, options);
   }
-  const job = await resolveRunnable(runnables, id).load();
-  return formatJobHelp(job, manifest);
+  const runnable = resolveRunnable(runnables, id);
+  return formatJobHelp(
+    await runnable.load(),
+    manifest,
+    runnable.runnable === undefined ? undefined : id,
+  );
 };
 
 /** A shell-style glob (`*`, `?`, `[...]`) as an anchored RegExp. */
@@ -166,6 +181,7 @@ export const listRunnables = async (
       enabled: manifest?.enabled ?? null,
       description: manifest?.description ?? (await describe(r)),
       manifest,
+      ...(r.runnable === undefined ? {} : { runnable: r.runnable }),
     });
   }
   return entries;
@@ -176,7 +192,7 @@ export const formatList = (entries: readonly ListEntry[]): string[] => {
   const rows = [
     ['id', 'source', 'schedule', 'enabled', 'description'],
     ...entries.map((e) => [
-      e.id,
+      e.runnable === undefined ? e.id : `${e.id} → ${e.runnable}`,
       e.source,
       e.schedule === null ? '' : scheduleText(e.schedule),
       e.enabled === null ? '' : String(e.enabled),

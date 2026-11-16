@@ -112,7 +112,7 @@ const manifestLines = async (
   const byId = new Map(runnables.map((r) => [r.id, r]));
   const states = await Promise.all(
     manifests.map((m) =>
-      prerequisiteState(m, byId.get(m.id), configs.get(m.id)),
+      prerequisiteState(m, byId.get(m.runnable ?? m.id), configs.get(m.id)),
     ),
   );
   const count = (prefix: string) =>
@@ -121,7 +121,7 @@ const manifestLines = async (
     `manifests: ${String(manifests.length)} (prerequisites: ${count('met')} met, ${count('not met')} not met, ${count('manual')} manual)`,
     ...manifests.map(
       (m, i) =>
-        `  ${m.id}: ${m.enabled ? 'enabled' : 'disabled'}; prerequisite: ${states[i] ?? ''}`,
+        `  ${m.runnable === undefined ? m.id : `${m.id} → ${m.runnable}`}: ${m.enabled ? 'enabled' : 'disabled'}; prerequisite: ${states[i] ?? ''}`,
     ),
   ];
 };
@@ -172,16 +172,18 @@ export const doctorReport = async (
   if (runnables) {
     try {
       const deltas = loadConfig().jobs;
+      const instanceManifests = readInstanceManifests(root);
       const effective = registeredManifests({
         runnables,
         coreManifests: options.coreManifests ?? readCoreManifests(),
-        instanceManifests: readInstanceManifests(root),
+        instanceManifests,
         deltas,
       });
       const configs = await jobConfigs({
         runnables,
         manifests: effective.values(),
         deltas,
+        instanceManifests,
       });
       lines.push(
         ...(await manifestLines([...effective.values()], runnables, configs)),
