@@ -9,8 +9,12 @@
  * Used by google-drive/lib/frontmatter and convert/lib/convert-utils.
  */
 
-/** A frontmatter value; `undefined` omits the field. */
-export type FrontmatterValue = string | number | boolean | undefined;
+/**
+ * A frontmatter value; `undefined` omits the field. A list of numbers is
+ * written as a JSON array (a YAML flow sequence).
+ */
+export type FrontmatterValue =
+  string | number | boolean | readonly number[] | undefined;
 
 /**
  * Build a frontmatter block (`---` lines, then a blank line).

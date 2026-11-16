@@ -24,13 +24,24 @@ afterEach(() => {
 });
 
 describe('extractPdfText', () => {
-  it('returns text and page count, then destroys the parser', async () => {
-    mocks.getText.mockResolvedValue({ text: 'hello', total: 2, pages: [] });
+  it('returns text, page count and per-page text, then destroys the parser', async () => {
+    mocks.getText.mockResolvedValue({
+      text: 'hello',
+      total: 2,
+      pages: [
+        { num: 1, text: 'hello', extra: true },
+        { num: 2, text: '' },
+      ],
+    });
     const data = Buffer.from('%PDF');
 
     await expect(extractPdfText(data)).resolves.toEqual({
       text: 'hello',
       total: 2,
+      pages: [
+        { num: 1, text: 'hello' },
+        { num: 2, text: '' },
+      ],
     });
     expect(mocks.options).toEqual([{ data }]);
     expect(mocks.destroy).toHaveBeenCalledTimes(1);

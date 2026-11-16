@@ -33,8 +33,11 @@ export interface Extracted {
   frontmatter?: Record<string, FrontmatterValue>;
 }
 
-/** Turns a file's bytes into Markdown. */
-export type Extract = (data: Buffer) => Promise<Extracted>;
+/**
+ * Turns a file's bytes into Markdown. `file` is the file's path, for
+ * warnings that name it.
+ */
+export type Extract = (data: Buffer, file: string) => Promise<Extracted>;
 
 /**
  * Convert one file to Markdown at `output`, with `source`, `converted` and
@@ -52,7 +55,7 @@ export async function convertFile(
   extract: Extract,
   now: () => Date = () => new Date(),
 ): Promise<void> {
-  const { content, frontmatter } = await extract(readFileSync(input));
+  const { content, frontmatter } = await extract(readFileSync(input), input);
   writeMdFile(
     output,
     { source: input, converted: now().toISOString(), ...frontmatter },
