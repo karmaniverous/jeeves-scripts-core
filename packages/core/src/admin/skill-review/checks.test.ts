@@ -6,7 +6,11 @@
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { checkProposal, DESCRIPTION_MAX_CHARS } from './checks.js';
+import {
+  checkProposal,
+  DESCRIPTION_MAX_CHARS,
+  SKILL_MAX_CHARS,
+} from './checks.js';
 import type { InventorySkill } from './inventory.js';
 import type { PendingProposal } from './proposals.js';
 
@@ -63,6 +67,8 @@ describe('checkProposal', () => {
       draftDescription: 'Draft description',
       draftDescriptionChars: 17,
       descriptionTooLong: false,
+      draftChars: 51,
+      skillTooLarge: false,
       childProcessFiles: ['scripts/a.cjs'],
       duplicateDrafts: ['p2'],
       liveSkillFile: LIVE.file,
@@ -108,6 +114,45 @@ describe('checkProposal', () => {
       description: 'x'.repeat(DESCRIPTION_MAX_CHARS),
     });
     expect(checkProposal(p, [p], []).descriptionTooLong).toBe(false);
+  });
+
+  const sized = (chars: number) =>
+    proposal({
+      artifacts: [
+        {
+          path: 'PROPOSAL.md',
+          sizeBytes: chars * 2,
+          content: '\u00e9'.repeat(chars),
+          source: 'store',
+        },
+      ],
+    });
+
+  it('accepts a draft SKILL.md of exactly the size limit, counted in chars', () => {
+    const p = sized(SKILL_MAX_CHARS);
+    expect(checkProposal(p, [p], [])).toMatchObject({
+      draftChars: SKILL_MAX_CHARS,
+      skillTooLarge: false,
+    });
+  });
+
+  it('flags a draft SKILL.md one char over the size limit', () => {
+    const p = sized(SKILL_MAX_CHARS + 1);
+    expect(checkProposal(p, [p], [])).toMatchObject({
+      draftChars: SKILL_MAX_CHARS + 1,
+      skillTooLarge: true,
+    });
+  });
+
+  it('leaves the size unknown and unflagged when the draft text was not read', () => {
+    const p = proposal({
+      artifacts: [
+        { path: 'PROPOSAL.md', sizeBytes: 99_999, source: 'missing' },
+      ],
+    });
+    const c = checkProposal(p, [p], []);
+    expect(c).not.toHaveProperty('draftChars');
+    expect(c.skillTooLarge).toBe(false);
   });
 
   it('scans only support files for child_process, not the draft', () => {

@@ -10,7 +10,7 @@
  */
 
 import { withDateContext } from '../../lib/dates.js';
-import { DESCRIPTION_MAX_CHARS } from './checks.js';
+import { DESCRIPTION_MAX_CHARS, SKILL_MAX_CHARS } from './checks.js';
 import { DISPOSITION_LABELS } from './report.js';
 
 /** What the TASK names. */
@@ -41,6 +41,7 @@ export function buildTask(input: TaskInput): string {
   const ids = input.proposalIds.map((id) => `- \`${id}\``).join('\n');
   const dispositions = DISPOSITION_LABELS.join(' | ');
   const maxChars = String(DESCRIPTION_MAX_CHARS);
+  const skillMaxChars = SKILL_MAX_CHARS.toLocaleString('en-US');
   const task = `# Daily Skill Workshop proposal review
 
 You review the pending Skill Workshop proposals and report. **You only report.** Never call the \`skill_workshop\` tool, never apply, reject, revise or quarantine a proposal, never post to Slack, and never create, edit or delete any file except the one report file named below.
@@ -58,7 +59,7 @@ ${ids}
 
 ## For each proposal
 
-1. Read the draft, its support files and, for an update, \`LIVE-SKILL.md\`. Read every inventory skill whose name, description or subject overlaps it.
+1. Read the draft, its support files and, for an update, \`LIVE-SKILL.md\`. Read every inventory skill whose name, description or subject overlaps it. Apply **Prefer extending an existing skill** below.
 2. Write a one-line **short description** of what the proposal does (plain language, no jargon — this goes straight to Slack).
 3. Decide a **disposition**, exactly one of: ${dispositions}.
    - **Approve as is**: apply it unchanged.
@@ -66,7 +67,12 @@ ${ids}
    - **Reject or decline**: say why in the recommendation: duplicate (of what), one-off record (belongs in memory or files), superseded (by what), wrong home (where it belongs), or another concrete reason.
    - **Not reviewed**: you ran out of room to judge it this run; say so in the recommendation.
 4. Write a one-line **recommendation**: exactly what the operator should do next. This is the line that goes to Slack next to the short description, so make it stand on its own.
-5. Note any **flags**, when true: revert risk (the draft would revert content or the description that is newer in the live skill — the index says whether the live skill changed after the draft was created), description too long (over ${maxChars} chars; the index gives the char count), \`child_process\` (a support script uses it; the Workshop scanner quarantines it), duplicate drafts (several pending drafts for the same skill; recommend which to keep or how to consolidate).
+5. Note any **flags**, when true: revert risk (the draft would revert content or the description that is newer in the live skill — the index says whether the live skill changed after the draft was created), description too long (over ${maxChars} chars; the index gives the char count), \`child_process\` (a support script uses it; the Workshop scanner quarantines it), duplicate drafts (several pending drafts for the same skill; recommend which to keep or how to consolidate), skill too large (below).
+
+## Prefer extending an existing skill
+
+- **Every create:** check the whole inventory (the live skill catalog) for an existing skill that covers the same class of work, judged by subject and description, not just name. If one exists, the disposition is **Approve with modifications**, not Reject or decline (the content is kept, as with a hoist), and the recommendation is to fold the draft into that skill, named, as a section or a \`references/\` file, instead of applying this create as a new skill (a package-owned skill takes the fold through its package, as for a hoist). Keep it a separate new skill only when the recommendation states the clear reason one is needed: its trigger phrases are distinct and its work does not overlap the existing skill's.
+- **Every update** (and any create): if the draft's SKILL.md is over ${skillMaxChars} chars (the index says so for each proposal), flag **skill too large** and recommend moving whole sections into \`references/\` files the skill links to.
 
 ## Report
 
@@ -91,7 +97,7 @@ Write the whole report, in Markdown, to \`${input.reportFile}\` (overwrite it if
 
 **Recommendation:** <one line, stands alone>
 
-**Flags:** <revert risk, description too long, child_process, duplicate drafts; or "none">
+**Flags:** <revert risk, description too long, child_process, duplicate drafts, skill too large; or "none">
 \`\`\`\`
 
 One \`### <proposal id>\` section per proposal above, headed with the exact id, each with \`**Disposition:**\`, \`**Short description:**\` and \`**Recommendation:**\` lines. The job fails if a section or any of those three lines is missing. The report is delivered to \`${input.deliveredReport}\`; the script posts the Slack summary from it, so write these three lines as if they will be read verbatim in Slack.`;

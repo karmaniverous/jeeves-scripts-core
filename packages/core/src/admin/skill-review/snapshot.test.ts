@@ -66,6 +66,8 @@ const CHECKS: ProposalChecks = {
   draftDescription: 'Draft',
   draftDescriptionChars: 5,
   descriptionTooLong: true,
+  draftChars: 12_345,
+  skillTooLarge: true,
   childProcessFiles: ['scripts/x.cjs'],
   duplicateDrafts: [],
   liveSkillFile: '/w/alpha/SKILL.md',
@@ -115,6 +117,9 @@ describe('writeSnapshot', () => {
     expect(index).toContain('### alpha-1');
     expect(index).toContain('(9 B, MISSING)');
     expect(index).toContain('Draft description (5 chars, over 160: **yes**)');
+    expect(index).toContain(
+      '- Draft SKILL.md size: 12345 chars, over 10000: **yes**',
+    );
     expect(index).toContain('Support files using child_process: scripts/x.cjs');
     expect(index).toContain('Other pending drafts for the same skill: none');
     expect(index).toContain('Live skill: none');
