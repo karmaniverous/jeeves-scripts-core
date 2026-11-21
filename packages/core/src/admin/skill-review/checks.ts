@@ -3,7 +3,8 @@
  *
  * The mechanical checks the script runs on each pending proposal before
  * the worker sees it, so the worker confirms facts instead of hunting for
- * them: description length (over {@link DESCRIPTION_MAX_CHARS}), support files
+ * them: description length (over {@link DESCRIPTION_MAX_CHARS}), draft
+ * size (over {@link SKILL_MAX_CHARS}), support files
  * that use `child_process` (the Workshop scanner quarantines them), other
  * pending drafts for the same skill, the live skill an update targets
  * and whether it changed after the draft was made (a revert risk), and
@@ -22,6 +23,13 @@ import { pathKey } from './skill-fs.js';
  */
 export const DESCRIPTION_MAX_CHARS = 160;
 
+/**
+ * The largest SKILL.md, in chars (UTF-16 code units), before whole
+ * sections should move into `references/` files. A Jeeves convention that
+ * keeps each skill quick to load, not an OpenClaw limit.
+ */
+export const SKILL_MAX_CHARS = 10_000;
+
 /** The checks' findings for one proposal. */
 export interface ProposalChecks {
   /** The draft's frontmatter description (else the listed one). */
@@ -30,6 +38,10 @@ export interface ProposalChecks {
   draftDescriptionChars: number;
   /** Whether it exceeds {@link DESCRIPTION_MAX_CHARS}. */
   descriptionTooLong: boolean;
+  /** The draft SKILL.md's length in chars, when its text was read. */
+  draftChars?: number;
+  /** Whether the draft SKILL.md exceeds {@link SKILL_MAX_CHARS}. */
+  skillTooLarge: boolean;
   /** Support files that mention `child_process`. */
   childProcessFiles: string[];
   /** Other pending proposals for the same skill. */
@@ -66,6 +78,7 @@ export function checkProposal(
     parseSkillFrontmatter(draft?.content ?? '').description ??
     proposal.description;
   const draftDescriptionChars = draftDescription.length;
+  const draftChars = draft?.content?.length;
   const target = proposal.targetSkillFile;
   // The exact path first; a case-folded match only where paths fold
   // (Windows), never over an exact one.
@@ -79,6 +92,8 @@ export function checkProposal(
     draftDescription,
     draftDescriptionChars,
     descriptionTooLong: draftDescriptionChars > DESCRIPTION_MAX_CHARS,
+    ...(draftChars === undefined ? {} : { draftChars }),
+    skillTooLarge: (draftChars ?? 0) > SKILL_MAX_CHARS,
     childProcessFiles: proposal.artifacts
       .filter((a) => a.path !== PROPOSAL_FILE)
       .filter((a) => a.content?.includes('child_process'))

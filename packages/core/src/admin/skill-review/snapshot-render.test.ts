@@ -58,6 +58,7 @@ describe('renderIndex', () => {
     draftDescription: 'Draft',
     draftDescriptionChars: 5,
     descriptionTooLong: false,
+    skillTooLarge: false,
     childProcessFiles: [],
     duplicateDrafts: [],
     liveSkillFile: '/w/alpha/SKILL.md',
@@ -74,6 +75,26 @@ describe('renderIndex', () => {
   it('names the live skill copy, its source and its description', () => {
     expect(liveLine(checks)).toBe(
       '- Live skill: `proposals/a_b/LIVE-SKILL.md` (from /w/alpha/SKILL.md); live description: Live one',
+    );
+  });
+
+  const sizeLine = (c: ProposalChecks): string | undefined =>
+    renderIndex([{ proposal, checks: c }], [])
+      .split('\n')
+      .find((l) => l.startsWith('- Draft SKILL.md size:'));
+
+  it('gives the draft size and whether it is over the limit', () => {
+    expect(
+      sizeLine({ ...checks, draftChars: 10_001, skillTooLarge: true }),
+    ).toBe('- Draft SKILL.md size: 10001 chars, over 10000: **yes**');
+    expect(sizeLine({ ...checks, draftChars: 9 })).toBe(
+      '- Draft SKILL.md size: 9 chars, over 10000: no',
+    );
+  });
+
+  it('says the draft size is unread when its text was not read', () => {
+    expect(sizeLine(checks)).toBe(
+      '- Draft SKILL.md size: unread, over 10000: no',
     );
   });
 

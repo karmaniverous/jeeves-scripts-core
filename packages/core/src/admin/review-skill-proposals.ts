@@ -17,7 +17,8 @@
  * workspace skills and OpenClaw's bundled skills, each labelled with its
  * origin; `skill-review/inventory`), plus the mechanical checks
  * (description over 160 chars, a Jeeves convention for catalog size,
- * not an OpenClaw limit; support files using
+ * not an OpenClaw limit; a draft SKILL.md over 10,000 chars; support
+ * files using
  * `child_process`, duplicate drafts, a live skill changed after the
  * draft; `skill-review/checks`), written to a snapshot in
  * `{stateDir}/admin/skill-review/runs/<YYYYMMDD-HHMMSS>/` (the newest 14
@@ -26,7 +27,9 @@
  * **Review (worker).** The worker reads the snapshot and writes only its
  * report in the run directory: one `### <id>` section per proposal with a
  * disposition, a short description and a recommendation
- * (`skill-review/task`, `skill-review/report`). It is dispatched with no
+ * (`skill-review/task`, `skill-review/report`). It prefers extending an
+ * existing skill over creating one, and flags updates that would make a
+ * skill too large. It is dispatched with no
  * Slack post targets and never calls `skill_workshop`.
  *
  * **Deliver and post (script).** The report's insider link is resolved
