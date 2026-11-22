@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-11-22
+
+### 🚀 Features
+
+- *(skill-review)* Prefer extending an existing skill; flag oversized drafts
 ## [0.4.0] - 2026-11-16
 
 ### 💼 Other
@@ -45,6 +50,10 @@ Guides: runnables (ctx.jobId/ctx.config, configSchema promise, jobs that run ano
 - [91] fix(runnables): crash label <name> (<jobId>) for jobs of a named runnable (#91)
 
 Decision 79 as amended 2026-11-16 (Jason: option a): a job that runs a named runnable under another id logs crashes as '<name> (<jobId>)', so two jobs of one runnable never share a label. crashLabel() is exported from run-job.ts for the rule; guides/runnables.md says so.
+
+### ⚙️ Miscellaneous Tasks
+
+- Release @karmaniverous/jeeves-scripts-core v0.4.0
 ## [0.3.5] - 2026-11-07
 
 ### 📚 Documentation
